@@ -14,6 +14,7 @@ active_logger = logging.getLogger(__name__)
 # Change this certs path to wherever you're storing your certificates
 certs_path = os.environ['USERPROFILE'] + r'\OneDrive\Betfair\bf certs'
 
+# TODO update these to retreieve from memory!
 # Change these login details to your own
 my_username = "joelyboyrasta@live.co.uk"
 my_password = "L0rdTr@d3r"
