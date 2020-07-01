@@ -4,6 +4,8 @@ import re
 import json
 import jsonpickle
 import numpy
+import logging
+
 
 def milliseconds():
     return round(time.time()*1000)

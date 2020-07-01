@@ -151,6 +151,9 @@ class RaceSimulator:
         # how many seconds on x axis of runner chart
         self.chartSeconds = 60
 
+        # initial message when loading race
+        self.initMessage = ""
+
     # reset present day timer - in other words resets current time delta to 0
     # if presentTimestamp was 18:30 and current time 18:31, then update_race_time() would increment race time by 1 min
     # if reset_simulation_timer() was called prior, presentTimestamp would be reset to 18:31 and update_race_time()
@@ -182,6 +185,9 @@ class RaceSimulator:
 
         # get timestamps from records
         self.recordTimestamps =  numpy.array([record.publish_time for record in self.historicalList])
+
+        # generate and store initial message
+        self.initMessage = self._generate_init()
 
     # get index of historical list incrementing on current index position to race timestamp passed
     def _get_next_index(self, index, race_timestamp):
@@ -261,20 +267,14 @@ class RaceSimulator:
         return slice(index_start, index_end + 1)
 
     # get 'x'and 'y' dict of datetimes and last traded price history for a runner object
-    def _ltp_history(self, runner: dict, index_slice: slice):
-
-        timestamps = self.currentTimestamp - self.recordTimestamps[index_slice]
-
-        if len(timestamps):
-            timestamps[0] = timedelta(0)
-            timestamps[-1] = timedelta(seconds=self.chartSeconds)
+    def _ltp_history(self, runner: dict, time_diffs: List[timedelta]):
 
         return [
             {
                 'x': td.total_seconds(),
                 'y': ltp
             }
-            for [td, ltp] in zip(timestamps, runner['last_price_traded'][index_slice])
+            for [td, ltp] in zip(time_diffs, runner['last_price_traded'])
         ]
 
     def get_message(self):
@@ -284,42 +284,50 @@ class RaceSimulator:
 
         data = {
             'type': 'race_update',
-            'info': {
-                'Race Time': self.currentTimestamp.isoformat(sep=' ', timespec='milliseconds'),
-                'Record Time': d0.publish_time.isoformat(sep=' ', timespec='milliseconds'),
-                'Market Time': d0.market_definition.market_time.isoformat(sep=' ', timespec='minutes'),
-                'Event Name': d0.market_definition.event_name,
-                'Name': d0.market_definition.name,
-                'Betting Type': d0.market_definition.betting_type,
+            'data': {
+                'race_info': {
+                    'Race Time': self.currentTimestamp.isoformat(sep=' ', timespec='milliseconds'),
+                    'Record Time': d0.publish_time.isoformat(sep=' ', timespec='milliseconds'),
+                    'Market Time': d0.market_definition.market_time.isoformat(sep=' ', timespec='minutes'),
+                    'Event Name': d0.market_definition.event_name,
+                    'Name': d0.market_definition.name,
+                    'Betting Type': d0.market_definition.betting_type,
+                },
+                'index': self.get_current_index(),
+                'chart_start': self.currentTimestamp.total_seconds()
             },
-            'ticks': betting.TICKS_DECODED,
-            'runners': {
-                id: {
-                    'name': runner['market_def'][self.index].name,
-                    'status': runner['market_def'][self.index].status,
-                    'ladder': runner['ladder'][self.index, :, :].tolist(),
-                    'ltp_history': self._ltp_history(runner, ltp_chart_indexes),
-                } for id, runner in self.processedRunners.items()
+        }
+
+        return json.dumps(data)
+
+    def _generate_init(self):
+
+        # get time deltas since start of race
+        time_diffs = self.recordTimestamps - self.startTimestamp
+
+        data = {
+            'type': 'race_load',
+            'data': {
+                'ticks': betting.TICKS_DECODED,
+                'runners': {
+                    id: {
+                        'name': runner['market_def'][0].name,
+                        'status': [r.status for r in runner['market_def']],
+                        'ladder': runner['ladder'].tolist(),
+                        'ltp': self._ltp_history(runner, time_diffs),
+                    } for id, runner in self.processedRunners.items()
+                }
             }
         }
 
         return json.dumps(data)
 
     def get_init(self):
-        return {
-            'type': 'load_race',
-            'ticks': betting.TICKS_DECODED,
-            'runners': {
-                id: {
-                    'name': runner['market_def'][0].name,
-                    'status': [r.status for r in runner['market_def']],
-                    'ladder': runner['ladder'].tolist(),
-                    'ltp': runner['last_price_traded'],
-                } for id, runner in self.processedRunners.items()
-            }
-        }
+        return self.initMessage
+
 
 def set_logger(logger):
+
     # assign global logger passed as arg so it can be accessed by thread
     global _logger
     _logger = logger
@@ -347,8 +355,7 @@ class ServerHandler:
     # wrapper function for RaceSimulator load race
     def load_race(self, historical_list: List, runner_ladders: Dict[int, Dict]):
         self.raceSimulator.load_race(historical_list, runner_ladders)
-
-
+        self.outboundQ.put(self.raceSimulator.get_init())
 
     # create socket server thread - start listening
     def start_server(self, host, port):
@@ -432,6 +439,15 @@ class ServerHandler:
 
         # process input message
         self.handle_input_messages()
+
+        # check for new clients
+        if _new_client.is_set():
+
+            # reset event
+            _new_client.clear()
+
+            # send client race info
+            self.outboundQ.put(self.raceSimulator.get_init())
 
         # check race is "running"
         if not self.running.is_set():
