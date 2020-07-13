@@ -55,7 +55,3 @@ def closest_value(array, value):
 
     # return value from reversed array
     return reverse_array[index]
-
-
-def testfunction(a, b):
-    print(a)
