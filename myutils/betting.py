@@ -21,7 +21,10 @@ my_username = "joelyboyrasta@live.co.uk"
 my_password = "L0rdTr@d3r"
 my_app_key = "TRmlfYWsYKq8IduH"
 
-
+# get a runner object by checking for match of "selection_id" attribute from a list of objects. Of either
+# - betfairlightweight.resources.bettingresources.MarketDefinitionRunner
+# - betfairlightweight.resources.bettingresources.RunnerBook
+# types
 def get_book(runners, id):
     for runner in runners:
         if id == runner.selection_id:
