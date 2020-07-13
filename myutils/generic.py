@@ -5,7 +5,18 @@ import json
 import jsonpickle
 import numpy
 import logging
+from typing import List
 
+def get_index(object_list: [List, object], f):
+    for i, o in enumerate(object_list):
+        if f(o):
+            return i
+    else:
+        return None
+
+class StaticClass:
+    def __init__(self):
+        raise Exception('Static class only, instances not allowed')
 
 def milliseconds():
     return round(time.time()*1000)

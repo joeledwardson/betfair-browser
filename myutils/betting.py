@@ -2,12 +2,13 @@ import re
 from queue import Queue
 import betfairlightweight
 from betfairlightweight.resources.bettingresources import PriceSize, RunnerBookEX
+from betfairlightweight.resources.streamingresources import MarketDefinition
 import os
-import numpy
-import pandas
+import numpy as np
+import pandas as pd
 import logging
 from typing import List, Dict
-
+from datetime import datetime
 
 active_logger = logging.getLogger(__name__)
 
@@ -20,6 +21,30 @@ my_username = "joelyboyrasta@live.co.uk"
 my_password = "L0rdTr@d3r"
 my_app_key = "TRmlfYWsYKq8IduH"
 
+
+def get_book(runners, id):
+    for runner in runners:
+        if id == runner.selection_id:
+            return runner
+    else:
+        return None
+
+def get_names(m: MarketDefinition) -> Dict[int, str]:
+    return {
+        runner.selection_id: runner.name
+        for runner in m.runners
+    }
+
+def get_ltps(historical_list, names) -> pd.DataFrame:
+    id_list = list(names.keys())
+    ltps = np.zeros([len(historical_list), len(id_list)])
+    timestamps = []
+    for i, e in enumerate(historical_list):
+        timestamps.append(e[0].publish_time)
+        for r in e[0].runners:
+            ltps[i, id_list.index(r.selection_id)] = r.last_price_traded
+
+    return pd.DataFrame(ltps, index=timestamps, columns=list(names.values()))
 
 # remove all characters not in alphabet and convert to lower case for horse names
 def name_processor(name):
@@ -55,21 +80,23 @@ def get_historical(api_client, directory) -> Queue:
 
 # get list of tick increments in encoded integer format
 # retrieves list of {'Start', 'Stop', 'Step'} objects from JSON file
-def get_tick_increments() -> pandas.DataFrame:
+def get_tick_increments() -> pd.DataFrame:
     cur_dir = os.path.dirname(os.path.realpath(__file__))
     file_path = os.path.join(cur_dir, "ticks.json")
 
     with open(file_path) as json_file:
-        return pandas.read_json(file_path)
+        return pd.read_json(file_path)
 
 
 # generate numpy list of ticks from list of {'Start', 'Stop', 'Step'} objects
 # output list is complete: [1.00, 1.01, ..., 1000]
-def generate_ticks(tick_increments: pandas.DataFrame) -> numpy.ndarray:
-    return numpy.concatenate([
-        numpy.arange(row.Start, row.Stop, row.Step)
+def generate_ticks(tick_increments: pd.DataFrame) -> np.ndarray:
+    return np.concatenate([
+        np.arange(row.Start, row.Stop, row.Step)
         for index, row in tick_increments.iterrows()
     ])
+
+
 
 
 # encode a floating point number to integer format with x1000 scale
@@ -82,13 +109,22 @@ def int_decode(v):
     return v/1000
 
 
+# GLOBALS
+# numpy array of ticks in integer encoded form
+TICKS = generate_ticks(get_tick_increments())
+# list of Betfair ticks in actual floating values
+TICKS_DECODED = int_decode(TICKS).tolist()
+
+LTICKS = TICKS.tolist()
+
+BOOK_ATTRS = ['available_to_back', 'available_to_lay', 'traded_volume']
+
 class HistoricalProcessor:
 
     def __init__(self):
 
         self.i = 0
         self.runners_list = {}
-        self.book_attrs = ['available_to_back', 'available_to_lay', 'traded_volume']
         self.price_list = ''
         self.book_index = 0
         self.tick_count = 0
@@ -109,10 +145,10 @@ class HistoricalProcessor:
 
     # convert list of PriceSize elements to fixed length numerical elements
     #  value is size and index is based on TICKS
-    def get_odds_array(self, price_list: List[PriceSize], ticks: numpy.ndarray, nearest_tick=False) -> numpy.ndarray:
+    def get_odds_array(self, price_list: List[PriceSize], ticks: np.ndarray, nearest_tick=False) -> np.ndarray:
 
         # create list of 0s same length as ticks list
-        a = numpy.zeros((ticks.shape[0], ))
+        a = np.zeros(ticks.shape[0], dtype=float)
 
         for p in price_list:
 
@@ -120,7 +156,7 @@ class HistoricalProcessor:
             t = float_encode(p.price)
 
             # check that price appears in ticks array and get indexes where it does
-            indexes = numpy.where(ticks == t)[0]
+            indexes = np.where(ticks == t)[0]
 
             if indexes.shape[0]:
 
@@ -130,7 +166,7 @@ class HistoricalProcessor:
             else:
 
                 # if index not found print warning
-                book = self.book_attrs[self.book_index]
+                book = BOOK_ATTRS[self.book_index]
                 active_logger.debug(f'At index {self.i}, book {book}, price {p.price} not found in ticks')
 
         return a
@@ -143,10 +179,13 @@ class HistoricalProcessor:
     # params:
     #   historical_list: list of MarketBook elements
     #   ticks: array of tick odds (1.00, 1.01, 1.02, ... 1000)
-    def process_runners(self, historical_list: List, ticks: numpy.ndarray) -> Dict[int, Dict]:
+    def process_runners(self, historical_list: List, ticks: np.ndarray) -> pd.DataFrame:
 
         self.data_count = len(historical_list)
         self.tick_count = len(ticks)
+
+        record_timestamps = []
+        runner_ids = None
 
         # loop records
         for self.i, record in enumerate(historical_list):
@@ -154,13 +193,19 @@ class HistoricalProcessor:
             # json always has data contained within first element
             record = record[0]
 
+            # get timestamp
+            record_timestamps.append(record.publish_time)
+
             if self.i == 0:
 
                 # first record - loop runners in market (definition) and create blank arrays to store data
                 self.runners_list = {
                     r.selection_id: {
-                        'ladder': numpy.zeros([self.data_count, self.tick_count, len(self.book_attrs)]),
-                        'last_price_traded': numpy.ndarray((self.data_count, ), dtype=object), # allow for blanks
+                        'ladder': {
+                            a: np.zeros([self.data_count, self.tick_count])
+                            for a in BOOK_ATTRS
+                        },
+                        'last_price_traded': np.zeros((self.data_count, )), # allow for blanks
                         'market_def': [None] * self.data_count,
                         'book': [None] * self.data_count
                     } for r in record.market_definition.runners
@@ -189,20 +234,40 @@ class HistoricalProcessor:
                 runner['book'][self.i] = book
 
                 # get atb, atl and tv book instances
-                price_lists = [getattr(book.ex, b) for b in self.book_attrs]
-                for self.book_index, self.price_list in enumerate(price_lists):
+                price_lists = {
+                    a: getattr(book.ex, a)
+                    for a in BOOK_ATTRS
+                }
+
+                for book_attr, price_list in price_lists.items():
 
                     # get array of (tick count) length with price sizes
-                    tick_prices = self.get_odds_array(self.price_list, ticks)
+                    tick_prices = self.get_odds_array(price_list, ticks)
 
                     # assign to: current record (dim 0), current book (dim 2)
-                    runner['ladder'][self.i, :, self.book_index] = tick_prices
+                    runner['ladder'][book_attr][self.i] = tick_prices
 
-        return self.runners_list
+        # indexing hierarchy - first is timestamp, second is price
+        index = pd.MultiIndex.from_product([record_timestamps, TICKS], names=['timestamp', 'price'])
 
+        # columns hierarchy - first is runner ID, second is book attribute
+        runner_ids = [k for k in self.runners_list]
+        columns = pd.MultiIndex.from_product([runner_ids, BOOK_ATTRS], names=['runner_id', 'book_attribute'])
 
-# GLOBALS
-# numpy array of ticks in integer encoded form
-TICKS = generate_ticks(get_tick_increments())
-# list of Betfair ticks in actual floating values
-TICKS_DECODED = int_decode(TICKS).tolist()
+        # get data
+        # each attribute (atb, atl, tv) must be flatten from [time, price] to a single axis
+        # the produced array has entries of book attributes by time, that is, axis 0 is runner/attribute and axis 1 is time
+        # thus, it must be transposed so that axis 0 is time and axis 1 is runner/attribute
+        data = np.transpose(
+            np.array([
+                r['ladder'][a].flatten()
+                for r in self.runners_list.values()
+                for a in BOOK_ATTRS
+            ])
+        )
+
+        return pd.DataFrame(
+            data=data,
+            index=index,
+            columns=columns,
+        )
