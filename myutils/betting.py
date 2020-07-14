@@ -32,21 +32,38 @@ def get_book(runners, id):
     else:
         return None
 
+# get dictionary of {runner ID: runner name} from a market definition
 def get_names(m: MarketDefinition) -> Dict[int, str]:
     return {
         runner.selection_id: runner.name
         for runner in m.runners
     }
 
-def get_ltps(historical_list, names) -> pd.DataFrame:
+# get last-traded-prices from list of [Marketbook] objects and runner names {runner ID: runner name}
+def get_ltps(historical_list, names: Dict[int, str]) -> pd.DataFrame:
+
+    # list of runner IDs
     id_list = list(names.keys())
+
+    # create numpy array, x-axis for record timestamps, y-axis for runner IDs
     ltps = np.zeros([len(historical_list), len(id_list)])
+
+    # empty list of timestamps
     timestamps = []
+
+    # loop records
     for i, e in enumerate(historical_list):
+
+        # add record timestamp to timestamp list
         timestamps.append(e[0].publish_time)
+
+        # loop runner objects
         for r in e[0].runners:
+
+            # assign to array at a-axis record index and y-axis runner ID index for runner's last price traded
             ltps[i, id_list.index(r.selection_id)] = r.last_price_traded
 
+    # return DataFrame
     return pd.DataFrame(ltps, index=timestamps, columns=list(names.values()))
 
 # remove all characters not in alphabet and convert to lower case for horse names
@@ -68,7 +85,7 @@ def get_api_client() -> betfairlightweight.APIClient:
 
 
 # get Queue object from historical Betfair data file
-def get_historical(api_client, directory) -> Queue:
+def get_historical(api_client : betfairlightweight.APIClient, directory) -> Queue:
     output_queue = Queue()
 
     listener = betfairlightweight.StreamListener(output_queue=output_queue)
@@ -84,9 +101,14 @@ def get_historical(api_client, directory) -> Queue:
 # get list of tick increments in encoded integer format
 # retrieves list of {'Start', 'Stop', 'Step'} objects from JSON file
 def get_tick_increments() -> pd.DataFrame:
+
+    # generate file path based on current directory and filename "ticks.json"
+    # when a library is imported, it takes active script as current directory and file is stored locally so have to
+    # work out file path based on current directory
     cur_dir = os.path.dirname(os.path.realpath(__file__))
     file_path = os.path.join(cur_dir, "ticks.json")
 
+    # return file as pandas DataFrame
     with open(file_path) as json_file:
         return pd.read_json(file_path)
 
@@ -112,14 +134,18 @@ def int_decode(v):
     return v/1000
 
 
-# GLOBALS
-# numpy array of ticks in integer encoded form
+
+# numpy array of Betfair ticks in integer encoded form
 TICKS = generate_ticks(get_tick_increments())
+
+# list of Betfair ticks in integer encoded form
+LTICKS = TICKS.tolist()
+
 # list of Betfair ticks in actual floating values
 TICKS_DECODED = int_decode(TICKS).tolist()
 
-LTICKS = TICKS.tolist()
-
+# names of (betfairlightweight.resources.bettingresources.RunnerBookEx) attributes containing list of
+# (betfairlightweight.resources.bettingresources.PriceSize) objects
 BOOK_ATTRS = ['available_to_back', 'available_to_lay', 'traded_volume']
 
 class HistoricalProcessor:
