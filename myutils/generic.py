@@ -7,6 +7,10 @@ import numpy
 import logging
 from typing import List
 
+'''
+get first index where single argument function 'f(o)' called on object 'o' in list of objects 'object_list' returns true
+otherwise return None
+'''
 def get_index(object_list: [List, object], f):
     for i, o in enumerate(object_list):
         if f(o):
