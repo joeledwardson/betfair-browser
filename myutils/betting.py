@@ -1,7 +1,7 @@
 import re
 from queue import Queue
 import betfairlightweight
-from betfairlightweight.resources.bettingresources import PriceSize, RunnerBookEX
+from betfairlightweight.resources.bettingresources import PriceSize, RunnerBook, MarketBook
 from betfairlightweight.resources.streamingresources import MarketDefinition
 import os
 import numpy as np
@@ -9,17 +9,92 @@ import pandas as pd
 import logging
 from typing import List, Dict
 from datetime import datetime
+from myutils import generic
 
 active_logger = logging.getLogger(__name__)
 
 # Change this certs path to wherever you're storing your certificates
 certs_path = os.environ['USERPROFILE'] + r'\OneDrive\Betfair\bf certs'
 
+
 # TODO update these to retreieve from memory!
 # Change these login details to your own
 my_username = "joelyboyrasta@live.co.uk"
 my_password = "L0rdTr@d3r"
 my_app_key = "TRmlfYWsYKq8IduH"
+
+
+def runner_ltp_tv(record_list, runner_id):
+    ltp = []
+    tv = []
+    dts = []
+    for record in record_list:
+        runner_index = generic.get_index(record[0].runners,
+                                         lambda runner: runner.selection_id == runner_id)
+        if runner_index:
+            runner = record[0].runners[runner_index]
+            dts.append(record[0].publish_time)
+            ltp.append(runner.last_price_traded)
+            tv.append(traded_runner_vol(runner))
+    return pd.DataFrame({'ltp': ltp, 'tv': tv}, index=dts)
+
+
+def record_datetimes(records):
+    return [r[0].publish_time for r in records]
+
+
+def get_recent_records(record_list, span_m):
+    return [r for r in record_list if within_x_minutes(span_m, r[0], record_list[0][0])]
+
+
+def within_x_minutes(x, r: MarketBook, r0: MarketBook):
+    td = r0.market_definition.market_time - r.publish_time
+    return 0 <= td.total_seconds() <= x * 60
+
+
+def traded_runner_vol(runner: RunnerBook):
+    return sum(e.size for e in runner.ex.traded_volume)
+
+
+def total_traded_vol(record: MarketBook):
+    return sum(traded_runner_vol(runner) for runner in record.runners)
+
+
+def get_record_tv_diff(tv1: List[PriceSize], tv0: List[PriceSize]):
+    traded_diffs = []
+    for y in tv1:
+        m = [x for x in tv0 if x.price == y.price]
+        n = next(iter(m), None)
+        traded_diffs.append({
+            'price': y.price,
+            'size': y.size - (n.size if m else 0)
+        })
+    return traded_diffs
+
+
+def get_tv_diffs(records, runner_id):
+    dts = []
+    diffs = []
+
+    for i in range(1, len(records)):
+        r1 = records[i][0]
+        r0 = records[i - 1][0]
+
+        r1_index = generic.get_index(r1.runners,
+                                     lambda runner: runner.selection_id == runner_id)
+        r0_index = generic.get_index(r0.runners,
+                                     lambda runner: runner.selection_id == runner_id)
+
+        if r1_index and r0_index:
+            new_diffs = get_record_tv_diff(r1
+                                           .runners[r1_index].ex.traded_volume,
+                                           r0.runners[r0_index].ex.traded_volume)
+            new_diffs = [d for d in new_diffs if d['size']]
+            diffs += new_diffs
+            dts += [r1.publish_time for _ in new_diffs]
+
+    return pd.DataFrame(diffs, index=dts)
+
 
 # get a runner object by checking for match of "selection_id" attribute from a list of objects. Of either
 # - betfairlightweight.resources.bettingresources.MarketDefinitionRunner
@@ -90,7 +165,7 @@ def get_historical(api_client : betfairlightweight.APIClient, directory) -> Queu
 
     listener = betfairlightweight.StreamListener(output_queue=output_queue)
     stream = api_client.streaming.create_historical_stream(
-        directory=directory,
+        file_path=directory,
         listener=listener
     )
     stream.start()
