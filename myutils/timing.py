@@ -1,10 +1,26 @@
 import functools
 import time
 from datetime import datetime, timedelta
+import pytz
+
+
+# turn UTC datetime into London datetime with daylight savings
+def localise(dt: datetime):
+    return pytz.UTC.localize(dt).astimezone(pytz.timezone('Europe/London'))
+
+
+def today():
+    now = datetime.now()
+    return datetime(year=now.year, month=now.month, day=now.day)
+
+
+def tomorrow():
+    return today() + timedelta(days=1)
 
 
 class TimerError(Exception):
     """A custom exception used to report errors in use of Timer class"""
+
 
 class MyTimer:
     def __init__(self):

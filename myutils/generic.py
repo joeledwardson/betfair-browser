@@ -6,6 +6,42 @@ import jsonpickle
 import numpy
 import logging
 from typing import List
+import functools
+import os
+
+# Sample function wrapper that
+# - assumes first function is file name
+# - creates nested directories specified by first arg file name before running function
+def create_dirs(func):
+    def wrapper(file_name, *args, **kwargs):
+        os.makedirs(os.path.dirname(file_name), exist_ok=True)
+        return func(file_name, *args, **kwargs)
+    return wrapper
+
+def get_filepaths(target_path, file_pattern, dir_pattern=None):
+    files = []
+
+    for (dirpath, dirnames, filenames) in os.walk(target_path):
+        for f in filenames:
+            if not re.match(file_pattern, f):
+                continue
+            if dir_pattern:
+                _, d = os.path.split(dirpath)
+                if not re.match(dir_pattern, d):
+                    continue
+            files.append(os.path.join(dirpath, f))
+
+
+    return files
+
+# deep get attr, can use '.' for nested attributes. e.g. dgetattr(my_object, 'a.b') would be for my_object.a.b
+def dgetattr(obj, name):
+    names = name.split('.')
+    names = [obj] + names
+    return functools.reduce(getattr, names)
+
+def dattr_name(deep_attr):
+    return re.match(r'(.*[.])?(.*)', deep_attr).groups()[1]
 
 '''
 get first index where single argument function 'f(o)' called on object 'o' in list of objects 'object_list' returns true
@@ -31,7 +67,7 @@ def ms_to_datetime(timestamp_ms):
 
 
 def object_members(o):
-    return [k for k in o.__dir__() if not re.match('^_', k)]
+    return [k for k in o.__dir__() if not re.match('^_', k) and not callable(getattr(o, k))]
 
 
 # deep object with all members printed for dicts/classes

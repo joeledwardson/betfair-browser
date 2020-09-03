@@ -23,6 +23,14 @@ my_username = "joelyboyrasta@live.co.uk"
 my_password = "L0rdTr@d3r"
 my_app_key = "TRmlfYWsYKq8IduH"
 
+# datetime format to use with betfair API
+def bf_dt(dt: datetime):
+    return dt.strftime("%Y-%m-%dT%TZ")
+
+# get records before match goes in play
+def pre_match(record_list):
+    return [r for r in record_list if not r[0].market_definition.in_play]
+
 
 def runner_ltp_tv(record_list, runner_id):
     ltp = []
@@ -44,7 +52,9 @@ def record_datetimes(records):
 
 
 def get_recent_records(record_list, span_m):
-    return [r for r in record_list if within_x_minutes(span_m, r[0], record_list[0][0])]
+    return [r for r in record_list
+            if within_x_minutes(span_m, r[0], record_list[0][0]) and
+            not r[0].market_definition.in_play]
 
 
 def within_x_minutes(x, r: MarketBook, r0: MarketBook):
@@ -108,38 +118,60 @@ def get_book(runners, id):
         return None
 
 # get dictionary of {runner ID: runner name} from a market definition
-def get_names(m: MarketDefinition) -> Dict[int, str]:
+def get_names(m: MarketDefinition, name_attr='name') -> Dict[int, str]:
     return {
-        runner.selection_id: runner.name
+        runner.selection_id: getattr(runner, name_attr)
         for runner in m.runners
     }
 
+
 # get last-traded-prices from list of [Marketbook] objects and runner names {runner ID: runner name}
-def get_ltps(historical_list, names: Dict[int, str]) -> pd.DataFrame:
+def get_ltps(historical_list) -> pd.DataFrame:
 
-    # list of runner IDs
-    id_list = list(names.keys())
+    if not len(historical_list):
+        logging.warning('cannot get ltps from empty historical list')
+        return pd.DataFrame()
 
-    # create numpy array, x-axis for record timestamps, y-axis for runner IDs
-    ltps = np.zeros([len(historical_list), len(id_list)])
+    # get selection id and names from market definition
+    names = get_names(historical_list[0][0].market_definition)
 
     # empty list of timestamps
     timestamps = []
 
-    # loop records
-    for i, e in enumerate(historical_list):
+    # list of ltp records
+    ltps = []
 
-        # add record timestamp to timestamp list
-        timestamps.append(e[0].publish_time)
+    # loop records
+    for e in historical_list:
+
+        # dict to store ltps from record (indexed by name, not ID)
+        record_ltps = {}
 
         # loop runner objects
         for r in e[0].runners:
 
-            # assign to array at a-axis record index and y-axis runner ID index for runner's last price traded
-            ltps[i, id_list.index(r.selection_id)] = r.last_price_traded
+            # check name found in list
+            if not r.selection_id in names.keys():
+                logging.warning(f'selection id "{r.selection_id}" not found from market definition')
+                continue
+
+            # check last price traded variable is not None and non-zero
+            if r.last_price_traded:
+
+                name = names[r.selection_id]
+                record_ltps[name] = r.last_price_traded
+
+        # only append to lists if ay least 1 of selection ltps is non-zero
+        if record_ltps:
+
+            ltps.append(record_ltps)
+
+            # add record timestamp to timestamp list
+            pt = e[0].publish_time
+            timestamps.append(pt)
 
     # return DataFrame
-    return pd.DataFrame(ltps, index=timestamps, columns=list(names.values()))
+    return pd.DataFrame(ltps, index=timestamps)
 
 # remove all characters not in alphabet and convert to lower case for horse names
 def name_processor(name):

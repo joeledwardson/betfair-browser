@@ -2,6 +2,8 @@ import logging
 import requests
 import pandas as pd
 from bs4 import BeautifulSoup
+from datetime import datetime
+
 
 def tr_odds(tr):
     backs = {}
@@ -10,7 +12,8 @@ def tr_odds(tr):
             odds = td.attrs['data-odig']
             try:
                 odds = float(odds)
-                backs[td.attrs['data-bk']] = odds
+                if odds:
+                    backs[td.attrs['data-bk']] = odds
             except ValueError as e:
                 pass
     return backs
@@ -33,6 +36,18 @@ def table_odds(tbl_body):
 class OCException(Exception):
     pass
 
+
+# construct oddschecker url (datetime must be in UK localised with daylight savings form)
+def url(sport, dt: datetime, venue, odds_type='winner'):
+
+    # get date and time strings (as oddschecker constructs them)
+    _date = dt.strftime('%Y-%m-%d')
+    _time = dt.strftime('%H:%M')
+
+    # replace spaces with dashes for url
+    venue = venue.replace(' ', '-')
+
+    return f'https://oddschecker.com/{sport}/{_date}-{venue}/{_time}/{odds_type}'
 
 def oc(url):
     logging.info(f'requesting url "{url}"')

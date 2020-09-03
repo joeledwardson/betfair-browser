@@ -52,3 +52,6 @@ def create_dual_logger(name, file_name,
     my_logger.info(f'Logger {name} starting...')
 
     return my_logger
+
+def get_all_logger():
+    return logging.root.manager.loggerDict
