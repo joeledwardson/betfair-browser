@@ -34,6 +34,7 @@ def get_filepaths(target_path, file_pattern, dir_pattern=None):
 
     return files
 
+
 # deep get attr, can use '.' for nested attributes. e.g. dgetattr(my_object, 'a.b') would be for my_object.a.b
 def dgetattr(obj, name):
     names = name.split('.')

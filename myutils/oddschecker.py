@@ -3,7 +3,11 @@ import requests
 import pandas as pd
 from bs4 import BeautifulSoup
 from datetime import datetime
+import logging
+import os
+from myutils.betting import name_processor
 
+oc_logger = logging.getLogger('')
 
 def tr_odds(tr):
     backs = {}
@@ -37,12 +41,31 @@ class OCException(Exception):
     pass
 
 
+raw_venues = {
+    'Nottingham': 'Nottingham BAGS',
+    'Kinsley': 'Kinsley BAGS',
+    # 'Sunderland': 'Sunderland BAGS',
+    'Sheffield': 'Sheffield BAGS',
+    'Swindon': 'Swindon BAGS',
+    'Newcastle': 'Newcastle BAGS',
+    'Perry Barr': 'Perry Barr BAGS'
+}
+
+# conversion from betfair venues to odschecker venues
+venue_map = {name_processor(k): v for (k,v) in raw_venues.items()}
+
 # construct oddschecker url (datetime must be in UK localised with daylight savings form)
-def url(sport, dt: datetime, venue, odds_type='winner'):
+def url(sport, dt: datetime, venue, odds_type='winner', _venue_map={}):
 
     # get date and time strings (as oddschecker constructs them)
     _date = dt.strftime('%Y-%m-%d')
     _time = dt.strftime('%H:%M')
+
+    if sport == 'greyhounds':
+        _venue_map = venue_map
+
+    # convert to oddschecker venue name
+    venue = _venue_map.get(name_processor(venue)) or venue
 
     # replace spaces with dashes for url
     venue = venue.replace(' ', '-')
@@ -67,3 +90,24 @@ def oc(url):
     trs = table.tbody.find_all('tr')
     logging.debug(f'found {len(trs)} "tr" elements in table')
     return table_odds(table.tbody)
+
+def oc_to_file(file_path, sport, dt: datetime, venue, odds_type='winner'):
+
+    # get oddschecker url
+    oc_url = url(sport, dt, venue, odds_type)
+
+    # scrape data
+    try:
+        df = oc(oc_url)
+    except OCException as e:
+        oc_logger.warning('odds checker exception', exc_info=True)
+        return
+
+    # create dirs
+    d = os.path.dirname(file_path)
+    os.makedirs(d, exist_ok=True)
+
+    # write pickled to file
+    oc_logger.info(f'writing pickled oddschecker to "{file_path}"')
+    df.to_pickle(file_path)
+

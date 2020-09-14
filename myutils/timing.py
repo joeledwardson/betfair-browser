@@ -3,19 +3,21 @@ import time
 from datetime import datetime, timedelta
 import pytz
 
+def time_info(dt: datetime) -> bool:
+    return dt.hour != 0 or dt.minute != 0 or dt.second != 0 or dt.microsecond != 0
 
 # turn UTC datetime into London datetime with daylight savings
 def localise(dt: datetime):
     return pytz.UTC.localize(dt).astimezone(pytz.timezone('Europe/London'))
 
 
-def today():
-    now = datetime.now()
+def today(tz=None):
+    now = datetime.now(tz)
     return datetime(year=now.year, month=now.month, day=now.day)
 
 
-def tomorrow():
-    return today() + timedelta(days=1)
+def tomorrow(tz=None):
+    return today(tz) + timedelta(days=1)
 
 
 class TimerError(Exception):
