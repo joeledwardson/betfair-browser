@@ -111,7 +111,7 @@ def within_x_seconds(x, record, start_time: datetime, time_attr='publish_time'):
 # optional arg 'additional_columns' can be set to a dict containing:
 # - key: name of column in output dataframe
 # - value: function to perform on each RunnerBook
-def runner_data(record_list, additional_columns={}) -> pd.DataFrame:
+def runner_data(record_list, additional_columns={}, runner_filter=lambda r:True) -> pd.DataFrame:
     if not record_list:
         active_logger.warning('cannot get ltp and tv, record list is empty')
         return None
@@ -123,9 +123,17 @@ def runner_data(record_list, additional_columns={}) -> pd.DataFrame:
             **{
                 k: v(runner) for (k, v) in additional_columns.items()
             }
-        } for rec in record_list for runner in rec[0].runners])
+        } for rec in record_list for runner in rec[0].runners if runner_filter(runner)])
         df = df.set_index('pt')
         return df
+
+# get runner data with selection ids as columns
+def runner_table(record_list, atr=lambda r:r.last_price_traded):
+    return pd.DataFrame(
+        [{
+            runner.selection_id: atr(runner) for runner in rec[0].runners
+        } for rec in record_list],
+        index = record_datetimes(record_list))
 
 
 # get runner traded volume across all prices
@@ -143,17 +151,23 @@ def get_record_tv_diff(tv1: List[PriceSize], tv0: List[PriceSize], is_dict=False
     traded_diffs = []
 
     if is_dict:
-        tv0 = [PriceSize(**x) for x in tv0]
-        tv1 = [PriceSize(**x) for x in tv1]
+        atr = dict.get
+    else:
+        atr = getattr
 
+        # tv0 = [PriceSize(**x) for x in tv0]
+        # tv1 = [PriceSize(**x) for x in tv1]
     for y in tv1:
-        m = [x for x in tv0 if x.price == y.price]
+        m = [x for x in tv0 if atr(x, 'price') == atr(y, 'price')]
         n = next(iter(m), None)
 
-        traded_diffs.append({
-            'price': y.price,
-            'size': y.size - (n.size if m else 0)
-        })
+        size_diff = atr(y, 'size') - (atr(n, 'size') if m else 0)
+        if size_diff:
+            traded_diffs.append({
+                'price': atr(y, 'price'),
+                'size': size_diff
+            })
+
     return traded_diffs
 
 
@@ -219,6 +233,8 @@ def market_id_processor(market_id):
     return re.sub(r'^1.', '', market_id)
 
 
+def best_price(available: List):
+    return available[0]['price'] if available else None
 
 # get list of tick increments in encoded integer format
 # retrieves list of {'Start', 'Stop', 'Step'} objects from JSON file
