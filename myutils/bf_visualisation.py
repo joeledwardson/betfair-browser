@@ -1,14 +1,15 @@
 from plotly.subplots import make_subplots
 import plotly.graph_objects as go
-from myutils import betting
+from plotly import express as px
+from myutils import betting, bf_strategy, generic
 import numpy as np
 import pandas as pd
-from myutils import bf_strategy, generic
-from betfairlightweight import APIClient
-import statsmodels.api as sm
 from datetime import timedelta
+from typing import List, Dict
+import statsmodels.api as sm
+from betfairlightweight import APIClient
 from betfairlightweight.resources.bettingresources import PriceSize, RunnerBook, MarketBook
-from typing import List
+
 
 # row and col are converted from 0-index to 1-index
 def _plot_selection(fig, df_selection, row, col):
@@ -90,17 +91,7 @@ def get_index_window(records: List, current_index, seconds_window, f_pt=lambda r
         window_i -= 1
     return window_i
 
-def update_index_window(
-        records: List,
-        current_index,
-        seconds_window,
-        window_index,
-        f_pt=lambda r, i: r[i][0].publish_time):
 
-    t = f_pt(records, current_index)
-    while window_index < current_index and (t - f_pt(records, window_index)).total_seconds() > seconds_window:
-        window_index += 1
-    return window_index
 
 
 def get_regressions(tvdiffs, regression_seconds, required_prices=3):
@@ -183,6 +174,66 @@ def i_prev(i):
 def i_next(i, n):
     return min(i + 1, n - 1)
 
+def fig_historical(records: List[List[MarketBook]], selection_id):
+
+    windows = bf_strategy.Windows()
+    features: Dict[str, bf_strategy.RunnerFeatureBase] = {
+        'ltp': bf_strategy.RunnerFeatureLTP(selection_id),
+        'ltp min': bf_strategy.RunnerFeatureTradedWindowMin(selection_id, 60, windows),
+        'ltp max': bf_strategy.RunnerFeatureTradedWindowMax(selection_id, 60, windows),
+        'wom': bf_strategy.RunnerFeatureWOM(selection_id, candlestick_s=2, wom_ticks=5)
+    }
+
+    default_plot_config = {
+        'chart': go.Scatter,
+        'chart_args': {
+            'mode': 'lines'
+        },
+        'trace_args': {},
+    }
+
+    feature_plot_config = {
+        'wom': {
+            'chart': go.Candlestick,
+            'chart_args': {},
+            'trace_args': {
+                'secondary_y': True
+            }
+        }
+    }
+
+
+    recs = []
+    dts = []
+
+    for i in range(len(records)):
+        new_book = records[i][0]
+        recs.append(new_book)
+        dts.append(new_book.publish_time)
+        windows.update_windows(recs, new_book)
+
+        runner_index = next((i for i, r in enumerate(new_book.runners) if r.selection_id==selection_id), None)
+        for feature in features.values():
+            feature.process_runner(recs, new_book, windows, runner_index)
+
+    fig = make_subplots(specs=[[{'secondary_y': True}]])
+    for f_name, f in features.items():
+
+        chart_func = feature_plot_config.get(f_name, {}).get('chart',       default_plot_config['chart'])
+        chart_args = feature_plot_config.get(f_name, {}).get('chart_args',  default_plot_config['chart_args'])
+        trace_args = feature_plot_config.get(f_name, {}).get('trace_args',  default_plot_config['trace_args'])
+        trace_data = f.get_data()
+
+        chart = chart_func(
+            name=f_name,
+            **trace_data,
+            **chart_args)
+
+        fig.add_trace(chart, **trace_args)
+
+
+    return fig
+
 
 def plot_windows(records, selection_id, window_s=60, tv_s=1) -> go.Figure:
     rdat = betting.runner_data(
@@ -207,7 +258,7 @@ def plot_windows(records, selection_id, window_s=60, tv_s=1) -> go.Figure:
     last_tv_update = rdat.index[0]
 
     for index, dt in enumerate(rdat.index):
-        w_index = update_index_window(
+        w_index = bf_strategy.update_index_window(
             records=rdat,
             current_index=index,
             seconds_window=window_s,
@@ -223,7 +274,7 @@ def plot_windows(records, selection_id, window_s=60, tv_s=1) -> go.Figure:
 
         if (dt - last_tv_update).total_seconds() >= tv_s:
 
-            tv_index = update_index_window(
+            tv_index = bf_strategy.update_index_window(
                 records=rdat,
                 current_index=index,
                 seconds_window=tv_s,

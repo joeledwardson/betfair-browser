@@ -12,9 +12,245 @@ import os
 import pandas as pd
 import logging
 from typing import List, Dict, Optional
+from datetime import datetime, timedelta
 
 OC_EXCHANGES = ['BF', 'MK', 'MA', 'BD', 'BQ']
 active_logger = logging.getLogger(__name__)
+
+# increment 'window_index' until its timestamp is within 'seconds_window' seconds of the current record timestamp, returns
+# updated 'window_index' value.
+# if 'outside_window' is specified as True, 'window_index' will be incremented until it preceeds the record within
+# the specified window - if False, 'window_index' will be incvremented until it is the first record within the specified
+# window
+def update_index_window(
+        records: List,
+        current_index, # index of current record - if streaming this will just be the last record, needed for historical list
+        seconds_window, # size of the window in seconds
+        window_index, # index of window start to be updated and returned
+        outside_window=True,
+        f_pt=lambda r, i: r[i][0].publish_time):
+
+    t = f_pt(records, current_index)
+    while (window_index + outside_window) < current_index and \
+            (t - f_pt(records, window_index + outside_window)).total_seconds() > seconds_window:
+        window_index += 1
+    return window_index
+
+
+class WindowProcessorBase:
+
+    @classmethod
+    def processor_init(cls, window: dict):
+        pass
+
+    @classmethod
+    def update_window(self, market_list: List[MarketBook], new_book: MarketBook, window: dict):
+        raise NotImplementedError
+
+class WindowProcessorTradedVolume(WindowProcessorBase):
+
+    @classmethod
+    def processor_init(cls, window: dict):
+        window['old_tv_ladders'] = {}
+
+    @classmethod
+    def update_window(cls, market_list: List[MarketBook], new_book: MarketBook, window: dict):
+
+        if window['window_index'] != window['window_prev_index']:
+
+            window['old_tv_ladders'] = {
+                runner.selection_id: runner.ex.traded_volume
+                for runner in market_list[window['window_prev_index']].runners}
+
+        window['tv_diffs'] = {
+            runner.selection_id: betting.get_record_tv_diff(
+                runner.ex.traded_volume,
+                window['old_tv_ladders'].get(runner.selection_id) or {},
+                is_dict=True)
+            for runner in new_book.runners
+        }
+
+class Windows:
+
+    @staticmethod
+    def func_publish_time(record, index):
+        return record[index].publish_time
+
+    functions = {
+        'WindowProcessorTradedVolume': WindowProcessorTradedVolume
+    }
+
+    def __init__(self):
+        self.windows = {}
+
+    def add_window(self, width_seconds) -> Dict:
+        if width_seconds not in self.windows:
+            self.windows[width_seconds] = {
+                'window_prev_index': 0,
+                'window_index': 0,
+                'functions': []
+            }
+        return self.windows[width_seconds]
+
+    def add_function(self, width_seconds, function_key):
+        window = self.windows[width_seconds]
+        if function_key not in window['functions']:
+            window['functions'].append(function_key)
+            self.functions[function_key].processor_init(window)
+
+    def update_windows(self, market_list: List[MarketBook], new_book: MarketBook):
+        for width_seconds, w in self.windows.items():
+            w['window_prev_index'] = w['window_index']
+            w['window_index'] = update_index_window(
+                records=market_list,
+                current_index=len(market_list) - 1,
+                seconds_window=width_seconds,
+                window_index=w['window_index'],
+                outside_window=True,
+                f_pt=self.func_publish_time)
+            w['id_index'] = {
+                runner.selection_id: i for i, runner in enumerate(new_book.runners)
+            }
+            for f in w['functions']:
+                self.functions[f].update_window(market_list, new_book, w)
+
+class RunnerFeatureBase:
+
+    def __init__(self, selection_id):
+        self.selection_id = selection_id
+        self.values = []
+        self.dts = []
+
+    def get_data(self):
+        return {'x': self.dts, 'y': self.values}
+
+    def process_runner(self, market_list: List[MarketBook], new_book: MarketBook, windows: Windows, runner_index):
+        value = self.runner_update(market_list, new_book, windows, runner_index)
+        if value:
+            self.dts.append(new_book.publish_time)
+            self.values.append(value)
+
+    def runner_update(self, market_list: List[MarketBook], new_book: MarketBook, windows: Windows, runner_index):
+        raise NotImplementedError
+
+
+class RunnerFeatureTradedWindowBase(RunnerFeatureBase):
+    def __init__(self, selection_id, window_s, windows: Windows):
+        super().__init__(selection_id)
+        self.window = windows.add_window(window_s)
+        windows.add_function(window_s, 'WindowProcessorTradedVolume')
+
+class RunnerFeatureTradedWindowMin(RunnerFeatureTradedWindowBase):
+    def runner_update(self, market_list: List[MarketBook], new_book: MarketBook, windows: Windows, runner_index):
+        prices = [tv['price'] for tv in self.window['tv_diffs'][self.selection_id]]
+        return min(prices) if prices else None
+
+class RunnerFeatureTradedWindowMax(RunnerFeatureTradedWindowBase):
+    def runner_update(self, market_list: List[MarketBook], new_book: MarketBook, windows: Windows, runner_index):
+        prices = [tv['price'] for tv in self.window['tv_diffs'][self.selection_id]]
+        return max(prices) if prices else None
+
+class RunnerFeatureLTP(RunnerFeatureBase):
+    def runner_update(self, market_list: List[MarketBook], new_book: MarketBook, windows: Windows, runner_index):
+        return new_book.runners[runner_index].last_price_traded
+
+class CandleStick:
+    def __init__(self, time_frame_seconds):
+        self.raw_values = []
+        self.raw_datetimes = []
+        self.window_index = 0
+        self.candlesticks = {
+            'open': [],
+            'close': [],
+            'high': [],
+            'low': [],
+            'x': [],
+        }
+        self.last_timestamp = None
+        self.width_s = time_frame_seconds
+        self.previous_close = None
+
+    def new_value(self, timestamp, value):
+        self.raw_values.append(value)
+        self.raw_datetimes.append(timestamp)
+        self.last_timestamp = self.last_timestamp or timestamp
+
+        n_values = len(self.raw_values)
+
+        while 1:
+
+            # start and end of current candlestick window
+            candle_start_dt = self.last_timestamp
+            candle_end_dt = self.last_timestamp + timedelta(seconds=self.width_s)
+
+            # current timestamp must have completed current candlestick window, and must have at least 1 value
+            if timestamp < candle_end_dt or n_values == 0:
+                break
+
+            # set starting index of candlestick values
+            candle_index = self.window_index
+
+            # increment whilst value timestamps are within candlestick window
+            while candle_index < n_values and self.raw_datetimes[candle_index] < candle_end_dt:
+                candle_index += 1
+
+            # slice values of candlestick start to end
+            candle_vals = self.raw_values[self.window_index:candle_index]
+
+            # if no values exist, use previous value
+            # (impossible on first entry as cannot reach here without at least 1 value and 1st value being beyond candlestick end)
+            if not candle_vals:
+                candle_vals = [self.previous_close]
+
+            # add to candlestick list
+            for k, v in {
+                'x': self.last_timestamp,
+                'open': candle_vals[0],
+                'close': candle_vals[-1],
+                'high': max(candle_vals),
+                'low': min(candle_vals)
+            }.items():
+                self.candlesticks[k].append(v)
+
+            # update starting index for candlestick to the next index from the end of current candlestick
+            self.window_index = candle_index
+
+            # update new candlestick starting timestamp to end of candlestick just written
+            self.last_timestamp = candle_end_dt
+
+            # store 'close' value of candlestick
+            self.previous_close = candle_vals[-1]
+
+
+class RunnerFeatureCandleStickBase(RunnerFeatureBase):
+    def __init__(self, selection_id, candlestick_s):
+        super().__init__(selection_id)
+        self.candlestick = CandleStick(candlestick_s)
+
+    def process_runner(self, market_list: List[MarketBook], new_book: MarketBook, windows: Windows, runner_index):
+        value = self.runner_update(market_list, new_book, windows, runner_index)
+        if value:
+            self.candlestick.new_value(new_book.publish_time, value)
+
+    def get_data(self):
+        return self.candlestick.candlesticks
+
+class RunnerFeatureWOM(RunnerFeatureCandleStickBase):
+
+    def __init__(self, selection_id, candlestick_s=1, wom_ticks=3):
+        super().__init__(selection_id, candlestick_s)
+        self.wom_ticks = wom_ticks
+
+    def runner_update(self, market_list: List[MarketBook], new_book: MarketBook, windows: Windows, runner_index):
+        atl = new_book.runners[runner_index].ex.available_to_lay
+        atb = new_book.runners[runner_index].ex.available_to_back
+
+        if atl and atb:
+            back = sum([x['size'] for x in atb[:self.wom_ticks]])
+            lay = sum([x['size'] for x in atl[:self.wom_ticks]])
+            return back - lay
+        else:
+            return None
 
 
 # sort oddschecker dataframe by avergae value

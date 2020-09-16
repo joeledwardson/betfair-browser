@@ -201,7 +201,7 @@ def get_tv_diffs(records, runner_id, is_dict=False) -> pd.DataFrame:
 # - betfairlightweight.resources.bettingresources.MarketDefinitionRunner
 # - betfairlightweight.resources.bettingresources.RunnerBook
 # types
-def get_book(runners, id):
+def get_book(runners, id) -> RunnerBook:
     for runner in runners:
         if id == runner.selection_id:
             return runner
