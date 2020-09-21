@@ -75,16 +75,21 @@ class WindowProcessorTradedVolumeLadder(WindowProcessorBase):
         }
 
 
-# store a list of runner values within a runner window
+# store a list of runner attribute values within a runner window
 class WindowProcessorFeatureBase(WindowProcessorBase):
 
+    # key in window dictionary to store attribute values
     window_var: str = None
+
+    # True only values inside window are stored, false to include value just before window starts
     inside_window = True
 
+    # define this method to get runner attribute (e.g. best back, last traded price etc.)
     @classmethod
     def get_runner_attr(cls, runner: RunnerBook):
         raise NotImplementedError
 
+    # initialise by creating empty dict in window using attribute key
     @classmethod
     def processor_init(cls, window: dict):
         window[cls.window_var] = {}
@@ -92,24 +97,35 @@ class WindowProcessorFeatureBase(WindowProcessorBase):
     @classmethod
     def process_window(cls, market_list: List[MarketBook], new_book: MarketBook, window: dict):
 
+        # get starting index of window, add 1 if only taking values inside window
         start_index = window['window_index'] + cls.inside_window
+
+        # window dict -> in the attribute 'cls.window_var' dict, each runner has lists of identical length with keys
+        # as follows
         dict_elements = ['indexes', 'dts', 'values']
 
         for runner in new_book.runners:
+
+            # if runner does not have a dictionary element then create one with empty lists
             if runner.selection_id not in window[cls.window_var]:
                 window[cls.window_var][runner.selection_id] = {
                     k: [] for k in dict_elements
                 }
 
+            # get runner dictionary from window
             runner_dict = window[cls.window_var][runner.selection_id]
 
+            # remove from start of list values outside window valid record indexes
             while runner_dict['indexes']:
                 if runner_dict['indexes'][0] >= start_index:
                     break
                 for k in dict_elements:
                     runner_dict[k].pop(0)
 
+            # get runner attribute value
             value = cls.get_runner_attr(runner)
+
+            # add current index, record datetime and value to runners list of elements
             if value:
                 for k, v in {
                     'indexes': len(market_list) - 1,
@@ -144,7 +160,6 @@ class WindowProcessorBestLay(WindowProcessorFeatureBase):
     @classmethod
     def get_runner_attr(cls, runner: RunnerBook):
         return betting.best_price(runner.ex.available_to_lay)
-
 
 
 # Hold a set of sliding windows, where the index of timestamped records outside sliding window is updated as current

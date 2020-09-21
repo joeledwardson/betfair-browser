@@ -1,108 +1,211 @@
 from betfairlightweight.resources.bettingresources import MarketBook
 from myutils import betting, bf_window
 import numpy as np
-from typing import List
+from typing import List, Dict
 import statsmodels.api as sm
 import operator
 import statistics
+from datetime import datetime, timedelta
 
 
-def get_plotly_vals(feature):
-    return [{
-        'x': feature.dts,
-        'y': feature.processed_vals
-    }]
+class BetfairFeatureException(Exception):
+    pass
 
 
-def default_value_processor(value, feature):
-    return value
+class RunnerFeatureValueProcessors:
+    @staticmethod
+    def value_processor_identity():
+        def inner(value, values, datetimes):
+            return value
+        return inner
 
+    @staticmethod
+    def value_processor_moving_average(n_entries):
+        def inner(value, values, datetimes):
+            return statistics.mean(values[-n_entries:])
+        return inner
 
-def moving_average_processor(n_entries):
-    def inner(value, feature):
-        return statistics.mean(feature.values[-n_entries:])
+    @staticmethod
+    def value_processor_invert():
+        def inner(value, values, datetimes):
+            return 1 / value
+        return inner
 
-    return inner
-
+    @classmethod
+    def get_processor(cls, name):
+        if name not in cls.__dict__:
+            raise BetfairFeatureException(f'"{name}" not found in processors')
+        else:
+            return getattr(cls, name)
 
 # base class for runner features
 class RunnerFeatureBase:
 
-    def __init__(self,
-                 selection_id,
-                 processed_vals_init=[],
-                 value_processor=default_value_processor,
-                 data_getter=get_plotly_vals):
+    def __init__(
+            self,
+            value_processor: str = 'value_processor_identity',
+            value_processor_args: dict = None,
+            periodic_ms: int = None,
+            ):
 
-        self.selection_id = selection_id
+        self.windows: bf_window.Windows = None
+        self.selection_id: int = None
+
         self.values = []
         self.dts = []
-        self.processed_vals = processed_vals_init.copy()  # create new list object
-        self.value_processor = value_processor
-        self.data_getter = data_getter
 
-    def process_runner(self, market_list: List[MarketBook], new_book: MarketBook, windows: bf_window.Windows, runner_index):
+        creator = RunnerFeatureValueProcessors.get_processor(value_processor)
+        self.value_processor = creator(**(value_processor_args if value_processor_args else {}))
+
+        self.processed_vals = []
+
+        self.periodic_ms = periodic_ms
+        self.last_timestamp: datetime = None
+
+    def race_initializer(
+            self,
+            selection_id: int,
+            first_book: MarketBook,
+            windows: bf_window.Windows):
+
+        self.last_timestamp = first_book.publish_time
+        self.selection_id = selection_id
+        self.windows = windows
+
+    def process_runner(
+            self, market_list: List[MarketBook],
+            new_book: MarketBook,
+            windows: bf_window.Windows,
+            runner_index):
+
+        update = False
+
+        # if specified, updates only allow every 'periodic_ms' milliseconds
+        if self.periodic_ms:
+
+            # check if current book is 'periodic_ms' milliseconds past last update
+            if int((new_book.publish_time - self.last_timestamp).total_seconds() * 1000) > self.periodic_ms:
+
+                # specify that do want to update, and increment last update timestamp
+                update = True
+                self.last_timestamp = self.last_timestamp + timedelta(milliseconds=self.periodic_ms)
+
+        # if periodic update milliseconds not specified, update regardless
+        else:
+            update = True
+
+
+        if not update:
+            return
+
         value = self.runner_update(market_list, new_book, windows, runner_index)
-        if value:
-            self.dts.append(new_book.publish_time)
-            self.values.append(value)
-            processed = self.value_processor(value, self)
-            self.processed_vals.append(processed)
-            if len(self.values) != len(self.processed_vals):
-                raise Exception(
-                    f'Length of values {len(self.values)} different to processed values {len(self.processed_vals)}')
+        if value is None:
+            return
+
+        self.dts.append(new_book.publish_time)
+        self.values.append(value)
+        processed = self.value_processor(value, self.values, self.dts)
+        self.processed_vals.append(processed)
+        if len(self.values) != len(self.processed_vals):
+            raise Exception(
+                f'Length of values {len(self.values)} different to processed values {len(self.processed_vals)}')
 
     def runner_update(self, market_list: List[MarketBook], new_book: MarketBook, windows: bf_window.Windows, runner_index):
         raise NotImplementedError
 
-    def get_data(self):
-        return self.data_getter(self)
+    def get_plotly_data(self):
+        return [{
+            'x': self.dts,
+            'y': self.processed_vals
+        }]
 
 
 # base feature utilizing a window function, where 'window_s' is the width in seconds of the window, and the window
 # dict is stored in 'self.window'
-class RunnerFeatureTradedWindowBase(RunnerFeatureBase):
+class RunnerFeatureWindowBase(RunnerFeatureBase):
     def __init__(
             self,
-            selection_id,
             window_s,
-            windows: bf_window.Windows,
-            window_function='WindowProcessorTradedVolumeLadder',
+            window_function: str,
             **kwargs
     ):
-        super().__init__(selection_id, **kwargs)
+        super().__init__(**kwargs)
+
+        self.window: dict = None
         self.window_s = window_s
-        self.window = windows.add_window(window_s)
-        windows.add_function(window_s, window_function)
+        self.window_function = window_function
+
+    def race_initializer(
+            self,
+            selection_id: int,
+            first_book: MarketBook,
+            windows: bf_window.Windows):
+
+        super().race_initializer(selection_id, first_book, windows)
+        self.window = windows.add_window(self.window_s)
+        windows.add_function(self.window_s, self.window_function)
 
 
 # minimum of recent traded prices in last 'window_s' seconds
-class RunnerFeatureTradedWindowMin(RunnerFeatureTradedWindowBase):
+class RunnerFeatureTradedWindowMin(RunnerFeatureWindowBase):
+
+    def __init__(self, window_s, **kwargs):
+        super().__init__(window_s, window_function='WindowProcessorTradedVolumeLadder', **kwargs)
+
     def runner_update(
             self,
             market_list: List[MarketBook],
             new_book: MarketBook,
             windows: bf_window.Windows,
             runner_index):
+
         prices = [tv['price'] for tv in self.window['tv_diff_ladder'][self.selection_id]]
         return min(prices) if prices else None
 
 
 # maximum of recent traded prices in last 'window_s' seconds
-class RunnerFeatureTradedWindowMax(RunnerFeatureTradedWindowBase):
-    def runner_update(self, market_list: List[MarketBook], new_book: MarketBook, windows: bf_window.Windows, runner_index):
+class RunnerFeatureTradedWindowMax(RunnerFeatureWindowBase):
+
+    def __init__(self, window_s, **kwargs):
+        super().__init__(window_s, window_function='WindowProcessorTradedVolumeLadder', **kwargs)
+
+    def runner_update(
+            self,
+            market_list: List[MarketBook],
+            new_book: MarketBook,
+            windows: bf_window.Windows,
+            runner_index):
+
         prices = [tv['price'] for tv in self.window['tv_diff_ladder'][self.selection_id]]
         return max(prices) if prices else None
 
 
 # percentage of recent traded volume in the last 'window_s' seconds that is above current best back price
-class RunnerFeatureBookSplitWindow(RunnerFeatureTradedWindowBase):
-    def runner_update(self, market_list: List[MarketBook], new_book: MarketBook, windows: bf_window.Windows, runner_index):
+class RunnerFeatureBookSplitWindow(RunnerFeatureWindowBase):
+
+    def __init__(self, window_s, **kwargs):
+        super().__init__(window_s, window_function='WindowProcessorTradedVolumeLadder', **kwargs)
+
+    def runner_update(
+            self,
+            market_list: List[MarketBook],
+            new_book: MarketBook,
+            windows: bf_window.Windows,
+            runner_index):
+
+        # best back price on current record
         best_back = betting.best_price(new_book.runners[runner_index].ex.available_to_back)
+
         if best_back:
+
+            # difference in traded volume ladder and totals for recent records
             ladder_diffs = self.window['tv_diff_ladder'][self.selection_id]
             total_diff = self.window['tv_diff_totals'][self.selection_id]
+
+            # sum of money for recent traded volume trying to back
             back_diff = sum([x['size'] for x in ladder_diffs if x['price'] > best_back])
+
+            # percentage of volume trying to back compared to total (back & lay)
             if total_diff:
                 return back_diff / total_diff
 
@@ -118,8 +221,8 @@ class RunnerFeatureLTP(RunnerFeatureBase):
 # weight of money, difference of available-to-lay to available-to-back
 class RunnerFeatureWOM(RunnerFeatureBase):
 
-    def __init__(self, selection_id, wom_ticks, **kwargs):
-        super().__init__(selection_id, **kwargs)
+    def __init__(self, wom_ticks, **kwargs):
+        super().__init__(**kwargs)
         self.wom_ticks = wom_ticks
 
     def runner_update(self, market_list: List[MarketBook], new_book: MarketBook, windows: bf_window.Windows, runner_index):
@@ -135,86 +238,111 @@ class RunnerFeatureWOM(RunnerFeatureBase):
 
 
 # difference in total traded runner volume in the last 'window_s' seconds
-class RunnerFeatureTradedDiff(RunnerFeatureTradedWindowBase):
-    def __init__(
-            self,
-            selection_id,
-            window_s,
-            windows: bf_window.Windows,
-            **kwargs):
-        super().__init__(
-            selection_id,
-            window_s,
-            windows,
-            window_function='WindowProcessorTradedVolumeLadder',
-            **kwargs)
+class RunnerFeatureTradedDiff(RunnerFeatureWindowBase):
 
-    def runner_update(self, market_list: List[MarketBook], new_book: MarketBook, windows: bf_window.Windows, runner_index):
+    def __init__(self, window_s, **kwargs):
+        super().__init__(window_s, window_function='WindowProcessorTradedVolumeLadder', **kwargs)
+
+    def runner_update(
+            self,
+            market_list: List[MarketBook],
+            new_book: MarketBook,
+            windows: bf_window.Windows,
+            runner_index):
+
         return self.window['tv_diff_totals'].get(self.selection_id, None)
 
 
 # best available back price of runner
 class RunnerFeatureBestBack(RunnerFeatureBase):
-    def runner_update(self, market_list: List[MarketBook], new_book: MarketBook, windows: bf_window.Windows, runner_index):
-        atb = new_book.runners[runner_index].ex.available_to_back
-        if atb:
-            return atb[0]['price']
-        else:
-            return None
+
+    def runner_update(
+            self,
+            market_list: List[MarketBook],
+            new_book: MarketBook,
+            windows: bf_window.Windows,
+            runner_index):
+
+        return betting.best_price(new_book.runners[runner_index].ex.available_to_back)
 
 
 # best available lay price of runner
 class RunnerFeatureBestLay(RunnerFeatureBase):
-    def runner_update(self, market_list: List[MarketBook], new_book: MarketBook, windows: bf_window.Windows, runner_index):
-        atl = new_book.runners[runner_index].ex.available_to_lay
-        if atl:
-            return atl[0]['price']
-        else:
-            return None
 
+    def runner_update(
+            self,
+            market_list: List[MarketBook],
+            new_book: MarketBook,
+            windows: bf_window.Windows,
+            runner_index):
 
-# return list of regression results
-def get_regression_data(feature: RunnerFeatureBase):
-    return feature.values
+        return betting.best_price(new_book.runners[runner_index].ex.available_to_lay)
 
 
 # perform regressions on a feature
-class RunnerFeatureRegression(RunnerFeatureTradedWindowBase):
+class RunnerFeatureRegression(RunnerFeatureWindowBase):
+
+    # return list of regression results
+    def get_plotly_data(self):
+        return self.values
+
     def __init__(
             self,
-            selection_id,
-            windows: bf_window.Windows,
-            window_function: str,
+            window_function: str,  # window function, must be derived from WindowProcessorFeatureBase
             regressions_seconds,
             regression_strength_filter=0,
             regression_gradient_filter=0,
-            regression_preprocessor=lambda v: v,  # convert values before linear regression is performed
-            regression_postprocessor=lambda v: v,  # convert predicted linear regression values back to normal values
+            regression_preprocessor: str = 'value_processor_identity',  # convert values bf linear regression is
+            # performed
+            regression_postprocessor: str = 'value_processor_identity',  # convert predicted linear
+            # regression values back to normal values
             **kwargs):
         super().__init__(
-            selection_id,
             window_s=regressions_seconds,
-            windows=windows,
             window_function=window_function,
-            data_getter=get_regression_data,
             **kwargs
         )
-        self.window_attr_name = windows.FUNCTIONS[window_function].window_var
+        self.window_attr_name = None
         self.regression_strength_filter = regression_strength_filter
         self.regression_gradient_filter = regression_gradient_filter
-        self.regression_preprocessor = regression_preprocessor
-        self.regression_postprocessor = regression_postprocessor
+        self.regression_preprocessor = RunnerFeatureValueProcessors.get_processor(regression_preprocessor)()
+        self.regression_postprocessor = RunnerFeatureValueProcessors.get_processor(regression_postprocessor)()
         self.comparator = operator.gt if regression_gradient_filter >= 0 else operator.le
 
-    def runner_update(self, market_list: List[MarketBook], new_book: MarketBook, windows: bf_window.Windows, runner_index):
+    def race_initializer(
+            self,
+            selection_id: int,
+            first_book: MarketBook,
+            windows: bf_window.Windows):
+
+        super().race_initializer(selection_id, first_book, windows)
+        self.window_attr_name = windows.FUNCTIONS[self.window_function].window_var
+
+    # default of returning values, storing them with 'self.dts' etc is not valid as all info is encapsulated in
+    # 'self.values'
+    # def process_runner(
+    #         self, market_list: List[MarketBook],
+    #         new_book: MarketBook,
+    #         windows: bf_window.Windows,
+    #         runner_index):
+    #     pass
+
+    def runner_update(
+            self,
+            market_list: List[MarketBook],
+            new_book: MarketBook,
+            windows: bf_window.Windows,
+            runner_index):
+
         dat = self.window[self.window_attr_name][self.selection_id]
+        dts = dat['dts'].copy(),  # stop making hard reference
         x = [(x - new_book.publish_time).total_seconds() for x in dat['dts']]
         y = dat['values']
 
         if not y or not x:
             return None
 
-        y_processed = [self.regression_preprocessor(v) for v in y]
+        y_processed = [self.regression_preprocessor(v, y, dts) for v in y]
 
         X = np.column_stack([x])
         X = sm.add_constant(X)
@@ -222,7 +350,7 @@ class RunnerFeatureRegression(RunnerFeatureTradedWindowBase):
         mod_wls = sm.WLS(y_processed, X)
         res_wls = mod_wls.fit()
         y_pred = res_wls.predict()
-        y_pred = [self.regression_postprocessor(v) for v in y_pred]
+        y_pred = [self.regression_postprocessor(v, y_pred, dts) for v in y_pred]
 
         # TODO - incorporate regreesion postprocessor to predicted results, but dont want to calculate here is it is
         #  not required in real time, only for plotting
@@ -236,3 +364,101 @@ class RunnerFeatureRegression(RunnerFeatureTradedWindowBase):
             }
 
         return None
+
+
+# get dict of for default runner features
+def get_default_features_config(
+        wom_ticks=5,
+        ltp_window_s=40,
+        ltp_moving_average_entries=10,
+        ltp_diff_s=2,
+        regression_seconds=2,
+        regression_strength_filter=0.1,
+        regression_gradient_filter=0.003,
+        regression_update_ms=200
+) -> Dict[str, Dict]:
+
+    return {
+
+        'best back': {
+            'name': 'RunnerFeatureBestBack',
+        },
+
+        'best lay': {
+            'name': 'RunnerFeatureBestLay',
+        },
+
+        'wom': {
+            'name': 'RunnerFeatureWOM',
+            'kwargs': {
+                'wom_ticks': wom_ticks
+            },
+        },
+
+        'ltp min': {
+            'name': 'RunnerFeatureTradedWindowMin',
+            'kwargs': {
+                'window_s': ltp_window_s,
+                'value_processor': 'value_processor_moving_average',
+                'value_processor_args': {
+                    'n_entries': ltp_moving_average_entries
+                },
+            }
+        },
+
+        'ltp max': {
+            'name': 'RunnerFeatureTradedWindowMax',
+            'kwargs': {
+                'window_s': ltp_window_s,
+                'value_processor': 'value_processor_moving_average',
+                'value_processor_args': {
+                    'n_entries': ltp_moving_average_entries
+                },
+            }
+        },
+
+        'ltp diff': {
+            'name': 'RunnerFeatureTradedDiff',
+            'kwargs': {
+                'window_s': ltp_diff_s,
+            }
+        },
+
+        'book split': {
+            'name': 'RunnerFeatureBookSplitWindow',
+            'kwargs': {
+                'window_s': ltp_window_s,
+            },
+        },
+
+        # put LTP last so it shows up above LTP max/min when plotting
+        'ltp': {
+            'name': 'RunnerFeatureLTP',
+        },
+
+        'best back regression': {
+            'name': 'RunnerFeatureRegression',
+            'kwargs': {
+                'periodic_ms': regression_update_ms,
+                'window_function': 'WindowProcessorBestBack',
+                'regressions_seconds': regression_seconds,
+                'regression_strength_filter': regression_strength_filter,
+                'regression_gradient_filter': regression_gradient_filter,
+                'regression_preprocessor': 'value_processor_invert',
+                'regression_postprocessor': 'value_processor_invert',
+            },
+        },
+
+        'best lay regression': {
+            'name': 'RunnerFeatureRegression',
+            'kwargs':  {
+                'periodic_ms': regression_update_ms,
+                'window_function': 'WindowProcessorBestLay',
+                'regressions_seconds': regression_seconds,
+                'regression_strength_filter': regression_strength_filter,
+                'regression_gradient_filter': regression_gradient_filter * -1,
+                'regression_preprocessor': 'value_processor_invert',
+                'regression_postprocessor': 'value_processor_invert',
+            },
+        },
+    }

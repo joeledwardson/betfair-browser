@@ -1,11 +1,12 @@
 from plotly.subplots import make_subplots
 import plotly.graph_objects as go
-from myutils import bf_strategy, generic, bf_feature, bf_window
+from myutils import generic, bf_feature, bf_window, timing
 import pandas as pd
 from datetime import timedelta
 from typing import List, Dict
 from betfairlightweight.resources.bettingresources import MarketBook
 from functools import partial
+from datetime import datetime
 
 
 # i-1, clamped at minimum 0
@@ -22,94 +23,6 @@ def i_next(i, n):
 def values_resampler(df: pd.DataFrame, n_seconds) -> pd.DataFrame:
     rule = f'{n_seconds}S'
     return df.resample(rule).last().fillna(method='ffill')
-
-
-# get dict of {feature name: feature object} for default runner features
-def get_default_features(
-        windows: bf_window.Windows,
-        selection_id,
-        wom_ticks=5,
-        ltp_window_s=40,
-        ltp_moving_average_entries=10,
-        ltp_diff_s=2,
-        regression_seconds=2,
-        regression_strength_filter=0.1,
-        regression_gradient_filter=0.003,
-) -> Dict[str, bf_feature.RunnerFeatureBase]:
-
-    return {
-
-        'best back': bf_feature.RunnerFeatureBestBack(
-            selection_id
-        ),
-
-        'best lay': bf_feature.RunnerFeatureBestLay(
-            selection_id
-        ),
-
-        'wom': bf_feature.RunnerFeatureWOM(
-            selection_id,
-            wom_ticks=wom_ticks
-        ),
-
-        'ltp min': bf_feature.RunnerFeatureTradedWindowMin(
-            selection_id,
-            window_s=ltp_window_s,
-            windows=windows,
-            value_processor=bf_feature.moving_average_processor(
-                n_entries=ltp_moving_average_entries
-            ),
-        ),
-
-        'ltp max': bf_feature.RunnerFeatureTradedWindowMax(
-            selection_id,
-            window_s=ltp_window_s,
-            windows=windows,
-            value_processor=bf_feature.moving_average_processor(
-                n_entries=ltp_moving_average_entries
-            ),
-        ),
-
-        'ltp diff': bf_feature.RunnerFeatureTradedDiff(
-            selection_id,
-            window_s=ltp_diff_s,
-            windows=windows,
-        ),
-
-        'book split': bf_feature.RunnerFeatureBookSplitWindow(
-            selection_id,
-            window_s=ltp_window_s,
-            windows=windows,
-        ),
-
-        # put LTP last so it shows up above LTP max/min when plotting
-        'ltp': bf_feature.RunnerFeatureLTP(
-            selection_id
-        ),
-
-        'best back regression': bf_feature.RunnerFeatureRegression(
-            selection_id,
-            windows=windows,
-            window_function='WindowProcessorBestBack',
-            regressions_seconds=regression_seconds,
-            regression_strength_filter=regression_strength_filter,
-            regression_gradient_filter=regression_gradient_filter,
-            regression_preprocessor=lambda v: 1/v,
-            regression_postprocessor=lambda v: 1/v,
-        ),
-
-        'best lay regression': bf_feature.RunnerFeatureRegression(
-            selection_id,
-            windows=windows,
-            window_function='WindowProcessorBestLay',
-            regressions_seconds=regression_seconds,
-            regression_strength_filter=regression_strength_filter,
-            regression_gradient_filter=regression_gradient_filter * -1,
-            regression_preprocessor=lambda v: 1 / v,
-            regression_postprocessor=lambda v: 1 / v,
-        ),
-
-    }
 
 
 # format value with name to percentage with 'n_decimals' dp
@@ -140,7 +53,7 @@ def plotly_set_color(
     sr_vals = pd.Series(vals['y'], index=vals['x'])
     sr_vals = remove_duplicates(sr_vals)
 
-    color_data = color_feature.get_data()[0]
+    color_data = color_feature.get_plotly_data()[0]
     sr_color = pd.Series(color_data['y'], index=color_data['x'])
     sr_color = remove_duplicates(sr_color)
 
@@ -283,6 +196,7 @@ def get_yaxes_names(feature_plot_configs, _default_plot_configs) -> List[str]:
                        for c in feature_plot_configs.values()]
     ))
 
+
 # create chart with subplots based on 'y_axis' properties of feature plot configurations
 def create_figure(y_axes_names, vertical_spacing=0.05) -> go.Figure:
 
@@ -298,7 +212,14 @@ def create_figure(y_axes_names, vertical_spacing=0.05) -> go.Figure:
 
 
 # create trace from feature data and add to figure
-def add_feature_trace(fig, feature_name, feature, _default_plot_configs, y_axes_names, conf, chart_start):
+def add_feature_trace(
+        fig: go.Figure,
+        feature_name: str,
+        feature: bf_feature.RunnerFeatureBase,
+        _default_plot_configs: Dict,
+        y_axes_names: List,
+        conf: Dict,
+        chart_start: datetime):
 
     if conf.get('ignore'):
         return
@@ -311,7 +232,7 @@ def add_feature_trace(fig, feature_name, feature, _default_plot_configs, y_axes_
     trace_args = conf.get('trace_args', _default_plot_configs['trace_args'])
     trace_args.update({'col': 1, 'row': row})
 
-    trace_data_lists = feature.get_data()
+    trace_data_lists = feature.get_plotly_data()
     
     for trace_data in trace_data_lists:
     
@@ -362,7 +283,13 @@ def fig_historical(records: List[List[MarketBook]], selection_id, title, display
         return go.Figure()
 
     windows = bf_window.Windows()
-    features = get_default_features(windows, selection_id)
+    features_config = bf_feature.get_default_features_config()
+    features: Dict[str, bf_feature.RunnerFeatureBase] = {}
+    for name, conf in features_config.items():
+        feature_class = getattr(bf_feature, conf['name'])
+        features[name] = feature_class(**conf.get('kwargs', {}))
+        features[name].race_initializer(selection_id, records[0][0], windows)
+
     feature_plot_configs = get_default_feature_plot_config(features)
 
     recs = []
@@ -372,10 +299,12 @@ def fig_historical(records: List[List[MarketBook]], selection_id, title, display
         recs.append(new_book)
         windows.update_windows(recs, new_book)
 
+
         runner_index = next((i for i, r in enumerate(new_book.runners) if r.selection_id == selection_id), None)
         if runner_index is not None:
             for feature in features.values():
                 feature.process_runner(recs, new_book, windows, runner_index)
+
 
     y_axes_names = get_yaxes_names(feature_plot_configs, default_plot_configs)
     fig = create_figure(y_axes_names)
