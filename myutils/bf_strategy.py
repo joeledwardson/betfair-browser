@@ -18,100 +18,15 @@ import statistics
 import statsmodels.api as sm
 import operator
 
-OC_EXCHANGES = ['BF', 'MK', 'MA', 'BD', 'BQ']
+
 active_logger = logging.getLogger(__name__)
 
-STREAM_SUBDIR = 'bf_stream'
-CATALOGUE_SUBDIR = 'bf_catalogue'
-
-# sort oddschecker dataframe by avergae value
-def sort_oc(df: pd.DataFrame):
-    # get means across columns
-    avgs = df.mean(axis=1)
-    return avgs.sort_values()
-
-
-# get historical oddschecker file
-def get_hist_oc_df(oc_path):
-    try:
-        return pd.read_pickle(oc_path)
-    except Exception as e:
-        active_logger.warning(f'error getting oc file: "{e}"', exc_info=True)
-        return None
-
-
-# create oddschecker historic path
-def get_hist_oc_path(dir_path, market_id, oc_subdir='oddschecker'):
-    return os.path.join(dir_path, oc_subdir, market_id)
-
-
-# strip exchanges from oddschecker odds dataframe columns and dataframe index (names) with selection IDs
-# on fail, will log an error and return None
-def process_oc_df(df: pd.DataFrame, name_id_map):
-
-    df = df[[col for col in df.columns if col not in OC_EXCHANGES]]
-    oc_ids = betting.names_to_id(df.index, name_id_map)
-    if not oc_ids:
-        return None
-
-    df.index = oc_ids
-    return df
 
 
 # filter orders to runner
 def filter_orders(orders, selection_id) -> List[BaseOrder]:
     return [o for o in orders if o.selection_id == selection_id]
 
-
-# get betfair catalogue file
-def get_hist_cat(catalogue_path) -> MarketCatalogue:
-    try:
-        with open(catalogue_path) as f:
-            dat = f.read()
-        cat = json.loads(dat)
-        return MarketCatalogue(**cat)
-    except Exception as e:
-        active_logger.warning(f'error getting catalogue "{e}"', exc_info=True)
-        return None
-
-
-# generate betfair catalogue file path
-def get_hist_cat_path(dir_path, market_id, bf_cat_subdir='bf_catalogue'):
-    return os.path.join(dir_path, bf_cat_subdir, market_id)
-
-
-# generate betfair streaming file path
-def get_hist_stream_path(dir_path, market_id, bf_stream_subdir='bf_stream'):
-    return os.path.join(dir_path, bf_stream_subdir, market_id)
-
-
-# get historical betfair stream data
-def get_hist_stream_data(trading: APIClient, stream_path: str) -> List[List[MarketBook]]:
-
-    stream_logger = logging.getLogger('betfairlightweight.streaming.stream')
-    level = stream_logger.level
-
-    if not os.path.isfile(stream_path):
-
-        logging.warning(f'stream path "{stream_path}" does not exist')
-        return None
-
-    else:
-
-        try:
-
-            # stop it winging about stream latency
-            stream_logger.setLevel(logging.CRITICAL)
-            q = betting.get_historical(trading, stream_path)
-            # reset level
-            stream_logger.setLevel(level)
-            return list(q.queue)
-
-        except Exception as e:
-
-            stream_logger.setLevel(level)
-            logging.warning(f'error getting historical: "{e}"', exc_info=True)
-            return None
 
 
 # lay if below bookmaker price
@@ -290,53 +205,6 @@ def green_runner(
     strategy.place_order(market, green_order)
 
 
-# process market book in historical testing, result stored in 'mydat' dict attribute, applied to market object
-# function searches for betfair catalogue file and oddschecker dataframe file
-# - if processed successfuly, mydat['ok'] is True
-def oc_hist_mktbk_processor(
-        strategy: BaseStrategy,
-        market: Market,
-        market_book: MarketBook,
-        dir_path,
-        name_attr='name'):
-
-    d = {
-        'ok': False,
-    }
-
-    active_logger.info('processing new market "{}" {} {}'.format(
-        market_book.market_id,
-        market_book.market_definition.market_time,
-        market_book.market_definition.event_name
-    ))
-
-    # get oddschecker dataframe from file
-    oc_df = get_hist_oc_df(
-        get_hist_oc_path(dir_path, market.market_id))
-    if oc_df is None:
-        return d
-
-    # get betfair category from file
-    cat = get_hist_cat(
-        get_hist_cat_path(dir_path, market.market_id))
-    if cat is None:
-        return d
-
-    # process oddschecker dataframe to set with selection IDs
-    name_id_map = betting.get_names(cat, name_attr=name_attr, name_key=True)
-    oc_df = process_oc_df(oc_df, name_id_map)
-    if oc_df is None:
-        return d
-
-    # assign results to dict and write as market attribute
-    oc_sorted = sort_oc(oc_df)
-    d['oc_df'] = oc_df
-    d['oc_sorted'] = oc_sorted
-    d['id_fav'] = oc_sorted.index[0]
-    d['id_outsider'] = oc_sorted.index[-1]
-    d['cat'] = cat
-    d['ok'] = True
-    return d
 
 
 class MyBaseStrategy(BaseStrategy):
