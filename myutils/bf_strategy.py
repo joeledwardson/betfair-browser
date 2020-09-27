@@ -63,7 +63,8 @@ def lay_low(
     if price < 1:
         return
 
-    active_logger.info(f'runner id "{runner.selection_id}" best atl {price} for £{size}, bookie avg is {bookie_odds}')
+    active_logger.info(f'runner id "{runner.selection_id}" best atl {price} for £{size:.2f}, bookie avg is'
+                       f' {bookie_odds}')
 
     trade = Trade(
         market_id=market.market_id,
@@ -263,17 +264,6 @@ class MyFeatureStrategy(MyBaseStrategy):
     def market_initialisation(self, market: Market, market_book: MarketBook, feature_data: MyFeatureData):
         pass
 
-    # get MyFeatureData instance for market, create if market doesn't exist in dict
-    def get_feature_data(self, market: Market, market_book: MarketBook) -> MyFeatureData:
-
-        # check if market has been initialised
-        if market.market_id not in self.feature_data:
-            feature_data = self.create_feature_data(market, market_book)
-            self.feature_data[market.market_id] = feature_data
-            self.market_initialisation(market, market_book, feature_data)
-
-        return self.feature_data[market.market_id]
-
     def do_feature_processing(self, feature_data: MyFeatureData, market_book: MarketBook):
 
         # loop runners
@@ -290,8 +280,14 @@ class MyFeatureStrategy(MyBaseStrategy):
 
     def process_get_feature_data(self, market: Market, market_book: MarketBook) -> MyFeatureData:
 
+        # check if market has been initialised
+        if market.market_id not in self.feature_data:
+            feature_data = self.create_feature_data(market, market_book)
+            self.feature_data[market.market_id] = feature_data
+            self.market_initialisation(market, market_book, feature_data)
+
         # get feature data instance for current market
-        feature_data = self.get_feature_data(market, market_book)
+        feature_data = self.feature_data[market.market_id]
 
         # if runner doesnt have an element in features dict then add (this must be done before window processing!)
         for runner in market_book.runners:

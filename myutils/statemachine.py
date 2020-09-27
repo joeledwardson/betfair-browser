@@ -28,6 +28,9 @@ class StateMachine:
 
         while 1:
 
+            if self.selection_id == 28400302:
+                my_debug_breakpoint=True
+
             if self.is_state_change:
                 self.states[self.current_state_key].enter()
 

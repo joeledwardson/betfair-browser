@@ -32,6 +32,7 @@ class WallTradeStateCollection:
 
 
 class WallTradeStates(Enum):
+    WALL_HEDGE_PLACE = 'wall hedge place'
     WALL_HEDGE_MATCHING = 'wall hedge trading matching'
 
 
@@ -61,7 +62,7 @@ class MyScalpStrategy(MyFeatureStrategy):
     tick_target = 3
 
     # minimum difference in profit/loss between selection win/loss where hedge trade is placed
-    min_hedge_pence = 50
+    min_hedge_price = 0.5
 
     # maximum spread in ticks between back and lay
     max_tick_spread = 10
@@ -147,12 +148,17 @@ class MyScalpStrategy(MyFeatureStrategy):
                     WallTradeStateOpenMatching(),
                     bftm.TradeStateBin(),
                     bftm.TradeStatePending(),
-                    bftm.TradeStateHedgeSelect(),
+                    WallTradeStateHedgeSelect(),
                     WallTradeStateHedgeOffset(
                         tick_target=self.tick_target,
-                        min_hedge_pence=self.min_hedge_pence
+                        min_hedge_price=self.min_hedge_price
                     ),
                     WallTradeStateHedgeWait(),
+                    bftm.TradeStateHedgePlaceTake(
+                        min_hedge_price=self.min_hedge_price
+                    ),
+                    bftm.TradeStateHedgeTakeWait(),
+                    bftm.TradeStateClean()
                 ]
             },
             initial_state=bftm.TradeStateIdle.name,
@@ -161,13 +167,14 @@ class MyScalpStrategy(MyFeatureStrategy):
 
     def process_market_book(self, market: Market, market_book: MarketBook) -> None:
 
-        # get feature data
+        # get feature data (calls market_initialisation() if new market)
         feature_data = self.process_get_feature_data(market, market_book)
 
         # print(f'{len(feature_data.market_books):5} books processed')
 
         for runner_index, runner in enumerate(market_book.runners):
-            if runner.selection_id not in self.trade_trackers:
+            if runner.selection_id not in self.trade_trackers[market.market_id]:
+                active_logger.info(f'creating state machine and trade tracker for "{runner.selection_id}"')
                 self.trade_trackers[market.market_id][runner.selection_id] = [WallTradeTracker(
                     selection_id=runner.selection_id
                 )]
@@ -181,6 +188,9 @@ class MyScalpStrategy(MyFeatureStrategy):
             runner_book = market_book.runners[runner_index]
 
             wall_point = self.get_wall(runner_book)
+
+            if runner.selection_id == 28400302:
+                my_runner_debug_breakpoint = True
 
             state_machine.run(
                 market_book=market_book,
@@ -264,7 +274,8 @@ def validate_wall(
     # if size of bet at wall price has decreased by more than allowed amount for validation then abort
     if wall_price_size['size'] < strategy.wall_validation * trade_tracker.wall.size:
         trade_tracker.log(
-            f'current amount at wall price {trade_tracker.wall.price} of £{wall_price_size["size"]} is less than the '
+            f'current amount at wall price {trade_tracker.wall.price} of £{wall_price_size["size"]:.2f} is less than '
+            f'the '
             f'validation multiplier {strategy.wall_validation} of original size {trade_tracker.wall.size}',
             publish_time
         )
@@ -291,12 +302,12 @@ def get_wall_adjacent(
     if wall_side == 'LAY':
 
         # wall is on lay side, want to back one tick lower
-        new_tick_index = i_prev(new_tick_index)
+        new_tick_index = i_next(new_tick_index, len(betting.TICKS))
 
     else:
 
         # wall is on back side, want to lay one tick higher
-        new_tick_index = i_next(new_tick_index, len(betting.TICKS))
+        new_tick_index = i_prev(new_tick_index)
 
     # get price from tick index
     return betting.LTICKS_DECODED[new_tick_index]
@@ -343,7 +354,7 @@ class WallTradeStateOpenPlace(bftm.TradeStateOpenPlace):
             ))
         strategy.place_order(market, order)
         trade_tracker.log(
-            f'placing open order at {price} for {strategy.stake_size} on {wall.side} side',
+            f'placing open order at {price} for £{strategy.stake_size:.2f} on {wall.side} side',
             market_book.publish_time
         )
         return order
@@ -406,19 +417,24 @@ class WallTradeStateOpenMatching(bftm.TradeStateOpenMatching):
         return [bftm.TradeStates.PENDING, bftm.TradeStates.OPEN_MATCHING]
 
 
+class WallTradeStateHedgeSelect(bftm.TradeStateHedgeSelect):
+    next_state = WallTradeStates.WALL_HEDGE_PLACE
+
+
 # place hedge at number of ticks away from open price
 class WallTradeStateHedgeOffset(bftm.TradeStateHedgePlaceTake):
 
+    name = WallTradeStates.WALL_HEDGE_PLACE
     next_state = WallTradeStates.WALL_HEDGE_MATCHING
 
     def __init__(
             self,
             tick_target,
-            min_hedge_pence,
+            min_hedge_price,
             name: WallTradeStates = None,
             next_state: WallTradeStates = None,
     ):
-        super().__init__(name, next_state, min_hedge_pence)
+        super().__init__(min_hedge_price, name, next_state)
         self.tick_target = tick_target
 
     def get_hedge_price(
@@ -471,6 +487,10 @@ class WallTradeStateHedgeWait(bftm.TradeStateBase):
                 trade_tracker,
                 strategy,
                 **inputs) or order.status in bftm.order_error_states:
+            trade_tracker.log(
+                f'wall validation failed, binning trade then taking available',
+                market_book.publish_time
+            )
             # if wall has gone or error then abandon position and take whatever is available to hedge
             return [bftm.TradeStates.BIN, bftm.TradeStates.HEDGE_PLACE_TAKE]
 
