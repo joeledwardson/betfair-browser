@@ -7,7 +7,10 @@ from betfairlightweight.resources.bettingresources import MarketBook, RunnerBook
 from betfairlightweight import APIClient
 
 import json
-from myutils import betting
+from myutils import betting, generic
+from myutils import bf_feature as bff, bf_window as bfw, bf_trademachine as bftm, statemachine as stm
+from myutils import bf_utils as bfu
+from myutils.generic import  i_prev, i_next
 import os
 import pandas as pd
 import numpy as np
@@ -17,16 +20,17 @@ from datetime import datetime, timedelta
 import statistics
 import statsmodels.api as sm
 import operator
-
+from enum import Enum
+from dataclasses import dataclass
+from dataclasses import dataclass, field
+import operator
 
 active_logger = logging.getLogger(__name__)
-
 
 
 # filter orders to runner
 def filter_orders(orders, selection_id) -> List[BaseOrder]:
     return [o for o in orders if o.selection_id == selection_id]
-
 
 
 # lay if below bookmaker price
@@ -205,8 +209,6 @@ def green_runner(
     strategy.place_order(market, green_order)
 
 
-
-
 class MyBaseStrategy(BaseStrategy):
 
     def check_market_book(self, market, market_book):
@@ -229,3 +231,89 @@ class BackTestClientNoMin(clients.BacktestClient):
     @property
     def min_bet_size(self) -> Optional[float]:
         return 0
+
+
+
+
+class MyFeatureData:
+    def __init__(self, market_book: MarketBook):
+        self.windows: bfw.Windows = bfw.Windows()
+        self.features: Dict[int, Dict[str, bff.RunnerFeatureBase]] = {
+            runner.selection_id: bff.get_default_features(
+                runner.selection_id,
+                market_book,
+                self.windows
+            ) for runner in market_book.runners
+        }
+        self.market_books: List[MarketBook] = []
+
+
+class MyFeatureStrategy(MyBaseStrategy):
+
+    def __init__(self, *kargs, **kwargs):
+        super().__init__(*kargs, **kwargs)
+
+        # feature data, indexed by market ID
+        self.feature_data: [Dict, MyFeatureData] = dict()
+
+    def create_feature_data(self, market: Market, market_book: MarketBook) -> MyFeatureData:
+        return MyFeatureData(market_book)
+
+    # called first time strategy receives a new market
+    def market_initialisation(self, market: Market, market_book: MarketBook, feature_data: MyFeatureData):
+        pass
+
+    # get MyFeatureData instance for market, create if market doesn't exist in dict
+    def get_feature_data(self, market: Market, market_book: MarketBook) -> MyFeatureData:
+
+        # check if market has been initialised
+        if market.market_id not in self.feature_data:
+            feature_data = self.create_feature_data(market, market_book)
+            self.feature_data[market.market_id] = feature_data
+            self.market_initialisation(market, market_book, feature_data)
+
+        return self.feature_data[market.market_id]
+
+    def do_feature_processing(self, feature_data: MyFeatureData, market_book: MarketBook):
+
+        # loop runners
+        for runner_index, runner in enumerate(market_book.runners):
+
+            # process each feature for current runner
+            for feature in feature_data.features[runner.selection_id].values():
+                feature.process_runner(
+                    feature_data.market_books,
+                    market_book,
+                    feature_data.windows,
+                    runner_index
+                )
+
+    def process_get_feature_data(self, market: Market, market_book: MarketBook) -> MyFeatureData:
+
+        # get feature data instance for current market
+        feature_data = self.get_feature_data(market, market_book)
+
+        # if runner doesnt have an element in features dict then add (this must be done before window processing!)
+        for runner in market_book.runners:
+            if runner.selection_id not in feature_data.features:
+
+                runner_features = bff.get_default_features(
+                    selection_id=runner.selection_id,
+                    book=market_book,
+                    windows=feature_data.windows
+                )
+
+                feature_data.features[runner.selection_id] = runner_features
+
+        # append new market book to list
+        feature_data.market_books.append(market_book)
+
+        # update windows
+        feature_data.windows.update_windows(feature_data.market_books, market_book)
+
+        # process features
+        self.do_feature_processing(feature_data, market_book)
+
+        return feature_data
+
+

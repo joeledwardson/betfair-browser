@@ -30,11 +30,11 @@ def update_index_window(
 class WindowProcessorBase:
 
     @classmethod
-    def processor_init(cls, window: dict):
+    def processor_init(cls, window: dict, **kwargs):
         pass
 
     @classmethod
-    def process_window(cls, market_list: List[MarketBook], new_book: MarketBook, window: dict):
+    def process_window(cls, market_list: List[MarketBook], new_book: MarketBook, window: dict, **kwargs):
         raise NotImplementedError
 
 
@@ -44,11 +44,11 @@ class WindowProcessorBase:
 class WindowProcessorTradedVolumeLadder(WindowProcessorBase):
 
     @classmethod
-    def processor_init(cls, window: dict):
+    def processor_init(cls, window: dict, **kwargs):
         window['old_tv_ladders'] = {}
 
     @classmethod
-    def process_window(cls, market_list: List[MarketBook], new_book: MarketBook, window: dict):
+    def process_window(cls, market_list: List[MarketBook], new_book: MarketBook, window: dict, **kwargs):
 
         # check if window start index has changed
         if window['window_index'] != window['window_prev_index']:
@@ -91,11 +91,11 @@ class WindowProcessorFeatureBase(WindowProcessorBase):
 
     # initialise by creating empty dict in window using attribute key
     @classmethod
-    def processor_init(cls, window: dict):
+    def processor_init(cls, window: dict, **kwargs):
         window[cls.window_var] = {}
 
     @classmethod
-    def process_window(cls, market_list: List[MarketBook], new_book: MarketBook, window: dict):
+    def process_window(cls, market_list: List[MarketBook], new_book: MarketBook, window: dict, **kwargs):
 
         # get starting index of window, add 1 if only taking values inside window
         start_index = window['window_index'] + cls.inside_window
@@ -162,6 +162,24 @@ class WindowProcessorBestLay(WindowProcessorFeatureBase):
         return betting.best_price(runner.ex.available_to_lay)
 
 
+# return a delayed window value
+class WindowProcessorDelayer(WindowProcessorBase):
+
+    @classmethod
+    def processor_init(cls, window: dict, **kwargs):
+        window
+
+    @classmethod
+    def process_window(
+            cls,
+            market_list: List[MarketBook],
+            new_book: MarketBook,
+            window: dict,
+            **kwargs
+    ):
+        raise NotImplementedError
+
+
 # Hold a set of sliding windows, where the index of timestamped records outside sliding window is updated as current
 # time increases.
 # 'windows' attribute holds dictionary of windows, indexed by their width in seconds
@@ -198,31 +216,44 @@ class Windows:
         return self.windows[width_seconds]
 
     # add a window processor to a window (assumes window exists)
-    def add_function(self, width_seconds, function_key):
+    def add_function(self, width_seconds, function_key, **kwargs):
         window = self.windows[width_seconds]
-        if function_key not in window['functions']:
-            window['functions'].append(function_key)
-            self.FUNCTIONS[function_key].processor_init(window)
+
+        # check if any existing functions with the same args
+        existing = [w for w in window['functions'] if w['name'] == function_key]
+        if existing and any(e['kwargs'] == kwargs for e in existing):
+            return
+
+        window['functions'].append({
+            'name': function_key,
+            'kwargs': kwargs,
+        })
+        self.FUNCTIONS[function_key].processor_init(window, **kwargs)
 
     # update windows with a new received market book
     def update_windows(self, market_list: List[MarketBook], new_book: MarketBook):
 
         # loop windows
-        for width_seconds, w in self.windows.items():
+        for width_seconds, window in self.windows.items():
 
             # update previous state index of window start record
-            w['window_prev_index'] = w['window_index']
+            window['window_prev_index'] = window['window_index']
 
             # update record index for window start
-            w['window_index'] = update_index_window(
+            window['window_index'] = update_index_window(
                 records=market_list,
                 current_index=len(market_list) - 1,
                 seconds_window=width_seconds,
-                window_index=w['window_index'],
+                window_index=window['window_index'],
                 outside_window=True,
                 f_pt=self.func_publish_time)
 
             # loop and run window processing functions
-            for func in w['functions']:
-                self.FUNCTIONS[func].process_window(market_list, new_book, w)
+            for func in window['functions']:
+                self.FUNCTIONS[func['name']].process_window(
+                    market_list,
+                    new_book,
+                    window,
+                    **func['kwargs']
+                )
 

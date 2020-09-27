@@ -46,6 +46,7 @@ class RunnerFeatureBase:
             value_processor: str = 'value_processor_identity',
             value_processor_args: dict = None,
             periodic_ms: int = None,
+            periodic_timestamps: bool = False,
             ):
 
         self.windows: bf_window.Windows = None
@@ -60,6 +61,7 @@ class RunnerFeatureBase:
         self.processed_vals = []
 
         self.periodic_ms = periodic_ms
+        self.periodic_timestamps = periodic_timestamps
         self.last_timestamp: datetime = None
 
     def race_initializer(
@@ -78,6 +80,7 @@ class RunnerFeatureBase:
             windows: bf_window.Windows,
             runner_index):
 
+        publish_time = new_book.publish_time
         update = False
 
         # if specified, updates only allow every 'periodic_ms' milliseconds
@@ -86,29 +89,48 @@ class RunnerFeatureBase:
             # check if current book is 'periodic_ms' milliseconds past last update
             if int((new_book.publish_time - self.last_timestamp).total_seconds() * 1000) > self.periodic_ms:
 
-                # specify that do want to update, and increment last update timestamp
+                # specify that do want to update
                 update = True
-                self.last_timestamp = self.last_timestamp + timedelta(milliseconds=self.periodic_ms)
+
+                # if periodically timestamped flag specified, set timestamp to sampled time and increment
+                if self.periodic_timestamps:
+                    publish_time = self.last_timestamp
+                    self.last_timestamp = self.last_timestamp + timedelta(milliseconds=self.periodic_ms)
 
         # if periodic update milliseconds not specified, update regardless
         else:
             update = True
 
-
+        # if criteria for updating value not met the ignore
         if not update:
             return
 
-        value = self.runner_update(market_list, new_book, windows, runner_index)
-        if value is None:
-            return
+        # add datetime, value and processed value to lists
+        def send_update(publish_time):
 
-        self.dts.append(new_book.publish_time)
-        self.values.append(value)
-        processed = self.value_processor(value, self.values, self.dts)
-        self.processed_vals.append(processed)
-        if len(self.values) != len(self.processed_vals):
-            raise Exception(
-                f'Length of values {len(self.values)} different to processed values {len(self.processed_vals)}')
+            # get feature value, ignore if None
+            value = self.runner_update(market_list, new_book, windows, runner_index)
+            if value is None:
+                return
+
+            # add raw value and timestamp to lists
+            self.dts.append(publish_time)
+            self.values.append(value)
+
+            # compute value processor on raw value
+            processed = self.value_processor(value, self.values, self.dts)
+
+            # add processed value
+            self.processed_vals.append(processed)
+
+        send_update(publish_time)
+
+        # if data is sampled and more than one sample time has elapsed, fill forwards until time is met
+        if self.periodic_timestamps:
+            while self.last_timestamp <= new_book.publish_time:
+                self.last_timestamp = self.last_timestamp + timedelta(milliseconds=self.periodic_ms)
+                send_update(self.last_timestamp)
+
 
     def runner_update(self, market_list: List[MarketBook], new_book: MarketBook, windows: bf_window.Windows, runner_index):
         raise NotImplementedError
@@ -176,7 +198,13 @@ class RunnerFeatureTradedWindowMax(RunnerFeatureWindowBase):
             windows: bf_window.Windows,
             runner_index):
 
+
+
         prices = [tv['price'] for tv in self.window['tv_diff_ladder'][self.selection_id]]
+
+        if self.selection_id == 35985191 and prices and abs(max(prices) - 3.7) < 0.01:
+            my_debug_breakpoint=1
+
         return max(prices) if prices else None
 
 
@@ -250,7 +278,10 @@ class RunnerFeatureTradedDiff(RunnerFeatureWindowBase):
             windows: bf_window.Windows,
             runner_index):
 
-        return self.window['tv_diff_totals'].get(self.selection_id, None)
+        try:
+            return self.window['tv_diff_totals'].get(self.selection_id, None)
+        except KeyError as e:
+            raise BetfairFeatureException(f'error getting window attribute "tv_diff_totals"\n{e}')
 
 
 # best available back price of runner
@@ -370,12 +401,14 @@ class RunnerFeatureRegression(RunnerFeatureWindowBase):
 def get_default_features_config(
         wom_ticks=5,
         ltp_window_s=40,
+        ltp_periodic_ms=200,
         ltp_moving_average_entries=10,
         ltp_diff_s=2,
         regression_seconds=2,
         regression_strength_filter=0.1,
         regression_gradient_filter=0.003,
-        regression_update_ms=200
+        regression_update_ms=200,
+
 ) -> Dict[str, Dict]:
 
     return {
@@ -398,6 +431,7 @@ def get_default_features_config(
         'ltp min': {
             'name': 'RunnerFeatureTradedWindowMin',
             'kwargs': {
+                'periodic_ms': ltp_periodic_ms,
                 'window_s': ltp_window_s,
                 'value_processor': 'value_processor_moving_average',
                 'value_processor_args': {
@@ -409,6 +443,7 @@ def get_default_features_config(
         'ltp max': {
             'name': 'RunnerFeatureTradedWindowMax',
             'kwargs': {
+                'periodic_ms': ltp_periodic_ms,
                 'window_s': ltp_window_s,
                 'value_processor': 'value_processor_moving_average',
                 'value_processor_args': {
@@ -462,3 +497,18 @@ def get_default_features_config(
             },
         },
     }
+
+
+def get_default_features(
+        selection_id,
+        book: MarketBook,
+        windows: bf_window.Windows,
+        **kwargs) -> Dict[str, RunnerFeatureBase]:
+
+    features_config = get_default_features_config(**kwargs)
+    features: Dict[str, RunnerFeatureBase] = {}
+    for name, conf in features_config.items():
+        feature_class = globals()[conf['name']]
+        features[name] = feature_class(**conf.get('kwargs', {}))
+        features[name].race_initializer(selection_id, book, windows)
+    return features

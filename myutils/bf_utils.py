@@ -1,6 +1,6 @@
 from flumine import  BaseStrategy
 from flumine.markets.market import Market
-from betfairlightweight.resources.bettingresources import MarketBook, RunnerBook, MarketCatalogue
+from betfairlightweight.resources.bettingresources import MarketBook, RunnerBook, MarketCatalogue, RunnerBookEX
 from betfairlightweight import APIClient
 
 import json
@@ -9,6 +9,7 @@ import os
 import pandas as pd
 import logging
 from typing import List
+import operator
 
 SUBDIR_STREAM = 'bf_stream'
 SUBDIR_CATALOGUE = 'bf_catalogue'
@@ -17,6 +18,64 @@ OC_EXCHANGES = ['BF', 'MK', 'MA', 'BD', 'BQ']
 
 
 active_logger = logging.getLogger(__name__)
+
+
+class BfUtilsException(Exception):
+    pass
+
+
+def select_operator_side(side, invert=False):
+    """
+    generic operator selection when comparing odds
+    - if side is 'BACK', returns gt (greater than)
+    - if side is 'LAY', returns lt (less than)
+    - set invert=True to return the other operator
+    """
+    if side == 'BACK':
+        greater_than = True
+    elif side == 'LAY':
+        greater_than = False
+    else:
+        raise BfUtilsException(f'side "{side}" not recognised')
+
+    if invert:
+        greater_than = not greater_than
+
+    if greater_than:
+        return operator.gt
+    else:
+        return operator.lt
+
+
+def select_ladder_side(book_ex: RunnerBookEX, side):
+    """
+    get selected side of runner book ex:
+    - if side is 'BACK', returns 'book_ex.available_to_back'
+    - if side is 'LAY', returns 'book.ex.available_to_lay'
+    """
+    if side == 'BACK':
+        return book_ex.available_to_back
+    elif side == 'LAY':
+        return book_ex.available_to_lay
+    else:
+        raise BfUtilsException(f'side "{side}" not recognised')
+
+
+def runner_spread(book_ex: RunnerBookEX):
+    """
+    get the number of ticks spread between the back and lay side of a runner book
+    returns 1000 if either side is empty
+    """
+    if book_ex.available_to_back and book_ex.available_to_back[0]['price'] in betting.LTICKS_DECODED and \
+        book_ex.available_to_lay and book_ex.available_to_lay[0]['price'] in betting.LTICKS_DECODED:
+
+        return betting.LTICKS_DECODED.index(book_ex.available_to_lay[0]['price']) - \
+               betting.LTICKS_DECODED.index(book_ex.available_to_back[0]['price'])
+
+    else:
+
+        return len(betting.LTICKS_DECODED)
+
 
 
 # sort oddschecker dataframe by average value

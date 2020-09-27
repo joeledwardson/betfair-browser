@@ -63,8 +63,9 @@ def names_to_id(input_names: List[str], name_id_map: Dict) -> List:
 
 
 # convert an value to the nearest odds tick, e.g. 2.10000001 would be converted to 2.1
-def round_to_tick(value):
-    return generic.closest_value(TICKS_DECODED, value)
+# specify return_index=True to get index instead of value
+def closest_tick(value, return_index=False):
+    return generic.closest_value(TICKS_DECODED, value, return_index)
 
 
 # time of event in HH:MM, converted from betfair UTC to local
@@ -78,27 +79,27 @@ def bf_dt(dt: datetime):
 
 
 # get historical records before the market start time
-def pre_off(record_list, start_time: datetime):
+def pre_off(record_list, start_time: datetime) -> List[List[MarketBook]]:
     return [r for r in record_list if r[0].publish_time < start_time]
 
 
 # get records before match goes in play
-def pre_inplay(record_list):
+def pre_inplay(record_list) -> List[List[MarketBook]]:
     return [r for r in record_list if not r[0].market_definition.in_play]
 
 
 # get a list of 'publish_time' timestamps from historical records
-def record_datetimes(records):
+def record_datetimes(records) -> List[datetime]:
     return [r[0].publish_time for r in records]
 
 
 # get records that are within 'span_m' minutes of market starttime
-def get_recent_records(record_list, span_m, start_time: datetime):
+def get_recent_records(record_list, span_m, start_time: datetime) -> List[List[MarketBook]]:
     return [r for r in record_list if within_x_seconds(span_m * 60, r[0], start_time)]
 
 
 # get records that are within 'span_s' seconds of market starttime
-def get_recent_records_s(record_list, span_s, start_time: datetime):
+def get_recent_records_s(record_list, span_s, start_time: datetime) -> List[List[MarketBook]]:
     return [r for r in record_list if within_x_seconds(span_s, r[0], start_time)]
 
 
