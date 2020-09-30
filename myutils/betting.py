@@ -17,23 +17,22 @@ active_logger = logging.getLogger(__name__)
 # Change this certs path to wherever you're storing your certificates
 certs_path = os.environ['USERPROFILE'] + r'\OneDrive\Betfair\bf certs'
 
-# TODO update these to retreieve from memory!
-# Change these login details to your own
 my_username = keyring.get_password('bf_username', 'joel')
 my_password = keyring.get_password('bf_password', 'joel')
 my_app_key  = keyring.get_password('bf_app_key',  'joel')
 
 
-# login and get Betfair API client
 def get_api_client() -> betfairlightweight.APIClient:
+    """Get Betfair API client with credentials"""
     return betfairlightweight.APIClient(username=my_username,
                                         password=my_password,
                                         app_key=my_app_key,
                                         certs=certs_path)
 
 
-# get Queue object from historical Betfair data file
 def get_historical(api_client : betfairlightweight.APIClient, directory) -> Queue:
+    """Get Queue object from historical Betfair data file"""
+
     output_queue = Queue()
 
     listener = betfairlightweight.StreamListener(output_queue=output_queue)
@@ -46,8 +45,12 @@ def get_historical(api_client : betfairlightweight.APIClient, directory) -> Queu
     return output_queue
 
 
-# convert a list of runner names to betfair IDs using the 'name_id_map' dict, mapping betfair IDs to betfair runner names
 def names_to_id(input_names: List[str], name_id_map: Dict) -> List:
+    """
+    Convert a list of runner names to betfair IDs using the 'name_id_map' dict, mapping betfair IDs to betfair runner
+    names
+    """
+
     input_names = [name_processor(n) for n in input_names]
     name_id_map = {name_processor(k):v for (k,v) in name_id_map.items()}
     names = list(name_id_map.keys())
@@ -62,57 +65,66 @@ def names_to_id(input_names: List[str], name_id_map: Dict) -> List:
     return [name_id_map[n] for n in input_names]
 
 
-# convert an value to the nearest odds tick, e.g. 2.10000001 would be converted to 2.1
-# specify return_index=True to get index instead of value
-def closest_tick(value, return_index=False):
+def closest_tick(value: float, return_index=False) -> float:
+    """
+    Convert an value to the nearest odds tick, e.g. 2.10000001 would be converted to 2.1
+    Specify return_index=True to get index instead of value
+    """
     return generic.closest_value(TICKS_DECODED, value, return_index)
 
 
-# time of event in HH:MM, converted from betfair UTC to local
-def event_time(datetime: datetime):
-    return timing.localise(datetime).strftime("%H:%M")
+def event_time(dt: datetime) -> str:
+    """
+    Time of event in HH:MM, converted from betfair UTC to local
+    """
+    return timing.localise(dt).strftime("%H:%M")
 
 
-# datetime format to use with betfair API
-def bf_dt(dt: datetime):
+def bf_dt(dt: datetime) -> str:
+    """Datetime format to use with betfair API"""
     return dt.strftime("%Y-%m-%dT%TZ")
 
 
-# get historical records before the market start time
 def pre_off(record_list, start_time: datetime) -> List[List[MarketBook]]:
+    """Get historical records before the market start time"""
     return [r for r in record_list if r[0].publish_time < start_time]
 
 
-# get records before match goes in play
 def pre_inplay(record_list) -> List[List[MarketBook]]:
+    """Get records before match goes in play"""
     return [r for r in record_list if not r[0].market_definition.in_play]
 
 
-# get a list of 'publish_time' timestamps from historical records
 def record_datetimes(records) -> List[datetime]:
+    """Get a list of 'publish_time' timestamps from historical records"""
     return [r[0].publish_time for r in records]
 
 
-# get records that are within 'span_m' minutes of market starttime
 def get_recent_records(record_list, span_m, start_time: datetime) -> List[List[MarketBook]]:
+    """Get records that are within 'span_m' minutes of market starttime"""
     return [r for r in record_list if within_x_seconds(span_m * 60, r[0], start_time)]
 
 
-# get records that are within 'span_s' seconds of market starttime
 def get_recent_records_s(record_list, span_s, start_time: datetime) -> List[List[MarketBook]]:
+    """Get records that are within 'span_s' seconds of market starttime"""
     return [r for r in record_list if within_x_seconds(span_s, r[0], start_time)]
 
 
-# check if a record is within x minutes of start time
 def within_x_seconds(x, record, start_time: datetime, time_attr='publish_time'):
+    """Check if a record is within x minutes of start time"""
     return 0 <= (start_time - getattr(record, time_attr)).total_seconds() <= x
 
 
-# get runner last-traded-prices and traded-volumes in a dataframe
-# optional arg 'additional_columns' can be set to a dict containing:
-# - key: name of column in output dataframe
-# - value: function to perform on each RunnerBook
-def runner_data(record_list, additional_columns={}, runner_filter=lambda r:True) -> pd.DataFrame:
+def runner_data(record_list, additional_columns=None, runner_filter=lambda r:True) -> pd.DataFrame:
+    """
+    get runner last-traded-prices and traded-volumes in a dataframe
+    optional arg 'additional_columns' can be set to a dict containing:
+    - key: name of column in output dataframe
+    - value: function to perform on each RunnerBook
+    """
+
+    additional_columns = additional_columns or {}
+
     if not record_list:
         active_logger.warning('cannot get ltp and tv, record list is empty')
         return None
@@ -128,8 +140,9 @@ def runner_data(record_list, additional_columns={}, runner_filter=lambda r:True)
         df = df.set_index('pt')
         return df
 
-# get runner data with selection ids as columns
+
 def runner_table(record_list, atr=lambda r:r.last_price_traded):
+    """Get runner data with selection ids as columns"""
     return pd.DataFrame(
         [{
             runner.selection_id: atr(runner) for runner in rec[0].runners
@@ -137,18 +150,21 @@ def runner_table(record_list, atr=lambda r:r.last_price_traded):
         index = record_datetimes(record_list))
 
 
-# get runner traded volume across all prices
 def traded_runner_vol(runner: RunnerBook, is_dict=True):
+    """Get runner traded volume across all prices"""
     return sum(e['size'] if is_dict else e.size for e in runner.ex.traded_volume)
 
 
-# get traded volume across all runners at all prices
 def total_traded_vol(record: MarketBook):
+    """Get traded volume across all runners at all prices"""
     return sum(traded_runner_vol(runner) for runner in record.runners)
 
 
-# get difference between traded volumes from one tv ladder to another
 def get_record_tv_diff(tv1: List[PriceSize], tv0: List[PriceSize], is_dict=False) -> List[Dict]:
+    """
+    Get difference between traded volumes from one tv ladder to another
+    use is_dict=False if `price` and `size` are object attributes, use is_dict=True if are dict keys
+    """
     traded_diffs = []
 
     if is_dict:
@@ -156,13 +172,19 @@ def get_record_tv_diff(tv1: List[PriceSize], tv0: List[PriceSize], is_dict=False
     else:
         atr = getattr
 
-        # tv0 = [PriceSize(**x) for x in tv0]
-        # tv1 = [PriceSize(**x) for x in tv1]
+    # loop items in second traded volume ladder
     for y in tv1:
+
+        # get elements in first traded volume ladder if prices matches
         m = [x for x in tv0 if atr(x, 'price') == atr(y, 'price')]
+
+        # first element that matches
         n = next(iter(m), None)
 
+        # get price difference, using 0 for other value if price doesn't exist
         size_diff = atr(y, 'size') - (atr(n, 'size') if m else 0)
+
+        # only append if there is a difference
         if size_diff:
             traded_diffs.append({
                 'price': atr(y, 'price'),
@@ -172,9 +194,12 @@ def get_record_tv_diff(tv1: List[PriceSize], tv0: List[PriceSize], is_dict=False
     return traded_diffs
 
 
-# get traded volume differences for a selected runner
-# DataFrame has record publish time index, 'price' column for odds and 'size' column for difference in sizes
 def get_tv_diffs(records, runner_id, is_dict=False) -> pd.DataFrame:
+    """
+    Get traded volume differences for a selected runner between adjacent records
+    DataFrame has record publish time index, 'price' column for odds and 'size' column for difference in sizes
+    """
+
     dts = []
     diffs = []
 
@@ -198,22 +223,26 @@ def get_tv_diffs(records, runner_id, is_dict=False) -> pd.DataFrame:
     return pd.DataFrame(diffs, index=dts)
 
 
-# get a runner object by checking for match of "selection_id" attribute from a list of objects. Of either
-# - betfairlightweight.resources.bettingresources.MarketDefinitionRunner
-# - betfairlightweight.resources.bettingresources.RunnerBook
-# types
-def get_book(runners, id) -> RunnerBook:
+def get_book(runners, selection_id) -> RunnerBook:
+    """
+    Get a runner object by checking for match of "selection_id" attribute from a list of objects. Of either
+    - betfairlightweight.resources.bettingresources.MarketDefinitionRunner
+    - betfairlightweight.resources.bettingresources.RunnerBook
+    types
+    """
     for runner in runners:
-        if id == runner.selection_id:
+        if selection_id == runner.selection_id:
             return runner
     else:
         return None
 
 
-# get dictionary of {runner ID: runner name} from a market definition
-# name_attr: optional attribute name to retrieve runner name
-# name_key: optional flag to return {runner name: runner ID} with name as key instead
 def get_names(market, name_attr='name', name_key=False) -> Dict[int, str]:
+    """
+    Get dictionary of {runner ID: runner name} from a market definition
+    - name_attr: optional attribute name to retrieve runner name
+    - name_key: optional flag to return {runner name: runner ID} with name as key instead
+    """
     if not name_key:
         return {
             runner.selection_id: getattr(runner, name_attr)
@@ -225,21 +254,27 @@ def get_names(market, name_attr='name', name_key=False) -> Dict[int, str]:
             for runner in market.runners
         }
 
-# remove all characters not in alphabet and convert to lower case for horse names
+
 def name_processor(name):
+    """remove all characters not in alphabet and convert to lower case for horse names"""
     return re.sub('[^a-zA-Z]', '', name).lower()
 
-# remove 1. prefix used in some betfair IDs
+
 def market_id_processor(market_id):
+    """remove 1. prefix used in some betfair IDs"""
     return re.sub(r'^1.', '', market_id)
 
 
-def best_price(available: List):
+def best_price(available: List[Dict]) -> float:
+    """get best price from available ladder of price sizes, returning None if empty"""
     return available[0]['price'] if available else None
 
-# get list of tick increments in encoded integer format
-# retrieves list of {'Start', 'Stop', 'Step'} objects from JSON file
+
 def get_tick_increments() -> pd.DataFrame:
+    """
+    Get list of tick increments in encoded integer format
+    Retrieves list of {'Start', 'Stop', 'Step'} objects from JSON file 'ticks.json'
+    """
 
     # generate file path based on current directory and filename "ticks.json"
     # when a library is imported, it takes active script as current directory and file is stored locally so have to
@@ -248,25 +283,30 @@ def get_tick_increments() -> pd.DataFrame:
     file_path = os.path.join(cur_dir, "ticks.json")
 
     # return file as pandas DataFrame
-    with open(file_path) as json_file:
-        return pd.read_json(file_path)
+    return pd.read_json(file_path)
 
-# generate numpy list of ticks from list of {'Start', 'Stop', 'Step'} objects
-# output list is complete: [1.00, 1.01, ..., 1000]
+
 def generate_ticks(tick_increments: pd.DataFrame) -> np.ndarray:
+    """
+    Generate numpy list of ticks from list of {'Start', 'Stop', 'Step'} objects
+    Output list is complete: [1.00, 1.01, ..., 1000]
+    """
     return np.concatenate([
         np.arange(row.Start, row.Stop, row.Step)
         for index, row in tick_increments.iterrows()
     ])
 
-# encode a floating point number to integer format with x1000 scale
+
 def float_encode(v):
+    """
+    Encode a floating point number to integer format with x1000 scale
+    """
     return round(v*1000)
 
-# decode an integer encoded x1000 scale number to floating point actual value
-def int_decode(v):
-    return v/1000
 
+def int_decode(v):
+    """decode an integer encoded x1000 scale number to floating point actual value"""
+    return v/1000
 
 
 # numpy array of Betfair ticks in integer encoded form

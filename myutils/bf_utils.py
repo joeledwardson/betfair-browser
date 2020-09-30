@@ -10,6 +10,7 @@ import pandas as pd
 import logging
 from typing import List
 import operator
+from typing import Dict, Callable
 
 SUBDIR_STREAM = 'bf_stream'
 SUBDIR_CATALOGUE = 'bf_catalogue'
@@ -24,7 +25,7 @@ class BfUtilsException(Exception):
     pass
 
 
-def select_operator_side(side, invert=False):
+def select_operator_side(side, invert=False) -> Callable:
     """
     generic operator selection when comparing odds
     - if side is 'BACK', returns gt (greater than)
@@ -47,7 +48,7 @@ def select_operator_side(side, invert=False):
         return operator.lt
 
 
-def select_ladder_side(book_ex: RunnerBookEX, side):
+def select_ladder_side(book_ex: RunnerBookEX, side) -> List[Dict]:
     """
     get selected side of runner book ex:
     - if side is 'BACK', returns 'book_ex.available_to_back'
@@ -61,7 +62,19 @@ def select_ladder_side(book_ex: RunnerBookEX, side):
         raise BfUtilsException(f'side "{side}" not recognised')
 
 
-def runner_spread(book_ex: RunnerBookEX):
+def invert_side(side: str) -> str:
+    """
+    convert 'BACK' to 'LAY' and vice-versa
+    """
+    if side == 'BACK':
+        return 'LAY'
+    elif side == 'LAY':
+        return 'BACK'
+    else:
+        raise BfUtilsException(f'side "{side}" not recognised')
+
+
+def runner_spread(book_ex: RunnerBookEX) -> float:
     """
     get the number of ticks spread between the back and lay side of a runner book
     returns 1000 if either side is empty
@@ -77,38 +90,8 @@ def runner_spread(book_ex: RunnerBookEX):
         return len(betting.LTICKS_DECODED)
 
 
-
-# sort oddschecker dataframe by average value
-def sort_oc(df: pd.DataFrame):
-    # get means across columns
-    avgs = df.mean(axis=1)
-    return avgs.sort_values()
-
-
-# get historical oddschecker file
-def get_hist_oc_df(oc_path):
-    try:
-        return pd.read_pickle(oc_path)
-    except Exception as e:
-        active_logger.warning(f'error getting oc file: "{e}"', exc_info=True)
-        return None
-
-
-
-# strip exchanges from oddschecker odds dataframe columns and dataframe index (names) with selection IDs
-# on fail, will log an error and return None
-def process_oc_df(df: pd.DataFrame, name_id_map):
-
-    df = df[[col for col in df.columns if col not in OC_EXCHANGES]]
-    oc_ids = betting.names_to_id(df.index, name_id_map)
-    if not oc_ids:
-        return None
-
-    df.index = oc_ids
-    return df
-
-# get betfair catalogue file
 def get_hist_cat(catalogue_path) -> MarketCatalogue:
+    """Get betfair catalogue file"""
     try:
         with open(catalogue_path) as f:
             dat = f.read()
@@ -119,9 +102,8 @@ def get_hist_cat(catalogue_path) -> MarketCatalogue:
         return None
 
 
-
-# get historical betfair stream data
 def get_hist_stream_data(trading: APIClient, stream_path: str) -> List[List[MarketBook]]:
+    """Get historical betfair stream data"""
 
     stream_logger = logging.getLogger('betfairlightweight.streaming.stream')
     level = stream_logger.level
@@ -149,14 +131,48 @@ def get_hist_stream_data(trading: APIClient, stream_path: str) -> List[List[Mark
             return None
 
 
-# process market book in historical testing, result stored in 'mydat' dict attribute, applied to market object
-# function searches for betfair catalogue file and oddschecker dataframe file
-# - if processed successfuly, mydat['ok'] is True
+def sort_oc(df: pd.DataFrame) -> pd.DataFrame:
+    """sort oddschecker dataframe by average value"""
+
+    # get means across columns
+    avgs = df.mean(axis=1)
+    return avgs.sort_values()
+
+
+def get_hist_oc_df(oc_path) -> pd.DataFrame:
+    """get historical oddschecker file"""
+    try:
+        return pd.read_pickle(oc_path)
+    except Exception as e:
+        active_logger.warning(f'error getting oc file: "{e}"', exc_info=True)
+        return None
+
+
+def process_oc_df(df: pd.DataFrame, name_id_map):
+    """
+    strip exchanges from oddschecker odds dataframe columns and dataframe index (names) with selection IDs on fail,
+    will log an error and return None
+    """
+
+    df = df[[col for col in df.columns if col not in OC_EXCHANGES]]
+    oc_ids = betting.names_to_id(df.index, name_id_map)
+    if not oc_ids:
+        return None
+
+    df.index = oc_ids
+    return df
+
+
 def oc_hist_mktbk_processor(
         market: Market,
         market_book: MarketBook,
         dir_path,
         name_attr='name'):
+    """
+    process market book in historical testing, result stored in 'mydat' dict attribute, applied to market object
+    function searches for betfair catalogue file and oddschecker dataframe file
+    - if processed successfully, mydat['ok'] is True
+    """
 
     d = {
         'ok': False,

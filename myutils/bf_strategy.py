@@ -1,216 +1,31 @@
-from flumine import FlumineBacktest, clients, BaseStrategy
-from flumine.order.order import BaseOrder, BetfairOrder, OrderStatus
-from flumine.order.trade import Trade
-from flumine.order.ordertype import LimitOrder
+from flumine import clients, BaseStrategy
+from flumine.order.order import BaseOrder
 from flumine.markets.market import Market
-from betfairlightweight.resources.bettingresources import MarketBook, RunnerBook, MarketCatalogue
-from betfairlightweight import APIClient
+from betfairlightweight.resources.bettingresources import MarketBook
 
-import json
-from myutils import betting, generic
-from myutils import bf_feature as bff, bf_window as bfw, bf_trademachine as bftm, statemachine as stm
-from myutils import bf_utils as bfu
-from myutils.generic import  i_prev, i_next
-import os
-import pandas as pd
-import numpy as np
+from myutils import bf_feature as bff, bf_window as bfw
+from myutils.timing import EdgeDetector
+from datetime import timedelta
 import logging
 from typing import List, Dict, Optional
-from datetime import datetime, timedelta
-import statistics
-import statsmodels.api as sm
-import operator
-from enum import Enum
-from dataclasses import dataclass
-from dataclasses import dataclass, field
-import operator
+
 
 active_logger = logging.getLogger(__name__)
 
 
-# filter orders to runner
 def filter_orders(orders, selection_id) -> List[BaseOrder]:
+    """
+    filter order to those placed on a specific runner identified by `selection_id`
+    """
     return [o for o in orders if o.selection_id == selection_id]
 
 
-# lay if below bookmaker price
-def lay_low(
-        strategy: BaseStrategy,
-        runner: RunnerBook,
-        market: Market,
-        bookie_odds: float,
-        stake_size):
-
-    # d = market.mydat
-    # TODO - implement check for runner in oddschecker dataframe
-    # if runner.selection_id not in list(d['oc_df'].index)
-    # orders = market.blotter._orders.values()
-
-    # check if runner ID not found in oddschecker list, or already has an order
-    if  not(filter_orders(market.blotter, runner.selection_id)):
-        return
-
-    atl = runner.ex.available_to_lay
-    if not atl:
-        return
-
-    price = atl[0]['price']
-    size = atl[0]['size']
-
-    if not float(price) < float(bookie_odds):
-        return
-
-    if price < 1:
-        return
-
-    active_logger.info(f'runner id "{runner.selection_id}" best atl {price} for £{size:.2f}, bookie avg is'
-                       f' {bookie_odds}')
-
-    trade = Trade(
-        market_id=market.market_id,
-        selection_id=runner.selection_id,
-        handicap=runner.handicap,
-        strategy=strategy)
-    lay_order = trade.create_order(
-        side='LAY',
-        order_type=LimitOrder(
-            price=price,
-            size=stake_size
-        ))
-    strategy.place_order(market, lay_order)
-
-
-# back if above back_scale*bookie_odds
-def back_high(
-        strategy: BaseStrategy,
-        runner: RunnerBook,
-        market: Market,
-        back_scale,
-        bookie_odds: float,
-        stake_size):
-
-    # orders = market.blotter._orders.values()
-
-    # check if runner ID not found in oddschecker list, or already has an order
-    if  not(filter_orders(market.blotter, runner.selection_id)):
-        return
-
-    atb = runner.ex.available_to_back
-    if not atb:
-        return
-
-    price = atb[0]['price']
-    size = atb[0]['size']
-
-    if price < 1:
-        return
-
-    if not float(price) > back_scale * float(bookie_odds):
-        return
-
-    active_logger.info(f'runner id "{runner.selection_id}" best atb {price} for £{size}, bookie max is {bookie_odds}')
-
-    trade = Trade(
-        market_id=market.market_id,
-        selection_id=runner.selection_id,
-        handicap=runner.handicap,
-        strategy=strategy)
-    back_order = trade.create_order(
-        side='BACK',
-        order_type=LimitOrder(
-            price=price,
-            size=stake_size
-        ))
-    strategy.place_order(market, back_order)
-
-
-# cancel an order if unmatched after 'wait_complete_seconds'
-def cancel_unmatched(
-        order: BaseOrder,
-        wait_complete_seconds=2.0):
-    if order.status != OrderStatus.EXECUTION_COMPLETE:
-        if order.elapsed_seconds >= wait_complete_seconds:
-            active_logger.info('cancelling order on "{0}", {1} £{2:.2f} at {3}'.format(
-                order.selection_id,
-                order.side,
-                order.order_type.size,
-                order.order_type.price
-            ))
-            order.cancel()
-
-
-# green a runner - runner's active orders will be left to complete for 'wait_complete_seconds', and minimum exposure
-# to require greening is 'min_green_pence'
-def green_runner(
-        strategy: BaseStrategy,
-        runner: RunnerBook,
-        market: Market,
-        wait_complete_seconds=2.0,
-        min_green_pence=10):
-
-    orders = filter_orders(market.blotter, runner.selection_id)
-
-    if not orders:
-        return
-
-    # check all orders for runner have been given at least minimum time to process
-    if not all([o for o in orders if o.elapsed_seconds >= wait_complete_seconds]):
-        active_logger.debug(f'waiting for orders on "{runner.selection_id}" to exceed {wait_complete_seconds} seconds')
-        return
-
-    active_logger.debug(f'attempting to green "{runner.selection_id}"')
-
-    back_profit = sum([
-        (o.average_price_matched - 1 or 0)*(o.size_matched or 0) for o in orders
-        if o.status==OrderStatus.EXECUTABLE or o.status==OrderStatus.EXECUTION_COMPLETE
-           and o.side=='BACK'])
-    lay_exposure = sum([
-        (o.average_price_matched - 1 or 0)*(o.size_matched or 0) for o in orders
-        if o.status==OrderStatus.EXECUTABLE or o.status==OrderStatus.EXECUTION_COMPLETE
-           and o.side=='LAY'])
-
-    outstanding_profit = back_profit - lay_exposure
-    active_logger.debug(f'runner has £{back_profit:.2f} back profit and £{lay_exposure:.2f}')
-
-    if not abs(outstanding_profit) > min_green_pence:
-        return
-
-    if outstanding_profit > 0:
-        side = 'LAY'
-        available = runner.ex.available_to_lay
-        if not available:
-            active_logger.debug('no lay options to green')
-            return
-    else:
-        side = 'BACK'
-        available = runner.ex.available_to_back
-        if not available:
-            active_logger.debug('no back options to green')
-            return
-
-    green_price = available[0]['price']
-    green_size = round(abs(outstanding_profit) / (green_price - 1), 2)
-
-    active_logger.info('greening active order on "{}", £{} at {}'.format(
-        runner.selection_id,
-        green_size,
-        green_price,
-    ))
-    trade = Trade(
-        market_id=market.market_id,
-        selection_id=runner.selection_id,
-        handicap=runner.handicap,
-        strategy=strategy)
-    green_order = trade.create_order(
-        side=side,
-        order_type=LimitOrder(
-            price=green_price,
-            size=green_size
-        ))
-    strategy.place_order(market, green_order)
-
-
 class MyBaseStrategy(BaseStrategy):
+    """
+    Implementation of flumine `BaseStrategy`:
+    - check_market_book() checks if book is closed
+    - place_order() prints if order validation failed
+    """
 
     def check_market_book(self, market, market_book):
         # process_market_book only executed if this returns True
@@ -229,43 +44,81 @@ class MyBaseStrategy(BaseStrategy):
 
 
 class BackTestClientNoMin(clients.BacktestClient):
+    """
+    flumine back test client with no minimum bet size
+    """
     @property
     def min_bet_size(self) -> Optional[float]:
         return 0
 
 
-
-
 class MyFeatureData:
-    def __init__(self, market_book: MarketBook):
+    """
+    track feature data for runners in one market
+
+    store:
+    - window instances
+    - dictionary of features indexed by runner ID, then indexed by feature name
+    - list of market books to be passed to features
+    """
+    def __init__(self, market_book: MarketBook, features_config: dict):
         self.windows: bfw.Windows = bfw.Windows()
         self.features: Dict[int, Dict[str, bff.RunnerFeatureBase]] = {
-            runner.selection_id: bff.get_default_features(
+            runner.selection_id: bff.generate_features(
                 runner.selection_id,
                 market_book,
-                self.windows
+                self.windows,
+                features_config
             ) for runner in market_book.runners
         }
         self.market_books: List[MarketBook] = []
 
 
 class MyFeatureStrategy(MyBaseStrategy):
+    """
+    Store feature data for each market, providing functionality for updating features when new market_book received
+    By default features configuration is left blank so default features are used for each runner, but this can be
+    overridden
+    """
 
-    def __init__(self, *kargs, **kwargs):
-        super().__init__(*kargs, **kwargs)
+    # number of seconds before start that trading is stopped and greened up
+    cutoff_seconds = 2
+
+    # seconds before race start trading allowed
+    pre_seconds = 180
+
+    # feature configuration dict (use defaults)
+    features_config = bff.get_default_features_config()
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
 
         # feature data, indexed by market ID
         self.feature_data: [Dict, MyFeatureData] = dict()
 
-    def create_feature_data(self, market: Market, market_book: MarketBook) -> MyFeatureData:
-        return MyFeatureData(market_book)
+        # create edge detection for cutoff and trading allowed
+        self.cutoff = EdgeDetector(False)
+        self.allow = EdgeDetector(False)
 
-    # called first time strategy receives a new market
+    def create_feature_data(self, market: Market, market_book: MarketBook) -> MyFeatureData:
+        """
+        create a `MyFeatureData` instance to track runner features for one market
+        (can be overridden to customise features)
+        """
+        return MyFeatureData(market_book, self.features_config)
+
     def market_initialisation(self, market: Market, market_book: MarketBook, feature_data: MyFeatureData):
+        """
+        called first time strategy receives a new market
+        blank function to be overridden with customisations for market initialisations
+        """
         pass
 
     def do_feature_processing(self, feature_data: MyFeatureData, market_book: MarketBook):
-
+        """
+        update each feature for each runner for a new market book
+        N.B. market_book MUST have been added to feature_data.market_books prior to calling this function
+        """
         # loop runners
         for runner_index, runner in enumerate(market_book.runners):
 
@@ -279,6 +132,10 @@ class MyFeatureStrategy(MyBaseStrategy):
                 )
 
     def process_get_feature_data(self, market: Market, market_book: MarketBook) -> MyFeatureData:
+        """
+        get runner feature data for current market with new `market_book` received
+        - if first time market is received then `market_initialisation()` is called
+        """
 
         # check if market has been initialised
         if market.market_id not in self.feature_data:
@@ -293,10 +150,11 @@ class MyFeatureStrategy(MyBaseStrategy):
         for runner in market_book.runners:
             if runner.selection_id not in feature_data.features:
 
-                runner_features = bff.get_default_features(
+                runner_features = bff.generate_features(
                     selection_id=runner.selection_id,
                     book=market_book,
-                    windows=feature_data.windows
+                    windows=feature_data.windows,
+                    features_config=self.features_config
                 )
 
                 feature_data.features[runner.selection_id] = runner_features
@@ -312,4 +170,12 @@ class MyFeatureStrategy(MyBaseStrategy):
 
         return feature_data
 
+    def update_cutoff(self, market_book: MarketBook):
+        """update `cutoff`, denoting whether trading is cutoff (too close to start) based on market book timestamp"""
+        self.cutoff.update(market_book.publish_time >=
+                           (market_book.market_definition.market_time - timedelta(seconds=self.cutoff_seconds)))
 
+    def update_allow(self, market_book: MarketBook):
+        """update `allow`, denoting if close enough to start of race based on market book timestamp"""
+        self.allow.update(market_book.publish_time >=
+                            (market_book.market_definition.market_time - timedelta(seconds=self.pre_seconds)))

@@ -1,7 +1,7 @@
 import queue
 import logging
 from enum import Enum
-from typing import Dict
+from typing import Dict, List
 
 active_logger = logging.getLogger(__name__)
 active_logger.setLevel(logging.INFO)
@@ -23,13 +23,27 @@ class StateMachine:
         self.is_state_change: bool = True
         self.state_queue = queue.Queue()
 
-    # Template method:
+    def flush(self):
+        """
+        clear state queue
+        """
+        self.state_queue.queue.clear()
+
+    def force_change(self, new_states: List[Enum]):
+        """
+        updating current state to first in queue and forcibly add a list of new states to queue
+        """
+        for state_key in new_states:
+            self.state_queue.put(state_key)
+        self.current_state_key = self.state_queue.get()
+        self.is_state_change = True
+
     def run(self, **kwargs):
+        """
+        run state machine with `kwargs` dictionary repeatedly until no state change is detected
+        """
 
         while 1:
-
-            if self.selection_id == 28400302:
-                my_debug_breakpoint=True
 
             if self.is_state_change:
                 self.states[self.current_state_key].enter()

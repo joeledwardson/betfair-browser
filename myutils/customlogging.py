@@ -5,6 +5,14 @@ def create_dual_logger(name, file_name,
                        file_log_level=logging.DEBUG,
                        stream_log_level=logging.INFO,
                        file_reset=False):
+    """
+    create a dual logger with a stream and file handlers
+    - name: name of logger
+    - file_name: file path to use for file handler
+    - file_log_level: level of file handler
+    - stream_log_level: level of stream handler
+    - file_reset: set to True to clear file when file handler created
+    """
 
     # create logger according to active name
     my_logger = logging.getLogger(name)
@@ -33,7 +41,6 @@ def create_dual_logger(name, file_name,
     # streaming - only want info messages
     stream_handler.setLevel(stream_log_level)
 
-
     # file - create handler
     file_handler = logging.FileHandler(file_name, mode='w' if file_reset else 'a')
 
@@ -42,7 +49,6 @@ def create_dual_logger(name, file_name,
 
     # file - use debug level for file so get everything
     file_handler.setLevel(file_log_level)
-
 
     # set handlers to logger
     my_logger.addHandler(stream_handler)
@@ -53,5 +59,7 @@ def create_dual_logger(name, file_name,
 
     return my_logger
 
+
 def get_all_logger():
+    """get a dictionary of all loggers"""
     return logging.root.manager.loggerDict

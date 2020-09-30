@@ -108,7 +108,9 @@ class StaticClass:
     def __init__(self):
         raise Exception('Static class only, instances not allowed')
 
+
 def milliseconds():
+    """milliseconds sinch epoch"""
     return round(time.time()*1000)
 
 
@@ -120,8 +122,8 @@ def object_members(o):
     return [k for k in o.__dir__() if not re.match('^_', k) and not callable(getattr(o, k))]
 
 
-# deep object with all members printed for dicts/classes
 def prettified_members(o, indent=4):
+    """deep object with all members printed for dicts/classes"""
 
     # pickle into json (string) form
     pickled = jsonpickle.encode(o)
@@ -133,8 +135,8 @@ def prettified_members(o, indent=4):
     return json.dumps(json_object, indent=indent)
 
 
-# get closest value in numpy array, specify return_index=True to return index instead of value
 def closest_value(array, value, return_index=False):
+    """# get closest value in numpy array, specify return_index=True to return index instead of value"""
 
     # get reversed array (so that larger values are selected first when equidistant)
     # remember that indexing in numpy is like slicing (start, stop, step), so ::-1 just reverses the list

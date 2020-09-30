@@ -3,18 +3,21 @@ from myutils import betting
 from typing import List, Dict, Optional
 
 
-# increment 'window_index' until its timestamp is within 'seconds_window' seconds of the current record timestamp
-# returns updated 'window_index' value.
-# if 'outside_window' is specified as True, 'window_index' will be incremented until it precedes the record within
-# the specified window - if False, 'window_index' will be incremented until it is the first record within the specified
-# window
 def update_index_window(
         records: List,
-        current_index, # index of current record - if streaming this will just be the last record, needed for historical list
+        current_index, # index of current record - if streaming will just be the last record, needed for historical list
         seconds_window, # size of the window in seconds
         window_index, # index of window start to be updated and returned
         outside_window=True,
         f_pt=lambda r, i: r[i][0].publish_time):
+    """
+    increment 'window_index' until its timestamp is within 'seconds_window' seconds of the current record timestamp
+    returns updated 'window_index' value.
+
+    if 'outside_window' is specified as True, 'window_index' will be incremented until it precedes the record within
+    the specified window - if False, 'window_index' will be incremented until it is the first record within the
+    specified window
+    """
 
     t = f_pt(records, current_index)
     while (window_index + outside_window) < current_index and \
@@ -23,11 +26,13 @@ def update_index_window(
     return window_index
 
 
-# Window processor
-# Customise calculated values based on a window that can be used by multiple features
-# Class has no information held inside, just a template for functions - all information should be stored in the
-# window itself, only exception is constants defined in the class
 class WindowProcessorBase:
+    """
+    Window processor
+    Customise calculated values based on a window that can be used by multiple features
+    Class has no information held inside, just a template for functions - all information should be stored in the
+    window itself, only exception is constants defined in the class
+    """
 
     @classmethod
     def processor_init(cls, window: dict, **kwargs):
@@ -38,10 +43,12 @@ class WindowProcessorBase:
         raise NotImplementedError
 
 
-# Traded volume ladder window processor
-# Stores a 'tv_diff_ladder' dict attribute in window, key is selection ID, value is ladder of 'price' and 'size'
-# Stores a 'tv_diff_totals' dict attribute in window, key is selection ID, value is sum of 'price' elements in ladder
 class WindowProcessorTradedVolumeLadder(WindowProcessorBase):
+    """
+    Traded volume ladder window processor
+    Stores a 'tv_diff_ladder' dict attribute in window, key is selection ID, value is ladder of 'price' and 'size'
+    Stores a 'tv_diff_totals' dict attribute in window, key is selection ID, value is sum of 'price' elements in ladder
+    """
 
     @classmethod
     def processor_init(cls, window: dict, **kwargs):
@@ -75,8 +82,8 @@ class WindowProcessorTradedVolumeLadder(WindowProcessorBase):
         }
 
 
-# store a list of runner attribute values within a runner window
 class WindowProcessorFeatureBase(WindowProcessorBase):
+    """Store a list of runner attribute values within a runner window"""
 
     # key in window dictionary to store attribute values
     window_var: str = None
@@ -84,14 +91,14 @@ class WindowProcessorFeatureBase(WindowProcessorBase):
     # True only values inside window are stored, false to include value just before window starts
     inside_window = True
 
-    # define this method to get runner attribute (e.g. best back, last traded price etc.)
     @classmethod
     def get_runner_attr(cls, runner: RunnerBook):
+        """define this method to get runner attribute (e.g. best back, last traded price etc.)"""
         raise NotImplementedError
 
-    # initialise by creating empty dict in window using attribute key
     @classmethod
     def processor_init(cls, window: dict, **kwargs):
+        """initialise by creating empty dict in window using attribute key"""
         window[cls.window_var] = {}
 
     @classmethod
@@ -135,8 +142,9 @@ class WindowProcessorFeatureBase(WindowProcessorBase):
                     runner_dict[k].append(v)
 
 
-# store list of recent last traded prices
 class WindowProcessorLTPS(WindowProcessorFeatureBase):
+    """store list of recent last traded prices"""
+
     window_var = 'runner_ltps'
 
     @classmethod
@@ -144,8 +152,9 @@ class WindowProcessorLTPS(WindowProcessorFeatureBase):
         return runner.last_price_traded
 
 
-# store list of recent best back prices
 class WindowProcessorBestBack(WindowProcessorFeatureBase):
+    """store list of recent best back prices"""
+
     windor_var = 'best_backs'
 
     @classmethod
@@ -153,8 +162,9 @@ class WindowProcessorBestBack(WindowProcessorFeatureBase):
         return betting.best_price(runner.ex.available_to_back)
 
 
-# store list of recent best lay prices
 class WindowProcessorBestLay(WindowProcessorFeatureBase):
+    """store list of recent best lay prices"""
+
     windor_var = 'best_lays'
 
     @classmethod
@@ -162,8 +172,9 @@ class WindowProcessorBestLay(WindowProcessorFeatureBase):
         return betting.best_price(runner.ex.available_to_lay)
 
 
-# return a delayed window value
+# TODO - complete
 class WindowProcessorDelayer(WindowProcessorBase):
+    """return a delayed window value"""
 
     @classmethod
     def processor_init(cls, window: dict, **kwargs):
@@ -180,14 +191,17 @@ class WindowProcessorDelayer(WindowProcessorBase):
         raise NotImplementedError
 
 
-# Hold a set of sliding windows, where the index of timestamped records outside sliding window is updated as current
-# time increases.
-# 'windows' attribute holds dictionary of windows, indexed by their width in seconds
-# Each window is a dict of:
-#   'window_index': index of record preceding the first in the window, i.e. if record index 5 was the first to be in
-#   the 60s window, then 'window_index' would be 4
-#   'window_prev_index': previous state of 'window_index', can be used to detect if 'window_index' has changed
 class Windows:
+    """
+    Hold a set of sliding windows, where the index of timestamped records outside sliding window is updated as current
+    time increases.
+    'windows' attribute holds dictionary of windows, indexed by their width in seconds
+
+    Each window is a dict of:
+    - 'window_index': index of record preceding the first in the window, i.e. if record index 5 was the first to be in
+    the 60s window, then 'window_index' would be 4
+    - 'window_prev_index': previous state of 'window_index', can be used to detect if 'window_index' has changed
+    """
 
     # get indexed timestamp from record list
     @staticmethod
