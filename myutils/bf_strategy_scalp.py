@@ -205,6 +205,19 @@ class MyScalpStrategy(MyFeatureStrategy):
             selection_id=selection_id,
         )
 
+    def process_closed_market(self, market: Market, market_book: MarketBook) -> None:
+        """log updates of each order in trade_tracker for market close"""
+        if market.market_id in self.trade_trackers:
+            for selection_id, runner_trade_tracker in self.trade_trackers[market.market_id].items():
+                for trade in runner_trade_tracker.trades:
+                    for order in trade.orders:
+                        runner_trade_tracker.log_update(
+                            msg=f'market closed, runner status "{order.runner_status}"',
+                            dt=market_book.publish_time,
+                            order=order,
+                            trade=trade
+                        )
+
     def process_market_book(self, market: Market, market_book: MarketBook) -> None:
 
         # update feature data (calls market_initialisation() if new market)
@@ -252,79 +265,36 @@ class MyScalpStrategy(MyFeatureStrategy):
 
             runner_book = market_book.runners[runner_index]
 
-            # do not run state machine if trading not allowed yet
-            if not self.allow.current_value:
-                continue
+            # only run state if trading allowed
+            if self.allow.current_value:
 
-            # get wall point for runner
-            wall_point = self.get_wall(runner_book)
+                # get wall point for runner
+                wall_point = self.get_wall(runner_book)
 
-            cs = state_machine.current_state_key
-            if self.cutoff.rising:
-                if cs != bftm.TradeStates.IDLE and cs != bftm.TradeStates.CLEANING:
-                    active_logger.info(f'forcing "{runner.selection_id}" to stop trading and hedge')
-                    state_machine.flush()
-                    state_machine.force_change([
-                        bftm.TradeStates.BIN,
-                        bftm.TradeStates.PENDING,
-                        bftm.TradeStates.HEDGE_PLACE_TAKE
-                    ])
+                cs = state_machine.current_state_key
+                if self.cutoff.rising:
+                    if cs != bftm.TradeStates.IDLE and cs != bftm.TradeStates.CLEANING:
+                        active_logger.info(f'forcing "{runner.selection_id}" to stop trading and hedge')
+                        state_machine.flush()
+                        state_machine.force_change([
+                            bftm.TradeStates.BIN,
+                            bftm.TradeStates.PENDING,
+                            bftm.TradeStates.HEDGE_PLACE_TAKE
+                        ])
 
-            if not self.cutoff.current_value or (
-                    self.cutoff.current_value and (cs != bftm.TradeStates.IDLE and cs != bftm.TradeStates.CLEANING)):
-                state_machine.run(
-                    market_book=market_book,
-                    market=market,
-                    runner_index=runner_index,
-                    trade_tracker=trade_tracker,
-                    strategy=self,
-                    wall_point=wall_point
-                )
-
-            ot = trade_tracker.order_tracker
-            for trade in trade_tracker.trades:
-                if trade.id not in ot:
-                    trade_tracker.log_update(
-                        f'started tracking trade "{trade.id}"',
-                        market_book.publish_time,
-                        to_file=False
+                if not self.cutoff.current_value or (
+                        self.cutoff.current_value and (cs != bftm.TradeStates.IDLE and cs != bftm.TradeStates.CLEANING)):
+                    state_machine.run(
+                        market_book=market_book,
+                        market=market,
+                        runner_index=runner_index,
+                        trade_tracker=trade_tracker,
+                        strategy=self,
+                        wall_point=wall_point
                     )
-                    ot[trade.id] = dict()
-                for order in [o for o in trade.orders if type(o.order_type) == LimitOrder]:
-                    if order.id not in ot[trade.id]:
-                        trade_tracker.log_update(
-                            f'started tracking order "{order.id}"',
-                            market_book.publish_time,
-                            to_file=False
-                        )
-                        ot[trade.id][order.id] = bftm.OrderTracker(
-                            matched=order.size_matched,
-                            status=order.status)
-                    else:
-                        if order.size_matched != ot[trade.id][order.id].matched:
-                            trade_tracker.log_update(
-                                'order side {0} at {1} for £{2:.2f}, now matched £{3:.2f}'.format(
-                                    order.side,
-                                    order.order_type.price,
-                                    order.order_type.size,
-                                    order.size_matched
-                                ),
-                                market_book.publish_time,
-                                order=order,
-                            )
-                        if order.status != ot[trade.id][order.id].status:
-                            trade_tracker.log_update(
-                                'order side {0} at {1} for £{2:.2f}, now status {3}'.format(
-                                    order.side,
-                                    order.order_type.price,
-                                    order.order_type.size,
-                                    order.status
-                                ),
-                                market_book.publish_time,
-                                order=order
-                            )
-                        ot[trade.id][order.id].status = order.status
-                        ot[trade.id][order.id].matched = order.size_matched
+
+            # update order tracker
+            trade_tracker.update_order_tracker(market_book.publish_time)
 
 
 def validate_wall(

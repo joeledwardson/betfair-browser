@@ -54,7 +54,37 @@ def serializable_order_info(order: BetfairOrder) -> dict:
     # convert strategy status to string
     info['trade']['status'] = str(info['trade']['status'])
 
+    # add runner status to order
+    info['runner_status'] = str(order.runner_status)
+
     return info
+
+
+def order_profit(order_info: dict) -> float:
+    """
+    Compute order profit from dictionary of values retrieved from a line of a file written to by TradeTracker.log_update
+
+    Function is shamelessly stolen from `flumine.backtest.simulated.Simulated.profit`, but that requires an order
+    instance which is not possible to create trade/strategy information etc
+    """
+
+    sts = order_info['runner_status']
+    side = order_info['info']['side']
+    price = order_info['info']['average_price_matched']
+    size = order_info['info']['size_matched']
+
+    if sts == "WINNER":
+        if side == "BACK":
+            return round((price - 1) * size, ndigits=2)
+        else:
+            return round((price - 1) * -size, ndigits=2)
+    elif sts == "LOSER":
+        if side == "BACK":
+            return -size
+        else:
+            return size
+    else:
+        return 0.0
 
 
 @dataclass
@@ -83,6 +113,56 @@ class TradeTracker:
     # indexed by trade ID -> order ID
     order_tracker: Dict[UUID, Dict[UUID, OrderTracker]] = field(default_factory=dict)
 
+    def update_order_tracker(self, publish_time: datetime):
+        """
+        loop orders in each trade instance, and log update message where order amount matched or status has changed
+        since last call of function
+        """
+        ot = self.order_tracker
+        for trade in self.trades:
+            if trade.id not in ot:
+                self.log_update(
+                    f'started tracking trade "{trade.id}"',
+                    publish_time,
+                    to_file=False
+                )
+                ot[trade.id] = dict()
+            for order in [o for o in trade.orders if type(o.order_type) == LimitOrder]:
+                if order.id not in ot[trade.id]:
+                    self.log_update(
+                        f'started tracking order "{order.id}"',
+                        publish_time,
+                        to_file=False
+                    )
+                    ot[trade.id][order.id] = OrderTracker(
+                        matched=order.size_matched,
+                        status=order.status)
+                else:
+                    if order.size_matched != ot[trade.id][order.id].matched:
+                        self.log_update(
+                            'order side {0} at {1} for £{2:.2f}, now matched £{3:.2f}'.format(
+                                order.side,
+                                order.order_type.price,
+                                order.order_type.size,
+                                order.size_matched
+                            ),
+                            publish_time,
+                            order=order,
+                        )
+                    if order.status != ot[trade.id][order.id].status:
+                        self.log_update(
+                            'order side {0} at {1} for £{2:.2f}, now status {3}'.format(
+                                order.side,
+                                order.order_type.price,
+                                order.order_type.size,
+                                order.status
+                            ),
+                            publish_time,
+                            order=order
+                        )
+                    ot[trade.id][order.id].status = order.status
+                    ot[trade.id][order.id].matched = order.size_matched
+
     def log_update(
             self,
             msg: str,
@@ -90,7 +170,8 @@ class TradeTracker:
             level=logging.INFO,
             to_file=True,
             display_odds: float = 0.0,
-            order: BetfairOrder = None):
+            order: BetfairOrder = None,
+            trade: Trade = None):
         """
         Log an update
         - msg: verbose string describing the update
@@ -109,8 +190,14 @@ class TradeTracker:
         if not display_odds and self._log:
             display_odds = self._log[-1]['display_odds']
 
-        # get active trade ID if exists
-        trade_id = str(self.active_trade.id) if self.active_trade else None
+        # get active trade ID if exists, if trade arg not passed
+        if trade:
+            trade_id = trade.id
+        elif self.active_trade:
+            trade_id = self.active_trade.id
+        else:
+            trade_id = None
+        trade_id = str(trade_id)
 
         # add to internal list
         self._log.append({
