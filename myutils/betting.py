@@ -11,6 +11,7 @@ from typing import List, Dict, Optional, Union
 from datetime import datetime
 from myutils import generic, timing
 import keyring
+import json
 
 active_logger = logging.getLogger(__name__)
 
@@ -28,6 +29,25 @@ def get_api_client() -> betfairlightweight.APIClient:
                                         password=my_password,
                                         app_key=my_app_key,
                                         certs=certs_path)
+
+
+def get_market_info(file_path: str, market_attrs: List[str]) -> dict:
+    """
+    Get information about a Betfair historical/streaming file by reading the first line of contents
+    market definition attributes are read as specified by `market_attrs`
+
+    N.B. attribute must be specified in raw Betfair form rather than pythonic, i.e. 'marketTime' rather than
+    'market_time'
+    """
+    with open(file_path) as f:
+        dat = json.loads(f.readline())
+    try:
+        return {
+            k: dat['mc'][0]['marketDefinition'].get(k)
+            for k in market_attrs
+        }
+    except KeyError as e:
+        return {}
 
 
 def get_historical(api_client : betfairlightweight.APIClient, directory) -> Queue:
