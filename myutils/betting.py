@@ -2,12 +2,12 @@ import re
 from queue import Queue
 import betfairlightweight
 from betfairlightweight.resources.bettingresources import PriceSize, RunnerBook, MarketBook
-from betfairlightweight.resources.streamingresources import MarketDefinition
+from betfairlightweight.resources.streamingresources import MarketDefinition, MarketDefinitionRunner
 import os
 import numpy as np
 import pandas as pd
 import logging
-from typing import List, Dict, Optional
+from typing import List, Dict, Optional, Union
 from datetime import datetime
 from myutils import generic, timing
 import keyring
@@ -223,12 +223,9 @@ def get_tv_diffs(records, runner_id, is_dict=False) -> pd.DataFrame:
     return pd.DataFrame(diffs, index=dts)
 
 
-def get_book(runners, selection_id) -> RunnerBook:
+def get_book(runners: Union[List[RunnerBook], List[MarketDefinitionRunner]], selection_id) -> RunnerBook:
     """
-    Get a runner object by checking for match of "selection_id" attribute from a list of objects. Of either
-    - betfairlightweight.resources.bettingresources.MarketDefinitionRunner
-    - betfairlightweight.resources.bettingresources.RunnerBook
-    types
+    Get a runner object by checking for match of "selection_id" attribute from a list of objects
     """
     for runner in runners:
         if selection_id == runner.selection_id:
