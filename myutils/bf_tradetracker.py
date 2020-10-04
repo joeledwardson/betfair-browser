@@ -27,9 +27,24 @@ def get_trade_data(file_path) -> pd.DataFrame:
         order_data = json_file.read_file(file_path)
         if order_data:
             order_df = pd.DataFrame(order_data)
-            order_df.index = [datetime.fromtimestamp(x) for x in order_df['dt']]
+            order_df.index = order_df['dt'].apply(datetime.fromtimestamp)
             return order_df.drop(['dt'], axis=1)
     return None
+
+
+def get_order_results(trade_data: pd.DataFrame) -> pd.DataFrame:
+    """
+    filter trade data dataframe to the last entries for each order that contains runner result
+    Adds 'order id' column extracted from 'order' column containing dictionary about order info
+    """
+
+    # remove entries with no order information
+    trade_data = trade_data[~trade_data['order'].isnull()]
+    trade_data['order id'] = trade_data['order'].apply(lambda o: o['id'])
+    # last entries for each order should be those written once market complete
+    return trade_data.groupby(['order id'], as_index=False).last()
+
+
 
 
 @dataclass
@@ -228,4 +243,5 @@ class TradeTracker:
                 'display_odds': display_odds,
                 'order': order_info,
                 'trade_id': trade_id,
+                'dt_created': order.date_time_created.timestamp() if order else None
             })
