@@ -31,6 +31,28 @@ def get_api_client() -> betfairlightweight.APIClient:
                                         certs=certs_path)
 
 
+def _construct_hist_dir(event_dt: datetime, event_id, market_id) -> str:
+    """get path conforming to betfair historical data standards for a given event datetime, event ID, and market ID"""
+
+    # cant use %d from strftime as it 0-pads and betfair doesnt
+    return os.path.join(
+        event_dt.strftime('%Y\\%b'),
+        str(event_dt.day),
+        str(event_id),
+        str(market_id)
+    )
+
+
+def construct_hist_dir(market_book: MarketBook):
+    """get path conforming to betfair historical data standards for a given market book"""
+    market_id = market_book.market_id
+    event_id = market_book.market_definition.event_id
+    event_dt = market_book.market_definition.market_time
+
+    return _construct_hist_dir(event_dt, event_id, market_id)
+
+
+
 def get_market_info(file_path: str, market_attrs: List[str]) -> dict:
     """
     Get information about a Betfair historical/streaming file by reading the first line of contents
@@ -55,12 +77,20 @@ def get_historical(api_client : betfairlightweight.APIClient, directory) -> Queu
 
     output_queue = Queue()
 
+    # stop it winging about stream latency
+    stream_logger = logging.getLogger('betfairlightweight.streaming.stream')
+    level = stream_logger.level
+    stream_logger.setLevel(logging.CRITICAL)
+
     listener = betfairlightweight.StreamListener(output_queue=output_queue)
     stream = api_client.streaming.create_historical_stream(
         file_path=directory,
         listener=listener
     )
     stream.start()
+
+    # reset to original level
+    stream_logger.setLevel(level)
 
     return output_queue
 
