@@ -1,6 +1,6 @@
 from flumine.order.order import OrderStatus
 from flumine.order.trade import Trade
-from myutils import betting
+from mytrading import betting
 import logging
 from dataclasses import dataclass
 

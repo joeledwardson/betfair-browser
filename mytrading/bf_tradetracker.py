@@ -1,18 +1,11 @@
-from flumine import FlumineBacktest, clients, BaseStrategy
-from flumine.order.order import BaseOrder, BetfairOrder, OrderStatus
+from flumine.order.order import BetfairOrder, OrderStatus
 from flumine.order.trade import Trade
 from flumine.order.ordertype import LimitOrder
-from flumine.markets.market import Market
-from betfairlightweight.resources.bettingresources import MarketBook, RunnerBook, MarketCatalogue
 
-import json
 import logging
-from myutils import betting, bf_feature, bf_window, statemachine as stm, bf_utils as bfu
-from myutils.bf_types import MatchBetSums, get_match_bet_sums
 from myutils import json_file
 from typing import List, Dict
-from datetime import datetime, timedelta
-from enum import Enum
+from datetime import datetime
 from dataclasses import dataclass, field
 from uuid import UUID
 import pandas as pd

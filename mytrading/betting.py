@@ -327,7 +327,7 @@ def get_tick_increments() -> pd.DataFrame:
     # when a library is imported, it takes active script as current directory and file is stored locally so have to
     # work out file path based on current directory
     cur_dir = os.path.dirname(os.path.realpath(__file__))
-    file_path = os.path.join(cur_dir, "ticks.json")
+    file_path = os.path.join(cur_dir, "../myutils/ticks.json")
 
     # return file as pandas DataFrame
     return pd.read_json(file_path)

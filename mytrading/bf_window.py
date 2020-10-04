@@ -1,5 +1,5 @@
 from betfairlightweight.resources.bettingresources import MarketBook, RunnerBook, MarketCatalogue
-from myutils import betting
+from mytrading import betting
 from typing import List, Dict, Optional
 
 

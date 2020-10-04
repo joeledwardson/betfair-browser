@@ -4,7 +4,7 @@ from betfairlightweight.resources.bettingresources import MarketBook, RunnerBook
 from betfairlightweight import APIClient
 
 import json
-from myutils import betting
+from mytrading import betting
 import os
 import pandas as pd
 import logging

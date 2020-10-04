@@ -5,7 +5,7 @@ from bs4 import BeautifulSoup
 from datetime import datetime
 import logging
 import os
-from myutils.betting import name_processor
+from mytrading.betting import name_processor
 
 oc_logger = logging.getLogger('')
 

@@ -1,6 +1,5 @@
 from plotly.subplots import make_subplots
 import plotly.graph_objects as go
-from myutils import generic, bf_feature, bf_window, json_file
 from datetime import timedelta
 from typing import List, Dict
 from betfairlightweight.resources.bettingresources import MarketBook
@@ -9,6 +8,8 @@ from datetime import datetime
 import logging
 import pandas as pd
 
+from myutils import generic
+from mytrading import bf_feature, bf_window
 
 active_logger = logging.getLogger(__name__)
 active_logger.setLevel(logging.INFO)
@@ -427,7 +428,7 @@ def plot_orders(fig: go.Figure, orders_df: pd.DataFrame):
 
 def fig_historical(
         records: List[List[MarketBook]],
-        features: Dict[str,bf_feature.RunnerFeatureBase],
+        features: Dict[str, bf_feature.RunnerFeatureBase],
         windows: bf_window.Windows,
         feature_plot_configs: Dict[str, Dict],
         selection_id,

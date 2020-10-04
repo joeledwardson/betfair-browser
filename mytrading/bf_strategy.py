@@ -3,7 +3,8 @@ from flumine.order.order import BaseOrder
 from flumine.markets.market import Market
 from betfairlightweight.resources.bettingresources import MarketBook
 
-from myutils import bf_feature as bff, bf_window as bfw
+from mytrading import bf_window as bfw
+from mytrading import bf_feature as bff
 from myutils.timing import EdgeDetector
 from datetime import timedelta
 import logging

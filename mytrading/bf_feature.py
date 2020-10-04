@@ -1,5 +1,5 @@
 from betfairlightweight.resources.bettingresources import MarketBook
-from myutils import betting, bf_window
+from mytrading import betting, bf_window
 import numpy as np
 from typing import List, Dict
 import statsmodels.api as sm
