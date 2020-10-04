@@ -440,8 +440,13 @@ class RunnerFeatureRegression(RunnerFeatureWindowBase):
 
         # TODO - incorporate regreesion postprocessor to predicted results, but dont want to calculate here is it is
         #  not required in real time, only for plotting
-        if self.comparator(res_wls.params[1], self.regression_gradient_filter) and abs(
-                res_wls.rsquared) >= self.regression_strength_filter:
+        if len(res_wls.params) < 2:
+            return
+
+        if not self.comparator(res_wls.params[1], self.regression_gradient_filter):
+            return
+
+        if abs(res_wls.rsquared) >= self.regression_strength_filter:
             return {
                 'dts': dat['dts'].copy(),  # stop making hard reference
                 'predicted': y_pred,
