@@ -356,9 +356,14 @@ def add_feature_trace(
             for processor in ftr_conf.get('value_processors', []):
                 trace_data = processor(trace_data)
 
-        # indexes of data values which are after chart start time for plotting, then take first
+        # indexes of data values which are after chart start time for plotting
         indexes = [i for i, v in enumerate(trace_data['x']) if v >= chart_start]
-        index_start = min(indexes) if indexes else 0
+
+        # if no values are after start then abore
+        if not indexes:
+            continue
+
+        index_start = min(indexes)
 
         # slice trace data to values within plotting range
         trace_data = {k: v[index_start:] for k, v in trace_data.items()}
@@ -474,6 +479,9 @@ def fig_historical(
         )
 
     if orders_df is not None and orders_df.shape[0]:
+        orders_df = orders_df[
+            (orders_df.index >= market_time - timedelta(seconds=display_s)) &
+            (orders_df.index <= market_time)]
         plot_orders(fig, orders_df.copy())
     set_figure_layout(fig, title, market_time, display_s)
     return fig
