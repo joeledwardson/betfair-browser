@@ -1,7 +1,7 @@
 from betfairlightweight.resources.bettingresources import MarketBook, RunnerBook, MarketCatalogue
 from mytrading import betting
 from typing import List, Dict, Optional
-
+from datetime import timedelta
 
 def update_index_window(
         records: List,
@@ -34,12 +34,10 @@ class WindowProcessorBase:
     window itself, only exception is constants defined in the class
     """
 
-    @classmethod
-    def processor_init(cls, window: dict, **kwargs):
+    def __init__(self, window: dict, **kwargs):
         pass
 
-    @classmethod
-    def process_window(cls, market_list: List[MarketBook], new_book: MarketBook, window: dict, **kwargs):
+    def process_window(self, market_list: List[MarketBook], new_book: MarketBook, window: dict, **kwargs):
         raise NotImplementedError
 
 
@@ -50,12 +48,11 @@ class WindowProcessorTradedVolumeLadder(WindowProcessorBase):
     Stores a 'tv_diff_totals' dict attribute in window, key is selection ID, value is sum of 'price' elements in ladder
     """
 
-    @classmethod
-    def processor_init(cls, window: dict, **kwargs):
+    def __init__(self, window: dict, **kwargs):
+        super().__init__(window, **kwargs)
         window['old_tv_ladders'] = {}
 
-    @classmethod
-    def process_window(cls, market_list: List[MarketBook], new_book: MarketBook, window: dict, **kwargs):
+    def process_window(self, market_list: List[MarketBook], new_book: MarketBook, window: dict, **kwargs):
 
         # check if window start index has changed
         if window['window_index'] != window['window_prev_index']:
@@ -91,36 +88,34 @@ class WindowProcessorFeatureBase(WindowProcessorBase):
     # True only values inside window are stored, false to include value just before window starts
     inside_window = True
 
-    @classmethod
-    def get_runner_attr(cls, runner: RunnerBook):
+    def get_runner_attr(self, runner: RunnerBook):
         """define this method to get runner attribute (e.g. best back, last traded price etc.)"""
         raise NotImplementedError
 
-    @classmethod
-    def processor_init(cls, window: dict, **kwargs):
+    def __init__(self, window: dict, **kwargs):
         """initialise by creating empty dict in window using attribute key"""
-        window[cls.window_var] = {}
+        super().__init__(window, **kwargs)
+        window[self.window_var] = {}
 
-    @classmethod
-    def process_window(cls, market_list: List[MarketBook], new_book: MarketBook, window: dict, **kwargs):
+    def process_window(self, market_list: List[MarketBook], new_book: MarketBook, window: dict, **kwargs):
 
         # get starting index of window, add 1 if only taking values inside window
-        start_index = window['window_index'] + cls.inside_window
+        start_index = window['window_index'] + self.inside_window
 
-        # window dict -> in the attribute 'cls.window_var' dict, each runner has lists of identical length with keys
+        # window dict -> in the attribute 'self.window_var' dict, each runner has lists of identical length with keys
         # as follows
         dict_elements = ['indexes', 'dts', 'values']
 
         for runner in new_book.runners:
 
             # if runner does not have a dictionary element then create one with empty lists
-            if runner.selection_id not in window[cls.window_var]:
-                window[cls.window_var][runner.selection_id] = {
+            if runner.selection_id not in window[self.window_var]:
+                window[self.window_var][runner.selection_id] = {
                     k: [] for k in dict_elements
                 }
 
             # get runner dictionary from window
-            runner_dict = window[cls.window_var][runner.selection_id]
+            runner_dict = window[self.window_var][runner.selection_id]
 
             # remove from start of list values outside window valid record indexes
             while runner_dict['indexes']:
@@ -130,7 +125,7 @@ class WindowProcessorFeatureBase(WindowProcessorBase):
                     runner_dict[k].pop(0)
 
             # get runner attribute value
-            value = cls.get_runner_attr(runner)
+            value = self.get_runner_attr(runner)
 
             # add current index, record datetime and value to runners list of elements
             if value:
@@ -147,8 +142,7 @@ class WindowProcessorLTPS(WindowProcessorFeatureBase):
 
     window_var = 'runner_ltps'
 
-    @classmethod
-    def get_runner_attr(cls, runner: RunnerBook):
+    def get_runner_attr(self, runner: RunnerBook):
         return runner.last_price_traded
 
 
@@ -157,8 +151,7 @@ class WindowProcessorBestBack(WindowProcessorFeatureBase):
 
     windor_var = 'best_backs'
 
-    @classmethod
-    def get_runner_attr(cls, runner: RunnerBook):
+    def get_runner_attr(self, runner: RunnerBook):
         return betting.best_price(runner.ex.available_to_back)
 
 
@@ -167,28 +160,48 @@ class WindowProcessorBestLay(WindowProcessorFeatureBase):
 
     windor_var = 'best_lays'
 
-    @classmethod
-    def get_runner_attr(cls, runner: RunnerBook):
+    def get_runner_attr(self, runner: RunnerBook):
         return betting.best_price(runner.ex.available_to_lay)
 
 
-# TODO - complete
-class WindowProcessorDelayer(WindowProcessorBase):
+class WindowProcessorDelayerBase(WindowProcessorBase):
     """return a delayed window value"""
 
-    @classmethod
-    def processor_init(cls, window: dict, **kwargs):
-        window
+    # key to base value in window of which to be delayed
+    base_key: str = None
 
-    @classmethod
+    # key to list in window storing base values
+    hist_key: str = None
+
+    # key to value in dictionary storing delayed value
+    delay_key: str = None
+
+    def __init__(self, window: dict, delay_seconds: float, **kwargs):
+        super().__init__(window, **kwargs)
+        self.delay_seconds = delay_seconds
+        window[self.delay_key] = {} # assuming index by runner ID
+        window[self.hist_key] = []
+
     def process_window(
-            cls,
+            self,
             market_list: List[MarketBook],
             new_book: MarketBook,
             window: dict,
             **kwargs
     ):
-        raise NotImplementedError
+        # get new window value and add to historic list of not None
+        new_value = window[self.base_key]
+        if new_value:
+            window[self.hist_key].push({'dt': new_book.publish_time, 'value': new_value})
+
+        # remove all values, prior (getting second from bottom element) to element outside range
+        while len(window[self.hist_key]) >= 2:
+            if window[self.hist_key][1]['dt'] < (new_book.publish_time - timedelta(seconds=self.delay_seconds)):
+                break
+
+        # check list not empty before assigning
+        if len(window[self.hist_key]):
+            window[self.delay_key] = window[self.hist_key][0]
 
 
 class Windows:
@@ -225,7 +238,8 @@ class Windows:
             self.windows[width_seconds] = {
                 'window_prev_index': 0,
                 'window_index': 0,
-                'functions': []
+                'function_configs': [],
+                'function_instances': [],
             }
         return self.windows[width_seconds]
 
@@ -234,15 +248,17 @@ class Windows:
         window = self.windows[width_seconds]
 
         # check if any existing functions with the same args
-        existing = [w for w in window['functions'] if w['name'] == function_key]
+        existing = [w for w in window['function_configs'] if w['name'] == function_key]
         if existing and any(e['kwargs'] == kwargs for e in existing):
             return
 
-        window['functions'].append({
+        window['function_configs'].append({
             'name': function_key,
             'kwargs': kwargs,
         })
-        self.FUNCTIONS[function_key].processor_init(window, **kwargs)
+        window['function_instances'].append(
+            self.FUNCTIONS[function_key](window, **kwargs)
+        )
 
     # update windows with a new received market book
     def update_windows(self, market_list: List[MarketBook], new_book: MarketBook):
@@ -263,11 +279,10 @@ class Windows:
                 f_pt=self.func_publish_time)
 
             # loop and run window processing functions
-            for func in window['functions']:
-                self.FUNCTIONS[func['name']].process_window(
+            for func in window['function_instances']:
+                func.process_window(
                     market_list,
                     new_book,
-                    window,
-                    **func['kwargs']
+                    window
                 )
 

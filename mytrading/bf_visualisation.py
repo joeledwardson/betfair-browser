@@ -15,152 +15,6 @@ active_logger = logging.getLogger(__name__)
 active_logger.setLevel(logging.INFO)
 
 
-def values_resampler(df: pd.DataFrame, n_seconds, sampling_function='last') -> pd.DataFrame:
-    """
-    resample 'df' DataFrame for 'n_seconds', using last value each second and forward filling
-    can override default sampling function 'last' with `sampling_function` arg
-    """
-    rule = f'{n_seconds}S'
-    return df.resample(rule).apply(sampling_function).fillna(method='ffill') if df.shape[0] else df
-
-
-def color_text_formatter_percent(name, value, n_decimals=0) -> str:
-    """
-    format value with name to percentage with 'n_decimals' dp
-    """
-    return f'{name}: {value:.{n_decimals}%}'
-
-
-def color_text_formatter_decimal(name, value, n_decimals=2) -> str:
-    """
-    format value with name to decimal with 'n_decimals' dp
-    """
-    return f'{name}: {value:.{n_decimals}f}'
-
-
-def remove_duplicates(sr: pd.Series) -> pd.Series:
-    """
-    remove duplicates from series with datetime index keeping last value
-    """
-    return sr[~sr.index.duplicated(keep='last')]
-
-
-def plotly_data_to_series(data: dict) -> pd.Series:
-    """
-    convert 'data' x-y plotly values (dict with 'x' and 'y' indexed list values) to pandas series where index is 'x'
-    """
-    return pd.Series(data['y'], index=data['x'])
-
-
-def plotly_set_color(
-        vals: Dict,
-        color_feature: bf_feature.RunnerFeatureBase,
-        color_feature_name: str,
-        color_feature_processors: List,
-        color_text_fmt=color_text_formatter_decimal
-) -> pd.DataFrame:
-    """
-    add color to plotly 'vals' (must have 'x' and 'y' components) from 'color_feature' feature (must also have 'x' and
-    'y' components) into dataframe, where color forms 'marker_color' column, formatted color values with
-    'color_feature_name' form 'text' column
-    """
-
-    # have to remove duplicate datetime indexes from each series or pandas winges when trying to make a dataframe
-    sr_vals = plotly_data_to_series(vals)
-    sr_vals = remove_duplicates(sr_vals)
-
-    # get data from feature to be used as color in plot (assume single plotting element)
-    color_data = color_feature.get_plotly_data()[0]
-
-    # run processors on color data (if not empty)
-    if color_data['x']:
-        for processor in color_feature_processors:
-            color_data = processor(color_data)
-
-    # create series and remove duplicates from color data
-    sr_color = pd.Series(color_data['y'], index=color_data['x'])
-    sr_color = remove_duplicates(sr_color)
-
-    # create series of text annotations
-    text_data = [color_text_fmt(color_feature_name, v) for v in color_data['y']]
-    sr_text = pd.Series(text_data, index=color_data['x'])
-    sr_text = remove_duplicates(sr_text)
-
-    df = pd.DataFrame({
-        'y': sr_vals,
-        'marker_color': sr_color,
-        'text': sr_text
-    })
-    df = df.fillna(method='ffill')
-    return df
-
-
-def plotly_df_to_data(df: pd.DataFrame) -> Dict:
-    """
-    convert dataframe to dictionary (assuming columns are appropriate for plotly chart arg) and use index for 'x' vals
-    """
-    values = df.to_dict(orient='list')
-    values.update({'x': df.index})
-    return values
-
-
-def plotly_series_to_data(sr: pd.Series) -> Dict:
-    """
-    convert series to dictionary with 'x' and 'y'
-    """
-    return {
-        'x': sr.index,
-        'y': sr.to_list()
-    }
-
-
-def plotly_regression(vals: Dict) -> Dict:
-    """
-    convert returned values dict from 'RunnerFeatureRegression' feature into plotly compatible dict with 'x',
-    'y' and 'text'
-    """
-    txt_rsqaured = f'rsquared: {vals["rsquared"]:.2f}'
-    return {
-        'x': vals['dts'],
-        'y': vals['predicted'],
-        'text': [txt_rsqaured for x in vals['dts']]
-    }
-
-
-def get_default_plot_config() -> dict:
-    """
-    get default plotly chart configurations dict for plotting features
-    configuration includes keys:
-    - 'chart': plotly chart function
-    - 'chart_args': dictionary of plotly chart arguments
-    - 'trace_args': dictionary of arguments used when plotly trace added to figure
-    - 'y_axis': name of y-axis, used as a set to distinguish different y-axes on subplots (just used to
-    differentiate between subplots, name doesn't actually appear on axis)
-    """
-    return {
-        'chart': go.Scatter,
-        'chart_args': {
-            'mode': 'lines'
-        },
-        'trace_args': {},
-        'y_axis': 'odds',
-    }
-
-
-def plotly_group(fig: go.Figure, name: str, group_name: str):
-    """
-    group a set of plotly traces with a unified name to a single legend
-    """
-    # filter to traces with name
-    for i, trace in enumerate([t for t in fig.data if t['name']==name]):
-        # show legend on first trace but ignore others
-        if i == 0:
-            trace['showlegend'] = True
-        else:
-            trace['showlegend'] = False
-        # set all trace group names the same
-        trace['legendgroup'] = group_name
-
 
 def get_plot_configs(
         features: Dict[str, bf_feature.RunnerFeatureBase],
@@ -280,6 +134,153 @@ def get_plot_configs(
             )
         },
     }
+
+
+def get_default_plot_config() -> dict:
+    """
+    get default plotly chart configurations dict for plotting features
+    configuration includes keys:
+    - 'chart': plotly chart function
+    - 'chart_args': dictionary of plotly chart arguments
+    - 'trace_args': dictionary of arguments used when plotly trace added to figure
+    - 'y_axis': name of y-axis, used as a set to distinguish different y-axes on subplots (just used to
+    differentiate between subplots, name doesn't actually appear on axis)
+    """
+    return {
+        'chart': go.Scatter,
+        'chart_args': {
+            'mode': 'lines'
+        },
+        'trace_args': {},
+        'y_axis': 'odds',
+    }
+
+
+def values_resampler(df: pd.DataFrame, n_seconds, sampling_function='last') -> pd.DataFrame:
+    """
+    resample 'df' DataFrame for 'n_seconds', using last value each second and forward filling
+    can override default sampling function 'last' with `sampling_function` arg
+    """
+    rule = f'{n_seconds}S'
+    return df.resample(rule).apply(sampling_function).fillna(method='ffill') if df.shape[0] else df
+
+
+def color_text_formatter_percent(name, value, n_decimals=0) -> str:
+    """
+    format value with name to percentage with 'n_decimals' dp
+    """
+    return f'{name}: {value:.{n_decimals}%}'
+
+
+def color_text_formatter_decimal(name, value, n_decimals=2) -> str:
+    """
+    format value with name to decimal with 'n_decimals' dp
+    """
+    return f'{name}: {value:.{n_decimals}f}'
+
+
+def remove_duplicates(sr: pd.Series) -> pd.Series:
+    """
+    remove duplicates from series with datetime index keeping last value
+    """
+    return sr[~sr.index.duplicated(keep='last')]
+
+
+def plotly_data_to_series(data: dict) -> pd.Series:
+    """
+    convert 'data' x-y plotly values (dict with 'x' and 'y' indexed list values) to pandas series where index is 'x'
+    """
+    return pd.Series(data['y'], index=data['x'])
+
+
+def plotly_set_color(
+        vals: Dict,
+        color_feature: bf_feature.RunnerFeatureBase,
+        color_feature_name: str,
+        color_feature_processors: List,
+        color_text_fmt=color_text_formatter_decimal
+) -> pd.DataFrame:
+    """
+    add color to plotly 'vals' (must have 'x' and 'y' components) from 'color_feature' feature (must also have 'x' and
+    'y' components) into dataframe, where color forms 'marker_color' column, formatted color values with
+    'color_feature_name' form 'text' column
+    """
+
+    # have to remove duplicate datetime indexes from each series or pandas winges when trying to make a dataframe
+    sr_vals = plotly_data_to_series(vals)
+    sr_vals = remove_duplicates(sr_vals)
+
+    # get data from feature to be used as color in plot (assume single plotting element)
+    color_data = color_feature.get_plotly_data()[0]
+
+    # run processors on color data (if not empty)
+    if color_data['x']:
+        for processor in color_feature_processors:
+            color_data = processor(color_data)
+
+    # create series and remove duplicates from color data
+    sr_color = pd.Series(color_data['y'], index=color_data['x'])
+    sr_color = remove_duplicates(sr_color)
+
+    # create series of text annotations
+    text_data = [color_text_fmt(color_feature_name, v) for v in color_data['y']]
+    sr_text = pd.Series(text_data, index=color_data['x'])
+    sr_text = remove_duplicates(sr_text)
+
+    df = pd.DataFrame({
+        'y': sr_vals,
+        'marker_color': sr_color,
+        'text': sr_text
+    })
+    df = df.fillna(method='ffill')
+    return df
+
+
+def plotly_df_to_data(df: pd.DataFrame) -> Dict:
+    """
+    convert dataframe to dictionary (assuming columns are appropriate for plotly chart arg) and use index for 'x' vals
+    """
+    values = df.to_dict(orient='list')
+    values.update({'x': df.index})
+    return values
+
+
+def plotly_series_to_data(sr: pd.Series) -> Dict:
+    """
+    convert series to dictionary with 'x' and 'y'
+    """
+    return {
+        'x': sr.index,
+        'y': sr.to_list()
+    }
+
+
+def plotly_regression(vals: Dict) -> Dict:
+    """
+    convert returned values dict from 'RunnerFeatureRegression' feature into plotly compatible dict with 'x',
+    'y' and 'text'
+    """
+    txt_rsqaured = f'rsquared: {vals["rsquared"]:.2f}'
+    return {
+        'x': vals['dts'],
+        'y': vals['predicted'],
+        'text': [txt_rsqaured for x in vals['dts']]
+    }
+
+
+def plotly_group(fig: go.Figure, name: str, group_name: str):
+    """
+    group a set of plotly traces with a unified name to a single legend
+    """
+    # filter to traces with name
+    for i, trace in enumerate([t for t in fig.data if t['name']==name]):
+        # show legend on first trace but ignore others
+        if i == 0:
+            trace['showlegend'] = True
+        else:
+            trace['showlegend'] = False
+        # set all trace group names the same
+        trace['legendgroup'] = group_name
 
 
 def get_yaxes_names(feature_plot_configs: dict, _default_plot_configs: dict) -> List[str]:
@@ -467,17 +468,37 @@ def fig_historical(
     fig = create_figure(y_axes_names)
 
     market_time = records[0][0].market_definition.market_time
-    for feature_name, feature in features.items():
-        conf = feature_plot_configs.get(feature_name, {})
+    chart_start = market_time - timedelta(seconds=display_s)
+
+    def _plot_feature(display_name, feature, conf):
+
+        # plot feature
         add_feature_trace(
             fig=fig,
-            feature_name=feature_name,
+            feature_name=display_name,
             feature=feature,
             def_conf=default_plot_config,
             y_axes_names=y_axes_names,
             ftr_conf=conf,
-            chart_start=market_time-timedelta(seconds=display_s)
+            chart_start=chart_start
         )
+
+        # get sub features config if exist
+        sub_configs = conf.get('sub_features', {})
+
+        # loop sub features
+        for sub_name, sub_feature in feature.sub_features:
+
+            # get sub-feature specific configuration
+            sub_conf = sub_configs.get(sub_name)
+
+            # create display name by using using a dot (.) between parent and sub feature names
+            sub_display_name = '.'.join([display_name, sub_name])
+            _plot_feature(sub_display_name, sub_feature, sub_conf)
+
+    for feature_name, feature in features.items():
+        conf = feature_plot_configs.get(feature_name, {})
+        _plot_feature(feature_name, feature, conf)
 
     if orders_df is not None and orders_df.shape[0]:
         orders_df = orders_df[

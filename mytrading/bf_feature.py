@@ -1,3 +1,4 @@
+from __future__ import annotations
 from betfairlightweight.resources.bettingresources import MarketBook
 from mytrading import betting, bf_window
 import numpy as np
@@ -6,6 +7,115 @@ import statsmodels.api as sm
 import operator
 import statistics
 from datetime import datetime, timedelta
+
+
+def get_default_features_config(
+        wom_ticks=5,
+        ltp_window_s=40,
+        ltp_periodic_ms=200,
+        ltp_moving_average_entries=10,
+        ltp_diff_s=2,
+        regression_seconds=2,
+        regression_strength_filter=0.1,
+        regression_gradient_filter=0.003,
+        regression_update_ms=200,
+) -> Dict[str, Dict]:
+    """
+    Get a dict of default runner features, where each entry is a dictionary of:
+    - key: feature usage name
+    - value: dict of
+        - 'name': class name of feature
+        - 'kwargs': dict of constructor arguments used when creating feature
+    """
+
+    return {
+
+        'best back': {
+            'name': 'RunnerFeatureBestBack',
+        },
+
+        'best lay': {
+            'name': 'RunnerFeatureBestLay',
+        },
+
+        'wom': {
+            'name': 'RunnerFeatureWOM',
+            'kwargs': {
+                'wom_ticks': wom_ticks
+            },
+        },
+
+        'ltp min': {
+            'name': 'RunnerFeatureTradedWindowMin',
+            'kwargs': {
+                'periodic_ms': ltp_periodic_ms,
+                'periodic_timestamps': True,
+                'window_s': ltp_window_s,
+                'value_processor': 'value_processor_moving_average',
+                'value_processor_args': {
+                    'n_entries': ltp_moving_average_entries
+                },
+            }
+        },
+
+        'ltp max': {
+            'name': 'RunnerFeatureTradedWindowMax',
+            'kwargs': {
+                'periodic_ms': ltp_periodic_ms,
+                'periodic_timestamps': True,
+                'window_s': ltp_window_s,
+                'value_processor': 'value_processor_moving_average',
+                'value_processor_args': {
+                    'n_entries': ltp_moving_average_entries
+                },
+            }
+        },
+
+        'ltp diff': {
+            'name': 'RunnerFeatureTradedDiff',
+            'kwargs': {
+                'window_s': ltp_diff_s,
+            }
+        },
+
+        'book split': {
+            'name': 'RunnerFeatureBookSplitWindow',
+            'kwargs': {
+                'window_s': ltp_window_s,
+            },
+        },
+
+        # put LTP last so it shows up above LTP max/min when plotting
+        'ltp': {
+            'name': 'RunnerFeatureLTP',
+        },
+
+        'best back regression': {
+            'name': 'RunnerFeatureRegression',
+            'kwargs': {
+                'periodic_ms': regression_update_ms,
+                'window_function': 'WindowProcessorBestBack',
+                'regressions_seconds': regression_seconds,
+                'regression_strength_filter': regression_strength_filter,
+                'regression_gradient_filter': regression_gradient_filter,
+                'regression_preprocessor': 'value_processor_invert',
+                'regression_postprocessor': 'value_processor_invert',
+            },
+        },
+
+        'best lay regression': {
+            'name': 'RunnerFeatureRegression',
+            'kwargs':  {
+                'periodic_ms': regression_update_ms,
+                'window_function': 'WindowProcessorBestLay',
+                'regressions_seconds': regression_seconds,
+                'regression_strength_filter': regression_strength_filter,
+                'regression_gradient_filter': regression_gradient_filter * -1,
+                'regression_preprocessor': 'value_processor_invert',
+                'regression_postprocessor': 'value_processor_invert',
+            },
+        },
+    }
 
 
 class BetfairFeatureException(Exception):
@@ -28,21 +138,21 @@ class RunnerFeatureValueProcessors:
     @staticmethod
     def value_processor_identity():
         """return same value"""
-        def inner(value, values, datetimes):
+        def inner(value, values: List, datetimes: List[datetime]):
             return value
         return inner
 
     @staticmethod
     def value_processor_moving_average(n_entries):
         """moving average over `n_entries`"""
-        def inner(value, values, datetimes):
+        def inner(value, values: List, datetimes: List[datetime]):
             return statistics.mean(values[-n_entries:])
         return inner
 
     @staticmethod
     def value_processor_invert():
         """get 1/value"""
-        def inner(value, values, datetimes):
+        def inner(value, values: List, datetimes: List[datetime]):
             return 1 / value
         return inner
 
@@ -64,6 +174,12 @@ class RunnerFeatureBase:
     - value_processor_args: kwargs to pass to `value_processor` function creator
     - periodic_ms: specify to only compute and store feature value every 'periodic_ms' milliseconds
     - period_timestamps: only valid is `periodic_ms` is not None, specifies if timestamps should be sampled
+    - components: list of dictionary specifications for sub-features, i.e. features that base some of their
+    calculations on the existing feature, dictionary values are:
+        key: human name of feature for dictionary 'self.sub_features', (.e.g 'my minimum')
+        values:
+            'name': feature name as matches file (e.g.  'RunnerFeatureTradedWindowMin')
+            'kwargs': arguments to pass to sub feature constructor
     """
     def __init__(
             self,
@@ -71,18 +187,33 @@ class RunnerFeatureBase:
             value_processor_args: dict = None,
             periodic_ms: int = None,
             periodic_timestamps: bool = False,
-            ):
+            sub_features_config: List[Dict] = None,
+            parent: RunnerFeatureBase = None,
+    ):
 
+        self.parent: RunnerFeatureBase = parent
         self.windows: bf_window.Windows = None
         self.selection_id: int = None
 
         self.values = []
         self.dts = []
 
-        creator = RunnerFeatureValueProcessors.get_processor(value_processor)
-        self.value_processor = creator(**(value_processor_args if value_processor_args else {}))
+        def _get_processor(name, _kwargs):
+            creator = RunnerFeatureValueProcessors.get_processor(name)
+            return creator(**(_kwargs if _kwargs else {}))
 
+        self.value_processor = _get_processor(value_processor, value_processor_args)
         self.processed_vals = []
+
+        self.sub_features: Dict[str, RunnerFeatureBase] = {}
+        if sub_features_config:
+            for k, v in sub_features_config:
+                feature_class = globals()[v['name']]
+                feature_kwargs = v.get('kwargs', {})
+                self.sub_features[k] = feature_class(
+                    parent=self,
+                    **feature_kwargs
+                )
 
         self.periodic_ms = periodic_ms
         self.periodic_timestamps = periodic_timestamps
@@ -98,6 +229,9 @@ class RunnerFeatureBase:
         self.last_timestamp = first_book.publish_time
         self.selection_id = selection_id
         self.windows = windows
+
+        for sub_feature in self.sub_features.values():
+            sub_feature.race_initializer(selection_id, first_book, windows)
 
     def process_runner(
             self, market_list: List[MarketBook],
@@ -120,10 +254,17 @@ class RunnerFeatureBase:
                 # specify that do want to update
                 update = True
 
-                # if periodically timestamped flag specified, set timestamp to sampled time and increment
+                if (new_book.market_definition.market_time - new_book.publish_time).total_seconds() < 30:
+                    my_debug_point = True
+
+                # increment previous timestamps
+                self.last_timestamp = self.last_timestamp + timedelta(milliseconds=self.periodic_ms)
+
+                # if periodically timestamped flag specified, set timestamp to sampled time
                 if self.periodic_timestamps:
                     publish_time = self.last_timestamp
-                    self.last_timestamp = self.last_timestamp + timedelta(milliseconds=self.periodic_ms)
+
+
 
         # if periodic update milliseconds not specified, update regardless
         else:
@@ -151,13 +292,18 @@ class RunnerFeatureBase:
             # add processed value
             self.processed_vals.append(processed)
 
+            for sub_feature in self.sub_features.values():
+                sub_feature.process_runner(market_list, new_book, windows, runner_index)
+
         send_update(publish_time)
 
         # if data is sampled and more than one sample time has elapsed, fill forwards until time is met
-        if self.periodic_timestamps:
-            while self.last_timestamp <= new_book.publish_time:
+        if self.periodic_ms:
+            while int((new_book.publish_time - self.last_timestamp).total_seconds() * 1000) > self.periodic_ms:
                 self.last_timestamp = self.last_timestamp + timedelta(milliseconds=self.periodic_ms)
-                send_update(self.last_timestamp)
+                if self.periodic_timestamps:
+                    send_update(self.last_timestamp)
+
 
     def runner_update(
             self,
@@ -457,111 +603,35 @@ class RunnerFeatureRegression(RunnerFeatureWindowBase):
         return None
 
 
-def get_default_features_config(
-        wom_ticks=5,
-        ltp_window_s=40,
-        ltp_periodic_ms=200,
-        ltp_moving_average_entries=10,
-        ltp_diff_s=2,
-        regression_seconds=2,
-        regression_strength_filter=0.1,
-        regression_gradient_filter=0.003,
-        regression_update_ms=200,
-) -> Dict[str, Dict]:
-    """
-    Get a dict of default runner features, where each entry is a dictionary of:
-    - key: feature usage name
-    - value: dict of
-        - 'name': class name of feature
-        - 'kwargs': dict of constructor arguments used when creating feature
-    """
+class RunnerFeatureSub(RunnerFeatureBase):
+    def __init__(self, parent: RunnerFeatureBase, **kwargs):
+        super().__init__(parent=parent, **kwargs)
+        if parent is None:
+            raise BetfairFeatureException(f'sub-feature has not received "parent" argument')
 
-    return {
 
-        'best back': {
-            'name': 'RunnerFeatureBestBack',
-        },
+class RunnerFeatureDelayer(RunnerFeatureSub):
+    """delay a parent feature by x number of seconds"""
 
-        'best lay': {
-            'name': 'RunnerFeatureBestLay',
-        },
+    def __init__(self, delay_seconds, **kwargs):
+        self.delay_seconds = delay_seconds
+        self.delay_index = 0
+        super().__init__(**kwargs)
 
-        'wom': {
-            'name': 'RunnerFeatureWOM',
-            'kwargs': {
-                'wom_ticks': wom_ticks
-            },
-        },
+    def runner_update(
+            self,
+            market_list: List[MarketBook],
+            new_book: MarketBook,
+            windows: bf_window.Windows,
+            runner_index):
 
-        'ltp min': {
-            'name': 'RunnerFeatureTradedWindowMin',
-            'kwargs': {
-                'periodic_ms': ltp_periodic_ms,
-                'window_s': ltp_window_s,
-                'value_processor': 'value_processor_moving_average',
-                'value_processor_args': {
-                    'n_entries': ltp_moving_average_entries
-                },
-            }
-        },
+        t = new_book.publish_time
+        while (self.delay_index + 1) < len(self.parent.processed_vals) and \
+                (t - self.parent.dts[self.delay_index + 1]).total_seconds() > self.delay_seconds:
+            self.delay_index += 1
 
-        'ltp max': {
-            'name': 'RunnerFeatureTradedWindowMax',
-            'kwargs': {
-                'periodic_ms': ltp_periodic_ms,
-                'window_s': ltp_window_s,
-                'value_processor': 'value_processor_moving_average',
-                'value_processor_args': {
-                    'n_entries': ltp_moving_average_entries
-                },
-            }
-        },
-
-        'ltp diff': {
-            'name': 'RunnerFeatureTradedDiff',
-            'kwargs': {
-                'window_s': ltp_diff_s,
-            }
-        },
-
-        'book split': {
-            'name': 'RunnerFeatureBookSplitWindow',
-            'kwargs': {
-                'window_s': ltp_window_s,
-            },
-        },
-
-        # put LTP last so it shows up above LTP max/min when plotting
-        'ltp': {
-            'name': 'RunnerFeatureLTP',
-        },
-
-        'best back regression': {
-            'name': 'RunnerFeatureRegression',
-            'kwargs': {
-                'periodic_ms': regression_update_ms,
-                'window_function': 'WindowProcessorBestBack',
-                'regressions_seconds': regression_seconds,
-                'regression_strength_filter': regression_strength_filter,
-                'regression_gradient_filter': regression_gradient_filter,
-                'regression_preprocessor': 'value_processor_invert',
-                'regression_postprocessor': 'value_processor_invert',
-            },
-        },
-
-        'best lay regression': {
-            'name': 'RunnerFeatureRegression',
-            'kwargs':  {
-                'periodic_ms': regression_update_ms,
-                'window_function': 'WindowProcessorBestLay',
-                'regressions_seconds': regression_seconds,
-                'regression_strength_filter': regression_strength_filter,
-                'regression_gradient_filter': regression_gradient_filter * -1,
-                'regression_preprocessor': 'value_processor_invert',
-                'regression_postprocessor': 'value_processor_invert',
-            },
-        },
-    }
+        if len(self.parent.processed_vals):
+            return self.parent.processed_vals[self.delay_index]
 
 
 def generate_features(
@@ -585,16 +655,3 @@ def generate_features(
     return features
 
 
-# def get_default_features(
-#         selection_id,
-#         book: MarketBook,
-#         windows: bf_window.Windows,
-#         **kwargs) -> Dict[str, RunnerFeatureBase]:
-#
-#     features_config = get_default_features_config(**kwargs)
-#     features: Dict[str, RunnerFeatureBase] = {}
-#     for name, conf in features_config.items():
-#         feature_class = globals()[conf['name']]
-#         features[name] = feature_class(**conf.get('kwargs', {}))
-#         features[name].race_initializer(selection_id, book, windows)
-#     return features
