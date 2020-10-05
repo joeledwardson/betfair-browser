@@ -32,6 +32,7 @@ def get_plot_configs(
     - 'y_axis': override default y-axis name
     - 'value_processors': list of functions called on feature.get_data() outputs before passed to chart constructor
     - 'fig_post_processor': function(figure) to be called after creation for any manual updates to plotly figure
+    - 'sub_features': dict of {name: configuration} sub_feature
     """
 
     # name of back regression feature
@@ -133,6 +134,24 @@ def get_plot_configs(
                 group_name=lay_regression
             )
         },
+        'ltp min': {
+            'sub_features': {
+                'delay': {
+                    'chart_args': {
+                        'visible': 'legendonly',
+                    }
+                }
+            }
+        },
+        'ltp max': {
+            'sub_features': {
+                'delay': {
+                    'chart_args': {
+                        'visible': 'legendonly',
+                    }
+                }
+            }
+        }
     }
 
 
@@ -487,10 +506,10 @@ def fig_historical(
         sub_configs = conf.get('sub_features', {})
 
         # loop sub features
-        for sub_name, sub_feature in feature.sub_features:
+        for sub_name, sub_feature in feature.sub_features.items():
 
             # get sub-feature specific configuration
-            sub_conf = sub_configs.get(sub_name)
+            sub_conf = sub_configs.get(sub_name, {})
 
             # create display name by using using a dot (.) between parent and sub feature names
             sub_display_name = '.'.join([display_name, sub_name])

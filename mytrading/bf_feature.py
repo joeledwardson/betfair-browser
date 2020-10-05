@@ -12,6 +12,7 @@ from datetime import datetime, timedelta
 def get_default_features_config(
         wom_ticks=5,
         ltp_window_s=40,
+        ltp_window_delay_s=2,
         ltp_periodic_ms=200,
         ltp_moving_average_entries=10,
         ltp_diff_s=2,
@@ -55,6 +56,14 @@ def get_default_features_config(
                 'value_processor_args': {
                     'n_entries': ltp_moving_average_entries
                 },
+                'sub_features_config': {
+                    'delay': {
+                        'name': 'RunnerFeatureDelayer',
+                        'kwargs': {
+                            'delay_seconds': ltp_window_delay_s
+                        }
+                    }
+                }
             }
         },
 
@@ -68,6 +77,14 @@ def get_default_features_config(
                 'value_processor_args': {
                     'n_entries': ltp_moving_average_entries
                 },
+                'sub_features_config': {
+                    'delay': {
+                        'name': 'RunnerFeatureDelayer',
+                        'kwargs': {
+                            'delay_seconds': ltp_window_delay_s
+                        }
+                    }
+                }
             }
         },
 
@@ -187,7 +204,7 @@ class RunnerFeatureBase:
             value_processor_args: dict = None,
             periodic_ms: int = None,
             periodic_timestamps: bool = False,
-            sub_features_config: List[Dict] = None,
+            sub_features_config: Dict = None,
             parent: RunnerFeatureBase = None,
     ):
 
@@ -207,7 +224,7 @@ class RunnerFeatureBase:
 
         self.sub_features: Dict[str, RunnerFeatureBase] = {}
         if sub_features_config:
-            for k, v in sub_features_config:
+            for k, v in sub_features_config.items():
                 feature_class = globals()[v['name']]
                 feature_kwargs = v.get('kwargs', {})
                 self.sub_features[k] = feature_class(
