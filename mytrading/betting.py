@@ -3,6 +3,7 @@ from queue import Queue
 import betfairlightweight
 from betfairlightweight.resources.bettingresources import PriceSize, RunnerBook, MarketBook
 from betfairlightweight.resources.streamingresources import MarketDefinition, MarketDefinitionRunner
+from betfairlightweight.streaming.listener import StreamListener
 import os
 import numpy as np
 import pandas as pd
@@ -31,11 +32,12 @@ def get_api_client() -> betfairlightweight.APIClient:
                                         certs=certs_path)
 
 
-def _construct_hist_dir(event_dt: datetime, event_id, market_id) -> str:
+def _construct_hist_dir(event_type_id, event_dt: datetime, event_id, market_id) -> str:
     """get path conforming to betfair historical data standards for a given event datetime, event ID, and market ID"""
 
     # cant use %d from strftime as it 0-pads and betfair doesnt
     return os.path.join(
+        event_type_id,
         event_dt.strftime('%Y\\%b'),
         str(event_dt.day),
         str(event_id),
@@ -43,14 +45,42 @@ def _construct_hist_dir(event_dt: datetime, event_id, market_id) -> str:
     )
 
 
-def construct_hist_dir(market_book: MarketBook):
+def construct_hist_dir(market_book: MarketBook) -> str:
     """get path conforming to betfair historical data standards for a given market book"""
+    event_type_id = market_book.market_definition.event_type_id
     market_id = market_book.market_id
     event_id = market_book.market_definition.event_id
     event_dt = market_book.market_definition.market_time
 
-    return _construct_hist_dir(event_dt, event_id, market_id)
+    return _construct_hist_dir(event_type_id, event_dt, event_id, market_id)
 
+
+def file_first_book(file_path: str) -> MarketBook:
+    """read the first line in a historical/streaming file and get the MarketBook parsed object, without reading or
+    processing the rest of the file"""
+
+    with open(file_path) as f:
+        l = f.readline()
+
+    q = Queue()
+
+    try:
+        listener = StreamListener(q)
+        listener.register_stream(0, 'marketSubscription')
+        listener.on_data(l)
+        return listener.output_queue.get()[0]
+    except Exception as e:
+        active_logger.warning(f'error getting first book in file "{file_path}"\n{e}')
+        return None
+
+
+def construct_file_hist_dir(file_path: str) -> str:
+    """get path conforming to betfair historical data standards for a given historical/streaming file path"""
+    bk = file_first_book(file_path)
+    if bk:
+        return construct_hist_dir(bk)
+    else:
+        return None
 
 
 def get_market_info(file_path: str, market_attrs: List[str]) -> dict:
