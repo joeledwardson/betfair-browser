@@ -83,25 +83,6 @@ def construct_file_hist_dir(file_path: str) -> str:
         return None
 
 
-def get_market_info(file_path: str, market_attrs: List[str]) -> dict:
-    """
-    Get information about a Betfair historical/streaming file by reading the first line of contents
-    market definition attributes are read as specified by `market_attrs`
-
-    N.B. attribute must be specified in raw Betfair form rather than pythonic, i.e. 'marketTime' rather than
-    'market_time'
-    """
-    with open(file_path) as f:
-        dat = json.loads(f.readline())
-    try:
-        return {
-            k: dat['mc'][0]['marketDefinition'].get(k)
-            for k in market_attrs
-        }
-    except KeyError as e:
-        return {}
-
-
 def get_historical(api_client : betfairlightweight.APIClient, directory) -> Queue:
     """Get Queue object from historical Betfair data file"""
 
