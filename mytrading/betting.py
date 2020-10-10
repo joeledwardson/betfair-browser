@@ -13,6 +13,7 @@ from datetime import datetime
 from myutils import generic, timing
 import keyring
 import json
+import sys
 from mytrading.bf_utils import GETTER
 
 
@@ -67,7 +68,9 @@ def file_first_book(file_path: str) -> MarketBook:
     q = Queue()
 
     try:
-        listener = StreamListener(q)
+
+        # stop it winging about stream latency by using infinity as max latency
+        listener = StreamListener(q, max_latency=sys.float_info.max)
         listener.register_stream(0, 'marketSubscription')
         listener.on_data(l)
         return listener.output_queue.get()[0]
@@ -90,20 +93,13 @@ def get_historical(api_client : betfairlightweight.APIClient, directory) -> Queu
 
     output_queue = Queue()
 
-    # stop it winging about stream latency
-    stream_logger = logging.getLogger('betfairlightweight.streaming.stream')
-    level = stream_logger.level
-    stream_logger.setLevel(logging.CRITICAL)
-
-    listener = betfairlightweight.StreamListener(output_queue=output_queue)
+    # stop it winging about stream latency by using infinity as max latency
+    listener = betfairlightweight.StreamListener(output_queue=output_queue, max_latency=sys.float_info.max)
     stream = api_client.streaming.create_historical_stream(
         file_path=directory,
         listener=listener
     )
     stream.start()
-
-    # reset to original level
-    stream_logger.setLevel(level)
 
     return output_queue
 
