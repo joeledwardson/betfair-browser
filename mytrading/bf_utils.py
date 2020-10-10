@@ -1,4 +1,4 @@
-from flumine import  BaseStrategy
+from flumine import BaseStrategy
 from flumine.markets.market import Market
 from betfairlightweight.resources.bettingresources import MarketBook, RunnerBook, MarketCatalogue, RunnerBookEX
 from betfairlightweight import APIClient
@@ -19,6 +19,17 @@ OC_EXCHANGES = ['BF', 'MK', 'MA', 'BD', 'BQ']
 
 
 active_logger = logging.getLogger(__name__)
+
+"""
+Use True to return dictionary getter, False to return attribute getter
+
+betfairlightweight RunnerBookEx ojects available_to_back, available_to_lay, traded_volume are inconsistent in 
+appearing as lists of dicts with 'price' and 'size', and lists of PriceSize objects.
+"""
+GETTER = {
+    True: dict.get,
+    False: getattr
+}
 
 
 class BfUtilsException(Exception):

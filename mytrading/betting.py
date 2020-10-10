@@ -13,6 +13,8 @@ from datetime import datetime
 from myutils import generic, timing
 import keyring
 import json
+from mytrading.bf_utils import GETTER
+
 
 active_logger = logging.getLogger(__name__)
 
@@ -228,10 +230,7 @@ def get_record_tv_diff(tv1: List[PriceSize], tv0: List[PriceSize], is_dict=False
     """
     traded_diffs = []
 
-    if is_dict:
-        atr = dict.get
-    else:
-        atr = getattr
+    atr = GETTER[is_dict]
 
     # loop items in second traded volume ladder
     for y in tv1:
@@ -323,9 +322,9 @@ def market_id_processor(market_id):
     return re.sub(r'^1.', '', market_id)
 
 
-def best_price(available: List[Dict]) -> float:
+def best_price(available: List, is_dict=True) -> float:
     """get best price from available ladder of price sizes, returning None if empty"""
-    return available[0]['price'] if available else None
+    return GETTER[is_dict](available[0], 'price') if available else None
 
 
 def get_tick_increments() -> pd.DataFrame:
