@@ -58,6 +58,18 @@ def construct_hist_dir(market_book: MarketBook) -> str:
     return _construct_hist_dir(event_type_id, event_dt, event_id, market_id)
 
 
+def starting_odds(records: List[List[MarketBook]]) -> Dict:
+    """get a dictionary of {selection ID: starting odds}"""
+    for i in reversed(range(len(records))):
+        if not records[i][0].market_definition.in_play and records[i][0].status == 'OPEN':
+            return {
+                runner.selection_id: best_price(runner.ex.available_to_back)
+                for runner in records[i][0].runners
+            }
+    else:
+        return {}
+
+
 def file_first_book(file_path: str) -> MarketBook:
     """read the first line in a historical/streaming file and get the MarketBook parsed object, without reading or
     processing the rest of the file"""

@@ -5,9 +5,21 @@ import json
 import jsonpickle
 import numpy
 import logging
-from typing import List
+from typing import List, Dict
 import functools
 import os
+import operator
+
+
+class StateTracker:
+    def __init__(self, init_value, comparator=operator.ne):
+        self.value = init_value
+        self.comparator = comparator
+
+    def update(self, new_value) -> bool:
+        old_value = self.value
+        self.value = new_value
+        return self.comparator(new_value, old_value)
 
 
 def i_prev(i, increment=1):
@@ -22,6 +34,11 @@ def i_next(i, n, increment=1):
     i+1, clamped at maximum n-1 (can specify 'increment' to values other than 1)
     """
     return min(i + increment, n - 1)
+
+
+def dict_sort(d: dict, key=lambda item: item[1]) -> Dict:
+    """sort a dictionary items"""
+    return {k: v for k, v in sorted(d.items(), key=key)}
 
 
 def create_dirs(func):
