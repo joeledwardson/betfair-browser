@@ -74,12 +74,10 @@ def file_first_book(file_path: str) -> MarketBook:
     """read the first line in a historical/streaming file and get the MarketBook parsed object, without reading or
     processing the rest of the file"""
 
-    with open(file_path) as f:
-        l = f.readline()
-
-    q = Queue()
-
     try:
+        with open(file_path) as f:
+            l = f.readline()
+        q = Queue()
 
         # stop it winging about stream latency by using infinity as max latency
         listener = StreamListener(q, max_latency=sys.float_info.max)
