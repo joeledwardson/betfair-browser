@@ -6,7 +6,7 @@ from flumine.markets.market import Market
 from betfairlightweight.resources.bettingresources import MarketBook
 
 from myutils import statemachine as stm
-from mytrading.utils import types as bfu
+from mytrading.strategy.side import select_ladder_side, select_operator_side
 from mytrading.process.match_bet import get_match_bet_sums
 from mytrading.bf_tradetracker import TradeTracker
 
@@ -55,7 +55,7 @@ class RunnerStateMachine(stm.StateMachine):
     """
     implement state machine for runners, logging state changes with runner ID
     """
-    def __init__(self, states: Dict[Enum, stm.State], initial_state: Enum, selection_id: str):
+    def __init__(self, states: Dict[Enum, stm.State], initial_state: Enum, selection_id: int):
         super().__init__(states, initial_state)
         self.selection_id = selection_id
 
@@ -444,12 +444,12 @@ class TradeStateHedgeTakeWait(TradeStateBase):
             return self.next_state
         elif order.status not in order_pending_states and order.status != OrderStatus.CANCELLING:
             # get ladder on close side for hedging
-            available = bfu.select_ladder_side(
+            available = select_ladder_side(
                 market_book.runners[runner_index].ex,
                 order.side
             )
             # get operator for comparing available price and current hedge price
-            op = bfu.select_operator_side(
+            op = select_operator_side(
                 order.side,
                 invert=True
             )

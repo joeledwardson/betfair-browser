@@ -4,22 +4,22 @@ from flumine.markets.market import Market
 from betfairlightweight.resources.bettingresources import MarketBook, RunnerBook
 
 from mytrading import bf_trademachine as bftm
-from mytrading.utils import types as bfu
-from mytrading.strategy.strategy import MyFeatureData, MyFeatureStrategy
+from mytrading.strategy.strategy import FeatureHolder, MyFeatureStrategy
 from mytrading.process.ladder import BfLadderPoint, get_ladder_point
 from mytrading.bf_tradetracker import TradeTracker
 from mytrading.process.ticks.ticks import LTICKS_DECODED, LTICKS, TICKS_DECODED, TICKS
 from mytrading.process.prices import best_price
+from mytrading.process.ladder import runner_spread
+from mytrading.strategy.side import select_ladder_side, select_operator_side, invert_side
 from myutils.generic import i_prev, i_next
 from myutils import generic
-from myutils import statemachine as stm
+
 
 import logging
 from typing import List, Dict
 from datetime import datetime
 from enum import Enum
 from dataclasses import dataclass, field
-import os
 
 
 active_logger = logging.getLogger(__name__)
@@ -29,13 +29,6 @@ active_logger.setLevel(logging.INFO)
 @dataclass
 class WallTradeTracker(TradeTracker):
     wall: BfLadderPoint = field(default=None)
-
-
-class WallTradeStateCollection:
-    """
-    collection of wall trade state classes
-    """
-    pass
 
 
 class WallTradeStates(Enum):
@@ -55,11 +48,9 @@ class MyScalpStrategy(MyFeatureStrategy):
     """
 
     def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.trade_trackers: Dict[str, Dict[int, TradeTracker]] = dict()
-        self.state_machines: Dict[str, Dict[int, stm.StateMachine]] = dict()
-        self.output_dir = None
-        self.output_paths: Dict[str, str] = dict()
+        super().__init__('scalp', *args, **kwargs)
+
+    StrategyTradeTracker = WallTradeTracker
 
     # minimum size of 'wall' stake
     wall_minimum_size = 100
@@ -84,33 +75,6 @@ class MyScalpStrategy(MyFeatureStrategy):
 
     # maximum spread in ticks between back and lay
     max_tick_spread = 10
-
-    def set_output_dir(self, path):
-        self.output_dir = path
-
-    def get_output_path(self, market_book: MarketBook):
-        if not self.output_dir:
-            return None
-        else:
-            if market_book.market_id not in self.output_paths:
-                file_dir = os.path.join(
-                    self.output_dir,
-                    market_book.market_definition.event_type_id,
-                    market_book.market_definition.market_time.strftime('%Y_%m_%d')
-                )
-                if not os.path.isdir(file_dir):
-                    os.makedirs(file_dir)
-                file_path = os.path.join(file_dir, market_book.market_id)
-                if os.path.isfile(file_path):
-                    os.remove(file_path)
-
-                self.output_paths[market_book.market_id] = file_path
-
-            return self.output_paths[market_book.market_id]
-
-    def market_initialisation(self, market: Market, market_book: MarketBook, feature_data: MyFeatureData):
-        self.trade_trackers[market.market_id] = dict()
-        self.state_machines[market.market_id] = dict()
 
     def get_wall(self, runner_book: RunnerBook) -> BfLadderPoint:
         """
@@ -175,7 +139,12 @@ class MyScalpStrategy(MyFeatureStrategy):
 
         return chosen_book[max_chosen_index].copy()
 
-    def get_state_machine(self, selection_id) -> stm.StateMachine:
+    def create_state_machine(
+            self,
+            runner: RunnerBook,
+            market: Market,
+            market_book: MarketBook
+    ) -> bftm.RunnerStateMachine:
         """
         get trading state machine for selected runner
         """
@@ -204,96 +173,32 @@ class MyScalpStrategy(MyFeatureStrategy):
                 ]
             },
             initial_state=bftm.TradeStateCreateTrade.name,
-            selection_id=selection_id,
+            selection_id=runner.selection_id,
         )
-
-    def process_closed_market(self, market: Market, market_book: MarketBook) -> None:
-        """log updates of each order in trade_tracker for market close"""
-        if market.market_id in self.trade_trackers:
-            for selection_id, runner_trade_tracker in self.trade_trackers[market.market_id].items():
-                for trade in runner_trade_tracker.trades:
-                    for order in trade.orders:
-                        runner_trade_tracker.log_update(
-                            msg=f'market closed, runner status "{order.runner_status}"',
-                            dt=market_book.publish_time,
-                            order=order,
-                            trade=trade
-                        )
 
     def process_market_book(self, market: Market, market_book: MarketBook) -> None:
 
         # update feature data (calls market_initialisation() if new market)
-        self.process_get_feature_data(market, market_book)
-
-        # update cutoff and trading allowed flags
-        self.update_cutoff(market_book)
-        self.update_allow(market_book)
-
-        if self.cutoff.rising:
-            active_logger.info(f'received cutoff flag at {market_book.publish_time}')
-
-        if self.allow.rising:
-            active_logger.info(f'received pre-race trade allow flag at {market_book.publish_time}')
+        self.strategy_process_market_book(market, market_book)
 
         # loop runners
         for runner_index, runner in enumerate(market_book.runners):
 
-            # create trade tracker and state machine if runner not yet initialised
-            if runner.selection_id not in self.trade_trackers[market.market_id]:
-
-                active_logger.info(
-                    f'creating state machine and trade tracker for "{runner.selection_id}"'
-                )
-                self.trade_trackers[market.market_id][runner.selection_id] = WallTradeTracker(
-                    selection_id=runner.selection_id,
-                    file_path=self.get_output_path(market_book),
-                )
-                self.state_machines[market.market_id][runner.selection_id] = self.get_state_machine(
-                    runner.selection_id
-                )
-
             trade_tracker = self.trade_trackers[market.market_id][runner.selection_id]
             state_machine = self.state_machines[market.market_id][runner.selection_id]
-
-            # if trade tracker done then create a new one
-            if state_machine.current_state_key == bftm.TradeStates.CLEANING:
-                active_logger.info(f'runner "{runner.selection_id}" finished trade, resetting...')
-                state_machine.flush()
-                state_machine.force_change([bftm.TradeStates.CREATE_TRADE])
-
-                # reset active order and trade variables
-                trade_tracker.active_order = None
-                trade_tracker.active_trade = None
-
-            runner_book = market_book.runners[runner_index]
-
-            # only run state if trading allowed
-            if self.allow.current_value:
+            if self.process_trade_machine(runner, state_machine, trade_tracker):
 
                 # get wall point for runner
-                wall_point = self.get_wall(runner_book)
+                wall_point = self.get_wall(runner)
 
-                cs = state_machine.current_state_key
-                if self.cutoff.rising:
-                    if cs != bftm.TradeStates.IDLE and cs != bftm.TradeStates.CLEANING:
-                        active_logger.info(f'forcing "{runner.selection_id}" to stop trading and hedge')
-                        state_machine.flush()
-                        state_machine.force_change([
-                            bftm.TradeStates.BIN,
-                            bftm.TradeStates.PENDING,
-                            bftm.TradeStates.HEDGE_PLACE_TAKE
-                        ])
-
-                if not self.cutoff.current_value or (
-                        self.cutoff.current_value and (cs != bftm.TradeStates.IDLE and cs != bftm.TradeStates.CLEANING)):
-                    state_machine.run(
-                        market_book=market_book,
-                        market=market,
-                        runner_index=runner_index,
-                        trade_tracker=trade_tracker,
-                        strategy=self,
-                        wall_point=wall_point
-                    )
+                state_machine.run(
+                    market_book=market_book,
+                    market=market,
+                    runner_index=runner_index,
+                    trade_tracker=trade_tracker,
+                    strategy=self,
+                    wall_point=wall_point
+                )
 
             # update order tracker
             trade_tracker.update_order_tracker(market_book.publish_time)
@@ -339,7 +244,7 @@ def validate_wall(
     #     return False
 
     # get ladder on wall side of book
-    available = bfu.select_ladder_side(runner_book.ex, trade_tracker.wall.side)
+    available = select_ladder_side(runner_book.ex, trade_tracker.wall.side)
 
     # limit tick range, if price drifts to much then bet will be cancelled if not matched
     available = available[:strategy.wall_ticks]
@@ -420,7 +325,7 @@ class WallTradeStateIdle(bftm.TradeStateIdle):
             **inputs) -> bool:
 
         if inputs.get('wall_point') is not None:
-            spread = bfu.runner_spread(market_book.runners[runner_index].ex)
+            spread = runner_spread(market_book.runners[runner_index].ex)
             if spread <= strategy.max_tick_spread:
                 trade_tracker.log_update(
                     'detected wall {0}, best back {1}, best lay {2}, spread ticks {3}'.format(
@@ -465,7 +370,7 @@ class WallTradeStateOpenPlace(bftm.TradeStateOpenPlace):
         price = get_wall_adjacent(wall.side, wall.tick_index)
 
         # wall side is given as available, so if £150 available to back at 2.5 we want to lay at 2.51
-        side = bfu.invert_side(wall.side)
+        side = invert_side(wall.side)
 
         # create and place order
         order = trade_tracker.active_trade.create_order(
@@ -514,7 +419,7 @@ class WallTradeStateOpenMatching(bftm.TradeStateOpenMatching):
             return [bftm.TradeStates.BIN, bftm.TradeStates.PENDING, bftm.TradeStates.HEDGE_PLACE_TAKE]
 
         # get > or < comparator for BACK/LAY side selection
-        op = bfu.select_operator_side(trade_tracker.open_side)
+        op = select_operator_side(trade_tracker.open_side)
 
         wall: BfLadderPoint = inputs['wall_point']
 
@@ -632,9 +537,3 @@ class WallTradeStateHedgeWait(bftm.TradeStateBase):
             # if wall has gone or error then abandon position and take whatever is available to hedge
             return [bftm.TradeStates.BIN, bftm.TradeStates.PENDING, bftm.TradeStates.HEDGE_PLACE_TAKE]
 
-
-# WallTradeStateCollection.WallTradeStateIdle = WallTradeStateIdle
-# WallTradeStateCollection.WallTradeStateOpenPlace = WallTradeStateOpenPlace
-# WallTradeStateCollection.WallTradeStateOpenMatching = WallTradeStateOpenMatching
-# WallTradeStateCollection.WallTradeStateHedgeOffset = WallTradeStateHedgeOffset
-# WallTradeStateCollection.WallTradeStateHedgeWait = WallTradeStateHedgeWait
