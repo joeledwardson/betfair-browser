@@ -62,10 +62,12 @@ def starting_odds(records: List[List[MarketBook]]) -> Dict:
     """get a dictionary of {selection ID: starting odds}"""
     for i in reversed(range(len(records))):
         if not records[i][0].market_definition.in_play and records[i][0].status == 'OPEN':
-            return {
-                runner.selection_id: best_price(runner.ex.available_to_back)
-                for runner in records[i][0].runners
-            }
+            runner_odds = {}
+            for runner in records[i][0].runners:
+                price = best_price(runner.ex.available_to_back)
+                if price is not None:
+                    runner_odds[runner.selection_id] = price
+            return runner_odds
     else:
         return {}
 
