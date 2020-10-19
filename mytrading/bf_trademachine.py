@@ -6,8 +6,8 @@ from flumine.markets.market import Market
 from betfairlightweight.resources.bettingresources import MarketBook
 
 from myutils import statemachine as stm
-from mytrading import bf_utils as bfu
-from mytrading.bf_types import get_match_bet_sums
+from mytrading.utils import types as bfu
+from mytrading.process.match_bet import get_match_bet_sums
 from mytrading.bf_tradetracker import TradeTracker
 
 import logging

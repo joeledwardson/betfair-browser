@@ -38,8 +38,6 @@ def get_order_results(trade_data: pd.DataFrame) -> pd.DataFrame:
     return trade_data.groupby(['order id'], as_index=False).last()
 
 
-
-
 @dataclass
 class OrderTracker:
     """track the status and matched money of an order"""

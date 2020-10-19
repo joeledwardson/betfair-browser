@@ -9,7 +9,7 @@ import logging
 import pandas as pd
 
 from myutils import generic
-from mytrading import bf_feature, bf_window
+from mytrading.feature import feature, window
 
 active_logger = logging.getLogger(__name__)
 active_logger.setLevel(logging.INFO)
@@ -17,7 +17,7 @@ active_logger.setLevel(logging.INFO)
 
 
 def get_plot_configs(
-        features: Dict[str, bf_feature.RunnerFeatureBase],
+        features: Dict[str, feature.RunnerFeatureBase],
         ltp_diff_opacity=0.4,
         ltp_marker_opacity=0.5) -> Dict[str, Dict]:
     """
@@ -214,7 +214,7 @@ def plotly_data_to_series(data: dict) -> pd.Series:
 
 def plotly_set_color(
         vals: Dict,
-        color_feature: bf_feature.RunnerFeatureBase,
+        color_feature: feature.RunnerFeatureBase,
         color_feature_name: str,
         color_feature_processors: List,
         color_text_fmt=color_text_formatter_decimal
@@ -329,7 +329,7 @@ def create_figure(y_axes_names: List[str], vertical_spacing=0.05) -> go.Figure:
 def add_feature_trace(
         fig: go.Figure,
         feature_name: str,
-        feature: bf_feature.RunnerFeatureBase,
+        feature: feature.RunnerFeatureBase,
         def_conf: Dict,
         ftr_conf: Dict,
         y_axes_names: List,
@@ -448,8 +448,8 @@ def plot_orders(fig: go.Figure, orders_df: pd.DataFrame):
 
 def fig_historical(
         records: List[List[MarketBook]],
-        features: Dict[str, bf_feature.RunnerFeatureBase],
-        windows: bf_window.Windows,
+        features: Dict[str, feature.RunnerFeatureBase],
+        windows: window.Windows,
         feature_plot_configs: Dict[str, Dict],
         selection_id,
         title,

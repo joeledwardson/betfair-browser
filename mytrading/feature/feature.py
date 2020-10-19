@@ -1,6 +1,7 @@
 from __future__ import annotations
 from betfairlightweight.resources.bettingresources import MarketBook
-from mytrading import betting, bf_window
+from mytrading.feature import window
+from mytrading.process.prices import best_price
 import numpy as np
 from typing import List, Dict
 import statsmodels.api as sm
@@ -209,7 +210,7 @@ class RunnerFeatureBase:
     ):
 
         self.parent: RunnerFeatureBase = parent
-        self.windows: bf_window.Windows = None
+        self.windows: window.Windows = None
         self.selection_id: int = None
 
         self.values = []
@@ -240,7 +241,7 @@ class RunnerFeatureBase:
             self,
             selection_id: int,
             first_book: MarketBook,
-            windows: bf_window.Windows):
+            windows: window.Windows):
         """initialize feature with first market book of race and selected runner"""
 
         self.last_timestamp = first_book.publish_time
@@ -253,7 +254,7 @@ class RunnerFeatureBase:
     def process_runner(
             self, market_list: List[MarketBook],
             new_book: MarketBook,
-            windows: bf_window.Windows,
+            windows: window.Windows,
             runner_index):
         """
         calls `self.runner_update()` to obtain feature value and if not None appends to list of values with timestamp
@@ -326,7 +327,7 @@ class RunnerFeatureBase:
             self,
             market_list: List[MarketBook],
             new_book: MarketBook,
-            windows: bf_window.Windows,
+            windows: window.Windows,
             runner_index):
         """
         implement this function to return feature value from new market book received
@@ -366,7 +367,7 @@ class RunnerFeatureWindowBase(RunnerFeatureBase):
             self,
             selection_id: int,
             first_book: MarketBook,
-            windows: bf_window.Windows):
+            windows: window.Windows):
         """
         add window of specified number of seconds to Windows instance and add specified window function when first
         market book received
@@ -387,7 +388,7 @@ class RunnerFeatureTradedWindowMin(RunnerFeatureWindowBase):
             self,
             market_list: List[MarketBook],
             new_book: MarketBook,
-            windows: bf_window.Windows,
+            windows: window.Windows,
             runner_index):
 
         prices = [tv['price'] for tv in self.window['tv_diff_ladder'][self.selection_id]]
@@ -404,7 +405,7 @@ class RunnerFeatureTradedWindowMax(RunnerFeatureWindowBase):
             self,
             market_list: List[MarketBook],
             new_book: MarketBook,
-            windows: bf_window.Windows,
+            windows: window.Windows,
             runner_index):
 
         prices = [tv['price'] for tv in self.window['tv_diff_ladder'][self.selection_id]]
@@ -423,11 +424,11 @@ class RunnerFeatureBookSplitWindow(RunnerFeatureWindowBase):
             self,
             market_list: List[MarketBook],
             new_book: MarketBook,
-            windows: bf_window.Windows,
+            windows: window.Windows,
             runner_index):
 
         # best back price on current record
-        best_back = betting.best_price(new_book.runners[runner_index].ex.available_to_back)
+        best_back = best_price(new_book.runners[runner_index].ex.available_to_back)
 
         if best_back:
 
@@ -451,7 +452,7 @@ class RunnerFeatureLTP(RunnerFeatureBase):
             self,
             market_list: List[MarketBook],
             new_book: MarketBook,
-            windows: bf_window.Windows,
+            windows: window.Windows,
             runner_index):
         return new_book.runners[runner_index].last_price_traded
 
@@ -467,7 +468,7 @@ class RunnerFeatureWOM(RunnerFeatureBase):
         super().__init__(**kwargs)
         self.wom_ticks = wom_ticks
 
-    def runner_update(self, market_list: List[MarketBook], new_book: MarketBook, windows: bf_window.Windows, runner_index):
+    def runner_update(self, market_list: List[MarketBook], new_book: MarketBook, windows: window.Windows, runner_index):
         atl = new_book.runners[runner_index].ex.available_to_lay
         atb = new_book.runners[runner_index].ex.available_to_back
 
@@ -489,7 +490,7 @@ class RunnerFeatureTradedDiff(RunnerFeatureWindowBase):
             self,
             market_list: List[MarketBook],
             new_book: MarketBook,
-            windows: bf_window.Windows,
+            windows: window.Windows,
             runner_index):
 
         try:
@@ -505,10 +506,10 @@ class RunnerFeatureBestBack(RunnerFeatureBase):
             self,
             market_list: List[MarketBook],
             new_book: MarketBook,
-            windows: bf_window.Windows,
+            windows: window.Windows,
             runner_index):
 
-        return betting.best_price(new_book.runners[runner_index].ex.available_to_back)
+        return best_price(new_book.runners[runner_index].ex.available_to_back)
 
 
 class RunnerFeatureBestLay(RunnerFeatureBase):
@@ -518,10 +519,10 @@ class RunnerFeatureBestLay(RunnerFeatureBase):
             self,
             market_list: List[MarketBook],
             new_book: MarketBook,
-            windows: bf_window.Windows,
+            windows: window.Windows,
             runner_index):
 
-        return betting.best_price(new_book.runners[runner_index].ex.available_to_lay)
+        return best_price(new_book.runners[runner_index].ex.available_to_lay)
 
 
 class RunnerFeatureRegression(RunnerFeatureWindowBase):
@@ -569,7 +570,7 @@ class RunnerFeatureRegression(RunnerFeatureWindowBase):
             self,
             selection_id: int,
             first_book: MarketBook,
-            windows: bf_window.Windows):
+            windows: window.Windows):
 
         super().race_initializer(selection_id, first_book, windows)
 
@@ -580,7 +581,7 @@ class RunnerFeatureRegression(RunnerFeatureWindowBase):
             self,
             market_list: List[MarketBook],
             new_book: MarketBook,
-            windows: bf_window.Windows,
+            windows: window.Windows,
             runner_index):
 
         dat = self.window[self.window_attr_name][self.selection_id]
@@ -639,7 +640,7 @@ class RunnerFeatureDelayer(RunnerFeatureSub):
             self,
             market_list: List[MarketBook],
             new_book: MarketBook,
-            windows: bf_window.Windows,
+            windows: window.Windows,
             runner_index):
 
         t = new_book.publish_time
@@ -654,7 +655,7 @@ class RunnerFeatureDelayer(RunnerFeatureSub):
 def generate_features(
         selection_id: int,
         book: MarketBook,
-        windows: bf_window.Windows,
+        windows: window.Windows,
         features_config: dict,
 ) -> Dict[str, RunnerFeatureBase]:
     """

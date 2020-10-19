@@ -1,6 +1,4 @@
-from flumine.order.order import OrderStatus
 from flumine.order.trade import Trade
-from mytrading import betting
 import logging
 from dataclasses import dataclass
 
@@ -49,7 +47,6 @@ def get_match_bet_sums(trade: Trade) -> MatchBetSums:
         if o.side == 'LAY' and o.average_price_matched and o.size_matched
     ])
 
-
     return MatchBetSums(
         back_stakes=back_stakes,
         back_profits=back_profits,
@@ -58,35 +55,3 @@ def get_match_bet_sums(trade: Trade) -> MatchBetSums:
     )
 
 
-@dataclass
-class BfLadderPoint:
-    """single point of betfair ladder, on back/lay side, with associated price & size and index of price in complete
-    betfair tick ladder"""
-    price: float
-    size: float
-    tick_index: int
-    side: str
-
-    def str(self):
-        return f'{self.side} at {self.price} for £{self.size:.2f}, tick index {self.tick_index}'
-
-
-def get_ladder_point(price: float, size: float, side: str) -> BfLadderPoint:
-    """get ladder point instance with tick index"""
-
-    # max decimal points is 2 for betfair prices
-    price = round(price, 2)
-    if price in betting.LTICKS_DECODED:
-        if side == 'BACK' or side == 'LAY':
-            return BfLadderPoint(
-                price=price,
-                size=size,
-                tick_index=betting.LTICKS_DECODED.index(price),
-                side=side
-            )
-        else:
-            active_logger.warning(f'failed to create ladder point with side "{side}"')
-            return None
-    else:
-        active_logger.warning(f'failed to create ladder point at price {price}')
-        return None

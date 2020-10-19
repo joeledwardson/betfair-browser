@@ -3,12 +3,13 @@ from flumine.order.ordertype import LimitOrder
 from flumine.markets.market import Market
 from betfairlightweight.resources.bettingresources import MarketBook, RunnerBook
 
-from mytrading import betting
 from mytrading import bf_trademachine as bftm
-from mytrading import bf_utils as bfu
-from mytrading.bf_strategy import MyFeatureData, MyFeatureStrategy
-from mytrading.bf_types import BfLadderPoint, get_ladder_point
+from mytrading.utils import types as bfu
+from mytrading.strategy.strategy import MyFeatureData, MyFeatureStrategy
+from mytrading.process.ladder import BfLadderPoint, get_ladder_point
 from mytrading.bf_tradetracker import TradeTracker
+from mytrading.process.ticks.ticks import LTICKS_DECODED, LTICKS, TICKS_DECODED, TICKS
+from mytrading.process.prices import best_price
 from myutils.generic import i_prev, i_next
 from myutils import generic
 from myutils import statemachine as stm
@@ -396,10 +397,10 @@ def get_wall_adjacent(
     else:
 
         # wall is on available to back side (i.e. lay), want to lay one tick higher
-        new_tick_index = i_next(new_tick_index, len(betting.TICKS))
+        new_tick_index = i_next(new_tick_index, len(TICKS))
 
     # get price from tick index
-    return betting.LTICKS_DECODED[new_tick_index]
+    return LTICKS_DECODED[new_tick_index]
 
 
 class WallTradeStateIdle(bftm.TradeStateIdle):
@@ -424,8 +425,8 @@ class WallTradeStateIdle(bftm.TradeStateIdle):
                 trade_tracker.log_update(
                     'detected wall {0}, best back {1}, best lay {2}, spread ticks {3}'.format(
                         inputs["wall_point"],
-                        betting.best_price(market_book.runners[runner_index].ex.available_to_back),
-                        betting.best_price(market_book.runners[runner_index].ex.available_to_lay),
+                        best_price(market_book.runners[runner_index].ex.available_to_back),
+                        best_price(market_book.runners[runner_index].ex.available_to_lay),
                         spread
                     ),
                     market_book.publish_time,
@@ -585,14 +586,14 @@ class WallTradeStateHedgeOffset(bftm.TradeStateHedgePlaceTake):
         if close_side == 'BACK':
 
             # closing trade on back side so want biggest odds as possible
-            wall_price_index = i_next(wall_price_index, len(betting.LTICKS), increment=self.tick_target)
+            wall_price_index = i_next(wall_price_index, len(LTICKS), increment=self.tick_target)
 
         else:
 
             # closing trade on lay side of the book so want smallest odds as possible
             wall_price_index = i_prev(wall_price_index, increment=self.tick_target)
 
-        return betting.LTICKS_DECODED[wall_price_index]
+        return LTICKS_DECODED[wall_price_index]
 
 
 class WallTradeStateHedgeWait(bftm.TradeStateBase):

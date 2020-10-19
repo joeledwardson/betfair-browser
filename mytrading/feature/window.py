@@ -1,7 +1,9 @@
 from betfairlightweight.resources.bettingresources import MarketBook, RunnerBook, MarketCatalogue
-from mytrading import betting
+from mytrading.process.traded_volume import get_record_tv_diff
+from mytrading.process.prices import best_price
 from typing import List, Dict, Optional
 from datetime import timedelta
+
 
 def update_index_window(
         records: List,
@@ -65,7 +67,7 @@ class WindowProcessorTradedVolumeLadder(WindowProcessorBase):
 
         # compute differences between current tv ladders and window starting tv ladders
         window['tv_diff_ladder'] = {
-            runner.selection_id: betting.get_record_tv_diff(
+            runner.selection_id: get_record_tv_diff(
                 runner.ex.traded_volume,
                 window['old_tv_ladders'].get(runner.selection_id) or {},
                 is_dict=True)
@@ -152,7 +154,7 @@ class WindowProcessorBestBack(WindowProcessorFeatureBase):
     windor_var = 'best_backs'
 
     def get_runner_attr(self, runner: RunnerBook):
-        return betting.best_price(runner.ex.available_to_back)
+        return best_price(runner.ex.available_to_back)
 
 
 class WindowProcessorBestLay(WindowProcessorFeatureBase):
@@ -161,7 +163,7 @@ class WindowProcessorBestLay(WindowProcessorFeatureBase):
     windor_var = 'best_lays'
 
     def get_runner_attr(self, runner: RunnerBook):
-        return betting.best_price(runner.ex.available_to_lay)
+        return best_price(runner.ex.available_to_lay)
 
 
 class WindowProcessorDelayerBase(WindowProcessorBase):
