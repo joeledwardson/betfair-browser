@@ -9,6 +9,7 @@ from mytrading.betting import name_processor
 
 oc_logger = logging.getLogger('')
 
+
 def tr_odds(tr):
     backs = {}
     for td in tr.find_all('td'):
@@ -30,10 +31,10 @@ def table_odds(tbl_body):
         if 'data-bname' in tr.attrs:
             name = tr.attrs['data-bname']
             names.append(name)
-            logging.debug(f'new name "{name}" found')
+            oc_logger.debug(f'new name "{name}" found')
             dat.append(tr_odds(tr))
         else:
-            logging.debug(f'no "data-bname" element found in row {i}')
+            oc_logger.debug(f'no "data-bname" element found in row {i}')
     return pd.DataFrame(dat, index=names)
 
 
@@ -51,8 +52,10 @@ raw_venues = {
     'Perry Barr': 'Perry Barr BAGS'
 }
 
+
 # conversion from betfair venues to odschecker venues
 venue_map = {name_processor(k): v for (k,v) in raw_venues.items()}
+
 
 # construct oddschecker url (datetime must be in UK localised with daylight savings form)
 def url(sport, dt: datetime, venue, odds_type='winner', _venue_map={}):
@@ -72,8 +75,9 @@ def url(sport, dt: datetime, venue, odds_type='winner', _venue_map={}):
 
     return f'https://oddschecker.com/{sport}/{_date}-{venue}/{_time}/{odds_type}'
 
+
 def oc(url):
-    logging.info(f'requesting url "{url}"')
+    oc_logger.info(f'requesting url "{url}"')
 
     resp = requests.get(url)
     if not resp.ok:
@@ -88,8 +92,9 @@ def oc(url):
         raise OCException(f'table does not have "tbody" element')
 
     trs = table.tbody.find_all('tr')
-    logging.debug(f'found {len(trs)} "tr" elements in table')
+    oc_logger.debug(f'found {len(trs)} "tr" elements in table')
     return table_odds(table.tbody)
+
 
 def oc_to_file(file_path, sport, dt: datetime, venue, odds_type='winner'):
 
