@@ -20,6 +20,7 @@ class StateMachine:
         self.states: Dict[Enum, State] = states
         self.current_state_key: Enum = initial_state
         self.previous_state_key: Enum = initial_state
+        self.initial_state_key: Enum = initial_state
         self.is_state_change: bool = True
         self.state_queue = queue.Queue()
 
