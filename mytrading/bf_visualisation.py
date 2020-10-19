@@ -486,7 +486,8 @@ def fig_historical(
     y_axes_names = get_yaxes_names(feature_plot_configs, default_plot_config)
     fig = create_figure(y_axes_names)
 
-    market_time = records[0][0].market_definition.market_time
+    # use last record as first records market time can be accurate
+    market_time = records[-1][0].market_definition.market_time
     chart_start = market_time - timedelta(seconds=display_s)
 
     def _plot_feature(display_name, feature, conf):
