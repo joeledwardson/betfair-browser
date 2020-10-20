@@ -13,16 +13,13 @@ from mytrading import bf_trademachine as bftm
 from mytrading.feature import feature as bff, window as bfw
 from mytrading.feature.feature import RunnerFeatureBase
 from mytrading.bf_tradetracker import TradeTracker, serializable_order_info
-from mytrading.utils.storage import construct_hist_dir
+from mytrading.utils.storage import construct_hist_dir, DIR_BASE, SUBDIR_STRATEGY_HISTORIC
 from myutils.timing import EdgeDetector
 from myutils import statemachine as stm
 from myutils.json_file import add_to_file
 
 
-# file extension of order result
-EXT_ORDER_RESULT = '.orderresult'
-EXT_ORDER_INFO = '.orderinfo'
-STRATEGY_DIR = r'D:\Betfair_data\historic_strategies'
+STRATEGY_DIR = path.join(DIR_BASE, SUBDIR_STRATEGY_HISTORIC)
 active_logger = logging.getLogger(__name__)
 
 
@@ -272,7 +269,7 @@ class MyFeatureStrategy(MyBaseStrategy):
             self,
             runner: RunnerBook,
             state_machine: bftm.RunnerStateMachine,
-            trade_tracker: TradeTracker):
+            trade_tracker: TradeTracker) -> bool:
 
         # only run state if past timestamp when trading allowed
         if self.allow.current_value:

@@ -1,4 +1,4 @@
-import betfairlightweight
+from betfairlightweight import APIClient
 import os
 import keyring
 
@@ -11,9 +11,10 @@ my_password = keyring.get_password('bf_password', 'joel')
 my_app_key = keyring.get_password('bf_app_key',  'joel')
 
 
-def get_api_client() -> betfairlightweight.APIClient:
+def get_api_client() -> APIClient:
     """Get Betfair API client with credentials"""
-    return betfairlightweight.APIClient(username=my_username,
-                                        password=my_password,
-                                        app_key=my_app_key,
-                                        certs=certs_path)
+    return APIClient(
+        username=my_username,
+        password=my_password,
+        app_key=my_app_key,
+        certs=certs_path)
