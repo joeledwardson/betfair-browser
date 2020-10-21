@@ -1,7 +1,7 @@
 from typing import List
 import pandas as pd
 from betfairlightweight.resources.bettingresources import MarketCatalogue, MarketBook
-from mytrading import bf_visualisation as bfv
+from mytrading.visual import bf_visualisation as bfv
 from mytrading.feature import window as bfw
 from mytrading.feature import feature as bff
 

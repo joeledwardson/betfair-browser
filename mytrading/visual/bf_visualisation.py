@@ -15,7 +15,6 @@ active_logger = logging.getLogger(__name__)
 active_logger.setLevel(logging.INFO)
 
 
-
 def get_plot_configs(
         features: Dict[str, feature.RunnerFeatureBase],
         ltp_diff_opacity=0.4,

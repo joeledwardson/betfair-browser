@@ -13,7 +13,7 @@ from mytrading import bf_trademachine as bftm
 from mytrading.feature import feature as bff, window as bfw
 from mytrading.feature.feature import RunnerFeatureBase
 from mytrading.bf_tradetracker import TradeTracker, serializable_order_info
-from mytrading.utils.storage import construct_hist_dir, DIR_BASE, SUBDIR_STRATEGY_HISTORIC
+from mytrading.utils.storage import construct_hist_dir, DIR_BASE, SUBDIR_STRATEGY_HISTORIC, EXT_ORDER_RESULT, EXT_ORDER_INFO
 from myutils.timing import EdgeDetector
 from myutils import statemachine as stm
 from myutils.json_file import add_to_file

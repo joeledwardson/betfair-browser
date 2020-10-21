@@ -1,8 +1,6 @@
 import re
-from itertools import chain
 from os import path
-from typing import Iterable, List, Tuple
-import dash_html_components as html
+from typing import List, Tuple
 import dash_table
 import pandas as pd
 
@@ -12,7 +10,7 @@ from mytrading.browser.event import get_event_dir_info
 from mytrading.browser.filetracker import FileTracker
 from mytrading.browser.market import get_market_info, get_orders_market, get_historical_market, get_recorded_market
 from mytrading.browser.marketinfo import MarketInfo
-from mytrading.browser.profit import get_profits
+from mytrading.browser.profit import get_display_profits
 from mytrading.utils.storage import RE_EVENT, EXT_ORDER_RESULT, RE_MARKET_ID
 from mytrading.utils.storage import strategy_rel_path, strategy_path_convert, is_orders_dir
 
@@ -83,25 +81,8 @@ def get_display_info(
     return display_info
 
 
-def get_display_profits(
-        dir_path: str,
-        elements: Iterable[str]
-) -> List[str]:
-
-    display_profits = []
-    for e in elements:
-        element_path = path.join(dir_path, e)
-        profit = get_profits(element_path)
-        if profit is not None:
-            profit_str = f'£{profit:+.2f}'
-        else:
-            profit_str = ''
-        display_profits.append(profit_str)
-    return display_profits
-
-
 def get_files_table(
-        file_tracker: FileTracker,
+        ft: FileTracker,
         base_dir: str,
         do_profits=False,
         active_cell=None,
@@ -111,15 +92,21 @@ def get_files_table(
     get filled mydash datatable displaying list of dirs, files and relevant information
     """
 
-    elements = list(chain(file_tracker.dirs, file_tracker.files))
-    display_info = get_display_info(base_dir, file_tracker.root, elements)
+    display_info = get_display_info(
+        base_dir,
+        ft.root,
+        ft.elements
+    )
     if do_profits:
-        profits = get_display_profits(file_tracker.root, elements)
+        profits = get_display_profits(
+            ft.root,
+            ft.elements
+        )
     else:
-        profits = [''] * len(elements)
+        profits = [''] * len(ft.elements)
 
     df = pd.DataFrame({
-        'Name': file_tracker.display_list,
+        'Name': ft.display_list,
         'Info': display_info,
         'Profit': profits
     })
@@ -191,3 +178,5 @@ def get_table_market(
 
     # try to use directory to get recorded/catalogue market data
     return get_recorded_market(dash_data.file_tracker.root, dash_data.trading, file_info)
+
+

@@ -1,8 +1,10 @@
 from typing import Dict, List
-import dash_table
 import logging
-from mytrading.browser.tables.table import create_table
 import pandas as pd
+
+import dash_table
+
+from mytrading.browser.tables.table import create_table
 
 active_logger = logging.getLogger(__name__)
 
@@ -16,7 +18,8 @@ def get_runners_table(
         df=pd.DataFrame({
             'Selection ID': [],
             'Name': [],
-            'Starting Odds': []
+            'Starting Odds': [],
+            'Profit': [],
         }),
     )
 
@@ -38,3 +41,5 @@ def get_runner_id(
     else:
         file_info.append(f'active cell "{runners_active_cell}" invalid')
         return 0
+    
+

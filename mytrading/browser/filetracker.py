@@ -3,6 +3,7 @@ from os import path
 from typing import List, Tuple, Dict
 from natsort import natsorted
 from mytrading.utils.storage import walk_first
+from itertools import chain
 
 
 class FileTracker:
@@ -13,15 +14,19 @@ class FileTracker:
         self.dirs: List[str] = list()
         self.files: List[str] = list()
 
-        self.root, self.dirs, self.files = self.get_update(start_dir)
+        # combination of dirs and files
+        self.elements: List[str] = list()
+
+        self.root, self.dirs, self.files, self.elements = self._get_update(start_dir)
         self.display_list = self.get_display_list()
 
-    def get_update(self, top):
+    def _get_update(self, top) -> Tuple[str, List, List, List]:
         root, dirs, files = walk_first(top)
         # sort into windows explorer display order
         dirs = natsorted(dirs)
         files = natsorted(files)
-        return root, dirs, files
+        elements = list(chain(dirs, files))
+        return root, dirs, files, elements
 
     def get_display_list(self):
         """list of dirs first, then files with symbols to display in table"""
@@ -31,13 +36,13 @@ class FileTracker:
         """navigate to directory based on its index in display list"""
         if 0 <= index < len(self.dirs):
             selected_dir = self.dirs[index]
-            self.root, self.dirs, self.files = self.get_update(path.join(self.root, selected_dir))
+            self.root, self.dirs, self.files, self.elements = self._get_update(path.join(self.root, selected_dir))
 
             self.display_list = self.get_display_list()
 
     def navigate_up(self):
         """return to parent directory"""
-        self.root, self.dirs, self.files = self.get_update(path.split(self.root)[0])
+        self.root, self.dirs, self.files, self.elements = self._get_update(path.split(self.root)[0])
         self.display_list = self.get_display_list()
 
     def get_file_name(self, file_display_index):
