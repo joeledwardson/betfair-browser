@@ -1,32 +1,23 @@
 from typing import Dict, List
 import dash_table
 import logging
+from mytrading.browser.tables.table import create_table
+import pandas as pd
 
 active_logger = logging.getLogger(__name__)
 
 
 def get_runners_table(
-        id='table-runners',
-        height=200,
-        width=600
+        table_id='table-runners',
 ) -> dash_table.DataTable:
-    """get empty dash DataTable for runner information"""
-    return dash_table.DataTable(
-        id=id,
-        columns=[{
-            'name': x,
-            'id': x
-        } for x in ['Selection ID', 'Name', 'Starting Odds']],
-        fixed_rows={
-            'headers': True
-        },
-        style_table={
-            'height': height,
-            'width': width,
-        },
-        style_cell={
-            'textAlign': 'left'
-        },
+    """get empty mydash DataTable for runner information"""
+    return create_table(
+        table_id=table_id,
+        df=pd.DataFrame({
+            'Selection ID': [],
+            'Name': [],
+            'Starting Odds': []
+        }),
     )
 
 

@@ -4,7 +4,6 @@ import dash_html_components as html
 from os import path
 from dash.dependencies import Input, Output, State
 import logging
-from itertools import chain
 import argparse
 from mytrading.bf_tradetracker import get_trade_data
 from mytrading.utils.storage import EXT_ORDER_INFO
@@ -30,66 +29,94 @@ args = parser.parse_args()
 input_dir = args.input_dir
 gdd = DashData(input_dir)
 
-app = dash.Dash(__name__)
+app = dash.Dash(__name__) #  , external_stylesheets=[dbc.themes.BOOTSTRAP])
 logging.basicConfig(level=logging.INFO)
 
-app.layout = html.Div(children=[
-    html.H1(children='Hello Dash'),
+#style={'margin': 0, 'max-width': '100%'},
 
-    html.H2(children='File Selection'),
+app.layout = html.Div(
+    style={
+        'display': 'grid',
+        'grid-template-columns': '50% 50%'
+    },
+    children=[
+        html.Div(
+            style={
+                'margin': 10,
+            },
+            children=[
+                html.H1(
+                    children='Betfair Browser'
+                ),
 
-    html.Div(
-        id='active-cell-display',
-        children='',
-    ),
+                html.H2(
+                    children='File Selection'
+                ),
 
-    html.Div(
-        id='path-display',
-        children='',
-    ),
+                html.Div(
+                    id='active-cell-display',
+                    children='',
+                ),
 
-    html.Div(
-        children=[
-            html.Button(children='↑', id='return-button', n_clicks=0),
-            html.Button(children='get runners', id='runners-button', n_clicks=0),
-            html.Button(children='feature figure', id='fig-button', n_clicks=0),
-            html.Button(children='profit', id='profit-button', n_clicks=0)
-        ],
-    ),
+                html.Div(
+                    id='path-display',
+                    children='',
+                ),
 
-    html.Div(
-        id='table-files-container',
-        children=get_files_table(gdd.file_tracker, input_dir),
-        style={
-            'width': 'fit-content',
-        },
-    ),
+                html.Div(
+                    children=[
+                        html.Button(children='↑', id='return-button', n_clicks=0),
+                        html.Button(children='get runners', id='runners-button', n_clicks=0),
+                        html.Button(children='feature figure', id='fig-button', n_clicks=0),
+                        html.Button(children='profit', id='profit-button', n_clicks=0)
+                    ],
+                ),
 
-    html.H2(children='Event Information'),
+                html.Div(
+                    id='table-files-container',
+                    children=get_files_table(gdd.file_tracker, input_dir),
+                    style={
+                        'width': 'fit-content',
+                    },
+                ),
 
-    html.Div(
-        children=get_market_table()
-    ),
+                html.H2(
+                    children='Runner info'
+                ),
 
-    html.H2(children='Runner info'),
+                html.Div(
+                    id='file-info',
+                    children='',
+                ),
 
-    html.Div(
-        id='file-info',
-        children='',
-    ),
+                html.Div(
+                    children=get_runners_table(),
+                ),
 
-    html.Div(
-        children=get_runners_table(),
-    ),
+            ]
+        ),
 
-    html.H2(children='Figure information'),
+        html.Div(
+            style={
+                'margin': 10,
+            },
+            children=[
+                html.H2(children='Event Information'),
 
-    html.Div(
-        id='figure-info',
-        children='',
-    )
+                html.Div(
+                    children=get_market_table()
+                ),
 
-])
+                html.H2(children='Figure information'),
+
+                html.Div(
+                    id='figure-info',
+                    children='',
+                )
+            ]
+        ),
+    ]
+)
 
 
 @app.callback(

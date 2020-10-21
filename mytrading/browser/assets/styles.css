@@ -1,0 +1,4 @@
+.cell {
+    /* dash adds negative margins for cells */
+    margin-left: 0 !important;
+}

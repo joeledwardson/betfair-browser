@@ -6,7 +6,7 @@ def get_market_table(
         height=140,
         width=600
 ) -> dash_table.DataTable:
-    """get empty dash DataTable for runner information"""
+    """get empty mydash DataTable for runner information"""
     return dash_table.DataTable(
         id=id,
         columns=[{
