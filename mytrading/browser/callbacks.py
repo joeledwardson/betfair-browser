@@ -5,7 +5,7 @@ import dash
 import dash_html_components as html
 from dash.dependencies import Input, Output, State
 
-from mytrading.bf_tradetracker import get_trade_data
+from mytrading.tradetracker.orderfile import get_order_updates
 from mytrading.utils.storage import EXT_ORDER_INFO, EXT_ORDER_RESULT
 from mytrading.process.prices import starting_odds
 from myutils.generic import dict_sort
@@ -14,7 +14,7 @@ from mytrading.browser.tables.runners import get_runner_id
 from mytrading.browser.tables.files import get_files_table, get_table_market
 from mytrading.browser.plot import generate_feature_plot
 from mytrading.browser.text import html_lines
-from mytrading.browser.profit import get_profits, get_display_profits
+from mytrading.browser.profit import get_display_profits
 
 
 def market_callback(app: dash.Dash, dd: DashData, input_dir: str):
@@ -162,8 +162,8 @@ def figure_callback(app: dash.Dash, dd: DashData, input_dir: str):
         orders_df = None
         order_file_path = path.join(dd.market_dir, dd.record_list[0][0].market_id + EXT_ORDER_INFO)
         if path.isfile(order_file_path):
-            orders_df = get_trade_data(order_file_path)
-            if orders_df is not None:
+            orders_df = get_order_updates(order_file_path)
+            if orders_df.shape[0]:
                 orders_df = orders_df[orders_df['selection_id'] == selection_id]
 
         # make chart title

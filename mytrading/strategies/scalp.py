@@ -4,10 +4,10 @@ from flumine.markets.market import Market
 from betfairlightweight.resources.bettingresources import MarketBook, RunnerBook
 
 from mytrading import bf_trademachine as bftm
-from mytrading.strategy.strategy import FeatureHolder, MyFeatureStrategy
+from mytrading.strategy.strategy import MyFeatureStrategy
 from mytrading.process.ladder import BfLadderPoint, get_ladder_point
-from mytrading.bf_tradetracker import TradeTracker
-from mytrading.process.ticks.ticks import LTICKS_DECODED, LTICKS, TICKS_DECODED, TICKS
+from mytrading.tradetracker.tradetracker import TradeTracker
+from mytrading.process.ticks.ticks import LTICKS_DECODED, LTICKS, TICKS
 from mytrading.process.prices import best_price
 from mytrading.process.ladder import runner_spread
 from mytrading.strategy.side import select_ladder_side, select_operator_side, invert_side

@@ -1,7 +1,7 @@
 from os import path, listdir
 from typing import Iterable, List
 
-from mytrading.bf_tradetracker import order_profit
+from mytrading.tradetracker.orderfile import order_profit
 from mytrading.utils.storage import EXT_ORDER_RESULT
 from myutils.json_file import read_file
 
@@ -40,6 +40,7 @@ def get_display_profits(
         dir_path: str,
         elements: Iterable[str]
 ) -> List[str]:
+    """for a list of elements (dirs/files), get the recorded strategy profit in currency form or blank if not found"""
 
     display_profits = []
     for e in elements:

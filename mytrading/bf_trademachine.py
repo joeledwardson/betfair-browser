@@ -8,7 +8,7 @@ from betfairlightweight.resources.bettingresources import MarketBook
 from myutils import statemachine as stm
 from mytrading.strategy.side import select_ladder_side, select_operator_side
 from mytrading.process.match_bet import get_match_bet_sums
-from mytrading.bf_tradetracker import TradeTracker
+from mytrading.tradetracker.tradetracker import TradeTracker
 
 import logging
 from typing import List, Dict
