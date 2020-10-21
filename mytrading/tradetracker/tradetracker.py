@@ -4,7 +4,7 @@ from flumine.order.ordertype import LimitOrder
 
 import logging
 
-from mytrading.tradetracker.orderfile import serializable_order_info, write_order_update
+from mytrading.tradetracker.orderfile import serializable_order_info
 from mytrading.tradetracker.ordertracker import OrderTracker
 from myutils import json_file
 from typing import List, Dict
