@@ -10,11 +10,11 @@ from mytrading.utils.storage import EXT_ORDER_INFO
 from mytrading.process.prices import starting_odds
 from myutils.generic import dict_sort
 from mytrading.browser.data import DashData
-from mytrading.browser.tables.runners import get_runners_table, get_runner_id
-from mytrading.browser.tables.market import get_market_table
+from mytrading.browser.tables.runners import get_runner_id
 from mytrading.browser.tables.files import get_files_table, get_table_market
 from mytrading.browser.plot import generate_feature_plot
 from mytrading.browser.text import html_lines
+from mytrading.browser.layout import get_layout
 
 
 parser = argparse.ArgumentParser(
@@ -29,94 +29,9 @@ args = parser.parse_args()
 input_dir = args.input_dir
 gdd = DashData(input_dir)
 
-app = dash.Dash(__name__) #  , external_stylesheets=[dbc.themes.BOOTSTRAP])
+app = dash.Dash(__name__)
 logging.basicConfig(level=logging.INFO)
-
-#style={'margin': 0, 'max-width': '100%'},
-
-app.layout = html.Div(
-    style={
-        'display': 'grid',
-        'grid-template-columns': '50% 50%'
-    },
-    children=[
-        html.Div(
-            style={
-                'margin': 10,
-            },
-            children=[
-                html.H1(
-                    children='Betfair Browser'
-                ),
-
-                html.H2(
-                    children='File Selection'
-                ),
-
-                html.Div(
-                    id='active-cell-display',
-                    children='',
-                ),
-
-                html.Div(
-                    id='path-display',
-                    children='',
-                ),
-
-                html.Div(
-                    children=[
-                        html.Button(children='↑', id='return-button', n_clicks=0),
-                        html.Button(children='get runners', id='runners-button', n_clicks=0),
-                        html.Button(children='feature figure', id='fig-button', n_clicks=0),
-                        html.Button(children='profit', id='profit-button', n_clicks=0)
-                    ],
-                ),
-
-                html.Div(
-                    id='table-files-container',
-                    children=get_files_table(gdd.file_tracker, input_dir),
-                    style={
-                        'width': 'fit-content',
-                    },
-                ),
-
-                html.H2(
-                    children='Runner info'
-                ),
-
-                html.Div(
-                    id='file-info',
-                    children='',
-                ),
-
-                html.Div(
-                    children=get_runners_table(),
-                ),
-
-            ]
-        ),
-
-        html.Div(
-            style={
-                'margin': 10,
-            },
-            children=[
-                html.H2(children='Event Information'),
-
-                html.Div(
-                    children=get_market_table()
-                ),
-
-                html.H2(children='Figure information'),
-
-                html.Div(
-                    id='figure-info',
-                    children='',
-                )
-            ]
-        ),
-    ]
-)
+app.layout = get_layout(input_dir, gdd)
 
 
 @app.callback(
@@ -245,7 +160,7 @@ def fig_button(fig_button_clicks, runners_active_cell):
 
     orders_df = None
     order_file_path = path.join(gdd.market_dir, gdd.record_list[0][0].market_id + EXT_ORDER_INFO)
-    if order_file_path:
+    if path.isfile(order_file_path):
         orders_df = get_trade_data(order_file_path)
         if orders_df is not None:
             orders_df = orders_df[orders_df['selection_id'] == selection_id]
