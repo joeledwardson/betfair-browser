@@ -28,15 +28,6 @@ class DashData:
         # hold list of records from active historical file
         self.record_list: List[List[MarketBook]] = []
 
-        # track number of clicks for each button
-        self.button_trackers: Dict[str, ButtonTracker] = {
-            'btn_track_profit': ButtonTracker(),
-            'btn_track_return': ButtonTracker(),
-            'btn_track_runners': ButtonTracker(),
-            'btn_track_orders': ButtonTracker(),
-            'btn_track_fig': ButtonTracker(),
-        }
-
         # track files browser
         self.file_tracker = FileTracker(input_dir)
 

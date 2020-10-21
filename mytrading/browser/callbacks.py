@@ -120,9 +120,6 @@ def file_table_callback(app: dash.Dash, dd: DashData, input_dir: str):
         profit_pressed = triggered_id() == 'button-profit'
         return_pressed = triggered_id() == 'button-return'
 
-        # profit_pressed = dd.button_trackers['btn_track_profit'].is_pressed(profit_n_clicks)
-        # return_pressed = dd.button_trackers['btn_track_return'].is_pressed(return_n_clicks)
-
         # get active directory
         old_root = dd.file_tracker.root
     
@@ -224,8 +221,6 @@ def orders_callback(app: dash.Dash, dd: DashData, input_dir: str):
         info_strings = [f'Active cell: {runners_active_cell}']
 
         orders_pressed = triggered_id() == 'button-orders'
-        # .button_trackers['btn_track_orders'].is_pressed(orders_n_clicks)
-        # runners_pressed = dd.button_trackers['btn_track_runners'].is_pressed(runners_n_clicks)
 
         # if runners button pressed (new active market), clear table
         if not orders_pressed:
@@ -255,27 +250,3 @@ def orders_callback(app: dash.Dash, dd: DashData, input_dir: str):
 
         df = process_profit_table(df)
         return df.to_dict('records'), html_lines(info_strings)
-
-
-def buttons_callback(app: dash.Dash, dd: DashData):
-    @app.callback(
-        output=Output('dummy-output', 'children'),
-        inputs=[
-            Input('button-return', 'n_clicks'),
-            Input('button-profit', 'n_clicks'),
-            Input('button-runners', 'n_clicks'),
-            Input('button-orders', 'n_clicks'),
-            Input('button-figure', 'n_clicks'),
-        ]
-    )
-    def process_clicks(rtn, profit, runners, orders, fig):
-
-        for k, v in {
-            'btn_track_return': rtn,
-            'btn_track_profit': profit,
-            'btn_track_runners': runners,
-            'btn_track_orders': orders,
-            'btn_track_fig': fig,
-        }.items():
-            dd.button_trackers[k].update(v)
-        active_logger.info(f'Button pressed: {dd.button_trackers}')
