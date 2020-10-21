@@ -112,11 +112,5 @@ def get_layout(input_dir: str, dash_data: DashData):
 
                 ]
             ),
-            html.Div(
-                id='dummy-output',
-                style={
-                    'display': 'none'
-                }
-            ),
         ],
     )
