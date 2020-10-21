@@ -7,6 +7,8 @@ import dash_table
 import pandas as pd
 import logging
 from myutils.mydash.dashtable import datatable_data
+from myutils.deepdict import dict_update
+
 
 active_logger = logging.getLogger(__name__)
 
@@ -33,10 +35,10 @@ def create_table(
         active_logger.warning(f'tried to create table with 0 columns')
         return html.Div()
 
-    table = dash_table.DataTable(
+    table_dict = dict(
         **datatable_data(df, table_id),
         style_cell={
-            'width': f'{1/n_columns:.0%}',
+            'width': f'{1 / n_columns:.0%}',
             'textAlign': text_align,
         },
         fixed_rows={
@@ -45,8 +47,10 @@ def create_table(
         style_table={
             'height': height,
         },
-        **table_kwargs
     )
+    dict_update(table_kwargs, table_dict)
+
+    table = dash_table.DataTable(**table_dict)
 
     return html.Div(
         style={

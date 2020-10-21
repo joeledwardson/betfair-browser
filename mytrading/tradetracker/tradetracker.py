@@ -6,7 +6,7 @@ import logging
 
 from mytrading.tradetracker.orderfile import serializable_order_info
 from mytrading.tradetracker.ordertracker import OrderTracker
-from myutils import json_file
+from myutils import jsonfile
 from typing import List, Dict
 from datetime import datetime
 from dataclasses import dataclass, field
@@ -153,7 +153,7 @@ class TradeTracker:
             else:
                 order_info = None
 
-            json_file.add_to_file(self.file_path, {
+            jsonfile.add_to_file(self.file_path, {
                 'selection_id': self.selection_id,
                 'dt': dt.timestamp(),
                 'msg': msg,

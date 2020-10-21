@@ -3,7 +3,8 @@ import dash
 import logging
 import argparse
 from mytrading.browser.data import DashData
-from mytrading.browser.callbacks import market_callback, file_table_callback, figure_callback
+from mytrading.browser.callbacks import market_callback, file_table_callback, figure_callback, orders_callback, \
+    buttons_callback
 from mytrading.browser.layout import get_layout
 
 
@@ -26,6 +27,11 @@ app.layout = get_layout(input_dir, gdd)
 file_table_callback(app, gdd, input_dir)
 market_callback(app, gdd, input_dir)
 figure_callback(app, gdd, input_dir)
+orders_callback(app, gdd, input_dir)
+
+# buttons callback must be done last so that button states are updated after other callbacks have compared current
+# state values
+buttons_callback(app, gdd)
 
 
 if __name__ == '__main__':

@@ -3,7 +3,7 @@ from typing import Iterable, List
 
 from mytrading.tradetracker.orderfile import order_profit
 from mytrading.utils.storage import EXT_ORDER_RESULT
-from myutils.json_file import read_file
+from myutils.jsonfile import read_file
 
 
 def get_profits(element_path):

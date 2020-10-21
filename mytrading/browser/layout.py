@@ -2,6 +2,7 @@ import dash_html_components as html
 from mytrading.browser.tables.runners import get_runners_table, get_runner_id
 from mytrading.browser.tables.market import get_market_table
 from mytrading.browser.tables.files import get_files_table, get_table_market
+from mytrading.browser.tables.orders import get_orders_table
 from mytrading.browser.data import DashData
 
 
@@ -26,21 +27,21 @@ def get_layout(input_dir: str, dash_data: DashData):
                     ),
 
                     html.Div(
-                        id='active-cell-display',
+                        id='infobox-files-cell',
                         children='',
                     ),
 
                     html.Div(
-                        id='path-display',
+                        id='infobox-path',
                         children='',
                     ),
 
                     html.Div(
                         children=[
-                            html.Button(children='↑', id='return-button', n_clicks=0),
-                            html.Button(children='get runners', id='runners-button', n_clicks=0),
-                            html.Button(children='feature figure', id='fig-button', n_clicks=0),
-                            html.Button(children='profit', id='profit-button', n_clicks=0)
+                            html.Button(children='↑', id='button-return', n_clicks=0),
+                            html.Button(children='get runners', id='button-runners', n_clicks=0),
+                            html.Button(children='feature figure', id='button-figure', n_clicks=0),
+                            html.Button(children='profit', id='button-profit', n_clicks=0)
                         ],
                     ),
 
@@ -57,8 +58,14 @@ def get_layout(input_dir: str, dash_data: DashData):
                     ),
 
                     html.Div(
-                        id='file-info',
+                        id='infobox-runners',
                         children='',
+                    ),
+
+                    html.Div(
+                        children=[
+                            html.Button(children='order profits', id='button-orders', n_clicks=0),
+                        ]
                     ),
 
                     html.Div(
@@ -73,19 +80,43 @@ def get_layout(input_dir: str, dash_data: DashData):
                     'margin': 10,
                 },
                 children=[
-                    html.H2(children='Event Information'),
+                    html.H2(
+                        children='Event Information'
+                    ),
 
                     html.Div(
                         children=get_market_table()
                     ),
 
-                    html.H2(children='Figure information'),
+                    html.H2(
+                        children='Figure information'
+                    ),
 
                     html.Div(
-                        id='figure-info',
+                        id='infobox-figure',
                         children='',
-                    )
+                    ),
+
+                    html.H2(
+                        children='Order Profits'
+                    ),
+
+                    html.Div(
+                        id='infobox-orders',
+                        children='',
+                    ),
+
+                    html.Div(
+                        children=get_orders_table(),
+                    ),
+
                 ]
             ),
-        ]
+            html.Div(
+                id='dummy-output',
+                style={
+                    'display': 'none'
+                }
+            ),
+        ],
     )

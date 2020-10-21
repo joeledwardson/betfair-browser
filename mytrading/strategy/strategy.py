@@ -17,7 +17,7 @@ from mytrading.tradetracker.orderfile import serializable_order_info
 from mytrading.utils.storage import construct_hist_dir, DIR_BASE, SUBDIR_STRATEGY_HISTORIC, EXT_ORDER_RESULT, EXT_ORDER_INFO
 from myutils.timing import EdgeDetector
 from myutils import statemachine as stm
-from myutils.json_file import add_to_file
+from myutils.jsonfile import add_to_file
 
 
 STRATEGY_DIR = path.join(DIR_BASE, SUBDIR_STRATEGY_HISTORIC)

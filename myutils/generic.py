@@ -78,15 +78,16 @@ def get_filepaths(target_path, file_pattern=None, dir_pattern=None):
     return files
 
 
-def dgetattr(obj, name):
+def dgetattr(obj, name, is_dict=False):
     """
     get deep attribute
     operates the same as getattr(obj, name) but can use '.' for nested attributes
     e.g. dgetattr(my_object, 'a.b') would return value of my_object.a.b
     """
+    atr = dict.__getitem__ if is_dict else getattr
     names = name.split('.')
     names = [obj] + names
-    return functools.reduce(getattr, names)
+    return functools.reduce(atr, names)
 
 
 def dattr_name(deep_attr):

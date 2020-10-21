@@ -89,7 +89,7 @@ def get_files_table(
         table_id='table-files',
 ) -> dash_table.DataTable:
     """
-    get filled mydash datatable displaying list of dirs, files and relevant information
+    get filled dash datatable displaying list of dirs, files and relevant information
     """
 
     display_info = get_display_info(

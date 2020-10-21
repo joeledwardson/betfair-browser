@@ -11,22 +11,43 @@ class ButtonTracker:
     def __init__(self):
         self.n_clicks = 0
 
-    def update(self, n_clicks) -> bool:
-        old_clicks = self.n_clicks
+    def is_pressed(self, n_clicks) -> bool:
+        return n_clicks > self.n_clicks
+
+    def update(self, n_clicks):
         self.n_clicks = n_clicks
-        return n_clicks > old_clicks
+
+    def __repr__(self):
+        return str(self.n_clicks)
 
 
 class DashData:
 
     def __init__(self, input_dir: str):
+
+        # hold list of records from active historical file
         self.record_list: List[List[MarketBook]] = []
+
+        # track number of clicks for each button
         self.button_trackers: Dict[str, ButtonTracker] = {
-            'profit': ButtonTracker(),
-            'return': ButtonTracker(),
+            'btn_track_profit': ButtonTracker(),
+            'btn_track_return': ButtonTracker(),
+            'btn_track_runners': ButtonTracker(),
+            'btn_track_orders': ButtonTracker(),
+            'btn_track_fig': ButtonTracker(),
         }
+
+        # track files browser
         self.file_tracker = FileTracker(input_dir)
+
+        # API client instance
         self.trading = get_api_client()
+
+        # dict of {selection ID: starting odds} of runners in active market
         self.start_odds: Dict[int, float] = {}
+
+        # market information of active market
         self.market_info = MarketInfo()
+
+        # directory of market information for active market
         self.market_dir = ''
