@@ -11,15 +11,16 @@ import plotly.graph_objects as go
 from myutils.myplotly.table import plotly_table_kwargs
 
 PROFIT_COLUMNS = [
-    'date created',
+    'date',
     'trade',
     'side',
     'price',
     'size',
-    'average price matched',
-    'size matched',
-    'trade profit',
-    'time to start'
+    'avg price',
+    'matched',
+    'order £',
+    'trade £',
+    't-start'
 ]
 
 
@@ -53,7 +54,6 @@ def _get_profit_df(market: Market) -> pd.DataFrame:
     df['trade.id'] = [trade_ids.index(x) for x in df['trade.id'].values]
     df['time_to_start'] = [format_timedelta(market.market_start_datetime - o.publish_time) for o in
                            market.blotter]
-
 
     currency_cols = [
         'order_type.size',
@@ -92,28 +92,31 @@ def get_profit_plotly_table(profit_df: pd.DataFrame, title: str) -> go.Figure:
     )
 
 
-def process_profit_table(df: pd.DataFrame) -> pd.DataFrame:
+def process_profit_table(df: pd.DataFrame, market_start_time: datetime) -> pd.DataFrame:
     """
-    - change "date created" to timestamp form
+    - change "date" to timestamp form
     - turn "trade" column into indexes
     - format currency columns
-    - add trade profit and time to start columns
+    - add trade £ and t-start columns
     """
-    df.sort_values(by=['date created'])
-    df['trade profit'] = df.groupby(['trade'])['simulated profit'].transform('sum')
 
+    # sort earliest first
+    df.sort_values(by=['date'])
+
+    # sum order profits in each trade
+    df['trade £'] = df.groupby(['trade'])['order £'].transform('sum')
+
+    # convert trade UUIDs to indexes for easy viewing
     trade_ids = list(df['trade'].unique())
     df['trade'] = [trade_ids.index(x) for x in df['trade'].values]
 
-    # df['time_to_start'] = [format_timedelta(market.market_start_datetime - o.publish_time) for o in
-    #                        market.blotter]
+    df['t-start'] = [format_timedelta(market_start_time - dt) for dt in df['date']]
 
     currency_cols = [
-        'trade profit',
-        'simulated profit',
+        'trade £',
+        'order £',
         'size',
-        'size matched',
-        'average price matched',
+        'matched',
     ]
 
     def currency_format(x):
@@ -127,7 +130,7 @@ def process_profit_table(df: pd.DataFrame) -> pd.DataFrame:
 
 def read_profit_table(file_path: str) -> pd.DataFrame:
     """
-    get table of completed orders and simulated profit from
+    get table of completed orders and order £ from
     """
 
     # get order results
@@ -137,13 +140,13 @@ def read_profit_table(file_path: str) -> pd.DataFrame:
     lines = [order for order in lines if order['order_type']['order_type'] == 'Limit']
 
     attrs = {
-        'date created': 'date_time_created',
+        'date': 'date_time_created',
         'trade': 'trade.id',
         'side': 'info.side',
         'price': 'order_type.price',
         'size': 'order_type.size',
-        'average price matched': 'average_price_matched',
-        'size matched': 'info.size_matched'
+        'avg price': 'average_price_matched',
+        'matched': 'info.size_matched'
     }
 
     df = pd.DataFrame([
@@ -152,6 +155,6 @@ def read_profit_table(file_path: str) -> pd.DataFrame:
             for k, v in attrs.items()
         } for o in lines
     ])
-    df['date created'].apply(lambda dt: datetime.fromtimestamp)
-    df['simulated profit'] = [order_profit(order) for order in lines]
+    df['date'] = df['date'].apply(datetime.fromtimestamp)
+    df['order £'] = [order_profit(order) for order in lines]
     return df

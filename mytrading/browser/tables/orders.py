@@ -19,7 +19,7 @@ def get_orders_table(
             for x in PROFIT_COLUMNS
         }),
         style_cell={
-            'whiteSpace': 'normal',
-            'height': 'auto',
+#             'whiteSpace': 'normal',
         },
+        height=450,
     )

@@ -1,4 +1,7 @@
+from datetime import timedelta
 import dash_html_components as html
+import dash_core_components as dcc
+from myutils.timing import format_timedelta
 from mytrading.browser.tables.runners import get_runners_table, get_runner_id
 from mytrading.browser.tables.market import get_market_table
 from mytrading.browser.tables.files import get_files_table, get_table_market
@@ -6,7 +9,7 @@ from mytrading.browser.tables.orders import get_orders_table
 from mytrading.browser.data import DashData
 
 
-def get_layout(input_dir: str, dash_data: DashData):
+def get_layout(input_dir: str, dash_data: DashData, chart_offset: timedelta):
     return html.Div(
         style={
             'display': 'grid',
@@ -40,7 +43,6 @@ def get_layout(input_dir: str, dash_data: DashData):
                         children=[
                             html.Button(children='↑', id='button-return', n_clicks=0),
                             html.Button(children='get runners', id='button-runners', n_clicks=0),
-                            html.Button(children='feature figure', id='button-figure', n_clicks=0),
                             html.Button(children='profit', id='button-profit', n_clicks=0)
                         ],
                     ),
@@ -65,6 +67,8 @@ def get_layout(input_dir: str, dash_data: DashData):
                     html.Div(
                         children=[
                             html.Button(children='order profits', id='button-orders', n_clicks=0),
+                            dcc.Input(id='input-chart-offset', type='time', value=format_timedelta(chart_offset)),
+                            html.Button(children='feature figure', id='button-figure', n_clicks=0),
                         ]
                     ),
 

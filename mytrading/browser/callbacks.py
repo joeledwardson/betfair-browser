@@ -2,8 +2,9 @@ from os import path
 import pandas as pd
 import logging
 import dash
-import dash_html_components as html
+from datetime import timedelta, datetime
 from dash.dependencies import Input, Output, State
+import re
 
 from mytrading.tradetracker.orderfile import get_order_updates
 from mytrading.utils.storage import EXT_ORDER_INFO, EXT_ORDER_RESULT
@@ -11,7 +12,7 @@ from mytrading.process.prices import starting_odds
 from mytrading.browser.data import DashData
 from mytrading.browser.tables.runners import get_runner_id
 from mytrading.browser.tables.files import get_files_table, get_table_market
-from mytrading.browser.plot import generate_feature_plot
+from mytrading.visual.visual import generate_feature_plot
 from mytrading.browser.text import html_lines
 from mytrading.browser.profit import get_display_profits
 from mytrading.visual.profits import process_profit_table, read_profit_table
@@ -157,23 +158,33 @@ def figure_callback(app: dash.Dash, dd: DashData, input_dir: str):
             Input('button-figure', 'n_clicks')
         ],
         state=[
-            State('table-runners', 'active_cell')
+            State('table-runners', 'active_cell'),
+            State('input-chart-offset', 'value'),
         ]
     )
-    def fig_button(fig_button_clicks, runners_active_cell):
+    def fig_button(fig_button_clicks, runners_active_cell, chart_offset_str):
 
-        file_info = list()
-        file_info.append(f'Runners active cell: {runners_active_cell}')
+        chart_offset = None
+        if re.match(r'^\d{2}:\d{2}:\d{2}$', chart_offset_str):
+            try:
+                t = datetime.strptime(chart_offset_str, "%H:%M:%S")
+                chart_offset = timedelta(hours=t.hour, minutes=t.minute, seconds=t.second)
+            except ValueError:
+                pass
+
+        info_strings = list()
+        info_strings.append(f'Runners active cell: {runners_active_cell}')
+        info_strings.append(f'Chart offset: {chart_offset}')
 
         # if no active market selected then abort
         if not dd.record_list or not dd.market_info:
-            file_info.append('No market information/records')
-            return html_lines(file_info)
+            info_strings.append('No market information/records')
+            return html_lines(info_strings)
 
         # get selection ID of runner from active runner cell, or abort on fail
-        selection_id = get_runner_id(runners_active_cell, dd.start_odds, file_info)
+        selection_id = get_runner_id(runners_active_cell, dd.start_odds, info_strings)
         if not selection_id:
-            return html_lines(file_info)
+            return html_lines(info_strings)
 
         # get order information from current directory by searching for order info and filtering to selection ID
         orders_df = None
@@ -190,16 +201,19 @@ def figure_callback(app: dash.Dash, dd: DashData, input_dir: str):
             selection_id,
         )
 
+        # if chart offset specified then use as display offset, otherwise ignore
+        display_seconds = chart_offset.total_seconds() if chart_offset else 0
+
         fig = generate_feature_plot(
             hist_records=dd.record_list,
             selection_id=selection_id,
-            display_seconds=90,
+            display_seconds=display_seconds,
             title=title,
             orders_df=orders_df
         )
 
         fig.show()
-        return html_lines(file_info)
+        return html_lines(info_strings)
 
 
 def orders_callback(app: dash.Dash, dd: DashData, input_dir: str):
@@ -213,12 +227,13 @@ def orders_callback(app: dash.Dash, dd: DashData, input_dir: str):
             Input('button-runners', 'n_clicks'),
         ],
         state=[
-            State('table-runners', 'active_cell')
+            State('table-runners', 'active_cell'),
         ]
     )
     def update_files_table(orders_n_clicks, runners_n_clicks, runners_active_cell):
 
-        info_strings = [f'Active cell: {runners_active_cell}']
+        info_strings = list()
+        info_strings.append(f'Active cell: {runners_active_cell}')
 
         orders_pressed = triggered_id() == 'button-orders'
 
@@ -248,5 +263,5 @@ def orders_callback(app: dash.Dash, dd: DashData, input_dir: str):
             info_strings.append(f'File "{order_file_path}" empty')
             return [], html_lines(info_strings)
 
-        df = process_profit_table(df)
+        df = process_profit_table(df, dd.record_list[0][0].market_definition.market_time)
         return df.to_dict('records'), html_lines(info_strings)

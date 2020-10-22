@@ -2,14 +2,12 @@ from plotly.subplots import make_subplots
 import plotly.graph_objects as go
 from datetime import timedelta
 from typing import List, Dict
-from betfairlightweight.resources.bettingresources import MarketBook
 from functools import partial
 from datetime import datetime
 import logging
 import pandas as pd
 
-from myutils import generic
-from mytrading.feature import feature, window
+from mytrading.feature import feature
 
 active_logger = logging.getLogger(__name__)
 active_logger.setLevel(logging.INFO)
@@ -151,26 +149,6 @@ def get_plot_configs(
                 }
             }
         }
-    }
-
-
-def get_default_plot_config() -> dict:
-    """
-    get default plotly chart configurations dict for plotting features
-    configuration includes keys:
-    - 'chart': plotly chart function
-    - 'chart_args': dictionary of plotly chart arguments
-    - 'trace_args': dictionary of arguments used when plotly trace added to figure
-    - 'y_axis': name of y-axis, used as a set to distinguish different y-axes on subplots (just used to
-    differentiate between subplots, name doesn't actually appear on axis)
-    """
-    return {
-        'chart': go.Scatter,
-        'chart_args': {
-            'mode': 'lines'
-        },
-        'trace_args': {},
-        'y_axis': 'odds',
     }
 
 
@@ -445,93 +423,3 @@ def plot_orders(fig: go.Figure, orders_df: pd.DataFrame):
         ))
 
 
-def fig_historical(
-        records: List[List[MarketBook]],
-        features: Dict[str, feature.RunnerFeatureBase],
-        windows: window.Windows,
-        feature_plot_configs: Dict[str, Dict],
-        selection_id,
-        title,
-        display_s=90,
-        orders_df:pd.DataFrame=None):
-    """
-    create figure using default features for historical record list and a selected runner ID
-    - records: list of historical records
-    - features: dict of {feature name: feature instance} to apply
-    - feature_plot_configs: dict of {feature name: feature plot config} to apply when plotting each feature
-    - selection_id: id of runner
-    - title: title to apply to chart
-    - display_s: number of seconds before start time to display chart for
-    - orders_df: dataframe of order update to add as annotated scatter points
-    """
-
-    if len(records) == 0:
-        print('records set empty')
-        return go.Figure()
-
-    recs = []
-
-    for i in range(len(records)):
-        new_book = records[i][0]
-        recs.append(new_book)
-        windows.update_windows(recs, new_book)
-
-        runner_index = next((i for i, r in enumerate(new_book.runners) if r.selection_id == selection_id), None)
-        if runner_index is not None:
-            for feature in features.values():
-                feature.process_runner(recs, new_book, windows, runner_index)
-
-    default_plot_config = get_default_plot_config()
-    y_axes_names = get_yaxes_names(feature_plot_configs, default_plot_config)
-    fig = create_figure(y_axes_names)
-
-    # use last record as first records market time can be accurate
-    market_time = records[-1][0].market_definition.market_time
-    chart_start = market_time - timedelta(seconds=display_s)
-
-    def _plot_feature(display_name, feature, conf):
-
-        # plot feature
-        add_feature_trace(
-            fig=fig,
-            feature_name=display_name,
-            feature=feature,
-            def_conf=default_plot_config,
-            y_axes_names=y_axes_names,
-            ftr_conf=conf,
-            chart_start=chart_start
-        )
-
-        # get sub features config if exist
-        sub_configs = conf.get('sub_features', {})
-
-        # loop sub features
-        for sub_name, sub_feature in feature.sub_features.items():
-
-            # get sub-feature specific configuration
-            sub_conf = sub_configs.get(sub_name, {})
-
-            # create display name by using using a dot (.) between parent and sub feature names
-            sub_display_name = '.'.join([display_name, sub_name])
-            _plot_feature(sub_display_name, sub_feature, sub_conf)
-
-    for feature_name, feature in features.items():
-        conf = feature_plot_configs.get(feature_name, {})
-        _plot_feature(feature_name, feature, conf)
-
-    if orders_df is not None and orders_df.shape[0]:
-        orders_df = orders_df[
-            (orders_df.index >= market_time - timedelta(seconds=display_s)) &
-            (orders_df.index <= market_time)]
-        plot_orders(fig, orders_df.copy())
-    set_figure_layout(fig, title, market_time, display_s)
-    return fig
-
-
-def fig_to_file(fig: go.Figure, file_path, mode='a'):
-    """
-    write a plotly figure to a file, default mode appending to file
-    """
-    with generic.create_dirs(open)(file_path, mode) as f:
-        f.write(fig.to_html(full_html=False, include_plotlyjs='cdn'))
-    active_logger.info(f'writing figure to file "{file_path}"')
