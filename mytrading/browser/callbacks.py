@@ -104,8 +104,7 @@ def market_callback(app: dash.Dash, dd: DashData, input_dir: str):
 def file_table_callback(app: dash.Dash, dd: DashData, input_dir: str):
     @app.callback(
         output=[
-            Output('infobox-files-cell', 'children'),
-            Output('infobox-path', 'children'),
+            Output('infobox-files', 'children'),
             Output('table-files-container', 'children')
         ],
         inputs=[
@@ -139,9 +138,13 @@ def file_table_callback(app: dash.Dash, dd: DashData, input_dir: str):
         if dd.file_tracker.root != old_root:
             active_cell = None
 
-        return [
+        info_box = html_lines([
             f'Files active cell: {active_cell}',
-            dd.file_tracker.root,
+            f'Path: {dd.file_tracker.root}'
+        ])
+
+        return [
+            info_box,
             get_files_table(
                 ft=dd.file_tracker,
                 base_dir=input_dir,
@@ -193,6 +196,14 @@ def figure_callback(app: dash.Dash, dd: DashData, input_dir: str):
             orders_df = get_order_updates(order_file_path)
             if orders_df.shape[0]:
                 orders_df = orders_df[orders_df['selection_id'] == selection_id]
+
+        if orders_df is None:
+            orders_str = f'"{order_file_path}" not found'
+        else:
+            orders_str = f'found {orders_df.shape[0]} order infos in "{order_file_path}"'
+
+        info_strings.append(f'producing figure for runner {selection_id}')
+        info_strings.append(orders_str)
 
         # make chart title
         title = '{}, name: "{}", ID: "{}"'.format(
@@ -264,4 +275,6 @@ def orders_callback(app: dash.Dash, dd: DashData, input_dir: str):
             return [], html_lines(info_strings)
 
         df = process_profit_table(df, dd.record_list[0][0].market_definition.market_time)
+        info_strings.append(f'producing orders for {selection_id}, {df.shape[0]} results found')
+        info_strings.append(f'data read from "{order_file_path}"')
         return df.to_dict('records'), html_lines(info_strings)

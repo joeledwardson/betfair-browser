@@ -18,8 +18,5 @@ def get_orders_table(
             x: []
             for x in PROFIT_COLUMNS
         }),
-        style_cell={
-#             'whiteSpace': 'normal',
-        },
-        height=450,
+        height=420,
     )

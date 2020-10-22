@@ -1,7 +1,7 @@
 from os import path, listdir
 from typing import Iterable, List
 
-from mytrading.tradetracker.orderfile import order_profit
+from mytrading.tradetracker.orderfile import dict_order_profit
 from mytrading.utils.storage import EXT_ORDER_RESULT
 from myutils.jsonfile import read_file
 
@@ -12,7 +12,7 @@ def get_profits(element_path):
     if path.isfile(element_path):
         if path.splitext(element_path)[1] == EXT_ORDER_RESULT:
             lines = read_file(element_path)
-            return sum(order_profit(o) for o in lines)
+            return sum(dict_order_profit(o) for o in lines)
         else:
             return None
     elif path.isdir(element_path):

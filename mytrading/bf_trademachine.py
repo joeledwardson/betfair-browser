@@ -1,7 +1,7 @@
 from flumine import BaseStrategy
 from flumine.order.order import BetfairOrder, OrderStatus
 from flumine.order.trade import Trade
-from flumine.order.ordertype import LimitOrder
+from flumine.order.ordertype import LimitOrder, OrderTypes
 from flumine.markets.market import Market
 from betfairlightweight.resources.bettingresources import MarketBook
 
@@ -9,6 +9,7 @@ from myutils import statemachine as stm
 from mytrading.strategy.side import select_ladder_side, select_operator_side
 from mytrading.process.match_bet import get_match_bet_sums
 from mytrading.tradetracker.tradetracker import TradeTracker
+from mytrading.process.profit import order_profit
 
 import logging
 from typing import List, Dict
@@ -82,6 +83,20 @@ class TradeStateBase(stm.State):
 
     # easily overridable state to progress to when state action is complete
     next_state: TradeStates = TradeStates.BASE
+
+    def enter(
+            self,
+            market_book: MarketBook,
+            market: Market,
+            runner_index: int,
+            trade_tracker: TradeTracker,
+            strategy: BaseStrategy,
+            **inputs
+    ):
+        """
+        initialise a state
+        """
+        pass
 
     def run(
             self,
@@ -470,6 +485,39 @@ class TradeStateHedgeTakeWait(TradeStateBase):
 class TradeStateClean(TradeStateBase):
 
     name = TradeStates.CLEANING
+
+    def enter(
+            self,
+            market_book: MarketBook,
+            market: Market,
+            runner_index: int,
+            trade_tracker: TradeTracker,
+            strategy: BaseStrategy,
+            **inputs
+    ):
+        # filter to limit orders
+        orders = [o for o in trade_tracker.active_trade.orders if o.order_type.ORDER_TYPE == OrderTypes.LIMIT]
+
+        win_profit = sum(
+            order_profit(
+                'WINNER',
+                o.side,
+                o.average_price_matched,
+                o.size_matched)
+            for o in orders)
+
+        loss_profit = sum(
+            order_profit(
+                'LOSER',
+                o.side,
+                o.average_price_matched,
+                o.size_matched)
+            for o in orders)
+
+        trade_tracker.log_update(
+            f'trade complete, case win: £{win_profit:.2f}, case loss: £{loss_profit:.2f}',
+            market_book.publish_time
+        )
 
     def run(self, **kwargs):
         pass

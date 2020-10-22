@@ -3,11 +3,12 @@ import pandas as pd
 from flumine.order.order import BetfairOrder
 from myutils.jsonfile import read_file
 import logging
+from mytrading.process.profit import order_profit
 
 active_logger = logging.getLogger(__name__)
 
 
-def order_profit(order_info: dict) -> float:
+def dict_order_profit(order_info: dict) -> float:
     """
     Compute order profit from dictionary of values retrieved from a line of a file written to by TradeTracker.log_update
 
@@ -24,18 +25,7 @@ def order_profit(order_info: dict) -> float:
         active_logger.warning(f'failed to get profit elements: "{e}"')
         return 0
 
-    if sts == "WINNER":
-        if side == "BACK":
-            return round((price - 1) * size, ndigits=2)
-        else:
-            return round((price - 1) * -size, ndigits=2)
-    elif sts == "LOSER":
-        if side == "BACK":
-            return -size
-        else:
-            return size
-    else:
-        return 0.0
+    return order_profit(sts, side, price, size)
 
 
 def get_order_updates(file_path) -> pd.DataFrame:

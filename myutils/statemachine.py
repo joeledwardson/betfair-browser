@@ -8,7 +8,7 @@ active_logger.setLevel(logging.INFO)
 
 
 class State:
-    def enter(self):
+    def enter(self, **inputs):
         pass
 
     def run(self, **inputs):
@@ -47,7 +47,7 @@ class StateMachine:
         while 1:
 
             if self.is_state_change:
-                self.states[self.current_state_key].enter()
+                self.states[self.current_state_key].enter(**kwargs)
 
             self.previous_state_key = self.current_state_key
 

@@ -9,6 +9,16 @@ from mytrading.browser.tables.orders import get_orders_table
 from mytrading.browser.data import DashData
 
 
+def infobox(height=70, **kwargs) -> html.Div:
+    return html.Div(
+        style={
+            'height': height,
+            'overflow-y': 'auto',
+        },
+        **kwargs,
+    )
+
+
 def get_layout(input_dir: str, dash_data: DashData, chart_offset: timedelta):
     return html.Div(
         style={
@@ -29,13 +39,8 @@ def get_layout(input_dir: str, dash_data: DashData, chart_offset: timedelta):
                         children='File Selection'
                     ),
 
-                    html.Div(
-                        id='infobox-files-cell',
-                        children='',
-                    ),
-
-                    html.Div(
-                        id='infobox-path',
+                    infobox(
+                        id='infobox-files',
                         children='',
                     ),
 
@@ -59,7 +64,7 @@ def get_layout(input_dir: str, dash_data: DashData, chart_offset: timedelta):
                         children='Runner info'
                     ),
 
-                    html.Div(
+                    infobox(
                         id='infobox-runners',
                         children='',
                     ),
@@ -96,7 +101,7 @@ def get_layout(input_dir: str, dash_data: DashData, chart_offset: timedelta):
                         children='Figure information'
                     ),
 
-                    html.Div(
+                    infobox(
                         id='infobox-figure',
                         children='',
                     ),
@@ -105,7 +110,7 @@ def get_layout(input_dir: str, dash_data: DashData, chart_offset: timedelta):
                         children='Order Profits'
                     ),
 
-                    html.Div(
+                    infobox(
                         id='infobox-orders',
                         children='',
                     ),
