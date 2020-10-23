@@ -1,22 +1,19 @@
-from flumine import BaseStrategy
-from flumine.order.order import BetfairOrder, OrderStatus
-from flumine.order.trade import Trade
-from flumine.order.ordertype import LimitOrder, OrderTypes
-from flumine.markets.market import Market
-from betfairlightweight.resources.bettingresources import MarketBook
-
-from myutils import statemachine as stm
-from mytrading.strategy.side import select_ladder_side, select_operator_side
-from mytrading.process.match_bet import get_match_bet_sums
-from mytrading.tradetracker.tradetracker import TradeTracker
-from mytrading.process.profit import order_profit
-
-import logging
-from typing import List, Dict
 from enum import Enum
+from typing import List, Dict
 
-active_logger = logging.getLogger(__name__)
-active_logger.setLevel(logging.INFO)
+from betfairlightweight.resources import MarketBook
+from flumine import BaseStrategy
+from flumine.markets.market import Market
+from flumine.order.order import BetfairOrder, OrderStatus
+from flumine.order.ordertype import LimitOrder, OrderTypes
+from flumine.order.trade import Trade
+
+from mytrading.process.match_bet import get_match_bet_sums
+from mytrading.process.profit import order_profit
+from mytrading.strategy.side import select_ladder_side, select_operator_side
+from mytrading.tradetracker.tradetracker import TradeTracker
+from myutils import statemachine as stm
+
 
 order_error_states = [
     OrderStatus.EXPIRED,
@@ -24,7 +21,6 @@ order_error_states = [
     OrderStatus.LAPSED,
     OrderStatus.VIOLATION
 ]
-
 order_pending_states = [
     OrderStatus.PENDING,
     # OrderStatus.CANCELLING, # never leaves cancelling state
@@ -50,20 +46,6 @@ class TradeStates(Enum):
     HEDGE_TAKE_MATCHING='waiting for hedge to match at available price'
     CLEANING =          'cleaning trade'
     PENDING =           'pending state'
-
-
-class RunnerStateMachine(stm.StateMachine):
-    """
-    implement state machine for runners, logging state changes with runner ID
-    """
-    def __init__(self, states: Dict[Enum, stm.State], initial_state: Enum, selection_id: int):
-        super().__init__(states, initial_state)
-        self.selection_id = selection_id
-
-    def process_state_change(self, old_state, new_state):
-        active_logger.info(f'runner "{self.selection_id}" has changed from state "{old_state}" to "{new_state}"')
-        if new_state == TradeStates.PENDING:
-            my_debug_breakpoint = True
 
 
 class TradeStateBase(stm.State):
@@ -481,7 +463,6 @@ class TradeStateHedgeTakeWait(TradeStateBase):
                 # order.replace(available[0]['price'])
 
 
-# TODO - implement
 class TradeStateClean(TradeStateBase):
 
     name = TradeStates.CLEANING

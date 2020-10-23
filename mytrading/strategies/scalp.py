@@ -3,7 +3,8 @@ from flumine.order.ordertype import LimitOrder
 from flumine.markets.market import Market
 from betfairlightweight.resources.bettingresources import MarketBook, RunnerBook
 
-from mytrading import bf_trademachine as bftm
+import mytrading.trademachine.tradestates
+from mytrading.trademachine import trademachine as bftm
 from mytrading.strategy.featurestrategy import MyFeatureStrategy
 from mytrading.process.ladder import BfLadderPoint, get_ladder_point
 from mytrading.tradetracker.tradetracker import TradeTracker
@@ -153,26 +154,26 @@ class MyScalpStrategy(MyFeatureStrategy):
             states={
                 state.name: state
                 for state in [
-                    bftm.TradeStateCreateTrade(),
+                    mytrading.trademachine.tradestates.TradeStateCreateTrade(),
                     WallTradeStateIdle(),
                     WallTradeStateOpenPlace(),
                     WallTradeStateOpenMatching(),
-                    bftm.TradeStateBin(),
-                    bftm.TradeStatePending(),
+                    mytrading.trademachine.tradestates.TradeStateBin(),
+                    mytrading.trademachine.tradestates.TradeStatePending(),
                     WallTradeStateHedgeSelect(),
                     WallTradeStateHedgeOffset(
                         tick_target=self.tick_target,
                         min_hedge_price=self.min_hedge_price
                     ),
                     WallTradeStateHedgeWait(),
-                    bftm.TradeStateHedgePlaceTake(
+                    mytrading.trademachine.tradestates.TradeStateHedgePlaceTake(
                         min_hedge_price=self.min_hedge_price
                     ),
-                    bftm.TradeStateHedgeTakeWait(),
-                    bftm.TradeStateClean()
+                    mytrading.trademachine.tradestates.TradeStateHedgeTakeWait(),
+                    mytrading.trademachine.tradestates.TradeStateClean()
                 ]
             },
-            initial_state=bftm.TradeStateCreateTrade.name,
+            initial_state=mytrading.trademachine.tradestates.TradeStateCreateTrade.name,
             selection_id=runner.selection_id,
         )
 
@@ -308,7 +309,7 @@ def get_wall_adjacent(
     return LTICKS_DECODED[new_tick_index]
 
 
-class WallTradeStateIdle(bftm.TradeStateIdle):
+class WallTradeStateIdle(mytrading.trademachine.tradestates.TradeStateIdle):
     """
     Idle state implements `trade_criteria()` function, to return True (indicating move to open trade place state)
     once a valid wall is detected on inputs
@@ -340,7 +341,7 @@ class WallTradeStateIdle(bftm.TradeStateIdle):
                 return True
 
 
-class WallTradeStateOpenPlace(bftm.TradeStateOpenPlace):
+class WallTradeStateOpenPlace(mytrading.trademachine.tradestates.TradeStateOpenPlace):
     """
     State to place an opening trade, implementing `place_trade()` function - places a trade on tick above/below wall
     price sent via kwarg inputs
@@ -389,7 +390,7 @@ class WallTradeStateOpenPlace(bftm.TradeStateOpenPlace):
         return order
 
 
-class WallTradeStateOpenMatching(bftm.TradeStateOpenMatching):
+class WallTradeStateOpenMatching(mytrading.trademachine.tradestates.TradeStateOpenMatching):
     """
     Wait for open trade to match, implements `open_trade_processing()` to return state if state change required
     aborts if wall does not meet validation criteria from when it was detected at point of placing opening trade
@@ -416,7 +417,7 @@ class WallTradeStateOpenMatching(bftm.TradeStateOpenMatching):
             strategy=strategy,
             **inputs
         ):
-            return [bftm.TradeStates.BIN, bftm.TradeStates.PENDING, bftm.TradeStates.HEDGE_PLACE_TAKE]
+            return [mytrading.trademachine.tradestates.TradeStates.BIN, mytrading.trademachine.tradestates.TradeStates.PENDING, mytrading.trademachine.tradestates.TradeStates.HEDGE_PLACE_TAKE]
 
         # get > or < comparator for BACK/LAY side selection
         op = select_operator_side(trade_tracker.open_side)
@@ -451,17 +452,17 @@ class WallTradeStateOpenMatching(bftm.TradeStateOpenMatching):
         )
 
         # wait for pending to complete then return to this state
-        return [bftm.TradeStates.PENDING, bftm.TradeStates.OPEN_MATCHING]
+        return [mytrading.trademachine.tradestates.TradeStates.PENDING, mytrading.trademachine.tradestates.TradeStates.OPEN_MATCHING]
 
 
-class WallTradeStateHedgeSelect(bftm.TradeStateHedgeSelect):
+class WallTradeStateHedgeSelect(mytrading.trademachine.tradestates.TradeStateHedgeSelect):
     """
     select wall hedge trade placement state
     """
     next_state = WallTradeStates.WALL_HEDGE_PLACE
 
 
-class WallTradeStateHedgeOffset(bftm.TradeStateHedgePlaceTake):
+class WallTradeStateHedgeOffset(mytrading.trademachine.tradestates.TradeStateHedgePlaceTake):
     """
     place hedge at number of ticks away from open price
     """
@@ -501,13 +502,13 @@ class WallTradeStateHedgeOffset(bftm.TradeStateHedgePlaceTake):
         return LTICKS_DECODED[wall_price_index]
 
 
-class WallTradeStateHedgeWait(bftm.TradeStateBase):
+class WallTradeStateHedgeWait(mytrading.trademachine.tradestates.TradeStateBase):
     """
     wait for hedge to complete, if wall disappears then take available price
     """
 
     name = WallTradeStates.WALL_HEDGE_MATCHING
-    next_state = bftm.TradeStates.CLEANING
+    next_state = mytrading.trademachine.tradestates.TradeStates.CLEANING
 
     def run(
             self,
@@ -529,11 +530,11 @@ class WallTradeStateHedgeWait(bftm.TradeStateBase):
                 market_book.runners[runner_index],
                 trade_tracker,
                 strategy,
-                **inputs) or order.status in bftm.order_error_states:
+                **inputs) or order.status in mytrading.trademachine.tradestates.order_error_states:
             trade_tracker.log_update(
                 f'wall validation failed, binning trade then taking available',
                 market_book.publish_time
             )
             # if wall has gone or error then abandon position and take whatever is available to hedge
-            return [bftm.TradeStates.BIN, bftm.TradeStates.PENDING, bftm.TradeStates.HEDGE_PLACE_TAKE]
+            return [mytrading.trademachine.tradestates.TradeStates.BIN, mytrading.trademachine.tradestates.TradeStates.PENDING, mytrading.trademachine.tradestates.TradeStates.HEDGE_PLACE_TAKE]
 

@@ -8,7 +8,8 @@ from os import path, makedirs
 from enum import Enum
 
 import mytrading.feature.config
-from mytrading import bf_trademachine as bftm
+import mytrading.trademachine.tradestates
+from mytrading.trademachine import trademachine as bftm
 from mytrading.feature import feature as bff
 from mytrading.feature.feature import RunnerFeatureBase
 from mytrading.strategy.basestrategy import MyBaseStrategy
@@ -45,13 +46,13 @@ class MyFeatureStrategy(MyBaseStrategy):
     StrategyTradeTracker = TradeTracker
 
     # list of states that indicate no trade or anything is active
-    inactive_states = [bftm.TradeStates.IDLE, bftm.TradeStates.CLEANING]
+    inactive_states = [mytrading.trademachine.tradestates.TradeStates.IDLE, mytrading.trademachine.tradestates.TradeStates.CLEANING]
 
     # state transitions to cancel a trade and hedge
     force_hedge_states = [
-        bftm.TradeStates.BIN,
-        bftm.TradeStates.PENDING,
-        bftm.TradeStates.HEDGE_PLACE_TAKE
+        mytrading.trademachine.tradestates.TradeStates.BIN,
+        mytrading.trademachine.tradestates.TradeStates.PENDING,
+        mytrading.trademachine.tradestates.TradeStates.HEDGE_PLACE_TAKE
     ]
 
     def __init__(self, name, strategy_dir=STRATEGY_DIR, *args, **kwargs):
@@ -214,7 +215,7 @@ class MyFeatureStrategy(MyBaseStrategy):
             if not self.cutoff.current_value:
 
                 # if trade tracker done then create a new one
-                if state_machine.current_state_key == bftm.TradeStates.CLEANING:
+                if state_machine.current_state_key == mytrading.trademachine.tradestates.TradeStates.CLEANING:
                     active_logger.info(f'runner "{runner.selection_id}" finished trade, resetting...')
                     self._reset_complete_trade(state_machine, trade_tracker)
 
