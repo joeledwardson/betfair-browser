@@ -1,18 +1,18 @@
-from flumine import clients, BaseStrategy
-from flumine.order.order import BaseOrder
 from flumine.markets.market import Market
 from betfairlightweight.resources.bettingresources import MarketBook, RunnerBook
 
 from datetime import timedelta, datetime, timezone
 import logging
-from typing import List, Dict, Optional
+from typing import Dict
 from os import path, makedirs
 from enum import Enum
 
 import mytrading.feature.config
 from mytrading import bf_trademachine as bftm
-from mytrading.feature import feature as bff, window as bfw
+from mytrading.feature import feature as bff
 from mytrading.feature.feature import RunnerFeatureBase
+from mytrading.strategy.basestrategy import MyBaseStrategy
+from mytrading.strategy.featureholder import FeatureHolder
 from mytrading.tradetracker.tradetracker import TradeTracker
 from mytrading.tradetracker.orderfile import serializable_order_info
 from mytrading.utils.storage import construct_hist_dir, DIR_BASE, SUBDIR_STRATEGY_HISTORIC, EXT_ORDER_RESULT, EXT_ORDER_INFO
@@ -23,82 +23,6 @@ from myutils.jsonfile import add_to_file
 
 STRATEGY_DIR = path.join(DIR_BASE, SUBDIR_STRATEGY_HISTORIC)
 active_logger = logging.getLogger(__name__)
-
-
-def path_result(base_dir, name):
-    """get file path for order results, from a base directory"""
-
-
-def filter_orders(orders, selection_id) -> List[BaseOrder]:
-    """
-    filter order to those placed on a specific runner identified by `selection_id`
-    """
-    return [o for o in orders if o.selection_id == selection_id]
-
-
-class MyBaseStrategy(BaseStrategy):
-    """
-    Implementation of flumine `BaseStrategy`:
-    - check_market_book() checks if book is closed
-    - place_order() prints if order validation failed
-    """
-    def check_market_book(self, market: Market, market_book: MarketBook) -> bool:
-        """
-        return True (tell flumine to run process_market_book()) only executed if market not closed
-        """
-        if market_book.status != "CLOSED":
-            return True
-
-    # override default place order, this time printing where order validation failed
-    # TODO - print reason for validation fail
-    def place_order(self, market: Market, order) -> None:
-        runner_context = self.get_runner_context(*order.lookup)
-        if self.validate_order(runner_context, order):
-            runner_context.place()
-            market.place_order(order)
-        else:
-            active_logger.warning(f'order validation failed for "{order.selection_id}"')
-
-
-class BackTestClientNoMin(clients.BacktestClient):
-    """
-    flumine back test client with no minimum bet size
-    """
-    @property
-    def min_bet_size(self) -> Optional[float]:
-        return 0
-
-
-class FeatureHolder:
-    """
-    track feature data for runners in one market
-
-    store:
-    - window instances
-    - dictionary of features indexed by runner ID, then indexed by feature name {runner ID: {feature name: feature}}
-    - list of market books to be passed to features
-    """
-    def __init__(self):
-        self.windows: bfw.Windows = bfw.Windows()
-        self.features: Dict[int, Dict[str, bff.RunnerFeatureBase]] = dict()
-        self.market_books: List[MarketBook] = []
-
-    def process_market_book(self, market_book: MarketBook):
-        """
-        update each feature for each runner for a new market book
-        N.B. market_book MUST have been added to feature_data.market_books prior to calling this function
-        """
-        # loop runners
-        for runner_index, runner in enumerate(market_book.runners):
-
-            # process each feature for current runner
-            for feature in self.features[runner.selection_id].values():
-                feature.process_runner(
-                    self.market_books,
-                    market_book,
-                    self.windows,
-                    runner_index
-                )
 
 
 class MyFeatureStrategy(MyBaseStrategy):

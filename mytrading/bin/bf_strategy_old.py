@@ -21,6 +21,12 @@ def filter_orders(orders, selection_id) -> List[BaseOrder]:
     """
     return [o for o in orders if o.selection_id == selection_id]
 
+def filter_orders(orders, selection_id) -> List[BaseOrder]:
+    """
+    filter order to those placed on a specific runner identified by `selection_id`
+    """
+    return [o for o in orders if o.selection_id == selection_id]
+
 
 # lay if below bookmaker price
 def lay_low(
