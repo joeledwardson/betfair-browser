@@ -9,11 +9,13 @@ import logging
 active_logger = logging.getLogger(__name__)
 
 
-def event_time(dt: datetime) -> str:
+def event_time(dt: datetime, localise=True) -> str:
     """
     Time of event in HH:MM, converted from betfair UTC to local
     """
-    return timing.localise(dt).strftime("%H:%M")
+    if localise:
+        dt = timing.localise(dt)
+    return dt.strftime("%H:%M")
 
 
 def bf_dt(dt: datetime) -> str:
