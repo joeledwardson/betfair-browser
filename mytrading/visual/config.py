@@ -99,6 +99,11 @@ def get_plot_configs(
         'ltp diff': {
             'chart': go.Bar,
             'chart_args': {
+                # default plotly colours go white, so use a green to red with grey 0 scale
+                'marker': {
+                    'colorscale': [[0, 'rgb(250,50,50)'], [1, 'rgb(50,250,50)']],
+                    'cmid': 0,
+                },
                 'opacity': ltp_diff_opacity,
                 'width': 1000,  # 1 seconds width of bars
                 'offset': -1000,  # end of bar to be aligned with timestamp
