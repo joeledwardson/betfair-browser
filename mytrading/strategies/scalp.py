@@ -347,7 +347,7 @@ class WallTradeStateOpenPlace(mytrading.trademachine.tradestates.TradeStateOpenP
     price sent via kwarg inputs
     """
 
-    def place_trade(
+    def place_order(
             self,
             market_book: MarketBook,
             market: Market,
@@ -397,7 +397,7 @@ class WallTradeStateOpenMatching(mytrading.trademachine.tradestates.TradeStateOp
     """
 
     # return new state(s) if different action required, otherwise None
-    def open_trade_processing(
+    def open_order_processing(
             self,
             market_book: MarketBook,
             market: Market,
@@ -536,5 +536,9 @@ class WallTradeStateHedgeWait(mytrading.trademachine.tradestates.TradeStateBase)
                 market_book.publish_time
             )
             # if wall has gone or error then abandon position and take whatever is available to hedge
-            return [mytrading.trademachine.tradestates.TradeStates.BIN, mytrading.trademachine.tradestates.TradeStates.PENDING, mytrading.trademachine.tradestates.TradeStates.HEDGE_PLACE_TAKE]
+            return [
+                mytrading.trademachine.tradestates.TradeStates.BIN,
+                mytrading.trademachine.tradestates.TradeStates.PENDING,
+                mytrading.trademachine.tradestates.TradeStates.HEDGE_PLACE_TAKE
+            ]
 

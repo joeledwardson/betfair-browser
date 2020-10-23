@@ -39,7 +39,6 @@ class TradeStates(Enum):
     IDLE =              'unplaced'
     OPEN_PLACING =      'placing opening trade'
     OPEN_MATCHING =     'waiting for opening trade to match'
-    OPEN_ERROR =        'trade has experienced an error'
     BIN =               'bottling trade'
     HEDGE_SELECT =      'selecting type of hedge'
     HEDGE_PLACE_TAKE =  'place hedge trade at available price'
@@ -187,7 +186,7 @@ class TradeStateOpenPlace(TradeStateBase):
     name = TradeStates.OPEN_PLACING
     next_state = TradeStates.OPEN_MATCHING
 
-    def place_trade(
+    def place_order(
             self,
             market_book: MarketBook,
             market: Market,
@@ -206,7 +205,7 @@ class TradeStateOpenPlace(TradeStateBase):
             strategy: BaseStrategy,
             **inputs
     ):
-        limit_order = self.place_trade(market_book, market, runner_index, trade_tracker, strategy, **inputs)
+        limit_order = self.place_order(market_book, market, runner_index, trade_tracker, strategy, **inputs)
         if not limit_order:
             return TradeStates.CLEANING
         else:
@@ -223,7 +222,7 @@ class TradeStateOpenMatching(TradeStateBase):
     # don't bother with 'next_state' as too many different paths from this state
 
     # return new state(s) if different action required, otherwise None
-    def open_trade_processing(
+    def open_order_processing(
             self,
             market_book: MarketBook,
             market: Market,
@@ -243,23 +242,17 @@ class TradeStateOpenMatching(TradeStateBase):
             strategy: BaseStrategy,
             **inputs
     ):
-        new_states = self.open_trade_processing(market_book, market, runner_index, trade_tracker, strategy, **inputs)
+        new_states = self.open_order_processing(market_book, market, runner_index, trade_tracker, strategy, **inputs)
         if new_states:
             return new_states
         else:
             sts = trade_tracker.active_order.status
 
-            # if sts == OrderStatus.EXECUTABLE:
-            #     return TradeStates.OPEN_PARTIAL
-
             if sts == OrderStatus.EXECUTION_COMPLETE:
                 return TradeStates.HEDGE_SELECT
 
-            elif sts == OrderStatus.LAPSED or sts == OrderStatus.EXPIRED:
+            elif sts in order_error_states:
                 return TradeStates.CLEANING
-
-            elif sts == OrderStatus.VOIDED or sts == OrderStatus.VIOLATION:
-                return TradeStates.OPEN_ERROR
 
 
 class TradeStateBin(TradeStateBase):
@@ -367,7 +360,6 @@ class TradeStateHedgePlaceTake(TradeStateBase):
             open_ladder = runner.ex.available_to_back
             close_ladder = runner.ex.available_to_lay
 
-
         else:
             # value is negative: trade is "overlayed", i.e. needs more back moneyy
 
@@ -439,7 +431,10 @@ class TradeStateHedgeTakeWait(TradeStateBase):
             return TradeStates.HEDGE_PLACE_TAKE
         elif order.status == OrderStatus.EXECUTION_COMPLETE:
             return self.next_state
-        elif order.status not in order_pending_states and order.status != OrderStatus.CANCELLING:
+        elif order.status == OrderStatus.CANCELLING:
+            return TradeStates.HEDGE_PLACE_TAKE
+        elif order.status == OrderStatus.EXECUTABLE:
+
             # get ladder on close side for hedging
             available = select_ladder_side(
                 market_book.runners[runner_index].ex,
@@ -461,6 +456,15 @@ class TradeStateHedgeTakeWait(TradeStateBase):
                 return [TradeStates.BIN, TradeStates.HEDGE_PLACE_TAKE]
                 # replacing doesn't seem to work in back-test mode
                 # order.replace(available[0]['price'])
+
+        else:
+            # theoretically should never reach here - pending states covered, Eerror states, EXECUTABLE and
+            # EXECUTION_COMPLETE
+            trade_tracker.log_update(
+                f'unexpected order state reached {order.status}',
+                market_book.publish_time,
+            )
+            return [TradeStates.BIN, TradeStates.HEDGE_PLACE_TAKE]
 
 
 class TradeStateClean(TradeStateBase):
