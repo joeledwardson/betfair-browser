@@ -257,7 +257,7 @@ class RunnerFeatureTradedWindowMin(RunnerFeatureWindowBase):
     """Minimum of recent traded prices in last 'window_s' seconds"""
 
     def __init__(self, window_s, **kwargs):
-        super().__init__(window_s, window_function='WindowProcessorTradedVolumeLadder', **kwargs)
+        super().__init__(window_s, window_function='WindowProcessorLTPS', **kwargs)
 
     def runner_update(
             self,
@@ -266,15 +266,19 @@ class RunnerFeatureTradedWindowMin(RunnerFeatureWindowBase):
             windows: window.Windows,
             runner_index):
 
-        prices = [tv['price'] for tv in self.window['tv_diff_ladder'][self.selection_id]]
-        return min(prices) if prices else None
+        values = self.window['runner_ltps'][self.selection_id]['values']
+
+        if len(values):
+            return min(values)
+        else:
+            return None
 
 
 class RunnerFeatureTradedWindowMax(RunnerFeatureWindowBase):
     """Maximum of recent traded prices in last 'window_s' seconds"""
 
     def __init__(self, window_s, **kwargs):
-        super().__init__(window_s, window_function='WindowProcessorTradedVolumeLadder', **kwargs)
+        super().__init__(window_s, window_function='WindowProcessorLTPS', **kwargs)
 
     def runner_update(
             self,
@@ -283,8 +287,12 @@ class RunnerFeatureTradedWindowMax(RunnerFeatureWindowBase):
             windows: window.Windows,
             runner_index):
 
-        prices = [tv['price'] for tv in self.window['tv_diff_ladder'][self.selection_id]]
-        return max(prices) if prices else None
+        values = self.window['runner_ltps'][self.selection_id]['values']
+
+        if len(values):
+            return max(values)
+        else:
+            return None
 
 
 class RunnerFeatureBookSplitWindow(RunnerFeatureWindowBase):
