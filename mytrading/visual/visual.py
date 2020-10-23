@@ -5,7 +5,9 @@ import pandas as pd
 from betfairlightweight.resources import MarketBook
 from plotly import graph_objects as go
 
+import mytrading.feature.config
 import mytrading.visual
+import mytrading.visual.config
 from mytrading.feature import feature, window, window as bfw, feature as bff
 from mytrading.visual import functions as bfv
 from mytrading.visual.functions import active_logger, get_yaxes_names, create_figure, \
@@ -129,11 +131,11 @@ def generate_feature_plot(
         selection_id=selection_id,
         book=hist_records[0][0],
         windows=windows,
-        features_config=bff.get_default_features_config()
+        features_config=mytrading.feature.config.get_default_features_config()
     )
 
     # create feature plotting configurations (use defaults)
-    feature_plot_configs = bfv.get_plot_configs(features)
+    feature_plot_configs = mytrading.visual.config.get_plot_configs(features)
 
     # create runner feature figure and append to html output path
     fig = mytrading.visual.visual.fig_historical(

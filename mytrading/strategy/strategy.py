@@ -9,6 +9,7 @@ from typing import List, Dict, Optional
 from os import path, makedirs
 from enum import Enum
 
+import mytrading.feature.config
 from mytrading import bf_trademachine as bftm
 from mytrading.feature import feature as bff, window as bfw
 from mytrading.feature.feature import RunnerFeatureBase
@@ -114,7 +115,7 @@ class MyFeatureStrategy(MyBaseStrategy):
     pre_seconds = 180
 
     # feature configuration dict (use defaults)
-    features_config = bff.get_default_features_config()
+    features_config = mytrading.feature.config.get_default_features_config()
 
     # trade tracker class
     StrategyTradeTracker = TradeTracker

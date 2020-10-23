@@ -2,154 +2,14 @@ from plotly.subplots import make_subplots
 import plotly.graph_objects as go
 from datetime import timedelta
 from typing import List, Dict
-from functools import partial
 from datetime import datetime
 import logging
 import pandas as pd
-
+from functools import partial
 from mytrading.feature import feature
 
 active_logger = logging.getLogger(__name__)
 active_logger.setLevel(logging.INFO)
-
-
-def get_plot_configs(
-        features: Dict[str, feature.RunnerFeatureBase],
-        ltp_diff_opacity=0.4,
-        ltp_marker_opacity=0.5) -> Dict[str, Dict]:
-    """
-    get dict of {feature name: plotly config dict}, for plotting features, where feature names match those from
-    bf_feature.get_default_features()
-
-    dict configurations include:
-    - 'ignore': True if chart not to be displayed (i.e. if used as color in another chart don't need)
-    - 'chart': override default plotly chart function
-    - 'chart_args': override default chart arguments
-    - 'trace_args': override default trace arguments
-    - 'y_axis': override default y-axis name
-    - 'value_processors': list of functions called on feature.get_data() outputs before passed to chart constructor
-    - 'fig_post_processor': function(figure) to be called after creation for any manual updates to plotly figure
-    - 'sub_features': dict of {name: configuration} sub_feature
-    """
-
-    # name of back regression feature
-    back_regression = 'best back regression'
-
-    # name of lay regression feature
-    lay_regression = 'best lay regression'
-
-    return {
-        'best back': {
-            'chart_args': {
-                'visible': 'legendonly',
-            }
-        },
-        'best lay': {
-            'chart_args': {
-                'visible': 'legendonly',
-            }
-        },
-        'wom': {
-            'ignore': True,
-        },
-        'book split': {
-            'ignore': True,
-        },
-        'ltp diff': {
-            'chart': go.Bar,
-            'chart_args': {
-                'opacity': ltp_diff_opacity,
-                'width': 1000,  # 1 seconds width of bars
-                'offset': -1000,  # end of bar to be aligned with timestamp
-            },
-            'trace_args': {
-                'secondary_y': True
-            },
-            'value_processors': [
-                partial(
-                    plotly_set_color,
-                    color_feature=features['wom'],
-                    color_feature_name='weight of money',
-                    color_text_fmt=color_text_formatter_decimal,
-                    color_feature_processors=[
-                        plotly_data_to_series,
-                        partial(
-                            values_resampler,
-                            n_seconds=features['ltp diff'].window_s,
-                            sampling_function='mean'
-                        ),
-                        plotly_series_to_data
-                    ],
-                ),
-                partial(
-                    values_resampler,
-                    n_seconds=features['ltp diff'].window_s
-                ),
-                plotly_df_to_data
-                ,
-            ],
-        },
-        'ltp': {
-            'chart_args': {
-                'marker': {
-                    'opacity': ltp_marker_opacity,
-                },
-            },
-            # 'value_processors': [
-            #     partial(
-            #         plotly_set_color,
-            #         color_feature=features['wom'],
-            #         color_feature_name='Weight of money',
-            #         color_feaure_
-            #     ),
-            #     plotly_df_to_data
-            # ],
-        },
-        back_regression: {
-            'chart_args': {
-                'showlegend': False
-            },
-            'value_processors': [
-                plotly_regression
-            ],
-            'fig_post_processor': partial(
-                plotly_group,
-                name=back_regression,
-                group_name=back_regression
-            )
-        },
-        lay_regression: {
-            'chart_args': {
-                'showlegend': False
-            },
-            'value_processors': [
-                plotly_regression
-            ],
-            'fig_post_processor': partial(
-                plotly_group,
-                name=lay_regression,
-                group_name=lay_regression
-            )
-        },
-        'ltp min': {
-            'sub_features': {
-                'delay': {
-                    'chart_args': {
-                        'visible': 'legendonly',
-                    }
-                }
-            }
-        },
-        'ltp max': {
-            'sub_features': {
-                'delay': {
-                    'chart_args': {
-                        'visible': 'legendonly',
-                    }
-                }
-            }
-        }
-    }
 
 
 def values_resampler(df: pd.DataFrame, n_seconds, sampling_function='last') -> pd.DataFrame:
@@ -161,18 +21,18 @@ def values_resampler(df: pd.DataFrame, n_seconds, sampling_function='last') -> p
     return df.resample(rule).apply(sampling_function).fillna(method='ffill') if df.shape[0] else df
 
 
-def color_text_formatter_percent(name, value, n_decimals=0) -> str:
+def color_text_formatter_percent(value, name, n_decimals=0) -> str:
     """
     format value with name to percentage with 'n_decimals' dp
     """
     return f'{name}: {value:.{n_decimals}%}'
 
 
-def color_text_formatter_decimal(name, value, n_decimals=2) -> str:
+def color_text_formatter_decimal(value, name, n_decimals=2, prefix='') -> str:
     """
     format value with name to decimal with 'n_decimals' dp
     """
-    return f'{name}: {value:.{n_decimals}f}'
+    return f'{name}: {prefix}{value:.{n_decimals}f}'
 
 
 def remove_duplicates(sr: pd.Series) -> pd.Series:
@@ -189,45 +49,53 @@ def plotly_data_to_series(data: dict) -> pd.Series:
     return pd.Series(data['y'], index=data['x'])
 
 
-def plotly_set_color(
+def plotly_set_attrs(
         vals: Dict,
-        color_feature: feature.RunnerFeatureBase,
-        color_feature_name: str,
-        color_feature_processors: List,
-        color_text_fmt=color_text_formatter_decimal
+        feature_configs: List[Dict],
 ) -> pd.DataFrame:
     """
-    add color to plotly 'vals' (must have 'x' and 'y' components) from 'color_feature' feature (must also have 'x' and
-    'y' components) into dataframe, where color forms 'marker_color' column, formatted color values with
-    'color_feature_name' form 'text' column
+    For a given dictionary 'vals' of plotly data containing 'x' and 'y' lists of values, set additional dictionary
+    attributes to be accepted by a plotly chart function
+
+    'feature_configs' dictionary specifies what features to use as additional attributes and how to process them
+    - list of feature configuration dictionaries:
+    -   'feature': RunnerFeatureBase() instance to get values from (only first index from values list is used!)
+    -   'processors': list of processor(data: dict) functions to run on data retrieved from feature
+    -   'attr formatters': dictionary of:
+    -       key: attribute name to set in plotly dictionary
+    -       value: formatter(data: dict) to format data into visualisation form
+
+    example of 'feature_configs':
     """
 
     # have to remove duplicate datetime indexes from each series or pandas winges when trying to make a dataframe
     sr_vals = plotly_data_to_series(vals)
     sr_vals = remove_duplicates(sr_vals)
 
-    # get data from feature to be used as color in plot (assume single plotting element)
-    color_data = color_feature.get_plotly_data()[0]
-
-    # run processors on color data (if not empty)
-    if color_data['x']:
-        for processor in color_feature_processors:
-            color_data = processor(color_data)
-
-    # create series and remove duplicates from color data
-    sr_color = pd.Series(color_data['y'], index=color_data['x'])
-    sr_color = remove_duplicates(sr_color)
-
-    # create series of text annotations
-    text_data = [color_text_fmt(color_feature_name, v) for v in color_data['y']]
-    sr_text = pd.Series(text_data, index=color_data['x'])
-    sr_text = remove_duplicates(sr_text)
-
-    df = pd.DataFrame({
+    df_data = {
         'y': sr_vals,
-        'marker_color': sr_color,
-        'text': sr_text
-    })
+    }
+
+    for cnf in feature_configs:
+
+        # get data from feature to be used as color in plot (assume single plotting element)
+        data = cnf['feature'].get_plotly_data()[0]
+
+        # run processors on color data (if not empty)
+        for processor in cnf['processors']:
+            data = processor(data)
+
+        # check has x and y values
+        if 'y' in data and len(data['y']) and 'x' in data and len(data['x']):
+
+            # create series and remove duplicates from color data
+            sr = pd.Series(data['y'], index=data['x'])
+            sr = remove_duplicates(sr)
+
+            for df_key, formatter in cnf['attr formatters'].items():
+                df_data[df_key] = sr.apply(formatter)
+
+    df = pd.DataFrame(df_data)
     df = df.fillna(method='ffill')
     return df
 
