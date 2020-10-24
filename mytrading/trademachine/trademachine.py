@@ -1,5 +1,9 @@
-from mytrading.trademachine.tradestates import TradeStateTypes
+from .tradestates import TradeStateTypes
+from mytrading.tradetracker.messages import MessageTypes
+from betfairlightweight.resources import MarketBook
+from mytrading.tradetracker.tradetracker import TradeTracker
 from myutils import statemachine as stm
+
 
 import logging
 from typing import Dict
@@ -17,9 +21,19 @@ class RunnerStateMachine(stm.StateMachine):
         super().__init__(states, initial_state)
         self.selection_id = selection_id
 
-    def process_state_change(self, old_state, new_state):
-        active_logger.info(f'runner "{self.selection_id}" has changed from state "{old_state}" to "{new_state}"')
-        if new_state == TradeStateTypes.PENDING:
-            my_debug_breakpoint = True
-
+    def process_state_change(
+            self,
+            old_state,
+            new_state,
+            market_book: MarketBook,
+            trade_tracker: TradeTracker,
+            **kwargs):
+        trade_tracker.log_update(
+            msg_type=MessageTypes.STATE_CHANGE,
+            msg_attrs={
+                'old_state': str(old_state),
+                'new_state': str(new_state)
+            },
+            dt=market_book.publish_time,
+        )
 

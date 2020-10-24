@@ -237,7 +237,7 @@ class TradeStateOpenMatching(TradeStateBase):
     wait for open trade to match
     """
     name = TradeStateTypes.OPEN_MATCHING
-    # don't bother with 'next_state' as too many different paths from this state
+    next_state = TradeStateTypes.HEDGE_SELECT
 
     # return new state(s) if different action required, otherwise None
     def open_order_processing(
@@ -267,9 +267,16 @@ class TradeStateOpenMatching(TradeStateBase):
             sts = trade_tracker.active_order.status
 
             if sts == OrderStatus.EXECUTION_COMPLETE:
-                return TradeStateTypes.HEDGE_SELECT
+                return self.next_state
 
             elif sts in order_error_states:
+                trade_tracker.log_update(
+                    msg_type=MessageTypes.OPEN_ERROR,
+                    msg_attrs={
+                        'order_status': str(sts),
+                    },
+                    dt=market_book.publish_time
+                )
                 return TradeStateTypes.CLEANING
 
 

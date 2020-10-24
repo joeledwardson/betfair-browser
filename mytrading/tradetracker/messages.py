@@ -4,9 +4,7 @@ from myutils.counter import Counter
 import logging
 
 active_logger = logging.getLogger(__name__)
-
 message_formatters: Dict[Enum, Callable] = {}
-# counter = Counter()
 
 
 def format_message(msg_type: str, msg_attrs: Dict) -> str:
@@ -20,17 +18,12 @@ def format_message(msg_type: str, msg_attrs: Dict) -> str:
         return f'message type "{msg_type}", attributes: "{msg_attrs}"'
 
 
-# def next_enum() -> int:
-#     """get next available integer enumeration for message type keys"""
-#     return max(enm.value for enm in message_formatters.keys()) + 1
-
-
 def register_formatter(key: Enum):
     """register a formatter(attrs: Dict)->str function with an integer Enumeration key to the dictionary of
     formatters"""
     def decorator(func):
         if key.value in message_formatters:
-            active_logger.critical(f'message type {key.value} already exists!')
+            raise Exception(f'registering message type {key.value}, but already exists!')
         else:
             message_formatters[key.value] = func
         return func
@@ -44,6 +37,7 @@ class MessageTypes(Enum):
     MATCHED_SIZE = 'order matched amount change'
     STATUS_UPDATE = 'order status update'
     OPEN_PLACE = 'placing opening order'
+    OPEN_ERROR = 'error status open order'
     MARKET_CLOSE = 'market closed'
     HEDGE_NOT_MET = 'hedge minimum not met'
     BOOKS_EMPTY = 'back/lay books are empty'
@@ -53,6 +47,7 @@ class MessageTypes(Enum):
     HEDGE_REPLACE = 'replacing hedge order'
     HEDGE_UNKNOWN = 'unknown hedge order status'
     TRADE_COMPLETE = 'trade complete'
+    STATE_CHANGE = 'state change'
 
 
 @register_formatter(MessageTypes.TRACK_TRADE)
@@ -141,3 +136,13 @@ def formatter(attrs: Dict) -> str:
     win_profit = attrs.get("win_profit", -1)
     loss_profit = attrs.get("loss_profit", -1)
     return f'trade complete, case win: £{win_profit:.2f}, case loss: £{loss_profit:.2f}'
+
+
+@register_formatter(MessageTypes.OPEN_ERROR)
+def formatter(attrs: Dict) -> str:
+    return f'open order status is erroneous: "{attrs.get("order_status")}"'
+
+
+@register_formatter(MessageTypes.STATE_CHANGE)
+def formatter(attrs: Dict) -> str:
+    return f'state machine changed from state "{attrs.get("old_state")}" to "{attrs.get("new_state")}"'

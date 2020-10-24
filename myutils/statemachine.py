@@ -79,14 +79,16 @@ class StateMachine:
                     self.current_state_key = self.state_queue.get()
 
             self.is_state_change = self.previous_state_key != self.current_state_key
+
             if self.is_state_change:
+
                 # new state is different to current, process change and repeat loop
-                self.process_state_change(self.previous_state_key, self.current_state_key)
+                self.process_state_change(self.previous_state_key, self.current_state_key, **kwargs)
 
             else:
                 # exit loop if no state change
                 break
 
-    def process_state_change(self, old_state, new_state):
+    def process_state_change(self, old_state, new_state, **kwargs):
         pass
 

@@ -8,7 +8,6 @@ from enum import Enum
 from .messages import MessageTypes, format_message
 from .orderinfo import serializable_order_info, write_order_update
 from .ordertracker import OrderTracker
-from myutils import jsonfile
 from typing import List, Dict
 from datetime import datetime
 from dataclasses import dataclass, field
