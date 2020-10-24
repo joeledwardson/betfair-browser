@@ -28,13 +28,16 @@ def plot_orders(fig: go.Figure, orders_df: pd.DataFrame):
         active_logger.warning('"msg_attrs" not found in orders dataframe, aborting')
         return
 
-    def get_trade_id(order_info):
-        if type(order_info) is dict:
-            if 'trade' in order_info:
-                return order_info['trade']['id']
-        return None
+    # def get_trade_id(order_info):
+    #     if type(order_info) is dict:
+    #         if 'trade' in order_info:
+    #             return order_info['trade']['id']
+    #     return None
 
-    orders_df['trade_id'] = orders_df['order_info'].apply(get_trade_id)
+    # orders_df['trade_id'] = orders_df['order_info'].apply(get_trade_id)
+
+    # replace blank trade ID so they are not ignored by pandas groupby
+    orders_df['trade_id'].fillna('-1')
 
     orders_df['msg'] = orders_df[['msg_type', 'msg_attrs']].apply(
         lambda cols: format_message(cols[0], cols[1]),

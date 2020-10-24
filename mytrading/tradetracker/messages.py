@@ -9,7 +9,7 @@ message_formatters: Dict[Enum, Callable] = {}
 # counter = Counter()
 
 
-def format_message(msg_type, msg_attrs: Dict) -> str:
+def format_message(msg_type: str, msg_attrs: Dict) -> str:
     """
     convert a message type and attributes into a string message
     where a formatter is not found, the message type and attributes dictionary will be returned
@@ -93,7 +93,7 @@ def formatter(attrs: Dict) -> str:
 
 @register_formatter(MessageTypes.MARKET_CLOSE)
 def formatter(attrs: Dict) -> str:
-    return f'market closed, runner status "{attrs.get("runner_status")}"'
+    return f'market closed, order "{attrs.get("order_id")}" runner status "{attrs.get("runner_status")}"'
 
 
 @register_formatter(MessageTypes.HEDGE_NOT_MET)

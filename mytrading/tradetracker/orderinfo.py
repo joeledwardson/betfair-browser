@@ -5,7 +5,7 @@ from myutils.jsonfile import read_file, add_to_file
 import logging
 from mytrading.process.profit import order_profit
 from typing import Dict
-from enum import IntEnum
+from enum import Enum
 
 
 active_logger = logging.getLogger(__name__)
@@ -73,11 +73,26 @@ def write_order_update(
         file_path: str,
         selection_id: int,
         dt: datetime,
-        msg_type: IntEnum,
+        msg_type: Enum,
         msg_attrs: Dict,
         display_odds: float,
         order_info: Dict,
+        trade_id
 ):
+    """
+    write an order update to an .orderinfo file
+
+    - 'file_path': specifies the file path to write to
+    - 'selection_id': selection ID of the runner
+    - 'dt': datetime timestamp in race
+    - 'msg_type': identifying message type string
+    - 'msg_attrs': dictionary of message attributes
+    - 'display_odds': odds to use when displaying on chart
+    - 'order_info': flumine/betfair Order oject information in dictionary form
+    - 'trade_id': ID of trade, normally can get from 'order_info', but if an order hasn't been placed yet then
+    'order_info' is blank
+    """
+
     add_to_file(file_path, {
         'selection_id': selection_id,
         'dt': dt.timestamp(),
@@ -85,4 +100,5 @@ def write_order_update(
         'msg_attrs': msg_attrs,
         'display_odds': display_odds,
         'order_info': order_info,
+        'trade_id': str(trade_id)
     })

@@ -148,7 +148,8 @@ class MyFeatureStrategy(MyBaseStrategy):
                     runner_trade_tracker.log_update(
                         msg_type=MessageTypes.MARKET_CLOSE,
                         msg_attrs={
-                            'runner_status': order.runner_status
+                            'runner_status': order.runner_status,
+                            'order_id': str(order.id)
                         },
                         dt=market_book.publish_time,
                         order=order,

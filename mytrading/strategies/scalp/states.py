@@ -362,7 +362,7 @@ class WallTradeStateHedgeWait(tradestates.TradeStateBase):
                 market_book.runners[runner_index],
                 trade_tracker,
                 self.wall_ticks,
-                self.wall_validation) or order.status in TradeStateTypes.order_error_states:
+                self.wall_validation) or order.status in tradestates.order_error_states:
             trade_tracker.log_update(
                 msg_type=WallMessageTypes.WALL_TAKE_HEDGE,
                 dt=market_book.publish_time,

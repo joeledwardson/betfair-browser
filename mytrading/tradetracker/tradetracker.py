@@ -128,7 +128,7 @@ class TradeTracker:
         """
 
         # print update to stream
-        active_logger.log(level, f'{dt} "{format_message(msg_type, msg_attrs)}"')
+        active_logger.log(level, f'{dt} {self.selection_id} {format_message(msg_type.value, msg_attrs)}')
 
         # use previous log odds if not given
         if not display_odds and self._log:
@@ -143,6 +143,9 @@ class TradeTracker:
         #     trade_id = None
         # trade_id = str(trade_id)
 
+        # get trade ID if trade exists else None
+        trade_id = self.active_trade.id if self.active_trade else None
+
         # add to internal list
         self._log.append({
             'dt': dt,
@@ -150,7 +153,7 @@ class TradeTracker:
             'msg_attrs': msg_attrs,
             'display_odds': display_odds,
             'order': order,
-            # 'trade_id': trade_id,
+            'trade_id': trade_id,
         })
 
         # write to file if path specified
@@ -176,6 +179,7 @@ class TradeTracker:
                 msg_type=msg_type,
                 msg_attrs=msg_attrs,
                 display_odds=display_odds,
-                order_info=order_info
+                order_info=order_info,
+                trade_id=trade_id,
             )
 
