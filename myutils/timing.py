@@ -126,10 +126,13 @@ class TimeSimulator():
     def __init__(self):
         self._start_date = datetime.now()
         self._timer = MyTimer()
+
     def start(self):
         self._timer.start()
+
     def stop(self):
         self._timer.stop()
+
     def reset_start(self, start_date: datetime):
 
         # stop timer if running
@@ -149,6 +152,7 @@ class TimeSimulator():
 
     def seconds_elapsed(self):
         return self._timer.elapsed()
+
     def current(self):
         return self._start_date + timedelta(seconds=self._timer.elapsed())
 

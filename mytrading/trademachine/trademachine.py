@@ -1,4 +1,4 @@
-from mytrading.trademachine.tradestates import TradeStates
+from mytrading.trademachine.tradestates import TradeStateTypes
 from myutils import statemachine as stm
 
 import logging
@@ -19,7 +19,7 @@ class RunnerStateMachine(stm.StateMachine):
 
     def process_state_change(self, old_state, new_state):
         active_logger.info(f'runner "{self.selection_id}" has changed from state "{old_state}" to "{new_state}"')
-        if new_state == TradeStates.PENDING:
+        if new_state == TradeStateTypes.PENDING:
             my_debug_breakpoint = True
 
 

@@ -1,9 +1,9 @@
 from dataclasses import dataclass
-
 from betfairlightweight.resources.bettingresources import RunnerBookEX
-
-from mytrading.process.matchbet import active_logger
 from mytrading.process.ticks.ticks import LTICKS_DECODED
+import logging
+
+active_logger = logging.getLogger(__name__)
 
 
 def runner_spread(book_ex: RunnerBookEX) -> float:

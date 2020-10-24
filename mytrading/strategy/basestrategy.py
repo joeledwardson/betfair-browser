@@ -1,8 +1,10 @@
 from betfairlightweight.resources import MarketBook
 from flumine import BaseStrategy
 from flumine.markets.market import Market
+import logging
 
-from mytrading.strategy.featurestrategy import active_logger
+
+active_logger = logging.getLogger(__name__)
 
 
 class MyBaseStrategy(BaseStrategy):

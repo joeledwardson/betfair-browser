@@ -3,10 +3,11 @@ from flumine.order.trade import Trade
 from flumine.order.ordertype import LimitOrder
 
 import logging
+from enum import IntEnum
 
-from mytrading.tradetracker.messages import TrackerMessages
-from mytrading.tradetracker.orderfile import serializable_order_info
-from mytrading.tradetracker.ordertracker import OrderTracker
+from .messages import MessageTypes, format_message
+from .orderinfo import serializable_order_info, write_order_update
+from .ordertracker import OrderTracker
 from myutils import jsonfile
 from typing import List, Dict
 from datetime import datetime
@@ -52,7 +53,7 @@ class TradeTracker:
         for trade in self.trades:
             if trade.id not in ot:
                 self.log_update(
-                    msg_type=TrackerMessages.TRACK_TRADE,
+                    msg_type=MessageTypes.TRACK_TRADE,
                     dt=publish_time,
                     msg_attrs={
                         "trade_id": trade.id
@@ -64,7 +65,7 @@ class TradeTracker:
             for order in [o for o in trade.orders if type(o.order_type) == LimitOrder]:
                 if order.id not in ot[trade.id]:
                     self.log_update(
-                        msg_type=TrackerMessages.TRACK_ORDER,
+                        msg_type=MessageTypes.TRACK_ORDER,
                         dt=publish_time,
                         msg_attrs={
                             "order_id": order.id
@@ -79,7 +80,7 @@ class TradeTracker:
 
                 if order.size_matched != ot[trade.id][order.id].matched:
                     self.log_update(
-                        msg_type=TrackerMessages.MATCHED_SIZE,
+                        msg_type=MessageTypes.MATCHED_SIZE,
                         dt=publish_time,
                         msg_attrs={
                             "order_id": order.id,
@@ -92,14 +93,14 @@ class TradeTracker:
 
                 if order.status != ot[trade.id][order.id].status:
                     self.log_update(
-                        msg_type=TrackerMessages.STATUS_UPDATE,
+                        msg_type=MessageTypes.STATUS_UPDATE,
                         dt=publish_time,
                         msg_attrs={
                             "order_id": order.id,
                             "side": order.side,
                             "price": order.order_type.price,
                             "size": order.order_type.size,
-                            "status": order.status
+                            "status": order.status.value
                         },
                         order=order
                     )
@@ -108,14 +109,13 @@ class TradeTracker:
 
     def log_update(
             self,
-            msg_type: Enum,
+            msg_type: IntEnum,
             dt: datetime,
             msg_attrs: dict = None,
             level=logging.INFO,
             to_file=True,
             display_odds: float = 0.0,
-            order: BetfairOrder = None,
-            trade: Trade = None):
+            order: BetfairOrder = None):
         """
         Log an update
         - msg: verbose string describing the update
@@ -128,28 +128,29 @@ class TradeTracker:
         """
 
         # print update to stream
-        active_logger.log(level, f'{dt} "{self.selection_id}": {msg}')
+        active_logger.log(level, f'{dt} "{format_message(msg_type, msg_attrs)}"')
 
         # use previous log odds if not given
         if not display_odds and self._log:
             display_odds = self._log[-1]['display_odds']
 
-        # get active trade ID if exists, if trade arg not passed
-        if trade:
-            trade_id = trade.id
-        elif self.active_trade:
-            trade_id = self.active_trade.id
-        else:
-            trade_id = None
-        trade_id = str(trade_id)
+        # # get active trade ID if exists, if trade arg not passed
+        # if trade:
+        #     trade_id = trade.id
+        # elif self.active_trade:
+        #     trade_id = self.active_trade.id
+        # else:
+        #     trade_id = None
+        # trade_id = str(trade_id)
 
         # add to internal list
         self._log.append({
             'dt': dt,
-            'msg': msg,
+            'msg_type': msg_type,
+            'msg_attrs': msg_attrs,
             'display_odds': display_odds,
             'order': order,
-            'trade_id': trade_id,
+            # 'trade_id': trade_id,
         })
 
         # write to file if path specified
@@ -165,12 +166,16 @@ class TradeTracker:
             else:
                 order_info = None
 
-            jsonfile.add_to_file(self.file_path, {
-                'selection_id': self.selection_id,
-                'dt': dt.timestamp(),
-                'msg': msg,
-                'display_odds': display_odds,
-                'order': order_info,
-                'trade_id': trade_id,
-                'dt_created': order.date_time_created.timestamp() if order else None
-            })
+            # convert message attrs to empty dict if not set
+            msg_attrs = msg_attrs or {}
+
+            write_order_update(
+                file_path=self.file_path,
+                selection_id=self.selection_id,
+                dt=dt,
+                msg_type=msg_type,
+                msg_attrs=msg_attrs,
+                display_odds=display_odds,
+                order_info=order_info
+            )
+

@@ -12,6 +12,7 @@ from mytrading.process.matchbet import get_match_bet_sums
 from mytrading.process.profit import order_profit
 from mytrading.strategy.side import select_ladder_side, select_operator_side
 from mytrading.tradetracker.tradetracker import TradeTracker
+from mytrading.tradetracker.messages import MessageTypes
 from myutils import statemachine as stm
 
 
@@ -29,7 +30,7 @@ order_pending_states = [
 ]
 
 
-class TradeStates(Enum):
+class TradeStateTypes(Enum):
     """
     Enumeration of trade state keys used for names in state instances
     """
@@ -53,17 +54,17 @@ class TradeStateBase(stm.State):
     """
 
     # override default state name and next state without the need for sub-class
-    def __init__(self, name: TradeStates = None, next_state: TradeStates = None):
+    def __init__(self, name: TradeStateTypes = None, next_state: TradeStateTypes = None):
         if name:
             self.name = name
         if next_state:
             self.next_state = next_state
 
     # use enumerations for name of state for other states to refer to
-    name: TradeStates = TradeStates.BASE
+    name: TradeStateTypes = TradeStateTypes.BASE
 
     # easily overridable state to progress to when state action is complete
-    next_state: TradeStates = TradeStates.BASE
+    next_state: TradeStateTypes = TradeStateTypes.BASE
 
     def enter(
             self,
@@ -107,7 +108,7 @@ class TradeStatePending(TradeStateBase):
     intermediary state: run() returns True when complete
     """
 
-    name = TradeStates.PENDING
+    name = TradeStateTypes.PENDING
 
     # called to operate state - return None to remain in same state, or return string for new state
     def run(self, trade_tracker: TradeTracker, **inputs):
@@ -124,8 +125,8 @@ class TradeStateCreateTrade(TradeStateBase):
     """
     Create trade instance and move to next state
     """
-    name = TradeStates.CREATE_TRADE
-    next_state = TradeStates.IDLE
+    name = TradeStateTypes.CREATE_TRADE
+    next_state = TradeStateTypes.IDLE
 
     def run(
             self,
@@ -152,8 +153,8 @@ class TradeStateIdle(TradeStateBase):
     idle state, waiting to open trade as specified by implementing in sub-classes trade_criteria() function
     Once trade_criteria() returns True, will move to next state
     """
-    name = TradeStates.IDLE
-    next_state = TradeStates.OPEN_PLACING
+    name = TradeStateTypes.IDLE
+    next_state = TradeStateTypes.OPEN_PLACING
 
     # return true to move to next state opening trade, false to remain idle
     def trade_criteria(
@@ -175,7 +176,13 @@ class TradeStateIdle(TradeStateBase):
             strategy: BaseStrategy,
             **inputs
     ):
-        if self.trade_criteria(market_book, market, runner_index, trade_tracker, strategy, **inputs):
+        if self.trade_criteria(
+                market_book=market_book,
+                market=market,
+                runner_index=runner_index,
+                trade_tracker=trade_tracker,
+                strategy=strategy,
+                **inputs):
             return self.next_state
 
 
@@ -183,8 +190,8 @@ class TradeStateOpenPlace(TradeStateBase):
     """
     place an opening trade
     """
-    name = TradeStates.OPEN_PLACING
-    next_state = TradeStates.OPEN_MATCHING
+    name = TradeStateTypes.OPEN_PLACING
+    next_state = TradeStateTypes.OPEN_MATCHING
 
     def place_order(
             self,
@@ -207,18 +214,29 @@ class TradeStateOpenPlace(TradeStateBase):
     ):
         limit_order = self.place_order(market_book, market, runner_index, trade_tracker, strategy, **inputs)
         if not limit_order:
-            return TradeStates.CLEANING
+            return TradeStateTypes.CLEANING
         else:
+            trade_tracker.log_update(
+                msg_type=MessageTypes.OPEN_PLACE,
+                msg_attrs={
+                    'side':  limit_order.side,
+                    'price': limit_order.order_type.price,
+                    'size': limit_order.order_type.size,
+                },
+                dt=market_book.publish_time,
+                display_odds=limit_order.order_type.price,
+                order=limit_order
+            )
             trade_tracker.active_order = limit_order
             trade_tracker.open_side = limit_order.side
-            return [TradeStates.PENDING, self.next_state]
+            return [TradeStateTypes.PENDING, self.next_state]
 
 
 class TradeStateOpenMatching(TradeStateBase):
     """
     wait for open trade to match
     """
-    name = TradeStates.OPEN_MATCHING
+    name = TradeStateTypes.OPEN_MATCHING
     # don't bother with 'next_state' as too many different paths from this state
 
     # return new state(s) if different action required, otherwise None
@@ -249,10 +267,10 @@ class TradeStateOpenMatching(TradeStateBase):
             sts = trade_tracker.active_order.status
 
             if sts == OrderStatus.EXECUTION_COMPLETE:
-                return TradeStates.HEDGE_SELECT
+                return TradeStateTypes.HEDGE_SELECT
 
             elif sts in order_error_states:
-                return TradeStates.CLEANING
+                return TradeStateTypes.CLEANING
 
 
 class TradeStateBin(TradeStateBase):
@@ -262,7 +280,7 @@ class TradeStateBin(TradeStateBase):
     intermediary state: run() returns True when complete
     """
 
-    name = TradeStates.BIN
+    name = TradeStateTypes.BIN
 
     def run(
             self,
@@ -295,8 +313,8 @@ class TradeStateHedgeSelect(TradeStateBase):
     proceed to hedge placement state, defined by `next_state`
     proceed to 'hedge_state' if found in `inputs` kwargs in run()
     """
-    name = TradeStates.HEDGE_SELECT
-    next_state = TradeStates.HEDGE_PLACE_TAKE
+    name = TradeStateTypes.HEDGE_SELECT
+    next_state = TradeStateTypes.HEDGE_PLACE_TAKE
 
     def run(self, **inputs):
         return inputs.get('hedge_state', self.next_state)
@@ -307,10 +325,10 @@ class TradeStateHedgePlaceTake(TradeStateBase):
     place an order to hedge active trade orders at the available price
     """
 
-    name = TradeStates.HEDGE_PLACE_TAKE
-    next_state = TradeStates.HEDGE_TAKE_MATCHING
+    name = TradeStateTypes.HEDGE_PLACE_TAKE
+    next_state = TradeStateTypes.HEDGE_TAKE_MATCHING
 
-    def __init__(self, min_hedge_price, name: TradeStates = None, next_state: TradeStates = None):
+    def __init__(self, min_hedge_price, name: TradeStateTypes = None, next_state: TradeStateTypes = None):
         super().__init__(name, next_state)
         self.min_hedge_price = min_hedge_price
 
@@ -345,11 +363,14 @@ class TradeStateHedgePlaceTake(TradeStateBase):
         outstanding_profit = match_bet_sums.outstanding_profit()
         if abs(outstanding_profit) <= self.min_hedge_price:
             trade_tracker.log_update(
-                f'win/loss diff £{outstanding_profit:.2f} doesnt exceed required hedge amount £'
-                f'{self.min_hedge_price:.2f}',
-                market_book.publish_time
+                msg_type=MessageTypes.HEDGE_NOT_MET,
+                msg_attrs={
+                    'outstanding_profit': outstanding_profit,
+                    'min_hedge': self.min_hedge_price
+                },
+                dt=market_book.publish_time
             )
-            return TradeStates.CLEANING
+            return TradeStateTypes.CLEANING
 
         runner = market_book.runners[runner_index]
 
@@ -368,24 +389,35 @@ class TradeStateHedgePlaceTake(TradeStateBase):
             close_ladder = runner.ex.available_to_back
 
         if not open_ladder or not close_ladder:
-            trade_tracker.log_update('one side of book is completely empty...', market_book.publish_time)
-            return TradeStates.CLEANING
+            trade_tracker.log_update(
+                msg_type=MessageTypes.BOOKS_EMPTY,
+                dt=market_book.publish_time
+            )
+            return TradeStateTypes.CLEANING
 
         green_price = self.get_hedge_price(open_ladder, close_ladder, close_side, trade_tracker)
 
         if not green_price:
             trade_tracker.log_update(
-                f'invalid green price {green_price}',
-                market_book.publish_time
+                msg_type=MessageTypes.GREEN_INVALID,
+                msg_attrs={
+                    'green_price': green_price
+                },
+                dt=market_book.publish_time
             )
-            return TradeStates.CLEANING
+            return TradeStateTypes.CLEANING
 
         green_size = abs(outstanding_profit) / green_price
         green_size = round(green_size, 2)
 
         trade_tracker.log_update(
-            f'greening active order side {close_side} on {green_price} for £{green_size:.2f}',
-            market_book.publish_time,
+            msg_type=MessageTypes.GREEN_PLACE,
+            msg_attrs={
+                'close_side': close_side,
+                'green_price': green_price,
+                'green_size': green_size
+            },
+            dt=market_book.publish_time,
             display_odds=green_price,
         )
         green_order = trade_tracker.active_trade.create_order(
@@ -397,7 +429,7 @@ class TradeStateHedgePlaceTake(TradeStateBase):
         strategy.place_order(market, green_order)
 
         trade_tracker.active_order = green_order
-        return [TradeStates.PENDING, self.next_state]
+        return [TradeStateTypes.PENDING, self.next_state]
 
 
 class TradeStateHedgeTakeWait(TradeStateBase):
@@ -407,8 +439,8 @@ class TradeStateHedgeTakeWait(TradeStateBase):
     a known disadvantage of this is if the price drifts massively, it will not account for the drop in stake required
     """
 
-    name = TradeStates.HEDGE_TAKE_MATCHING
-    next_state = TradeStates.CLEANING
+    name = TradeStateTypes.HEDGE_TAKE_MATCHING
+    next_state = TradeStateTypes.CLEANING
 
     def run(
             self,
@@ -425,14 +457,17 @@ class TradeStateHedgeTakeWait(TradeStateBase):
         # if there has been an error with the order, try to hedge again
         if order.status in order_error_states:
             trade_tracker.log_update(
-                f'error trying to hedge: "{order.status}, retrying...',
-                market_book.publish_time
+                msg_type=MessageTypes.HEDGE_ERROR,
+                msg_attrs={
+                    'order_status': order.status.value,
+                },
+                dt=market_book.publish_time
             )
-            return TradeStates.HEDGE_PLACE_TAKE
+            return TradeStateTypes.HEDGE_PLACE_TAKE
         elif order.status == OrderStatus.EXECUTION_COMPLETE:
             return self.next_state
         elif order.status == OrderStatus.CANCELLING:
-            return TradeStates.HEDGE_PLACE_TAKE
+            return TradeStateTypes.HEDGE_PLACE_TAKE
         elif order.status == OrderStatus.EXECUTABLE:
 
             # get ladder on close side for hedging
@@ -448,12 +483,15 @@ class TradeStateHedgeTakeWait(TradeStateBase):
             # if current price is not the same as order price then move
             if available and op(available[0]['price'], order.order_type.price):
                 trade_tracker.log_update(
-                    f'cancelling hedge at {order.order_type.price} for new price {available[0]["price"]}',
-                    # f'moving hedge price from {order.order_type.price} to {available[0]["price"]}',
-                    market_book.publish_time,
+                    msg_type=MessageTypes.HEDGE_REPLACE,
+                    msg_attrs={
+                        'old_price': order.order_type.price,
+                        'new_price': available[0]["price"]
+                    },
+                    dt=market_book.publish_time,
                     display_odds=available[0]['price'],
                 )
-                return [TradeStates.BIN, TradeStates.HEDGE_PLACE_TAKE]
+                return [TradeStateTypes.BIN, TradeStateTypes.HEDGE_PLACE_TAKE]
                 # replacing doesn't seem to work in back-test mode
                 # order.replace(available[0]['price'])
 
@@ -461,15 +499,18 @@ class TradeStateHedgeTakeWait(TradeStateBase):
             # theoretically should never reach here - pending states covered, Eerror states, EXECUTABLE and
             # EXECUTION_COMPLETE
             trade_tracker.log_update(
-                f'unexpected order state reached {order.status}',
-                market_book.publish_time,
+                msg_type=MessageTypes.HEDGE_UNKNOWN,
+                msg_attrs={
+                    'order_status': order.status.value
+                },
+                dt=market_book.publish_time,
             )
-            return [TradeStates.BIN, TradeStates.HEDGE_PLACE_TAKE]
+            return [TradeStateTypes.BIN, TradeStateTypes.HEDGE_PLACE_TAKE]
 
 
 class TradeStateClean(TradeStateBase):
 
-    name = TradeStates.CLEANING
+    name = TradeStateTypes.CLEANING
 
     def enter(
             self,
@@ -500,8 +541,12 @@ class TradeStateClean(TradeStateBase):
             for o in orders)
 
         trade_tracker.log_update(
-            f'trade complete, case win: £{win_profit:.2f}, case loss: £{loss_profit:.2f}',
-            market_book.publish_time
+            msg_type=MessageTypes.TRADE_COMPLETE,
+            msg_attrs={
+                'win_profit': win_profit,
+                'loss_profit': loss_profit
+            },
+            dt=market_book.publish_time
         )
 
     def run(self, **kwargs):

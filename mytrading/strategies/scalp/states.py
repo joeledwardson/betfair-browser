@@ -8,19 +8,21 @@ from betfairlightweight.resources.bettingresources import RunnerBook
 from flumine.markets.market import Market
 from flumine.order.order import BetfairOrder, OrderStatus
 from flumine.order.ordertype import LimitOrder
+from flumine import BaseStrategy
 
-from mytrading.trademachine.tradestates import TradeStates
+from .messages import WallMessageTypes
+from mytrading.trademachine import tradestates
+from mytrading.trademachine.tradestates import TradeStateTypes
 from mytrading.process.ladder import runner_spread, BfLadderPoint
 from mytrading.process.prices import best_price
 from mytrading.process.ticks.ticks import TICKS, LTICKS_DECODED, LTICKS
-from flumine import BaseStrategy
-from mytrading.strategies.scalp.walltradetracker import WallTradeTracker
+from .walltradetracker import WallTradeTracker
 from mytrading.strategy.side import select_ladder_side, invert_side, select_operator_side
 from myutils import generic
 from myutils.generic import i_prev, i_next
 
 
-class WallTradeStates(Enum):
+class WallTradeStateTypes(Enum):
     """
     additional wall trade state keys, used in conjunction with `bf_trademachine.TradeStates`
     """
@@ -41,31 +43,13 @@ def validate_wall(
     - checks if required proportion of amount available at original wall price in 'trade_tracker' is there
     """
 
-    # check if wall still exists
-    # if inputs.get('wall_point') is None:
-    #     trade_tracker.log(
-    #         f'wall validation failed: wall variables not detected/invalid: "{inputs.get("wall_point")}"',
-    #         publish_time
-    #     )
-    #     return False
-
     # check wall exists in trade tracker
     if not trade_tracker.wall:
         trade_tracker.log_update(
-            f'wall validation failed: no wall instance found in trade_tracker',
-            publish_time,
+            msg_type=WallMessageTypes.NO_WALL,
+            dt=publish_time,
             level=logging.WARNING
         )
-
-    # check wall is on the right side
-    # wall: BfLadderPoint = inputs['wall_point']
-    # if wall.side != trade_tracker.wall.side:
-    #     trade_tracker.log(
-    #         f'wall validation failed:  wall side "{wall.side}" is not the same as original wall side '
-    #         f'"{trade_tracker.wall.side}"',
-    #         publish_time
-    #     )
-    #     return False
 
     # get ladder on wall side of book
     available = select_ladder_side(runner_book.ex, trade_tracker.wall.side)
@@ -79,8 +63,11 @@ def validate_wall(
     # if no money at original wall pricesize (or out of wall ticks range) then abort
     if not wall_price_size:
         trade_tracker.log_update(
-            f'wall validation failed: no price info detected at wall price {trade_tracker.wall.price}',
-            publish_time,
+            msg_type=WallMessageTypes.NO_WALL_PRICE,
+            msg_attrs={
+                'wall_price': trade_tracker.wall.price
+            },
+            dt=publish_time,
             display_odds=trade_tracker.wall.price,
         )
         return False
@@ -88,14 +75,14 @@ def validate_wall(
     # if size of bet at wall price has decreased by more than allowed amount for validation then abort
     if wall_price_size['size'] < wall_validation * trade_tracker.wall.size:
         trade_tracker.log_update(
-            'wall validation failed:  current amount at wall price {0} of £{1:.2f} is less than validation multiplier '
-            '{2} of original size £{3:.2f}'.format(
-                trade_tracker.wall.price,
-                wall_price_size["size"],
-                wall_validation,
-                trade_tracker.wall.size
-            ),
-            publish_time,
+            msg_type=WallMessageTypes.WALL_SIZE_FAIL,
+            msg_attrs={
+                'wall_price': trade_tracker.wall.price,
+                'wall_size': wall_price_size["size"],
+                'wall_validation': wall_validation,
+                'old_wall_size': trade_tracker.wall.size
+            },
+            dt=publish_time,
             display_odds=trade_tracker.wall.price
         )
         return False
@@ -132,7 +119,7 @@ def get_wall_adjacent(
     return LTICKS_DECODED[new_tick_index]
 
 
-class WallTradeStateIdle(TradeStates.TradeStateIdle):
+class WallTradeStateIdle(tradestates.TradeStateIdle):
     """
     Idle state implements `trade_criteria()` function, to return True (indicating move to open trade place state)
     once a valid wall is detected on inputs
@@ -154,19 +141,20 @@ class WallTradeStateIdle(TradeStates.TradeStateIdle):
             spread = runner_spread(market_book.runners[runner_index].ex)
             if spread <= self.max_tick_spread:
                 trade_tracker.log_update(
-                    'detected wall {0}, best back {1}, best lay {2}, spread ticks {3}'.format(
-                        inputs["wall_point"],
-                        best_price(market_book.runners[runner_index].ex.available_to_back),
-                        best_price(market_book.runners[runner_index].ex.available_to_lay),
-                        spread
-                    ),
-                    market_book.publish_time,
+                    msg_type=WallMessageTypes.WALL_DETECT,
+                    msg_attrs={
+                        'wall_point': inputs['wall_point'].__dict__,
+                        'best_atb': best_price(market_book.runners[runner_index].ex.available_to_back),
+                        'best_atl': best_price(market_book.runners[runner_index].ex.available_to_lay),
+                        'spread_ticks': spread,
+                    },
+                    dt=market_book.publish_time,
                     display_odds=inputs['wall_point'].price,
                 )
                 return True
 
 
-class WallTradeStateOpenPlace(TradeStates.TradeStateOpenPlace):
+class WallTradeStateOpenPlace(tradestates.TradeStateOpenPlace):
     """
     State to place an opening trade, implementing `place_trade()` function - places a trade on tick above/below wall
     price sent via kwarg inputs
@@ -188,8 +176,8 @@ class WallTradeStateOpenPlace(TradeStates.TradeStateOpenPlace):
         # check if wall inputs are in extra kwargs
         if inputs.get('wall_point') is None:
             trade_tracker.log_update(
-                f'wall variables detected not valid: {inputs.get("wall_point")}',
-                market_book.publish_time,
+                msg_type=WallMessageTypes.WALL_VARIABLE_INVALID,
+                dt=market_book.publish_time,
                 level=logging.WARNING,
             )
             return None
@@ -210,16 +198,11 @@ class WallTradeStateOpenPlace(TradeStates.TradeStateOpenPlace):
                 size=self.stake_size
             ))
         strategy.place_order(market, order)
-        trade_tracker.log_update(
-            f'placing open order at {price} for £{self.stake_size:.2f} on {side} side',
-            market_book.publish_time,
-            display_odds=price,
-            order=order
-        )
+
         return order
 
 
-class WallTradeStateOpenMatching(TradeStates.TradeStateOpenMatching):
+class WallTradeStateOpenMatching(tradestates.TradeStateOpenMatching):
     """
     Wait for open trade to match, implements `open_trade_processing()` to return state if state change required
     aborts if wall does not meet validation criteria from when it was detected at point of placing opening trade
@@ -252,9 +235,9 @@ class WallTradeStateOpenMatching(TradeStates.TradeStateOpenMatching):
             wall_validation=self.wall_validation
         ):
             return [
-                TradeStates.TradeStates.BIN,
-                TradeStates.TradeStates.PENDING,
-                TradeStates.TradeStates.HEDGE_PLACE_TAKE
+                TradeStateTypes.BIN,
+                TradeStateTypes.PENDING,
+                TradeStateTypes.HEDGE_PLACE_TAKE
             ]
 
         # get > or < comparator for BACK/LAY side selection
@@ -277,45 +260,48 @@ class WallTradeStateOpenMatching(TradeStates.TradeStateOpenMatching):
         new_price = get_wall_adjacent(wall.side, wall.tick_index)
 
         # replace order with better price
-
         trade_tracker.active_order.replace(new_price)
 
         # replace wall parameters
         trade_tracker.wall = wall
 
         trade_tracker.log_update(
-            f'replacing active order at price {trade_tracker.active_order.order_type.price} with new price {new_price}',
-            market_book.publish_time,
+            msg_type=WallMessageTypes.REPLACE_WALL_ORDER,
+            msg_attrs={
+                'price': trade_tracker.active_order.order_type.price,
+                'new_price': new_price
+            },
+            dt=market_book.publish_time,
             display_odds=new_price
         )
 
         # wait for pending to complete then return to this state
         return [
-            TradeStates.TradeStates.PENDING,
-            TradeStates.TradeStates.OPEN_MATCHING
+            TradeStateTypes.PENDING,
+            TradeStateTypes.OPEN_MATCHING
         ]
 
 
-class WallTradeStateHedgeSelect(TradeStates.TradeStateHedgeSelect):
+class WallTradeStateHedgeSelect(tradestates.TradeStateHedgeSelect):
     """
     select wall hedge trade placement state
     """
-    next_state = WallTradeStates.WALL_HEDGE_PLACE
+    next_state = WallTradeStateTypes.WALL_HEDGE_PLACE
 
 
-class WallTradeStateHedgeOffset(TradeStates.TradeStateHedgePlaceTake):
+class WallTradeStateHedgeOffset(tradestates.TradeStateHedgePlaceTake):
     """
     place hedge at number of ticks away from open price
     """
-    name = WallTradeStates.WALL_HEDGE_PLACE
-    next_state = WallTradeStates.WALL_HEDGE_MATCHING
+    name = WallTradeStateTypes.WALL_HEDGE_PLACE
+    next_state = WallTradeStateTypes.WALL_HEDGE_MATCHING
 
     def __init__(
             self,
             tick_target,
             min_hedge_price,
-            name: WallTradeStates = None,
-            next_state: WallTradeStates = None,
+            name: WallTradeStateTypes = None,
+            next_state: WallTradeStateTypes = None,
     ):
         super().__init__(min_hedge_price, name, next_state)
         self.tick_target = tick_target
@@ -343,13 +329,13 @@ class WallTradeStateHedgeOffset(TradeStates.TradeStateHedgePlaceTake):
         return LTICKS_DECODED[wall_price_index]
 
 
-class WallTradeStateHedgeWait(TradeStates.TradeStateBase):
+class WallTradeStateHedgeWait(tradestates.TradeStateBase):
     """
     wait for hedge to complete, if wall disappears then take available price
     """
 
-    name = WallTradeStates.WALL_HEDGE_MATCHING
-    next_state = TradeStates.TradeStates.CLEANING
+    name = WallTradeStateTypes.WALL_HEDGE_MATCHING
+    next_state = TradeStateTypes.CLEANING
 
     def __init__(self, wall_ticks, wall_validation, *args, **kwargs):
         self.wall_ticks = wall_ticks
@@ -376,14 +362,14 @@ class WallTradeStateHedgeWait(TradeStates.TradeStateBase):
                 market_book.runners[runner_index],
                 trade_tracker,
                 self.wall_ticks,
-                self.wall_validation) or order.status in TradeStates.order_error_states:
+                self.wall_validation) or order.status in TradeStateTypes.order_error_states:
             trade_tracker.log_update(
-                f'wall validation failed, binning trade then taking available',
-                market_book.publish_time
+                msg_type=WallMessageTypes.WALL_TAKE_HEDGE,
+                dt=market_book.publish_time,
             )
             # if wall has gone or error then abandon position and take whatever is available to hedge
             return [
-                TradeStates.TradeStates.BIN,
-                TradeStates.TradeStates.PENDING,
-                TradeStates.TradeStates.HEDGE_PLACE_TAKE
+                TradeStateTypes.BIN,
+                TradeStateTypes.PENDING,
+                TradeStateTypes.HEDGE_PLACE_TAKE
             ]

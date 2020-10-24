@@ -6,7 +6,7 @@ from datetime import timedelta, datetime
 from dash.dependencies import Input, Output, State
 import re
 
-from mytrading.tradetracker.orderfile import get_order_updates
+from mytrading.tradetracker.orderinfo import get_order_updates
 from mytrading.utils.storage import EXT_ORDER_INFO, EXT_ORDER_RESULT
 from mytrading.process.prices import starting_odds
 from mytrading.browser.data import DashData

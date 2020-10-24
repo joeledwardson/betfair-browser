@@ -5,7 +5,6 @@ from typing import List, Dict
 from datetime import datetime
 import logging
 import pandas as pd
-from functools import partial
 from mytrading.feature import feature
 
 active_logger = logging.getLogger(__name__)
@@ -262,32 +261,5 @@ def set_figure_layout(fig: go.Figure, title: str, market_time: datetime, display
             market_time
         ],
     })
-
-
-def plot_orders(fig: go.Figure, orders_df: pd.DataFrame):
-    """
-    add dataframe of order information to plot
-
-    orders dataframe is expected to have
-    - datetime timestamp as index
-    - 'msg' column for string update
-    - 'display_odds' column for price to display on chart
-    """
-
-    for i, (trade_id, df) in enumerate(orders_df.groupby(['trade_id'])):
-
-        # so can see annotations for overlapping points need to combine text (use last instance for display odds)
-        msgs = df.groupby(df.index)['msg'].apply(lambda x: '<br>'.join(x))
-        display_odds = df.groupby(df.index)['display_odds'].last()
-        df = pd.concat([msgs, display_odds], axis=1)
-
-        fig.add_trace(go.Scatter(
-            x=df.index,
-            y=df['display_odds'],
-            text=df['msg'],
-            name='order info',
-            legendgroup='order info',
-            showlegend=(i == 0),
-        ))
 
 

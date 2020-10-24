@@ -12,10 +12,11 @@ import mytrading.trademachine.tradestates
 from mytrading.trademachine import trademachine as bftm
 from mytrading.feature import feature as bff
 from mytrading.feature.feature import RunnerFeatureBase
-from mytrading.strategy.basestrategy import MyBaseStrategy
-from mytrading.strategy.featureholder import FeatureHolder
+from .basestrategy import MyBaseStrategy
+from .featureholder import FeatureHolder
 from mytrading.tradetracker.tradetracker import TradeTracker
-from mytrading.tradetracker.orderfile import serializable_order_info
+from mytrading.tradetracker.orderinfo import serializable_order_info
+from mytrading.tradetracker.messages import MessageTypes
 from mytrading.utils.storage import construct_hist_dir, DIR_BASE, SUBDIR_STRATEGY_HISTORIC, EXT_ORDER_RESULT, EXT_ORDER_INFO
 from myutils.timing import EdgeDetector
 from myutils import statemachine as stm
@@ -46,13 +47,13 @@ class MyFeatureStrategy(MyBaseStrategy):
     StrategyTradeTracker = TradeTracker
 
     # list of states that indicate no trade or anything is active
-    inactive_states = [mytrading.trademachine.tradestates.TradeStates.IDLE, mytrading.trademachine.tradestates.TradeStates.CLEANING]
+    inactive_states = [mytrading.trademachine.tradestates.TradeStateTypes.IDLE, mytrading.trademachine.tradestates.TradeStateTypes.CLEANING]
 
     # state transitions to cancel a trade and hedge
     force_hedge_states = [
-        mytrading.trademachine.tradestates.TradeStates.BIN,
-        mytrading.trademachine.tradestates.TradeStates.PENDING,
-        mytrading.trademachine.tradestates.TradeStates.HEDGE_PLACE_TAKE
+        mytrading.trademachine.tradestates.TradeStateTypes.BIN,
+        mytrading.trademachine.tradestates.TradeStateTypes.PENDING,
+        mytrading.trademachine.tradestates.TradeStateTypes.HEDGE_PLACE_TAKE
     ]
 
     def __init__(self, name, strategy_dir=STRATEGY_DIR, *args, **kwargs):
@@ -145,10 +146,12 @@ class MyFeatureStrategy(MyBaseStrategy):
                     add_to_file(file_path, order_info)
 
                     runner_trade_tracker.log_update(
-                        msg=f'market closed, runner status "{order.runner_status}"',
+                        msg_type=MessageTypes.MARKET_CLOSE,
+                        msg_attrs={
+                            'runner_status': order.runner_status
+                        },
                         dt=market_book.publish_time,
                         order=order,
-                        trade=trade
                     )
 
     def market_initialisation(self, market: Market, market_book: MarketBook, feature_holder: FeatureHolder):
@@ -215,7 +218,7 @@ class MyFeatureStrategy(MyBaseStrategy):
             if not self.cutoff.current_value:
 
                 # if trade tracker done then create a new one
-                if state_machine.current_state_key == mytrading.trademachine.tradestates.TradeStates.CLEANING:
+                if state_machine.current_state_key == mytrading.trademachine.tradestates.TradeStateTypes.CLEANING:
                     active_logger.info(f'runner "{runner.selection_id}" finished trade, resetting...')
                     self._reset_complete_trade(state_machine, trade_tracker)
 

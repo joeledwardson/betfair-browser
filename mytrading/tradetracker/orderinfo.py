@@ -1,9 +1,12 @@
 from datetime import datetime
 import pandas as pd
 from flumine.order.order import BetfairOrder
-from myutils.jsonfile import read_file
+from myutils.jsonfile import read_file, add_to_file
 import logging
 from mytrading.process.profit import order_profit
+from typing import Dict
+from enum import IntEnum
+
 
 active_logger = logging.getLogger(__name__)
 
@@ -21,11 +24,10 @@ def dict_order_profit(order_info: dict) -> float:
         side = order_info['info']['side']
         price = order_info['info']['average_price_matched']
         size = order_info['info']['size_matched']
+        return order_profit(sts, side, price, size)
     except Exception as e:
         active_logger.warning(f'failed to get profit elements: "{e}"')
         return 0
-
-    return order_profit(sts, side, price, size)
 
 
 def get_order_updates(file_path) -> pd.DataFrame:
@@ -36,8 +38,9 @@ def get_order_updates(file_path) -> pd.DataFrame:
         order_data = read_file(file_path)
         if order_data:
             order_df = pd.DataFrame(order_data)
-            order_df.index = order_df['dt'].apply(datetime.fromtimestamp)
-            return order_df.drop(['dt'], axis=1)
+            if order_df.shape[0]:
+                order_df.index = order_df['dt'].apply(datetime.fromtimestamp)
+                return order_df.drop(['dt'], axis=1)
     return pd.DataFrame()
 
 
@@ -66,38 +69,20 @@ def serializable_order_info(order: BetfairOrder) -> dict:
     return info
 
 
-# if __name__=='__main__':
-#     file_path = r"D:\Betfair_data\historic_strategies\scalp\2020-10-21T17_25_42\4339\2020\May\31\29823749\1.170571182\28567516.orderresult"
-#     go.Figure(
-#         go.Table(
-#             **plotly_table_kwargs(
-#                 process_profit_table(get_profit_table(file_path))
-#             )
-#         )
-#     ).show()
-
-# def write_order_update(
-#         file_path: str,
-#         order: BetfairOrder,
-#         selection_id: int,
-#         dt: datetime,
-#         msg: str,
-#         display_odds: int,
-#         trade_id,
-# ):
-#
-#     # get order serialized info (if exist)
-#     if order:
-#         order_info = serializable_order_info(order)
-#     else:
-#         order_info = None
-#
-#     json_file.add_to_file(file_path, {
-#         'selection_id': selection_id,
-#         'dt': dt.timestamp(),
-#         'msg': msg,
-#         'display_odds': display_odds,
-#         'order': order_info,
-#         'trade_id': trade_id,
-#         'dt_created': order.date_time_created.timestamp() if order else None
-#     })
+def write_order_update(
+        file_path: str,
+        selection_id: int,
+        dt: datetime,
+        msg_type: IntEnum,
+        msg_attrs: Dict,
+        display_odds: float,
+        order_info: Dict,
+):
+    add_to_file(file_path, {
+        'selection_id': selection_id,
+        'dt': dt.timestamp(),
+        'msg_type': msg_type.value,
+        'msg_attrs': msg_attrs,
+        'display_odds': display_odds,
+        'order_info': order_info,
+    })

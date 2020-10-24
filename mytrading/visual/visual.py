@@ -10,10 +10,14 @@ import mytrading.visual
 import mytrading.visual.config
 from mytrading.feature import feature, window, window as bfw, feature as bff
 from mytrading.visual import functions as bfv
-from mytrading.visual.functions import active_logger, get_yaxes_names, create_figure, \
-    add_feature_trace, plot_orders, set_figure_layout
+from mytrading.visual.functions import get_yaxes_names, create_figure, \
+    add_feature_trace, set_figure_layout
+from mytrading.visual.orderinfo import plot_orders
 from mytrading.visual.config import get_default_plot_config
 from myutils import generic
+import logging
+
+active_logger = logging.getLogger(__name__)
 
 
 def fig_to_file(fig: go.Figure, file_path, mode='a'):

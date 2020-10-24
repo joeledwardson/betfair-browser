@@ -2,7 +2,7 @@ from datetime import datetime
 
 import pandas as pd
 
-from mytrading.tradetracker.orderfile import dict_order_profit
+from mytrading.tradetracker.orderinfo import dict_order_profit
 from myutils.generic import dgetattr, dattr_name
 from myutils.jsonfile import read_file
 from myutils.timing import format_timedelta
