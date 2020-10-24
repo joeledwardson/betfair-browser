@@ -4,7 +4,7 @@ from betfairlightweight.resources.bettingresources import MarketBook, RunnerBook
 import mytrading.trademachine.tradestates
 from mytrading.strategies.scalp.states import WallTradeStateIdle, WallTradeStateOpenPlace, \
     WallTradeStateOpenMatching, WallTradeStateHedgeSelect, WallTradeStateHedgeOffset, WallTradeStateHedgeWait
-from mytrading.strategies.scalp.walltradetracker import WallTradeTracker
+from mytrading.strategies.scalp.scalptradetracker import WallTradeTracker
 from mytrading.trademachine import trademachine as bftm
 from mytrading.strategy.featurestrategy import MyFeatureStrategy
 from mytrading.process.ladder import BfLadderPoint, get_ladder_point

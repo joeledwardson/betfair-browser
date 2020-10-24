@@ -16,7 +16,7 @@ from mytrading.trademachine.tradestates import TradeStateTypes
 from mytrading.process.ladder import runner_spread, BfLadderPoint
 from mytrading.process.prices import best_price
 from mytrading.process.ticks.ticks import TICKS, LTICKS_DECODED, LTICKS
-from .walltradetracker import WallTradeTracker
+from .scalptradetracker import WallTradeTracker
 from mytrading.strategy.side import select_ladder_side, invert_side, select_operator_side
 from myutils import generic
 from myutils.generic import i_prev, i_next

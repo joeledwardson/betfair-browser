@@ -1,9 +1,6 @@
 from typing import Dict
 from enum import Enum
 from mytrading.tradetracker.messages import register_formatter
-# from myutils.counter import Counter
-
-# counter = Counter(next_enum())
 
 
 class WallMessageTypes(Enum):
