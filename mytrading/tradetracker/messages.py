@@ -1,9 +1,12 @@
-from enum import IntEnum
+from enum import Enum
 from typing import Dict, Callable
 from myutils.counter import Counter
+import logging
 
-message_formatters: Dict[IntEnum, Callable] = {}
-counter = Counter()
+active_logger = logging.getLogger(__name__)
+
+message_formatters: Dict[Enum, Callable] = {}
+# counter = Counter()
 
 
 def format_message(msg_type, msg_attrs: Dict) -> str:
@@ -17,36 +20,39 @@ def format_message(msg_type, msg_attrs: Dict) -> str:
         return f'message type "{msg_type}", attributes: "{msg_attrs}"'
 
 
-def next_enum() -> int:
-    """get next available integer enumeration for message type keys"""
-    return max(enm.value for enm in message_formatters.keys()) + 1
+# def next_enum() -> int:
+#     """get next available integer enumeration for message type keys"""
+#     return max(enm.value for enm in message_formatters.keys()) + 1
 
 
-def register_formatter(key: IntEnum):
+def register_formatter(key: Enum):
     """register a formatter(attrs: Dict)->str function with an integer Enumeration key to the dictionary of
     formatters"""
     def decorator(func):
-        message_formatters[key] = func
+        if key.value in message_formatters:
+            active_logger.critical(f'message type {key.value} already exists!')
+        else:
+            message_formatters[key.value] = func
         return func
     return decorator
 
 
-class MessageTypes(IntEnum):
+class MessageTypes(Enum):
     """Enumeration types for messages"""
-    TRACK_TRADE = counter.inc()
-    TRACK_ORDER = counter.inc()
-    MATCHED_SIZE = counter.inc()
-    STATUS_UPDATE = counter.inc()
-    OPEN_PLACE = counter.inc()
-    MARKET_CLOSE = counter.inc()
-    HEDGE_NOT_MET = counter.inc()
-    BOOKS_EMPTY = counter.inc()
-    GREEN_INVALID = counter.inc()
-    GREEN_PLACE = counter.inc()
-    HEDGE_ERROR = counter.inc()
-    HEDGE_REPLACE = counter.inc()
-    HEDGE_UNKNOWN = counter.inc()
-    TRADE_COMPLETE = counter.inc()
+    TRACK_TRADE = 'tracking new trade'
+    TRACK_ORDER = 'tracking new order'
+    MATCHED_SIZE = 'order matched amount change'
+    STATUS_UPDATE = 'order status update'
+    OPEN_PLACE = 'placing opening order'
+    MARKET_CLOSE = 'market closed'
+    HEDGE_NOT_MET = 'hedge minimum not met'
+    BOOKS_EMPTY = 'back/lay books are empty'
+    GREEN_INVALID = 'invalid green price'
+    GREEN_PLACE = 'placing greening order'
+    HEDGE_ERROR = 'error trying to hedge'
+    HEDGE_REPLACE = 'replacing hedge order'
+    HEDGE_UNKNOWN = 'unknown hedge order status'
+    TRADE_COMPLETE = 'trade complete'
 
 
 @register_formatter(MessageTypes.TRACK_TRADE)

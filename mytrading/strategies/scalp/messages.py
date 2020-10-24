@@ -1,19 +1,19 @@
 from typing import Dict
-from enum import IntEnum
-from mytrading.tradetracker.messages import register_formatter, next_enum
-from myutils.counter import Counter
+from enum import Enum
+from mytrading.tradetracker.messages import register_formatter
+# from myutils.counter import Counter
 
-counter = Counter(next_enum())
+# counter = Counter(next_enum())
 
 
-class WallMessageTypes(IntEnum):
-    NO_WALL = counter.inc()
-    NO_WALL_PRICE = counter.inc()
-    WALL_SIZE_FAIL = counter.inc()
-    WALL_DETECT = counter.inc()
-    WALL_VARIABLE_INVALID = counter.inc()
-    REPLACE_WALL_ORDER = counter.inc()
-    WALL_TAKE_HEDGE = counter.inc()
+class WallMessageTypes(Enum):
+    NO_WALL = 'no wall instance detected'
+    NO_WALL_PRICE = 'no price information at wall'
+    WALL_SIZE_FAIL = 'wall size validation fail'
+    WALL_DETECT = 'wall point detected'
+    WALL_VARIABLE_INVALID = 'wall variable invalid'
+    REPLACE_WALL_ORDER = 'replacing wall order'
+    WALL_TAKE_HEDGE = 'wall taking hedge price'
 
 
 @register_formatter(WallMessageTypes.NO_WALL)
@@ -54,10 +54,10 @@ def formatter(attrs: Dict):
 
 @register_formatter(WallMessageTypes.REPLACE_WALL_ORDER)
 def formatter(attrs: Dict):
-    f'replacing active order at price {attrs.get("price")} with new price {attrs.get("new_price")}'
+    return f'replacing active order at price {attrs.get("price")} with new price {attrs.get("new_price")}'
 
 
 @register_formatter(WallMessageTypes.WALL_TAKE_HEDGE)
 def formatter(attrs: Dict):
-    f'wall validation failed, binning trade then taking available'
+    return f'wall validation failed, binning trade then taking available'
 

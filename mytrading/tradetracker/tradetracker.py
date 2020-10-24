@@ -3,7 +3,7 @@ from flumine.order.trade import Trade
 from flumine.order.ordertype import LimitOrder
 
 import logging
-from enum import IntEnum
+from enum import Enum
 
 from .messages import MessageTypes, format_message
 from .orderinfo import serializable_order_info, write_order_update
@@ -109,7 +109,7 @@ class TradeTracker:
 
     def log_update(
             self,
-            msg_type: IntEnum,
+            msg_type: Enum,
             dt: datetime,
             msg_attrs: dict = None,
             level=logging.INFO,

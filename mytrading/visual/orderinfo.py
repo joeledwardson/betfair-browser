@@ -3,6 +3,10 @@ from plotly import graph_objects as go
 import logging
 from mytrading.tradetracker.messages import format_message
 
+# must import all strategy message processors
+from mytrading.strategies.scalp.messages import WallMessageTypes
+
+
 active_logger = logging.getLogger(__name__)
 
 
@@ -37,10 +41,17 @@ def plot_orders(fig: go.Figure, orders_df: pd.DataFrame):
         axis=1
     )
 
+    for row in orders_df[orders_df['msg'].isnull()].iterrows():
+        active_logger.critical(f'found row with message type "{row[1].get("msg_type")}" has no message!')
+
+    orders_df = orders_df[~orders_df['msg'].isnull()]
+
     for i, (trade_id, df) in enumerate(orders_df.groupby(['trade_id'])):
 
         # so can see annotations for overlapping points need to combine text (use last instance for display odds)
-        msgs = df.groupby(df.index)['msg'].apply(lambda x: '<br>'.join(x))
+        grouped_df = df.groupby(df.index)
+        grouped_msg = grouped_df['msg']
+        msgs = grouped_msg.apply(lambda x: '<br>'.join(x))
         display_odds = df.groupby(df.index)['display_odds'].last()
         df = pd.concat([msgs, display_odds], axis=1)
 
