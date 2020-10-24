@@ -2,7 +2,7 @@ from dataclasses import dataclass
 
 from betfairlightweight.resources.bettingresources import RunnerBookEX
 
-from mytrading.process.match_bet import active_logger
+from mytrading.process.matchbet import active_logger
 from mytrading.process.ticks.ticks import LTICKS_DECODED
 
 

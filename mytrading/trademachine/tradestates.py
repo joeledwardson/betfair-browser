@@ -8,7 +8,7 @@ from flumine.order.order import BetfairOrder, OrderStatus
 from flumine.order.ordertype import LimitOrder, OrderTypes
 from flumine.order.trade import Trade
 
-from mytrading.process.match_bet import get_match_bet_sums
+from mytrading.process.matchbet import get_match_bet_sums
 from mytrading.process.profit import order_profit
 from mytrading.strategy.side import select_ladder_side, select_operator_side
 from mytrading.tradetracker.tradetracker import TradeTracker

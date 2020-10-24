@@ -2,7 +2,7 @@ from __future__ import annotations
 from betfairlightweight.resources.bettingresources import MarketBook
 from mytrading.feature import window
 from mytrading.process.prices import best_price
-from mytrading.process.traded_volume import traded_runner_vol
+from mytrading.process.tradedvolume import traded_runner_vol
 import numpy as np
 from typing import List, Dict
 import statsmodels.api as sm

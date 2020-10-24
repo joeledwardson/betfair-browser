@@ -5,7 +5,7 @@ from betfairlightweight.resources import MarketBook
 from betfairlightweight.resources.bettingresources import RunnerBook
 
 from mytrading.process.prices import best_price
-from mytrading.process.traded_volume import get_record_tv_diff
+from mytrading.process.tradedvolume import get_record_tv_diff
 
 
 class WindowProcessorBase:
