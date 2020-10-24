@@ -4,6 +4,7 @@ from flumine.order.ordertype import LimitOrder
 
 import logging
 
+from mytrading.tradetracker.messages import TrackerMessages
 from mytrading.tradetracker.orderfile import serializable_order_info
 from mytrading.tradetracker.ordertracker import OrderTracker
 from myutils import jsonfile
@@ -51,8 +52,11 @@ class TradeTracker:
         for trade in self.trades:
             if trade.id not in ot:
                 self.log_update(
-                    f'started tracking trade "{trade.id}"',
-                    publish_time,
+                    msg_type=TrackerMessages.TRACK_TRADE,
+                    dt=publish_time,
+                    msg_attrs={
+                        "trade_id": trade.id
+                    },
                     to_file=False
                 )
                 ot[trade.id] = dict()
@@ -60,8 +64,11 @@ class TradeTracker:
             for order in [o for o in trade.orders if type(o.order_type) == LimitOrder]:
                 if order.id not in ot[trade.id]:
                     self.log_update(
-                        f'started tracking order "{order.id}"',
-                        publish_time,
+                        msg_type=TrackerMessages.TRACK_ORDER,
+                        dt=publish_time,
+                        msg_attrs={
+                            "order_id": order.id
+                        },
                         to_file=False
                     )
                     ot[trade.id][order.id] = OrderTracker(
@@ -72,24 +79,28 @@ class TradeTracker:
 
                 if order.size_matched != ot[trade.id][order.id].matched:
                     self.log_update(
-                        'order side {0} at {1} for £{2:.2f}, now matched £{3:.2f}'.format(
-                            order.side,
-                            order.order_type.price,
-                            order.order_type.size,
-                            order.size_matched
-                        ),
-                        publish_time,
-                        order=order,
+                        msg_type=TrackerMessages.MATCHED_SIZE,
+                        dt=publish_time,
+                        msg_attrs={
+                            "order_id": order.id,
+                            "side": order.side,
+                            "price": order.order_type.price,
+                            "size": order.order_type.size,
+                            "size_matched": order.size_matched
+                        },
                     )
+
                 if order.status != ot[trade.id][order.id].status:
                     self.log_update(
-                        'order side {0} at {1} for £{2:.2f}, now status {3}'.format(
-                            order.side,
-                            order.order_type.price,
-                            order.order_type.size,
-                            order.status
-                        ),
-                        publish_time,
+                        msg_type=TrackerMessages.STATUS_UPDATE,
+                        dt=publish_time,
+                        msg_attrs={
+                            "order_id": order.id,
+                            "side": order.side,
+                            "price": order.order_type.price,
+                            "size": order.order_type.size,
+                            "status": order.status
+                        },
                         order=order
                     )
                 ot[trade.id][order.id].status = order.status
@@ -97,8 +108,9 @@ class TradeTracker:
 
     def log_update(
             self,
-            msg: str,
+            msg_type: Enum,
             dt: datetime,
+            msg_attrs: dict = None,
             level=logging.INFO,
             to_file=True,
             display_odds: float = 0.0,
