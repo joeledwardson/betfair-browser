@@ -1,8 +1,7 @@
 from typing import Dict, List
 
 from betfairlightweight.resources import MarketBook
-
-from mytrading.feature import window as bfw, feature as bff
+from . import window as bfw, feature as bff
 
 
 class FeatureHolder:
