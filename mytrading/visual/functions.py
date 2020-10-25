@@ -1,3 +1,4 @@
+from plotly import graph_objects as go
 from plotly.subplots import make_subplots
 import plotly.graph_objects as go
 from datetime import timedelta
@@ -5,7 +6,7 @@ from typing import List, Dict
 from datetime import datetime
 import logging
 import pandas as pd
-from mytrading.feature import feature
+from mytrading.feature.feature import RunnerFeatureBase
 
 active_logger = logging.getLogger(__name__)
 active_logger.setLevel(logging.INFO)
@@ -173,11 +174,12 @@ def create_figure(y_axes_names: List[str], vertical_spacing=0.05) -> go.Figure:
 def add_feature_trace(
         fig: go.Figure,
         feature_name: str,
-        feature: feature.RunnerFeatureBase,
+        feature: RunnerFeatureBase,
         def_conf: Dict,
         ftr_conf: Dict,
         y_axes_names: List,
-        chart_start: datetime):
+        chart_start: datetime = None,
+        chart_end: datetime = None):
     """
     create trace from feature data and add to figure
     - fig: plotly figure to add traces
@@ -221,17 +223,33 @@ def add_feature_trace(
             for processor in ftr_conf.get('value_processors', []):
                 trace_data = processor(trace_data)
 
-        # indexes of data values which are after chart start time for plotting
-        indexes = [i for i, v in enumerate(trace_data['x']) if v >= chart_start]
+        # check there is data
+        if not('x' in trace_data and len(trace_data['x'])):
+            continue
 
-        # if no values are after start then abore
+        # if chart start datetime not passed, then set to first element
+        if chart_start is None:
+            chart_start = trace_data['x'][0]
+
+        # if chart end datetime not passed, then set to last element
+        if chart_end is None:
+            chart_end = trace_data['x'][-1]
+
+        # indexes of data values which are after chart start time for plotting
+        indexes = [
+            i for i, v in enumerate(trace_data['x'])
+            if chart_start <= v <= chart_end
+        ]
+
+        # if no values are after start then abort
         if not indexes:
             continue
 
         index_start = min(indexes)
+        index_end = max(indexes)
 
         # slice trace data to values within plotting range
-        trace_data = {k: v[index_start:] for k, v in trace_data.items()}
+        trace_data = {k: v[index_start:index_end] for k, v in trace_data.items()}
 
         # create plotly chart using feature name, trace data, kwargs and add to plotly figure
         chart = chart_func(
@@ -244,6 +262,56 @@ def add_feature_trace(
     # if exist, run figure post processor
     if 'fig_post_processor' in ftr_conf:
         ftr_conf['fig_post_processor'](fig)
+
+
+def add_feature_parent(
+        display_name: str,
+        feature: RunnerFeatureBase,
+        fig: go.Figure,
+        conf: dict,
+        default_plot_config: Dict,
+        y_axes_names: List[str],
+        chart_start: datetime = None,
+        chart_end: datetime = None,
+):
+    """
+    add a feature trace to a chart, including all its children features
+    """
+
+    # plot feature
+    add_feature_trace(
+        fig=fig,
+        feature_name=display_name,
+        feature=feature,
+        def_conf=default_plot_config,
+        y_axes_names=y_axes_names,
+        ftr_conf=conf,
+        chart_start=chart_start,
+        chart_end=chart_end,
+    )
+
+    # get sub features config if exist
+    sub_configs = conf.get('sub_features', {})
+
+    # loop sub features
+    for sub_name, sub_feature in feature.sub_features.items():
+
+        # get sub-feature specific configuration
+        sub_conf = sub_configs.get(sub_name, {})
+
+        # create display name by using using a dot (.) between parent and sub feature names
+        sub_display_name = '.'.join([display_name, sub_name])
+
+        add_feature_parent(
+            display_name=sub_display_name,
+            feature=sub_feature,
+            fig=fig,
+            conf=sub_conf,
+            default_plot_config=default_plot_config,
+            y_axes_names=y_axes_names,
+            chart_start=chart_start,
+            chart_end=chart_end
+        )
 
 
 def set_figure_layout(fig: go.Figure, title: str, market_time: datetime, display_s: int):
@@ -261,5 +329,3 @@ def set_figure_layout(fig: go.Figure, title: str, market_time: datetime, display
             market_time
         ],
     })
-
-

@@ -8,10 +8,8 @@ from plotly import graph_objects as go
 import mytrading.feature.config
 import mytrading.visual
 import mytrading.visual.config
-from mytrading.feature import feature, window, window as bfw, feature as bff
-from mytrading.visual import functions as bfv
-from mytrading.visual.functions import get_yaxes_names, create_figure, \
-    add_feature_trace, set_figure_layout
+from mytrading.feature import window, window as bfw, feature as bff
+from .functions import get_yaxes_names, create_figure, add_feature_parent, set_figure_layout
 from mytrading.visual.orderinfo import plot_orders
 from mytrading.visual.config import get_default_plot_config
 from myutils import generic
@@ -31,7 +29,7 @@ def fig_to_file(fig: go.Figure, file_path, mode='a'):
 
 def fig_historical(
         records: List[List[MarketBook]],
-        features: Dict[str, feature.RunnerFeatureBase],
+        features: Dict[str, bff.RunnerFeatureBase],
         windows: window.Windows,
         feature_plot_configs: Dict[str, Dict],
         selection_id,
@@ -76,36 +74,20 @@ def fig_historical(
         chart_start = market_time - timedelta(seconds=display_s)
     else:
         chart_start = records[0][0].publish_time
-
-    def _plot_feature(display_name, feature, conf):
-
-        # plot feature
-        add_feature_trace(
-            fig=fig,
-            feature_name=display_name,
-            feature=feature,
-            def_conf=default_plot_config,
-            y_axes_names=y_axes_names,
-            ftr_conf=conf,
-            chart_start=chart_start
-        )
-
-        # get sub features config if exist
-        sub_configs = conf.get('sub_features', {})
-
-        # loop sub features
-        for sub_name, sub_feature in feature.sub_features.items():
-
-            # get sub-feature specific configuration
-            sub_conf = sub_configs.get(sub_name, {})
-
-            # create display name by using using a dot (.) between parent and sub feature names
-            sub_display_name = '.'.join([display_name, sub_name])
-            _plot_feature(sub_display_name, sub_feature, sub_conf)
+    chart_end = market_time
 
     for feature_name, feature in features.items():
         conf = feature_plot_configs.get(feature_name, {})
-        _plot_feature(feature_name, feature, conf)
+        add_feature_parent(
+            display_name=feature_name,
+            feature=feature,
+            fig=fig,
+            conf=conf,
+            default_plot_config=default_plot_config,
+            y_axes_names=y_axes_names,
+            chart_start=chart_start,
+            chart_end=chart_end,
+        )
 
     if orders_df is not None and orders_df.shape[0]:
         orders_df = orders_df[
