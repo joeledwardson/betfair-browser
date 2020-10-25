@@ -28,7 +28,8 @@ def formatter(attrs: Dict) -> str:
     ltp = attrs.get('ltp')
     window_value = attrs.get('window_value')
     window_name = get_window_name(attrs.get('direction_up'))
-    return f'tracking window breach of {window_name} at {window_value} with LTP of {ltp}'
+
+    return f'tracking window breach of {window_name} at {window_value:.2f} with LTP of {ltp}'
 
 
 @register_formatter(WindowMessageTypes.TRACK_SUCCESS)
@@ -61,4 +62,4 @@ def formatter(attrs: Dict) -> str:
     ltp = attrs.get("ltp")
     window_value = attrs.get('window_value')
     window_name = get_window_name(attrs.get('direction_up'))
-    return f'tracking {direction} direction has reversed, LTP {ltp} breached {window_name} at {window_value}'
+    return f'tracking {direction} direction has reversed, LTP {ltp} breached {window_name} at {window_value:.2f}'

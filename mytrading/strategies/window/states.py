@@ -11,7 +11,7 @@ from mytrading.trademachine.tradestates import TradeStateTypes
 from mytrading.tradetracker.messages import MessageTypes
 from mytrading.process.ticks.ticks import closest_tick
 from mytrading.trademachine import tradestates
-from .windowtradetracker import WindowTradeTracker
+from .tradetracker import WindowTradeTracker
 from .messages import WindowMessageTypes
 import logging
 from enum import Enum
@@ -34,10 +34,6 @@ from myutils import statemachine as stm
 
 
 active_logger = logging.getLogger(__name__)
-
-
-class WindowTradeStateTypes(Enum):
-    OPEN_WAIT = 'wait for open trade'
 
 
 def window_bail(ltp, ltp_min, ltp_max, up):
@@ -71,7 +67,7 @@ class WindowTradeStateIdle(tradestates.TradeStateIdle):
             index_min = closest_tick(ltp_min, return_index=True)
             index_max = closest_tick(ltp_max, return_index=True)
             if index_max - index_min >= self.ltp_min_spread:
-                if ladder_spread <= self.max_ladder_spread:
+                if ladder_spread <= self.max_ladder_spread and ladder_spread != 0:
                     return True
         return False
 
@@ -85,7 +81,7 @@ class WindowTradeStateIdle(tradestates.TradeStateIdle):
         self.up = direction_up
         self.tracker_start = pt
         trade_tracker.log_update(
-            msg_type=WindowMessageTypes.TRACK,
+            msg_type=WindowMessageTypes.TRACK_START,
             msg_attrs={
                 'ltp': ltp,
                 'window_value': window_value,
@@ -102,10 +98,16 @@ class WindowTradeStateIdle(tradestates.TradeStateIdle):
             ltp: float,
             ltp_min: float,
             ltp_max: float,
+            best_back: float,
+            best_lay: float,
             ladder_spread: int,
             **inputs,
     ):
         pt = market_book.publish_time
+
+        # first check there is money available to back and lay and money has been traded
+        if not best_back or not best_lay or not ltp:
+            return
 
         # check if broken upper window
         if ltp > ltp_max:
@@ -189,7 +191,6 @@ class WindowTradeStateOpenPlace(tradestates.TradeStateOpenPlace):
         super().__init__(*args, **kwargs)
         self.stake_size = stake_size
 
-
     def place_order(
             self,
             market_book: MarketBook,
@@ -249,7 +250,8 @@ class WindowTradeStateOpenPlace(tradestates.TradeStateOpenPlace):
                 return None
 
         # get already matched size
-        matched = sum([o for o in trade_tracker.active_trade.orders if o.order_type==LimitOrder])
+        matched = sum([o.size_matched for o in trade_tracker.active_trade.orders if
+                       o.order_type.ORDER_TYPE==OrderTypes.LIMIT])
 
         stake_size = self.stake_size
         if matched:
@@ -269,7 +271,7 @@ class WindowTradeStateOpenPlace(tradestates.TradeStateOpenPlace):
             side=side,
             order_type=LimitOrder(
                 price=price,
-                size=self.stake_size
+                size=stake_size
             ))
         strategy.place_order(market, order)
         return order
@@ -277,10 +279,8 @@ class WindowTradeStateOpenPlace(tradestates.TradeStateOpenPlace):
 
 class WindowTradeStateOpenMatching(tradestates.TradeStateOpenMatching):
 
-    next_state = WindowTradeStateTypes.OPEN_WAIT
-
     # return new state(s) if different action required, otherwise None
-    def open_order_processing(
+    def run(
             self,
             market_book: MarketBook,
             market: Market,
@@ -324,7 +324,10 @@ class WindowTradeStateOpenMatching(tradestates.TradeStateOpenMatching):
                 dt=market_book.publish_time
             )
 
-            return [TradeStateTypes.BIN, TradeStateTypes]
+            return [
+                TradeStateTypes.BIN,
+                TradeStateTypes.HEDGE_SELECT
+            ]
 
         # check if not fully matched
         elif sts != OrderStatus.EXECUTION_COMPLETE:
