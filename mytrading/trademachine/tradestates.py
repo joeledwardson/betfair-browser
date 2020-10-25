@@ -110,6 +110,13 @@ class TradeStatePending(TradeStateBase):
 
     name = TradeStateTypes.PENDING
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.first_call = True
+
+    def enter(self, **inputs):
+        self.first_call = True
+
     # called to operate state - return None to remain in same state, or return string for new state
     def run(self, trade_tracker: TradeTracker, **inputs):
 
@@ -118,7 +125,11 @@ class TradeStatePending(TradeStateBase):
             return True
 
         if trade_tracker.active_order.status not in order_pending_states:
-            return True
+            # wait 1 cycle before exiting state
+            if not self.first_call:
+                return True
+
+        self.first_call = False
 
 
 class TradeStateCreateTrade(TradeStateBase):
