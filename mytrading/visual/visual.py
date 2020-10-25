@@ -9,13 +9,15 @@ import mytrading.feature.config
 import mytrading.visual
 import mytrading.visual.config
 from mytrading.feature import window, window as bfw, feature as bff
-from .functions import get_yaxes_names, create_figure, add_feature_parent, set_figure_layout
+from .functions import get_yaxes_names, create_figure, add_feature_parent, set_figure_layout, runner_features
 from mytrading.visual.orderinfo import plot_orders
 from mytrading.visual.config import get_default_plot_config
 from myutils import generic
 import logging
 
 active_logger = logging.getLogger(__name__)
+# number of seconds to buffer when trimming record list
+PROCESS_BUFFER_S = 10
 
 
 def fig_to_file(fig: go.Figure, file_path, mode='a'):
@@ -48,33 +50,46 @@ def fig_historical(
     """
 
     if len(records) == 0:
-        print('records set empty')
+        active_logger.warning('records set empty')
         return go.Figure()
-
-    recs = []
-
-    for i in range(len(records)):
-        new_book = records[i][0]
-        recs.append(new_book)
-        windows.update_windows(recs, new_book)
-
-        runner_index = next((i for i, r in enumerate(new_book.runners) if r.selection_id == selection_id), None)
-        if runner_index is not None:
-            for feature in features.values():
-                feature.process_runner(recs, new_book, windows, runner_index)
-
-    default_plot_config = get_default_plot_config()
-    y_axes_names = get_yaxes_names(feature_plot_configs, default_plot_config)
-    fig = create_figure(y_axes_names)
-
     # use last record as first records market time can be accurate
     market_time = records[-1][0].market_definition.market_time
 
+    # if display seconds passed use offset from start time, if not just use first record
     if display_s:
         chart_start = market_time - timedelta(seconds=display_s)
+        active_logger.info(f'using chart start {chart_start}, {display_s}s before market time')
     else:
         chart_start = records[0][0].publish_time
+        active_logger.info(f'using first record for chart start {chart_start}')
+
+    # chart end is market start
     chart_end = market_time
+    active_logger.info(f'using market time for chart end {chart_end}')
+
+    # if features are using windows,
+    if windows.windows:
+        max_window_s = max(windows.windows.keys())
+        chart_start = chart_start - timedelta(seconds=max_window_s+PROCESS_BUFFER_S)
+        active_logger.info(f'setting chart start to {chart_start}, accounting for window {max_window_s}s and buffer '
+                           f'{PROCESS_BUFFER_S}s')
+
+    # trim record list
+    records = [r for r in records if chart_start <= r[0].publish_time <= chart_end]
+
+    if not len(records):
+        active_logger.warning('trimmed records empty')
+        return go.Figure()
+
+    active_logger.info(f'trimmed records {len(records)}')
+
+    # loop records and process features
+    runner_features(selection_id, records, windows, features)
+
+    # TODO - assume using default configuration
+    default_plot_config = get_default_plot_config()
+    y_axes_names = get_yaxes_names(feature_plot_configs, default_plot_config)
+    fig = create_figure(y_axes_names)
 
     for feature_name, feature in features.items():
         conf = feature_plot_configs.get(feature_name, {})
@@ -124,7 +139,7 @@ def generate_feature_plot(
     feature_plot_configs = mytrading.visual.config.get_plot_configs(features)
 
     # create runner feature figure and append to html output path
-    fig = mytrading.visual.visual.fig_historical(
+    fig = fig_historical(
         records=hist_records,
         features=features,
         windows=windows,

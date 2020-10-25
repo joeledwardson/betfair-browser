@@ -5,6 +5,7 @@ from mytrading.tradetracker.messages import format_message
 
 # must import all strategy message processors
 from mytrading.strategies.scalp.messages import WallMessageTypes
+from mytrading.strategies.window.messages import WindowMessageTypes
 
 
 active_logger = logging.getLogger(__name__)
@@ -62,7 +63,8 @@ def plot_orders(fig: go.Figure, orders_df: pd.DataFrame):
             x=df.index,
             y=df['display_odds'],
             text=df['msg'],
-            name='order info',
-            legendgroup='order info',
-            showlegend=(i == 0),
+            mode='lines+markers',
+            name=f'trade {i}',
+            # legendgroup='order info',
+            # showlegend=(i == 0),
         ))

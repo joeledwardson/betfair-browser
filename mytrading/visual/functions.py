@@ -1,4 +1,4 @@
-from plotly import graph_objects as go
+from betfairlightweight.resources import MarketBook
 from plotly.subplots import make_subplots
 import plotly.graph_objects as go
 from datetime import timedelta
@@ -6,7 +6,9 @@ from typing import List, Dict
 from datetime import datetime
 import logging
 import pandas as pd
+from myutils.timing import decorator_timer
 from mytrading.feature.feature import RunnerFeatureBase
+from mytrading.feature.window import Windows
 
 active_logger = logging.getLogger(__name__)
 active_logger.setLevel(logging.INFO)
@@ -169,6 +171,27 @@ def create_figure(y_axes_names: List[str], vertical_spacing=0.05) -> go.Figure:
         shared_xaxes=True,
         specs=[[{'secondary_y': True} for y in range(n_cols)] for x in range(n_rows)],
         vertical_spacing=vertical_spacing)
+
+
+@decorator_timer
+def runner_features(
+        selection_id: int,
+        records: List[List[MarketBook]],
+        windows: Windows,
+        features: Dict[str, RunnerFeatureBase]):
+    """
+    process historical records with a set of features for a selected runner
+    """
+    feature_records = []
+    for i in range(len(records)):
+        new_book = records[i][0]
+        feature_records.append(new_book)
+        windows.update_windows(feature_records, new_book)
+
+        runner_index = next((i for i, r in enumerate(new_book.runners) if r.selection_id == selection_id), None)
+        if runner_index is not None:
+            for feature in features.values():
+                feature.process_runner(feature_records, new_book, windows, runner_index)
 
 
 def add_feature_trace(
