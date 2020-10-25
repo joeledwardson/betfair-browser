@@ -7,13 +7,14 @@ from typing import Dict
 from os import path, makedirs
 from enum import Enum
 
+from mytrading.trademachine.tradestates import TradeStateTypes
 import mytrading.feature.config
 import mytrading.trademachine.tradestates
 from mytrading.trademachine import trademachine as bftm
 from mytrading.feature import feature as bff
 from mytrading.feature.feature import RunnerFeatureBase
 from .basestrategy import MyBaseStrategy
-from .featureholder import FeatureHolder
+from mytrading.feature.featureholder import FeatureHolder
 from mytrading.tradetracker.tradetracker import TradeTracker
 from mytrading.tradetracker.orderinfo import serializable_order_info
 from mytrading.tradetracker.messages import MessageTypes
@@ -22,8 +23,14 @@ from myutils.timing import EdgeDetector
 from myutils import statemachine as stm
 from myutils.jsonfile import add_to_file
 
+# number of seconds before start that trading is stopped and greened up
+PRE_SECONDS = 180
 
-STRATEGY_DIR = path.join(DIR_BASE, SUBDIR_STRATEGY_HISTORIC)
+# seconds before race start trading allowed
+CUTOFF_SECONDS = 2
+
+# STRATEGY_DIR = path.join(DIR_BASE, SUBDIR_STRATEGY_HISTORIC)
+
 active_logger = logging.getLogger(__name__)
 
 
@@ -34,30 +41,34 @@ class MyFeatureStrategy(MyBaseStrategy):
     overridden
     """
 
-    # number of seconds before start that trading is stopped and greened up
-    cutoff_seconds = 2
-
-    # seconds before race start trading allowed
-    pre_seconds = 180
-
-    # feature configuration dict (use defaults)
-    features_config = mytrading.feature.config.get_default_features_config()
-
     # trade tracker class
-    StrategyTradeTracker = TradeTracker
+    StrategyTradeTrackerType = TradeTracker
 
     # list of states that indicate no trade or anything is active
-    inactive_states = [mytrading.trademachine.tradestates.TradeStateTypes.IDLE, mytrading.trademachine.tradestates.TradeStateTypes.CLEANING]
+    inactive_states = [
+        TradeStateTypes.IDLE,
+        TradeStateTypes.CLEANING
+    ]
 
     # state transitions to cancel a trade and hedge
     force_hedge_states = [
-        mytrading.trademachine.tradestates.TradeStateTypes.BIN,
-        mytrading.trademachine.tradestates.TradeStateTypes.PENDING,
-        mytrading.trademachine.tradestates.TradeStateTypes.HEDGE_PLACE_TAKE
+        TradeStateTypes.BIN,
+        TradeStateTypes.PENDING,
+        TradeStateTypes.HEDGE_PLACE_TAKE
     ]
 
-    def __init__(self, name, strategy_dir=STRATEGY_DIR, *args, **kwargs):
+    def __init__(
+            self,
+            name,
+            input_dir=DIR_BASE,
+            cutoff_seconds=CUTOFF_SECONDS,
+            pre_seconds=PRE_SECONDS,
+            *args,
+            **kwargs):
         super().__init__(*args, **kwargs)
+
+        self.pre_seconds = pre_seconds
+        self.cutoff_seconds = cutoff_seconds
 
         # strategy name
         self.strategy_name = name
@@ -66,7 +77,7 @@ class MyFeatureStrategy(MyBaseStrategy):
         self.timestamp = datetime.now(timezone.utc).strftime('%Y-%m-%dT%H_%M_%S')
 
         # strategies base directory
-        self.strategy_dir = strategy_dir
+        self.strategy_dir = path.join(input_dir, SUBDIR_STRATEGY_HISTORIC)
 
         # hold trade tracker {market ID -> {selection ID -> trade tracker}} dictionary
         self.trade_trackers: Dict[str, Dict[int, TradeTracker]] = dict()
@@ -75,7 +86,7 @@ class MyFeatureStrategy(MyBaseStrategy):
         self.state_machines: Dict[str, Dict[int, stm.StateMachine]] = dict()
 
         # feature holder {market ID -> feature holder} dictionary
-        self.feature_holder: Dict[str, FeatureHolder] = dict()
+        self.feature_holders: Dict[str, FeatureHolder] = dict()
 
         # order directory {market ID -> order dir} dictionary
         self.output_dirs: Dict[str, str] = dict()
@@ -83,6 +94,9 @@ class MyFeatureStrategy(MyBaseStrategy):
         # create edge detection for cutoff and trading allowed
         self.cutoff = EdgeDetector(False)
         self.allow = EdgeDetector(False)
+
+    def get_features_config(self, runner: RunnerBook) -> Dict:
+        raise NotImplementedError
 
     def _update_cutoff(self, market_book: MarketBook):
         """update `cutoff`, denoting whether trading is cutoff (too close to start) based on market book timestamp"""
@@ -175,7 +189,7 @@ class MyFeatureStrategy(MyBaseStrategy):
     def create_trade_tracker(self, runner: RunnerBook, market: Market, market_book: MarketBook) -> TradeTracker:
 
         output_path = path.join(self.output_dirs[market.market_id], market.market_id + EXT_ORDER_INFO)
-        return self.StrategyTradeTracker(
+        return self.StrategyTradeTrackerType(
             selection_id=runner.selection_id,
             file_path=output_path
         )
@@ -193,7 +207,7 @@ class MyFeatureStrategy(MyBaseStrategy):
             selection_id=runner.selection_id,
             book=market_book,
             windows=feature_holder.windows,
-            features_config=self.features_config
+            features_config=self.get_features_config(runner)
         )
 
     def process_trade_machine(
@@ -248,7 +262,7 @@ class MyFeatureStrategy(MyBaseStrategy):
             active_logger.info(f'received pre-race trade allow flag at {market_book.publish_time}')
 
         # check if market has been initialised
-        if market.market_id not in self.feature_holder:
+        if market.market_id not in self.feature_holders:
 
             # create and store output directory for current market
             output_dir = self._get_output_dir(market_book)
@@ -257,7 +271,7 @@ class MyFeatureStrategy(MyBaseStrategy):
 
             # create feature holder for market
             feature_holder = self.create_feature_holder(market, market_book)
-            self.feature_holder[market.market_id] = feature_holder
+            self.feature_holders[market.market_id] = feature_holder
 
             # set empty dicts for market trade tracker and state machines (initialised for runners later)
             self.trade_trackers[market.market_id] = dict()
@@ -267,7 +281,7 @@ class MyFeatureStrategy(MyBaseStrategy):
             self.market_initialisation(market, market_book, feature_holder)
 
         # get feature data instance for current market
-        feature_holder = self.feature_holder[market.market_id]
+        feature_holder = self.feature_holders[market.market_id]
 
         # if runner doesnt have an element in features dict then add (this must be done before window processing!)
         for runner in market_book.runners:

@@ -197,7 +197,6 @@ class RunnerFeatureBase:
                 if self.periodic_timestamps:
                     send_update(self.last_timestamp)
 
-
     def runner_update(
             self,
             market_list: List[MarketBook],
@@ -216,6 +215,10 @@ class RunnerFeatureBase:
             'x': self.dts,
             'y': self.processed_vals
         }]
+
+    def last_value(self):
+        """get most recent value processed, if empty return None"""
+        return self.processed_vals[-1] if len(self.processed_vals) else None
 
 
 class RunnerFeatureWindowBase(RunnerFeatureBase):
