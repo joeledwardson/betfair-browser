@@ -213,7 +213,8 @@ def figure_callback(app: dash.Dash, dd: DashData, input_dir: str):
         else:
             orders_str = f'found {orders_df.shape[0]} order infos in "{order_file_path}"'
 
-        info_strings.append(f'producing figure for runner {selection_id}')
+        name = dd.market_info.names.get(selection_id, 'name not found')
+        info_strings.append(f'producing figure for runner {selection_id}, "{name}"')
         info_strings.append(orders_str)
 
 

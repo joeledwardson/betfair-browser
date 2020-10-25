@@ -15,7 +15,14 @@ parser = argparse.ArgumentParser(
 parser.add_argument(
     'input_dir',
     type=str,
-    help='input directory of markets')
+    help='input directory of markets'
+)
+parser.add_argument(
+    '--debug',
+    action='store_true',
+    help='run in debug mode'
+)
+
 
 args = parser.parse_args()
 input_dir = args.input_dir
@@ -33,4 +40,4 @@ orders_callback(app, gdd, input_dir)
 
 if __name__ == '__main__':
     # turn of dev tools prop check to disable time input error
-    app.run_server(debug=True, dev_tools_props_check=False)
+    app.run_server(debug=args.debug, dev_tools_props_check=False)
