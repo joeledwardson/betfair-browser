@@ -2,6 +2,9 @@ import functools
 import time
 from datetime import datetime, timedelta
 import pytz
+import logging
+
+active_logger = logging.getLogger(__name__)
 
 
 class EdgeDetector:
@@ -174,7 +177,7 @@ def decorator_timer(func):
 
         # print time to execute function
         elapsed_time = end_time - start_time
-        print(f'Finished {func.__name__} in {elapsed_time:.4f} seconds')
+        active_logger.info(f'Finished {func.__name__} in {elapsed_time:.4f} seconds')
 
         return val
 
