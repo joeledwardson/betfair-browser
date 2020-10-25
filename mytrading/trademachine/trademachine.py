@@ -1,5 +1,6 @@
 from mytrading.tradetracker.messages import MessageTypes
 from mytrading.tradetracker.tradetracker import TradeTracker
+from mytrading.process.prices import best_price
 from myutils import statemachine as stm
 from betfairlightweight.resources import MarketBook
 from flumine import BaseStrategy
@@ -31,10 +32,15 @@ class RunnerStateMachine(stm.StateMachine):
             strategy: BaseStrategy,
             **kwargs):
 
-        # if first call then no odds information, use last traded price, or just 0 if doesnt have one
+        # if first call then no odds information, use ltp/back/lay, or just 0 if doesnt have one
         if not len(trade_tracker._log):
+            bk = market_book.runners[runner_index]
+            ltp = bk.last_price_traded
+            best_back = best_price(bk.ex.available_to_back)
+            best_lay = best_price(bk.ex.available_to_lay)
+            display_odds = ltp or best_back or best_lay or 0
             log_kwargs={
-                'display_odds': market_book.runners[runner_index].last_price_traded or 0,
+                'display_odds': display_odds,
             }
         else:
             log_kwargs = {}
