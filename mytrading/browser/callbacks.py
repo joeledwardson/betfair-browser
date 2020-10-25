@@ -45,7 +45,7 @@ def market_callback(app: dash.Dash, dd: DashData, input_dir: str):
         :return:
         """
 
-        file_info = []
+        info_strings = []
         df_runners = pd.DataFrame()
         tbl_market = []
 
@@ -53,7 +53,7 @@ def market_callback(app: dash.Dash, dd: DashData, input_dir: str):
         success, dd.record_list, dd.market_info = get_table_market(
             dash_data=dd,
             base_dir=input_dir,
-            file_info=file_info,
+            file_info=info_strings,
             active_cell=active_cell
         )
 
@@ -65,6 +65,17 @@ def market_callback(app: dash.Dash, dd: DashData, input_dir: str):
             dd.market_dir = ''
 
         else:
+
+            w = 25
+            info_strings.append(f'{"first record timestamp":{w}}: {dd.record_list[0][0].publish_time}')
+            info_strings.append(f'{"final record timestamp":{w}}: {dd.record_list[-1][0].publish_time}')
+            for r in dd.record_list:
+                if r[0].market_definition.in_play:
+                    info_strings.append(f'{"first inplay":{w}}: {r[0].publish_time}')
+                    break
+            else:
+                info_strings.append(f'no inplay elements found')
+            info_strings.append(f'{"market time":{w}}: {dd.market_info.market_time}')
 
             # success, assign active market directory to dash data instance and compute starting odds
             dd.market_dir = dd.file_tracker.root
@@ -97,7 +108,7 @@ def market_callback(app: dash.Dash, dd: DashData, input_dir: str):
         return [
             df_runners.to_dict('records'),
             tbl_market,
-            html_lines(file_info)
+            html_lines(info_strings)
         ]
 
 
@@ -204,6 +215,7 @@ def figure_callback(app: dash.Dash, dd: DashData, input_dir: str):
 
         info_strings.append(f'producing figure for runner {selection_id}')
         info_strings.append(orders_str)
+
 
         # make chart title
         title = '{}, name: "{}", ID: "{}"'.format(

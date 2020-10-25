@@ -66,6 +66,7 @@ def get_layout(input_dir: str, dash_data: DashData, chart_offset: timedelta):
 
                     infobox(
                         id='infobox-runners',
+                        height=90,
                         children='',
                     ),
 
