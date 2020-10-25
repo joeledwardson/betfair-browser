@@ -158,15 +158,11 @@ def prettified_members(o, indent=4):
 def closest_value(array, value, return_index=False):
     """# get closest value in numpy array, specify return_index=True to return index instead of value"""
 
-    # get reversed array (so that larger values are selected first when equidistant)
-    # remember that indexing in numpy is like slicing (start, stop, step), so ::-1 just reverses the list
-    reverse_array = numpy.sort(array)[::-1]
-
     # get index in reversed array of smallest distance to value
-    index = abs(reverse_array - value).argmin()
+    index = abs(array - value).argmin()
 
     if return_index:
         return index
     else:
         # return value from reversed array
-        return reverse_array[index]
+        return array[index]
