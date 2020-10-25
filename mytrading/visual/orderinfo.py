@@ -68,3 +68,6 @@ def plot_orders(fig: go.Figure, orders_df: pd.DataFrame):
             # legendgroup='order info',
             # showlegend=(i == 0),
         ))
+
+
+

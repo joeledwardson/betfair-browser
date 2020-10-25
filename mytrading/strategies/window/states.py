@@ -267,6 +267,10 @@ class WindowTradeStateOpenPlace(tradestates.TradeStateOpenPlace):
                 )
                 return None
 
+        # round to 2dp
+        stake_size = round(stake_size, ndigits=2)
+        price = round(price, ndigits=2)
+
         # create and place order
         order = trade_tracker.active_trade.create_order(
             side=side,
