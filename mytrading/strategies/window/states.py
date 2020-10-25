@@ -1,37 +1,19 @@
 from datetime import datetime
-
-from betfairlightweight.resources import MarketBook
-from flumine import BaseStrategy
-from flumine.markets.market import Market
-from flumine.order.order import BetfairOrder
-from flumine.order.ordertype import LimitOrder
-from flumine.order.ordertype import LimitOrder
-
 from mytrading.trademachine.tradestates import TradeStateTypes
-from mytrading.tradetracker.messages import MessageTypes
 from mytrading.process.ticks.ticks import closest_tick
 from mytrading.trademachine import tradestates
 from .tradetracker import WindowTradeTracker
 from .messages import WindowMessageTypes
 import logging
-from enum import Enum
-from enum import Enum
-from typing import List, Dict
-
 from betfairlightweight.resources import MarketBook
 from flumine import BaseStrategy
 from flumine.markets.market import Market
 from flumine.order.order import BetfairOrder, OrderStatus
 from flumine.order.ordertype import LimitOrder, OrderTypes
-from flumine.order.trade import Trade
-
-from mytrading.process.matchbet import get_match_bet_sums
-from mytrading.process.profit import order_profit
-from mytrading.strategy.side import select_ladder_side, select_operator_side
-from mytrading.tradetracker.tradetracker import TradeTracker
 from mytrading.tradetracker.messages import MessageTypes
-from myutils import statemachine as stm
-
+from typing import Dict, List
+from mytrading.process.prices import best_price
+from mytrading.strategy.side import select_ladder_side, select_operator_side, invert_side
 
 active_logger = logging.getLogger(__name__)
 
@@ -42,6 +24,25 @@ def window_bail(ltp, ltp_min, ltp_max, up):
     opposite window boundary
     """
     return (up and ltp < ltp_min) or (not up and ltp > ltp_max)
+
+
+def get_price(ltp, ladder, side):
+    """
+    get the best price
+    - max of LTP, back
+    - min of LTP, lay
+    """
+
+    ltp = ltp or 0
+    price = best_price(ladder) or 0
+
+    # if greening on back side, take max of LTP and best back
+    if side == 'BACK':
+        return max(ltp, price)
+
+    # if greening on lay side, take min of LTP and best lay
+    else:
+        return min(ltp, price)
 
 
 class WindowTradeStateIdle(tradestates.TradeStateIdle):
@@ -350,3 +351,57 @@ class WindowTradeStateOpenMatching(tradestates.TradeStateOpenMatching):
                 ]
 
 
+class WindowTradeStateHedgePlaceTake(tradestates.TradeStateHedgePlaceTake):
+    """take the best price available from either ltp or best back/lay for hedging"""
+
+    def get_hedge_price(
+            self,
+            open_ladder: List[Dict],
+            close_ladder: List[Dict],
+            close_side,
+            trade_tracker: WindowTradeTracker,
+            market_book: MarketBook,
+            market: Market,
+            runner_index: int,
+            strategy: BaseStrategy,
+            ltp,
+            **inputs
+    ):
+        return get_price(ltp, close_ladder, close_side)
+
+
+class WindowTradeStateHedgeTakeWait(tradestates.TradeStateHedgeTakeWait):
+
+    def price_moved(
+            self,
+            market_book: MarketBook,
+            market: Market,
+            runner_index: int,
+            trade_tracker: WindowTradeTracker,
+            strategy: BaseStrategy,
+            ltp,
+            **inputs
+    ) -> float:
+
+        order = trade_tracker.active_order
+
+        # get ladder on close side for hedging
+        available = select_ladder_side(
+            market_book.runners[runner_index].ex,
+            order.side
+        )
+
+        # get LTP/back/lay price
+        price = get_price(ltp, available, order.side)
+
+        # if on back side, and new price is smaller than active green price then change
+        if order.side == 'BACK':
+            if price < order.order_type.price:
+                return price
+
+        # if on lay side, and new price is larger than active green price then change
+        else:
+            if price > order.order_type.price:
+                return price
+
+        return 0

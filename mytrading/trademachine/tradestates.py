@@ -10,7 +10,7 @@ from flumine.order.trade import Trade
 
 from mytrading.process.matchbet import get_match_bet_sums
 from mytrading.process.profit import order_profit
-from mytrading.strategy.side import select_ladder_side, select_operator_side
+from mytrading.strategy.side import select_ladder_side, select_operator_side, invert_side
 from mytrading.tradetracker.tradetracker import TradeTracker
 from mytrading.tradetracker.messages import MessageTypes
 from myutils import statemachine as stm
@@ -355,7 +355,12 @@ class TradeStateHedgePlaceTake(TradeStateBase):
             open_ladder: List[Dict],
             close_ladder: List[Dict],
             close_side,
-            trade_tracker: TradeTracker
+            trade_tracker: TradeTracker,
+            market_book: MarketBook,
+            market: Market,
+            runner_index: int,
+            strategy: BaseStrategy,
+            **inputs
     ):
         """
         take best available price
@@ -413,7 +418,17 @@ class TradeStateHedgePlaceTake(TradeStateBase):
             )
             return TradeStateTypes.CLEANING
 
-        green_price = self.get_hedge_price(open_ladder, close_ladder, close_side, trade_tracker)
+        green_price = self.get_hedge_price(
+            open_ladder,
+            close_ladder,
+            close_side,
+            trade_tracker,
+            market_book,
+            market,
+            runner_index,
+            strategy,
+            **inputs
+        )
 
         if not green_price:
             trade_tracker.log_update(
@@ -460,6 +475,40 @@ class TradeStateHedgeTakeWait(TradeStateBase):
     name = TradeStateTypes.HEDGE_TAKE_MATCHING
     next_state = TradeStateTypes.CLEANING
 
+    def price_moved(
+            self,
+            market_book: MarketBook,
+            market: Market,
+            runner_index: int,
+            trade_tracker: TradeTracker,
+            strategy: BaseStrategy,
+            **inputs
+    ) -> float:
+        """
+        determines whether a new hedge price is available and should be taken
+        if new hedge price available, return its price otherwise 0
+        """
+
+        order = trade_tracker.active_order
+
+        # get ladder on close side for hedging
+        available = select_ladder_side(
+            market_book.runners[runner_index].ex,
+            order.side
+        )
+        # get operator for comparing available price and current hedge price
+        op = select_operator_side(
+            order.side,
+            invert=True
+        )
+        new_price = available[0]['price']
+
+        # if current price is not the same as order price then move
+        if available and op(new_price, order.order_type.price):
+            return new_price
+        else:
+            return 0
+
     def run(
             self,
             market_book: MarketBook,
@@ -488,28 +537,29 @@ class TradeStateHedgeTakeWait(TradeStateBase):
             return TradeStateTypes.HEDGE_PLACE_TAKE
         elif order.status == OrderStatus.EXECUTABLE:
 
-            # get ladder on close side for hedging
-            available = select_ladder_side(
-                market_book.runners[runner_index].ex,
-                order.side
+            new_price = self.price_moved(
+                market_book,
+                market,
+                runner_index,
+                trade_tracker,
+                strategy,
+                **inputs
             )
-            # get operator for comparing available price and current hedge price
-            op = select_operator_side(
-                order.side,
-                invert=True
-            )
-            # if current price is not the same as order price then move
-            if available and op(available[0]['price'], order.order_type.price):
+            if new_price:
                 trade_tracker.log_update(
                     msg_type=MessageTypes.HEDGE_REPLACE,
                     msg_attrs={
                         'old_price': order.order_type.price,
-                        'new_price': available[0]["price"]
+                        'new_price': new_price
                     },
                     dt=market_book.publish_time,
-                    display_odds=available[0]['price'],
+                    display_odds=new_price,
                 )
-                return [TradeStateTypes.BIN, TradeStateTypes.HEDGE_PLACE_TAKE]
+                return [
+                    TradeStateTypes.BIN,
+                    TradeStateTypes.PENDING,
+                    TradeStateTypes.HEDGE_PLACE_TAKE
+                ]
                 # replacing doesn't seem to work in back-test mode
                 # order.replace(available[0]['price'])
 

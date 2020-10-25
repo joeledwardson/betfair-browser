@@ -3,7 +3,6 @@
 from typing import Dict
 from flumine.markets.market import Market
 from betfairlightweight.resources.bettingresources import MarketBook, RunnerBook
-
 from mytrading.trademachine import tradestates as basestates
 from . import states as windowstates
 from .tradetracker import WindowTradeTracker
@@ -72,10 +71,10 @@ class MyWindowStrategy(MyFeatureStrategy):
                     basestates.TradeStateBin(),
                     basestates.TradeStatePending(),
                     basestates.TradeStateHedgeSelect(),
-                    basestates.TradeStateHedgePlaceTake(
+                    windowstates.WindowTradeStateHedgePlaceTake(
                         min_hedge_price=self.min_hedge_price
                     ),
-                    basestates.TradeStateHedgeTakeWait(),
+                    windowstates.WindowTradeStateHedgeTakeWait(),
                     basestates.TradeStateClean()
                 ]
             },
