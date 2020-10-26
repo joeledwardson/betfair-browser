@@ -162,7 +162,7 @@ def closest_value(array, value, return_index=False):
     index = abs(array - value).argmin()
 
     if return_index:
-        return index
+        return int(index)  # return as regular integer
     else:
         # return value from reversed array
         return array[index]
