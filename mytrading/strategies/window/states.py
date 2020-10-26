@@ -59,20 +59,27 @@ class WindowTradeStateIdle(tradestates.TradeStateIdle):
         self.tracker_start: datetime = datetime.now()
         self.tracking: bool = False
 
-    def validate(self, ltp: float, ltp_min: float, ltp_max: float, ladder_spread: int) -> bool:
+    def validate(self, ltp: float, ltp_spread: int, ladder_spread: int) -> bool:
         """
         validate if a LTP has breached ltp min/max window values, ltp min/max have sufficient spread, and back/lay
         ladder spread is within maximum spread
         """
         if ltp <= self.max_odds:
-            index_min = closest_tick(ltp_min, return_index=True)
-            index_max = closest_tick(ltp_max, return_index=True)
-            if index_max - index_min >= self.ltp_min_spread:
+            if ltp_spread >= self.ltp_min_spread:
                 if ladder_spread <= self.max_ladder_spread and ladder_spread != 0:
                     return True
         return False
 
-    def track(self, pt: datetime, trade_tracker: WindowTradeTracker, ltp, direction_up: bool, window_value):
+    def track_start(
+            self,
+            dt: datetime,
+            trade_tracker: WindowTradeTracker,
+            ltp,
+            direction_up: bool,
+            window_value,
+            window_spread,
+            ladder_spread,
+    ):
         """
         begin tracking a breach of LTP min/max window
         - 'direction_up'=True means breach of LTP max
@@ -80,17 +87,59 @@ class WindowTradeStateIdle(tradestates.TradeStateIdle):
         """
         self.tracking = True
         self.up = direction_up
-        self.tracker_start = pt
+        self.tracker_start = dt
+
         trade_tracker.log_update(
             msg_type=WindowMessageTypes.TRACK_START,
             msg_attrs={
+                'direction_up': direction_up,
                 'ltp': ltp,
+                'ltp_max': self.max_odds,
                 'window_value': window_value,
-                'direction_up': direction_up
+                'window_spread': window_spread,
+                'window_spread_min': self.ltp_min_spread,
+                'ladder_spread': ladder_spread,
+                'ladder_spread_max': self.max_ladder_spread
             },
-            dt=pt,
+            dt=dt,
             display_odds=ltp,
         )
+
+    def track_stop(
+            self,
+            dt: datetime,
+            trade_tracker: WindowTradeTracker,
+            ltp,
+            window_value,
+            window_spread,
+            ladder_spread,
+    ):
+        """
+        stop an active track
+        """
+        self.tracking = False
+
+        trade_tracker.log_update(
+            msg_type=WindowMessageTypes.TRACK_FAIL,
+            msg_attrs={
+                'direction_up': self.up,
+                'ltp': ltp,
+                'ltp_max': self.max_odds,
+                'window_value': window_value,
+                'window_spread': window_spread,
+                'window_spread_min': self.ltp_min_spread,
+                'ladder_spread': ladder_spread,
+                'ladder_spread_max': self.max_ladder_spread
+            },
+            dt=dt,
+            display_odds=ltp,
+        )
+
+    def get_ltp_spread(self, ltp_max, ltp_min) -> int:
+        index_min = closest_tick(ltp_min, return_index=True)
+        index_max = closest_tick(ltp_max, return_index=True)
+        return index_max - index_min
+
 
     def run(
             self,
@@ -104,86 +153,133 @@ class WindowTradeStateIdle(tradestates.TradeStateIdle):
             ladder_spread: int,
             **inputs,
     ):
-        pt = market_book.publish_time
+        dt = market_book.publish_time
 
         # first check there is money available to back and lay and money has been traded
         if not best_back or not best_lay or not ltp:
             return
 
+        # get LTP spread
+        ltp_spread = self.get_ltp_spread(ltp_max, ltp_min)
+
+        start = False
+        stop = False
+        done = False
+        up = False
+        window_value = 0
+
         # check if broken upper window
         if ltp > ltp_max:
 
+            window_value = ltp_max
+            up = True
+
             # if not tracking, start
             if not self.tracking:
-                if self.validate(ltp, ltp_min, ltp_max, ladder_spread):
-                    self.track(pt, trade_tracker, ltp, direction_up=True, window_value=ltp_max)
+                if self.validate(ltp, ltp_spread, ladder_spread):
+                    start = True
 
             else:
 
-                # already tracking and in right direction, check for completion of time limit
+                # already tracking and in right direction
                 if self.up:
-                    if (pt - self.tracker_start).total_seconds() >= self.track_seconds:
-                        trade_tracker.log_update(
-                            msg_type=WindowMessageTypes.TRACK_SUCCESS,
-                            msg_attrs={
-                                'direction_up': True
-                            },
-                            dt=pt
-                        )
-                        trade_tracker.direction_up = True
-                        return self.next_state
+
+                    # check that still meets validation
+                    if self.validate(ltp, ltp_spread, ladder_spread):
+
+                        # check for completion time
+                        if (dt - self.tracker_start).total_seconds() >= self.track_seconds:
+
+                            done = True
+
+                    # validation failed
+                    else:
+
+                        stop = True
 
                 # tracking down instead of up, switch direction
                 else:
-                    if self.validate(ltp, ltp_min, ltp_max, ladder_spread):
-                        self.track(pt, trade_tracker, ltp, direction_up=True, window_value=ltp_max)
+
+                    window_value = ltp_min
+                    stop = True
 
         # check if broken lower window
         elif ltp < ltp_min:
 
+            window_value = ltp_min
+            up = False
+
             # if not tracking, start
             if not self.tracking:
-                if self.validate(ltp, ltp_min, ltp_max, ladder_spread):
-                    self.track(pt, trade_tracker, ltp, direction_up=False, window_value=ltp_min)
+                if self.validate(ltp, ltp_spread, ladder_spread):
+                    start = True
 
             else:
 
                 # already tracking and in right direction, check for completion of time limit
                 if not self.up:
-                    if (pt - self.tracker_start).total_seconds() >= self.track_seconds:
-                        trade_tracker.log_update(
-                            msg_type=WindowMessageTypes.TRACK_SUCCESS,
-                            msg_attrs={
-                                'direction_up': False
-                            },
-                            dt=pt
-                        )
-                        trade_tracker.direction_up = False
-                        return self.next_state
+
+                    # check for validation
+                    if self.validate(ltp, ltp_spread, ladder_spread):
+
+                        # check for time completion
+                        if (dt - self.tracker_start).total_seconds() >= self.track_seconds:
+
+                            done = True
+
+                    # validation failed
+                    else:
+
+                        stop = True
 
                 # tracking up instead of down, switch direction
                 else:
-                    if self.validate(ltp, ltp_min, ltp_max, ladder_spread):
-                        self.track(pt, trade_tracker, ltp, direction_up=False, window_value=ltp_min)
+
+                    window_value = ltp_max
+                    stop = True
 
         # if here reached then have not broken upper/lower window
         else:
 
+            # if tracking then stop
             if self.tracking:
 
-                # was tracking but now LTP has come back inside window, breach of window failed
-                trade_tracker.log_update(
-                    msg_type=WindowMessageTypes.TRACK_FAIL,
-                    msg_attrs={
-                        'direction_up': self.up,
-                        'ltp': ltp,
-                    },
-                    dt=pt,
-                    display_odds=ltp,
-                )
+                stop = True
 
-            # cancel active track
-            self.tracking = False
+        if stop:
+
+            self.track_stop(
+                dt=dt,
+                trade_tracker=trade_tracker,
+                ltp=ltp,
+                window_value=window_value,
+                window_spread=ltp_spread,
+                ladder_spread=ladder_spread
+            )
+
+        elif start:
+
+            self.track_start(
+                dt=dt,
+                trade_tracker=trade_tracker,
+                ltp=ltp,
+                direction_up=up,
+                window_value=window_value,
+                window_spread=ltp_spread,
+                ladder_spread=ladder_spread
+            )
+
+        elif done:
+
+            trade_tracker.log_update(
+                msg_type=WindowMessageTypes.TRACK_SUCCESS,
+                msg_attrs={
+                    'direction_up': True
+                },
+                dt=dt
+            )
+
+            return self.next_state
 
 
 class WindowTradeStateOpenPlace(tradestates.TradeStateOpenPlace):

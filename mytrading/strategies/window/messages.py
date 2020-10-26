@@ -25,24 +25,44 @@ def get_direction(direction_up: bool) -> str:
 
 @register_formatter(WindowMessageTypes.TRACK_START)
 def formatter(attrs: Dict) -> str:
-    ltp = attrs.get('ltp')
-    window_value = attrs.get('window_value')
     window_name = get_window_name(attrs.get('direction_up'))
+    ltp = attrs.get('ltp')
+    ltp_max = attrs.get('ltp_max')
+    window_value = attrs.get('window_value')
+    window_spread = attrs.get('window_spread')
+    ltp_min_spread = attrs.get('window_spread_min')
+    ladder_spread = attrs.get('ladder_spread')
+    ladder_spread_max = attrs.get('ladder_spread_max')
 
-    return f'tracking window breach of {window_name} at {window_value:.2f} with LTP of {ltp}'
+    return \
+        f'tracking window breach of {window_name} at {window_value:.2f} with LTP of {ltp}\n' \
+        f'-> ltp {ltp} within max odds {ltp_max}\n' \
+        f'-> window spread {window_spread} exceeds minimum {ltp_min_spread}\n' \
+        f'-> and ladder spread {ladder_spread} within max {ladder_spread_max}'
 
 
 @register_formatter(WindowMessageTypes.TRACK_SUCCESS)
 def formatter(attrs: Dict) -> str:
     window_name = get_window_name(attrs.get('direction_up'))
-    return f'successfully window breach of {window_name}'
+    return f'successfully window breach of {window_name}, '
 
 
 @register_formatter(WindowMessageTypes.TRACK_FAIL)
 def formatter(attrs: Dict) -> str:
     window_name = get_window_name(attrs.get('direction_up'))
     ltp = attrs.get('ltp')
-    return f'window {window_name} failed, LTP now {ltp}'
+    ltp_max = attrs.get('ltp_max')
+    window_value = attrs.get('window_value')
+    window_spread = attrs.get('window_spread')
+    ltp_min_spread = attrs.get('window_spread_min')
+    ladder_spread = attrs.get('ladder_spread')
+    ladder_spread_max = attrs.get('ladder_spread_max')
+
+    return \
+        f'breach of {window_name} at {window_value:.2f} failed, with LTP of {ltp}\n' \
+        f'-> ltp {ltp} must be within {ltp_max}\n' \
+        f'-> window spread {window_spread} must exceed minimum {ltp_min_spread}\n' \
+        f'-> and ladder spread {ladder_spread} must be within {ladder_spread_max}'
 
 
 @register_formatter(WindowMessageTypes.OPEN_PLACE_FAIL)
