@@ -51,6 +51,17 @@ def plotly_data_to_series(data: dict) -> pd.Series:
     return pd.Series(data['y'], index=data['x'])
 
 
+def plotly_pricesize_display(data: Dict):
+    """
+    convert a list of price sizes to a html friendly display string
+    """
+    return {
+        'x': data['x'],
+        'y': '<br>'.join(f'price: {ps["price"]}, size: {ps["size"]}' for ps in data['y'])
+    }
+
+
+
 def plotly_set_attrs(
         vals: Dict,
         feature_configs: List[Dict],
@@ -65,7 +76,7 @@ def plotly_set_attrs(
     -   'processors': list of processor(data: dict) functions to run on data retrieved from feature
     -   'attr formatters': dictionary of:
     -       key: attribute name to set in plotly dictionary
-    -       value: formatter(data: dict) to format data into visualisation form
+    -       value: formatter(value) to format data into visualisation form
 
     example of 'feature_configs':
     """
@@ -77,6 +88,8 @@ def plotly_set_attrs(
     df_data = {
         'y': sr_vals,
     }
+
+    assert(type(feature_configs) is list)
 
     for cnf in feature_configs:
 
@@ -212,6 +225,8 @@ def add_feature_trace(
     - y_axes_names: list of y-axes names for grid selection
     - chart_start: timestamp of plotting start time
     """
+
+    active_logger.info(f'plotting feature: "{feature_name}"')
 
     # if told to ignore feature then exit
     if ftr_conf.get('ignore'):

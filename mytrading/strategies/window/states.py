@@ -479,6 +479,7 @@ class WindowTradeStateHedgePlaceTake(tradestates.TradeStateHedgePlaceBase):
         return get_price(ltp, close_ladder, close_side)
 
 
+
 class WindowTradeStateHedgeTakeWait(tradestates.TradeStateHedgeWaitBase):
 
     def price_moved(

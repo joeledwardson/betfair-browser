@@ -19,8 +19,10 @@ def format_message(msg_type: str, msg_attrs: Dict) -> str:
 
 
 def register_formatter(key: Enum):
-    """register a formatter(attrs: Dict)->str function with an integer Enumeration key to the dictionary of
-    formatters"""
+    """
+    register a formatter(attrs: Dict)->str function with an integer Enumeration key to the dictionary of
+    formatters
+    """
     def decorator(func):
         if key.value in message_formatters:
             raise Exception(f'registering message type {key.value}, but already exists!')

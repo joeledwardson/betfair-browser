@@ -5,7 +5,7 @@ from plotly import graph_objects as go
 
 from mytrading.feature import feature
 from mytrading.visual.functions import plotly_set_attrs, color_text_formatter_decimal, plotly_data_to_series, \
-    values_resampler, plotly_series_to_data, plotly_df_to_data, plotly_regression, plotly_group
+    values_resampler, plotly_series_to_data, plotly_df_to_data, plotly_regression, plotly_group, plotly_pricesize_display
 
 # name of back regression feature
 BACK_REGRESSION_NAME = 'best back regression'
@@ -58,12 +58,32 @@ def get_plot_configs(
         'best back': {
             'chart_args': {
                 'visible': 'legendonly',
-            }
+            },
+            'value_processors': [
+                partial(plotly_set_attrs,
+                        feature_configs=[{
+                            'feature': features['back ladder'],
+                            'processors': [],
+                            'attr formatters': {
+                                'text': lambda v: '<br>'.join(
+                                    f'price: {ps["price"]}, size: {ps["size"]}' for ps in v
+                                ),
+                            }
+                        }],
+                ),
+                plotly_df_to_data,
+            ]
         },
         'best lay': {
             'chart_args': {
                 'visible': 'legendonly',
             }
+        },
+        'back ladder': {
+            'ignore': True,
+        },
+        'lay ladder': {
+            'ignore': True,
         },
         'wom': {
             'ignore': True,
