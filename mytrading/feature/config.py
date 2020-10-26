@@ -12,6 +12,7 @@ def get_default_features_config(
         regression_strength_filter=0.1,
         regression_gradient_filter=0.003,
         regression_update_ms=200,
+        n_ladder_elements=3,
 ) -> Dict[str, Dict]:
     """
     Get a dict of default runner features, where each entry is a dictionary of:
@@ -29,6 +30,20 @@ def get_default_features_config(
 
         'best lay': {
             'name': 'RunnerFeatureBestLay',
+        },
+
+        'back ladder': {
+            'name': 'RunnerFeatureBackLadder',
+            'kwargs': {
+                'n_elements': n_ladder_elements,
+            }
+        },
+
+        'lay ladder': {
+            'name': 'RunnerFeatureLayLadder',
+            'kwargs': {
+                'n_elements': n_ladder_elements,
+            }
         },
 
         'wom': {

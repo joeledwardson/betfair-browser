@@ -411,6 +411,38 @@ class RunnerFeatureBestLay(RunnerFeatureBase):
         return best_price(new_book.runners[runner_index].ex.available_to_lay)
 
 
+class RunnerFeatureBackLadder(RunnerFeatureBase):
+    """best available price-sizes on back side within specified number of elements of best price"""
+
+    def __init__(self, n_elements, *args, **kwargs):
+        self.n_elements = n_elements
+        super().__init__(*args, **kwargs)
+
+    def runner_update(
+            self,
+            market_list: List[MarketBook],
+            new_book: MarketBook,
+            windows: window.Windows,
+            runner_index):
+        return new_book.runners[runner_index].ex.available_to_back[:self.n_elements]
+
+
+class RunnerFeatureLayLadder(RunnerFeatureBase):
+    """best available price-sizes on lay side within specified number of elements of best price"""
+
+    def __init__(self, n_elements, *args, **kwargs):
+        self.n_elements = n_elements
+        super().__init__(*args, **kwargs)
+
+    def runner_update(
+            self,
+            market_list: List[MarketBook],
+            new_book: MarketBook,
+            windows: window.Windows,
+            runner_index):
+        return new_book.runners[runner_index].ex.available_to_lay[:self.n_elements]
+
+
 class RunnerFeatureRegression(RunnerFeatureWindowBase):
     """
     Perform regressions on a runner values from a window
