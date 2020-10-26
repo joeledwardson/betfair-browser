@@ -10,8 +10,16 @@ from mytrading.strategies.window.messages import WindowMessageTypes
 
 active_logger = logging.getLogger(__name__)
 
+orders_default_config = {
+    'trace_args': {},
+    'chart_args': {
+        'marker_size': 10,
+        'opacity': 0.8,
+    }
+}
 
-def plot_orders(fig: go.Figure, orders_df: pd.DataFrame):
+
+def plot_orders(fig: go.Figure, orders_df: pd.DataFrame, display_config=None):
     """
     add dataframe of order information to plot
     """
@@ -48,6 +56,9 @@ def plot_orders(fig: go.Figure, orders_df: pd.DataFrame):
     # convert multi-line message ASCII \n newline characters into HTML newline characters <br>
     orders_df['msg'] = orders_df['msg'].apply(lambda s: '<br>'.join(s.split('\n')))
 
+    # get default configuration if not passed
+    display_config = display_config or orders_default_config
+
     for i, (trade_id, df) in enumerate(orders_df.groupby(['trade_id'])):
 
         # so can see annotations for overlapping points need to combine text (use last instance for display odds)
@@ -57,15 +68,17 @@ def plot_orders(fig: go.Figure, orders_df: pd.DataFrame):
         display_odds = df.groupby(df.index)['display_odds'].last()
         df = pd.concat([msgs, display_odds], axis=1)
 
-        fig.add_trace(go.Scatter(
-            x=df.index,
-            y=df['display_odds'],
-            text=df['msg'],
-            mode='lines+markers',
-            name=f'trade {i}',
-            # legendgroup='order info',
-            # showlegend=(i == 0),
-        ))
+        fig.add_trace(
+            go.Scatter(
+                x=df.index,
+                y=df['display_odds'],
+                text=df['msg'],
+                mode='lines+markers',
+                name=f'trade {i}',
+                **display_config.get('chart_args', {}),
+            ),
+            **display_config.get('trace_args', {}),
+        )
 
 
 

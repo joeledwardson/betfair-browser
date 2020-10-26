@@ -15,13 +15,12 @@ active_logger = logging.getLogger(__name__)
 active_logger.setLevel(logging.INFO)
 
 
-def get_yaxes_names(feature_plot_configs: dict, _default_plot_configs: dict) -> List[str]:
+def get_yaxes_names(feature_plot_configs: dict, default_yaxis: str) -> List[str]:
     """get list of yaxis names from default configuration and list of feature configurations"""
 
-    def_yaxis = _default_plot_configs['y_axis']
     return list(set(
-        [def_yaxis] + [c.get('y_axis', def_yaxis)
-                       for c in feature_plot_configs.values()]
+        [default_yaxis] + [c.get('y_axis', default_yaxis)
+                           for c in feature_plot_configs.values()]
     ))
 
 
@@ -104,16 +103,6 @@ def add_feature_trace(
     value_processors = ftr_conf.get('value_processors', [])
 
     for trace_data in trace_data_lists:
-    
-        # only do processors if NOT: (check value is dict) and all dict lists are empty (pandas functions will fail)
-        # if not(
-        #         type(trace_data) is dict and
-        #         all([
-        #             bool(v) == False
-        #             for v in trace_data.values()
-        #             if type(v) is list
-        #         ])
-        # ):
         trace_data = process_plotly_data(trace_data, features, value_processors)
 
         # check there is data

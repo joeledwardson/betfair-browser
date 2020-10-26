@@ -37,7 +37,9 @@ def fig_historical(
         selection_id,
         title,
         display_s=0,
-        orders_df: pd.DataFrame=None):
+        orders_df: pd.DataFrame=None,
+        orders_config=None
+):
     """
     create figure using default features for historical record list and a selected runner ID
     - records: list of historical records
@@ -86,9 +88,8 @@ def fig_historical(
     # loop records and process features
     runner_features(selection_id, records, windows, features)
 
-    # TODO - assume using default configuration
     default_plot_config = get_default_plot_config()
-    y_axes_names = get_yaxes_names(feature_plot_configs, default_plot_config)
+    y_axes_names = get_yaxes_names(feature_plot_configs, default_plot_config['y_axis'])
     fig = create_figure(y_axes_names)
 
     for feature_name, feature in features.items():
@@ -109,7 +110,7 @@ def fig_historical(
         orders_df = orders_df[
             (orders_df.index >= market_time - timedelta(seconds=display_s)) &
             (orders_df.index <= market_time)]
-        plot_orders(fig, orders_df.copy())
+        plot_orders(fig, orders_df.copy(), orders_config)
     set_figure_layout(fig, title, market_time, display_s)
     return fig
 
