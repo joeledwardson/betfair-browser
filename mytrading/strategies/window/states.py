@@ -88,6 +88,7 @@ class WindowTradeStateIdle(tradestates.TradeStateIdle):
         self.tracking = True
         self.up = direction_up
         self.tracker_start = dt
+        trade_tracker.direction_up = direction_up
 
         trade_tracker.log_update(
             msg_type=WindowMessageTypes.TRACK_START,
@@ -477,7 +478,6 @@ class WindowTradeStateHedgePlaceTake(tradestates.TradeStateHedgePlaceBase):
             **inputs
     ):
         return get_price(ltp, close_ladder, close_side)
-
 
 
 class WindowTradeStateHedgeTakeWait(tradestates.TradeStateHedgeWaitBase):
