@@ -5,161 +5,14 @@ from datetime import timedelta
 from typing import List, Dict
 from datetime import datetime
 import logging
-import pandas as pd
 from myutils.timing import decorator_timer
 from mytrading.feature.feature import RunnerFeatureBase
 from mytrading.feature.window import Windows
+from .dataprocessors import process_plotly_data
+from .figprocessors import post_process_figure
 
 active_logger = logging.getLogger(__name__)
 active_logger.setLevel(logging.INFO)
-
-
-def values_resampler(df: pd.DataFrame, n_seconds, sampling_function='last') -> pd.DataFrame:
-    """
-    resample 'df' DataFrame for 'n_seconds', using last value each second and forward filling
-    can override default sampling function 'last' with `sampling_function` arg
-    """
-    rule = f'{n_seconds}S'
-    return df.resample(rule).apply(sampling_function).fillna(method='ffill') if df.shape[0] else df
-
-
-def color_text_formatter_percent(value, name, n_decimals=0) -> str:
-    """
-    format value with name to percentage with 'n_decimals' dp
-    """
-    return f'{name}: {value:.{n_decimals}%}'
-
-
-def color_text_formatter_decimal(value, name, n_decimals=2, prefix='') -> str:
-    """
-    format value with name to decimal with 'n_decimals' dp
-    """
-    return f'{name}: {prefix}{value:.{n_decimals}f}'
-
-
-def remove_duplicates(sr: pd.Series) -> pd.Series:
-    """
-    remove duplicates from series with datetime index keeping last value
-    """
-    return sr[~sr.index.duplicated(keep='last')]
-
-
-def plotly_data_to_series(data: dict) -> pd.Series:
-    """
-    convert 'data' x-y plotly values (dict with 'x' and 'y' indexed list values) to pandas series where index is 'x'
-    """
-    return pd.Series(data['y'], index=data['x'])
-
-
-def plotly_pricesize_display(data: Dict):
-    """
-    convert a list of price sizes to a html friendly display string
-    """
-    return {
-        'x': data['x'],
-        'y': '<br>'.join(f'price: {ps["price"]}, size: {ps["size"]}' for ps in data['y'])
-    }
-
-
-
-def plotly_set_attrs(
-        vals: Dict,
-        feature_configs: List[Dict],
-) -> pd.DataFrame:
-    """
-    For a given dictionary 'vals' of plotly data containing 'x' and 'y' lists of values, set additional dictionary
-    attributes to be accepted by a plotly chart function
-
-    'feature_configs' dictionary specifies what features to use as additional attributes and how to process them
-    - list of feature configuration dictionaries:
-    -   'feature': RunnerFeatureBase() instance to get values from (only first index from values list is used!)
-    -   'processors': list of processor(data: dict) functions to run on data retrieved from feature
-    -   'attr formatters': dictionary of:
-    -       key: attribute name to set in plotly dictionary
-    -       value: formatter(value) to format data into visualisation form
-
-    example of 'feature_configs':
-    """
-
-    # have to remove duplicate datetime indexes from each series or pandas winges when trying to make a dataframe
-    sr_vals = plotly_data_to_series(vals)
-    sr_vals = remove_duplicates(sr_vals)
-
-    df_data = {
-        'y': sr_vals,
-    }
-
-    assert(type(feature_configs) is list)
-
-    for cnf in feature_configs:
-
-        # get data from feature to be used as color in plot (assume single plotting element)
-        data = cnf['feature'].get_plotly_data()[0]
-
-        # run processors on color data (if not empty)
-        for processor in cnf['processors']:
-            data = processor(data)
-
-        # check has x and y values
-        if 'y' in data and len(data['y']) and 'x' in data and len(data['x']):
-
-            # create series and remove duplicates from color data
-            sr = pd.Series(data['y'], index=data['x'])
-            sr = remove_duplicates(sr)
-
-            for df_key, formatter in cnf['attr formatters'].items():
-                df_data[df_key] = sr.apply(formatter)
-
-    df = pd.DataFrame(df_data)
-    df = df.fillna(method='ffill')
-    return df
-
-
-def plotly_df_to_data(df: pd.DataFrame) -> Dict:
-    """
-    convert dataframe to dictionary (assuming columns are appropriate for plotly chart arg) and use index for 'x' vals
-    """
-    values = df.to_dict(orient='list')
-    values.update({'x': df.index})
-    return values
-
-
-def plotly_series_to_data(sr: pd.Series) -> Dict:
-    """
-    convert series to dictionary with 'x' and 'y'
-    """
-    return {
-        'x': sr.index,
-        'y': sr.to_list()
-    }
-
-
-def plotly_regression(vals: Dict) -> Dict:
-    """
-    convert returned values dict from 'RunnerFeatureRegression' feature into plotly compatible dict with 'x',
-    'y' and 'text'
-    """
-    txt_rsqaured = f'rsquared: {vals["rsquared"]:.2f}'
-    return {
-        'x': vals['dts'],
-        'y': vals['predicted'],
-        'text': [txt_rsqaured for x in vals['dts']]
-    }
-
-
-def plotly_group(fig: go.Figure, name: str, group_name: str):
-    """
-    group a set of plotly traces with a unified name to a single legend
-    """
-    # filter to traces with name
-    for i, trace in enumerate([t for t in fig.data if t['name']==name]):
-        # show legend on first trace but ignore others
-        if i == 0:
-            trace['showlegend'] = True
-        else:
-            trace['showlegend'] = False
-        # set all trace group names the same
-        trace['legendgroup'] = group_name
 
 
 def get_yaxes_names(feature_plot_configs: dict, _default_plot_configs: dict) -> List[str]:
@@ -211,6 +64,7 @@ def add_feature_trace(
         fig: go.Figure,
         feature_name: str,
         feature: RunnerFeatureBase,
+        features: Dict[str, RunnerFeatureBase],
         def_conf: Dict,
         ftr_conf: Dict,
         y_axes_names: List,
@@ -246,20 +100,21 @@ def add_feature_trace(
 
     # get list of plotly data dictionary
     trace_data_lists = feature.get_plotly_data()
-    
+
+    value_processors = ftr_conf.get('value_processors', [])
+
     for trace_data in trace_data_lists:
     
         # only do processors if NOT: (check value is dict) and all dict lists are empty (pandas functions will fail)
-        if not(
-                type(trace_data) is dict and 
-                all([
-                    bool(v) == False 
-                    for v in trace_data.values()
-                    if type(v) is list
-                ])
-        ):
-            for processor in ftr_conf.get('value_processors', []):
-                trace_data = processor(trace_data)
+        # if not(
+        #         type(trace_data) is dict and
+        #         all([
+        #             bool(v) == False
+        #             for v in trace_data.values()
+        #             if type(v) is list
+        #         ])
+        # ):
+        trace_data = process_plotly_data(trace_data, features, value_processors)
 
         # check there is data
         if not('x' in trace_data and len(trace_data['x'])):
@@ -297,14 +152,14 @@ def add_feature_trace(
 
         fig.add_trace(chart, **trace_args)
 
-    # if exist, run figure post processor
-    if 'fig_post_processor' in ftr_conf:
-        ftr_conf['fig_post_processor'](fig)
+    # run figure post processors
+    post_process_figure(fig, ftr_conf.get('fig_post_processors', []))
 
 
 def add_feature_parent(
         display_name: str,
         feature: RunnerFeatureBase,
+        features: Dict[str, RunnerFeatureBase],
         fig: go.Figure,
         conf: dict,
         default_plot_config: Dict,
@@ -321,6 +176,7 @@ def add_feature_parent(
         fig=fig,
         feature_name=display_name,
         feature=feature,
+        features=features,
         def_conf=default_plot_config,
         y_axes_names=y_axes_names,
         ftr_conf=conf,
@@ -343,6 +199,7 @@ def add_feature_parent(
         add_feature_parent(
             display_name=sub_display_name,
             feature=sub_feature,
+            features=features,
             fig=fig,
             conf=sub_conf,
             default_plot_config=default_plot_config,

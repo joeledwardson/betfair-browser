@@ -1,11 +1,5 @@
-from functools import partial
 from typing import Dict
-
 from plotly import graph_objects as go
-
-from mytrading.feature import feature
-from mytrading.visual.functions import plotly_set_attrs, color_text_formatter_decimal, plotly_data_to_series, \
-    values_resampler, plotly_series_to_data, plotly_df_to_data, plotly_regression, plotly_group, plotly_pricesize_display
 
 # name of back regression feature
 BACK_REGRESSION_NAME = 'best back regression'
@@ -35,9 +29,9 @@ def get_default_plot_config() -> dict:
 
 
 def get_plot_configs(
-        features: Dict[str, feature.RunnerFeatureBase],
         ltp_diff_opacity=0.4,
-        ltp_marker_opacity=0.5) -> Dict[str, Dict]:
+        ltp_diff_s=1
+) -> Dict[str, Dict]:
     """
     get dict of {feature name: plotly config dict}, for plotting features, where feature names match those from
     bf_feature.get_default_features()
@@ -53,31 +47,44 @@ def get_plot_configs(
     - 'sub_features': dict of {name: configuration} sub_feature
     """
 
-
     return {
         'best back': {
             'chart_args': {
                 'visible': 'legendonly',
             },
-            'value_processors': [
-                partial(plotly_set_attrs,
-                        feature_configs=[{
-                            'feature': features['back ladder'],
-                            'processors': [],
-                            'attr formatters': {
-                                'text': lambda v: '<br>'.join(
-                                    f'price: {ps["price"]}, size: {ps["size"]}' for ps in v
-                                ),
-                            }
-                        }],
-                ),
-                plotly_df_to_data,
-            ]
+            'value_processors': [{
+                'name': 'plotly_set_attrs',
+                'kwargs': {
+                    'feature_name': 'back ladder',
+                    'feature_value_processors': [{
+                        'name': 'plotly_pricesize_display'
+                    }],
+                    'attr_configs': [{
+                        'attr_name': 'text',
+                    }]
+                }
+            }, {
+                'name': 'plotly_df_to_data',
+            }],
         },
         'best lay': {
             'chart_args': {
                 'visible': 'legendonly',
-            }
+            },
+            'value_processors': [{
+                'name': 'plotly_set_attrs',
+                'kwargs': {
+                    'feature_name': 'lay ladder',
+                    'feature_value_processors': [{
+                        'name': 'plotly_pricesize_display'
+                    }],
+                    'attr_configs': [{
+                        'attr_name': 'text',
+                    }]
+                }
+            }, {
+                'name': 'plotly_df_to_data',
+            }],
         },
         'back ladder': {
             'ignore': True,
@@ -98,30 +105,33 @@ def get_plot_configs(
             'chart_args': {
                 'mode': 'lines+markers'
             },
-            # 'marker': {
-            #     'opacity': ltp_marker_opacity,
-            # # },
-            'value_processors': [
-                partial(plotly_set_attrs,
-                        feature_configs=[{
-                            'feature': features['tv'],
-                            'processors': [],
-                            'attr formatters': {
-                                'text': partial(color_text_formatter_decimal,
-                                                name='traded vol',
-                                                prefix='£'),
-                            }
-                        }],
-                ),
-                plotly_df_to_data,
-            ],
+            'value_processors': [{
+                'name': 'plotly_set_attrs',
+                'kwargs': {
+                    'feature_name': 'tv',
+                    'feature_value_processors': [],
+                    'attr_configs': [{
+                        'attr_name': 'text',
+                        'formatter_name': 'formatter_decimal',
+                        'formatter_kwargs': {
+                            'name': 'traded vol',
+                            'prefix': '£',
+                        }
+                    }],
+                }
+            }, {
+                'name': 'plotly_df_to_data',
+            }],
         },
         'ltp diff': {
             'chart': go.Bar,
             'chart_args': {
                 # default plotly colours go white, so use a green to red with grey 0 scale
                 'marker': {
-                    'colorscale': [[0, 'rgb(250,50,50)'], [1, 'rgb(50,250,50)']],
+                    'colorscale': [
+                        [0, 'rgb(250,50,50)'],
+                        [1, 'rgb(50,250,50)']
+                    ],
                     'cmid': 0,
                 },
                 'opacity': ltp_diff_opacity,
@@ -131,54 +141,70 @@ def get_plot_configs(
             'trace_args': {
                 'secondary_y': True
             },
-            'value_processors': [
-                partial(plotly_set_attrs,
-                        feature_configs=[{
-                            'feature': features['wom'],
-                            'processors': [
-                                plotly_data_to_series,
-                                partial(values_resampler,
-                                        n_seconds=features['ltp diff'].window_s,
-                                        sampling_function='mean'),
-                                plotly_series_to_data
-                            ],
-                            'attr formatters': {
-                                'marker_color': lambda x:x,
-                                'text': partial(color_text_formatter_decimal,
-                                                name='weight of money',
-                                                prefix='£'),
-                            }
-                        }],),
-                partial(values_resampler,
-                        n_seconds=features['ltp diff'].window_s),
-                plotly_df_to_data,
-            ],
+            'value_processors': [{
+                'name': 'plotly_set_attrs',
+                'kwargs': {
+                    'feature_name': 'wom',
+                    'feature_value_processors': [{
+                        'name': 'plotly_data_to_series',
+                    }, {
+                        'name': 'values_resampler',
+                        'kwargs': {
+                            'n_seconds': ltp_diff_s,
+                            'sampling_function': 'mean',
+                        }
+                    }, {
+                        'name': 'plotly_series_to_data'
+                    }],
+                    'attr_configs': [{
+                        'attr_name': 'marker_color'
+                    }, {
+                        'attr_name': 'text',
+                        'formatter_name': 'formatter_decimal',
+                        'formatter_kwargs': {
+                            'name': 'weight of money',
+                            'prefix': '£',
+                        }
+                    }],
+                },
+            }, {
+                'name': 'values_resampler',
+                'kwargs': {
+                    'n_seconds': ltp_diff_s,
+                }
+            }, {
+                'name': 'plotly_df_to_data'
+            }],
         },
         BACK_REGRESSION_NAME: {
             'chart_args': {
                 'showlegend': False
             },
-            'value_processors': [
-                plotly_regression
-            ],
-            'fig_post_processor': partial(
-                plotly_group,
-                name=BACK_REGRESSION_NAME,
-                group_name=BACK_REGRESSION_NAME
-            )
+            'value_processors': [{
+                'name': 'plotly_regression'
+            }],
+            'fig_post_processors': [{
+                'name': 'plotly_group',
+                'kwargs': {
+                    'name': BACK_REGRESSION_NAME,
+                    'group_name': BACK_REGRESSION_NAME,
+                }
+            }],
         },
         LAY_REGRESSION_NAME: {
             'chart_args': {
                 'showlegend': False
             },
-            'value_processors': [
-                plotly_regression
-            ],
-            'fig_post_processor': partial(
-                plotly_group,
-                name=LAY_REGRESSION_NAME,
-                group_name=LAY_REGRESSION_NAME
-            )
+            'value_processors': [{
+                'name': 'plotly_regression',
+            }],
+            'fig_post_processors': [{
+                'name': 'plotly_group',
+                'kwargs': {
+                    'name': LAY_REGRESSION_NAME,
+                    'group_name': LAY_REGRESSION_NAME,
+                }
+            }],
         },
         'ltp min': {
             'sub_features': {

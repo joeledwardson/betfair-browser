@@ -37,7 +37,7 @@ def fig_historical(
         selection_id,
         title,
         display_s=0,
-        orders_df:pd.DataFrame=None):
+        orders_df: pd.DataFrame=None):
     """
     create figure using default features for historical record list and a selected runner ID
     - records: list of historical records
@@ -96,6 +96,7 @@ def fig_historical(
         add_feature_parent(
             display_name=feature_name,
             feature=feature,
+            features=features,
             fig=fig,
             conf=conf,
             default_plot_config=default_plot_config,
@@ -136,7 +137,7 @@ def generate_feature_plot(
     )
 
     # create feature plotting configurations (use defaults)
-    feature_plot_configs = mytrading.visual.config.get_plot_configs(features)
+    feature_plot_configs = mytrading.visual.config.get_plot_configs()
 
     # create runner feature figure and append to html output path
     fig = fig_historical(
