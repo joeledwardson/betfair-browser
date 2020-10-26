@@ -29,26 +29,24 @@ def plot_orders(fig: go.Figure, orders_df: pd.DataFrame):
         active_logger.warning('"msg_attrs" not found in orders dataframe, aborting')
         return
 
-    # def get_trade_id(order_info):
-    #     if type(order_info) is dict:
-    #         if 'trade' in order_info:
-    #             return order_info['trade']['id']
-    #     return None
-
-    # orders_df['trade_id'] = orders_df['order_info'].apply(get_trade_id)
-
     # replace blank trade ID so they are not ignored by pandas groupby
     orders_df['trade_id'].fillna('-1')
 
+    # use message formatter to convert message type and attributes into single string message
     orders_df['msg'] = orders_df[['msg_type', 'msg_attrs']].apply(
         lambda cols: format_message(cols[0], cols[1]),
         axis=1
     )
 
+    # check for messages equal to None (indicates that message formatter not returning a value)
     for row in orders_df[orders_df['msg'].isnull()].iterrows():
         active_logger.critical(f'found row with message type "{row[1].get("msg_type")}" has no message!')
 
+    # remove null messages
     orders_df = orders_df[~orders_df['msg'].isnull()]
+
+    # convert multi-line message ASCII \n newline characters into HTML newline characters <br>
+    orders_df['msg'] = orders_df['msg'].apply(lambda s: '<br>'.join(s.split('\n')))
 
     for i, (trade_id, df) in enumerate(orders_df.groupby(['trade_id'])):
 

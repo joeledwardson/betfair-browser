@@ -53,8 +53,9 @@ def serializable_order_info(order: BetfairOrder) -> dict:
     # convert trade ID to string
     info['trade']['id'] = str(info['trade']['id'])
 
+    # dont store strategy info
     # convert strategy object in trade to dict of info
-    info['trade']['strategy'] = info['trade']['strategy'].info
+    # info['trade']['strategy'] = info['trade']['strategy'].info
 
     # convert strategy status to string
     info['trade']['status'] = str(info['trade']['status'])

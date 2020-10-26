@@ -18,7 +18,8 @@ from mytrading.feature.featureholder import FeatureHolder
 from mytrading.tradetracker.tradetracker import TradeTracker
 from mytrading.tradetracker.orderinfo import serializable_order_info
 from mytrading.tradetracker.messages import MessageTypes
-from mytrading.utils.storage import construct_hist_dir, DIR_BASE, SUBDIR_STRATEGY_HISTORIC, EXT_ORDER_RESULT, EXT_ORDER_INFO
+from mytrading.utils.storage import construct_hist_dir, DIR_BASE, SUBDIR_STRATEGY_HISTORIC, EXT_ORDER_RESULT, \
+    EXT_ORDER_INFO, EXT_STRATEGY_INFO
 from myutils.timing import EdgeDetector
 from myutils import statemachine as stm
 from myutils.jsonfile import add_to_file
@@ -73,11 +74,17 @@ class MyFeatureStrategy(MyBaseStrategy):
         # strategy name
         self.strategy_name = name
 
-        # start timestamp
-        self.timestamp = datetime.now(timezone.utc).strftime('%Y-%m-%dT%H_%M_%S')
-
         # strategies base directory
-        self.strategy_dir = path.join(input_dir, SUBDIR_STRATEGY_HISTORIC)
+        strategy_base_dir = path.join(input_dir, SUBDIR_STRATEGY_HISTORIC)
+
+        # strategy output dir, create (assume not exist)
+        self.strategy_dir = self._get_strategy_dir(strategy_base_dir, name, datetime.now(timezone.utc))
+        makedirs(self.strategy_dir, exist_ok=False)
+
+        # write to strategy info file
+        strategy_file_path = path.join(self.strategy_dir, EXT_STRATEGY_INFO)
+        active_logger.info(f'writing strategy info to file: "{strategy_file_path}')
+        add_to_file(strategy_file_path, self.info)
 
         # hold trade tracker {market ID -> {selection ID -> trade tracker}} dictionary
         self.trade_trackers: Dict[str, Dict[int, TradeTracker]] = dict()
@@ -108,14 +115,18 @@ class MyFeatureStrategy(MyBaseStrategy):
         self.allow.update(market_book.publish_time >=
                             (market_book.market_definition.market_time - timedelta(seconds=self.pre_seconds)))
 
+    def _get_strategy_dir(self, base_dir, name, dt: datetime):
+        """get strategy output directory to store results"""
+        return path.join(base_dir, name, dt.strftime('%Y-%m-%dT%H_%M_%S'))
+
     def _get_output_dir(self, market_book: MarketBook):
         """get output directory for current market to store files"""
 
         # get event, dated market path
         market_dir = construct_hist_dir(market_book)
 
-        # combine market path with base strategy dir, strategy name and timestamp
-        return path.join(self.strategy_dir, self.strategy_name, self.timestamp, market_dir)
+        # combine strategy dir with market constructed path
+        return path.join(self.strategy_dir, market_dir)
 
     def _reset_complete_trade(
             self,

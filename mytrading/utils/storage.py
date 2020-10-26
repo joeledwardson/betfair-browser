@@ -26,6 +26,7 @@ EXT_ORDER_RESULT = '.orderresult'
 EXT_ORDER_INFO = '.orderinfo'
 EXT_CATALOGUE = '.bfcatalogue'
 EXT_RECORDED = '.bfrecorded'
+EXT_STRATEGY_INFO = '.strategyinfo'
 
 
 RE_EVENT = r'^\d{8}$'
