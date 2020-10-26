@@ -382,8 +382,11 @@ class TradeStateHedgePlaceTake(TradeStateBase):
             **inputs
     ):
 
+        # get oustanding profit on trade (dif between profit in win/loss case)
         match_bet_sums = get_match_bet_sums(trade_tracker.active_trade)
         outstanding_profit = match_bet_sums.outstanding_profit()
+
+        # abort if below minimum required to hedge
         if abs(outstanding_profit) <= self.min_hedge_price:
             trade_tracker.log_update(
                 msg_type=MessageTypes.HEDGE_NOT_MET,
@@ -411,6 +414,7 @@ class TradeStateHedgePlaceTake(TradeStateBase):
             open_ladder = runner.ex.available_to_lay
             close_ladder = runner.ex.available_to_back
 
+        # check that ladders not empty
         if not open_ladder or not close_ladder:
             trade_tracker.log_update(
                 msg_type=MessageTypes.BOOKS_EMPTY,
@@ -418,6 +422,7 @@ class TradeStateHedgePlaceTake(TradeStateBase):
             )
             return TradeStateTypes.CLEANING
 
+        # get green price for hedging
         green_price = self.get_hedge_price(
             open_ladder,
             close_ladder,
@@ -430,6 +435,10 @@ class TradeStateHedgePlaceTake(TradeStateBase):
             **inputs
         )
 
+        # convert price to 2dp
+        green_price = round(green_price, ndigits=2)
+
+        # if function returns 0 then error, abort
         if not green_price:
             trade_tracker.log_update(
                 msg_type=MessageTypes.GREEN_INVALID,
@@ -440,9 +449,11 @@ class TradeStateHedgePlaceTake(TradeStateBase):
             )
             return TradeStateTypes.CLEANING
 
+        # compute size from outstanding profit and price, round to 2dp
         green_size = abs(outstanding_profit) / green_price
         green_size = round(green_size, 2)
 
+        # place order
         trade_tracker.log_update(
             msg_type=MessageTypes.GREEN_PLACE,
             msg_attrs={
