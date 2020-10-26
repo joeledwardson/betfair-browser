@@ -22,8 +22,6 @@ class MyWindowStrategy(MyFeatureStrategy):
     Take breach of LTP min/max windows as drift in specific direction and back/lay in the direction of drift
     """
 
-    trade_tracker_class = WindowTradeTracker
-
     def __init__(
             self,
             stake_size,

@@ -139,6 +139,10 @@ class MyFeatureStrategy(MyBaseStrategy):
         """
         get path for order info file for a market
         """
+        if market_book.market_id not in self.output_dirs:
+            active_logger.critical(f'market ID "{market_book.market_id}" not found in output dirs')
+            return ''
+
         return path.join(
             self.output_dirs[market_book.market_id],
             market_book.market_id + EXT_ORDER_INFO
@@ -170,6 +174,11 @@ class MyFeatureStrategy(MyBaseStrategy):
 
         # check market that is closing is in trade trackers
         if market.market_id not in self.trade_trackers:
+            return
+
+        # check market in output_dirs
+        if market_book.market_id not in self.output_dirs:
+            active_logger.critical(f'market closed ID "{market_book.market_id}" not found in output dirs')
             return
 
         # loop runners
