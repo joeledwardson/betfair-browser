@@ -241,6 +241,12 @@ class WindowTradeStateIdle(tradestates.TradeStateIdle):
         # if here reached then have not broken upper/lower window
         else:
 
+            # get window value from direction
+            if self.up:
+                window_value = ltp_max
+            else:
+                window_value = ltp_min
+
             # if tracking then stop
             if self.tracking:
 
