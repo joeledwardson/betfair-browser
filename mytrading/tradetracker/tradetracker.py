@@ -1,4 +1,4 @@
-from flumine.order.order import BetfairOrder
+from flumine.order.order import BetfairOrder, OrderStatus
 from flumine.order.trade import Trade
 from flumine.order.ordertype import LimitOrder
 
@@ -49,7 +49,11 @@ class TradeTracker:
         since last call of function
         """
         ot = self.order_tracker
+
+        # loop trades
         for trade in self.trades:
+
+            # add untracked trades to tracker
             if trade.id not in ot:
                 self.log_update(
                     msg_type=MessageTypes.TRACK_TRADE,
@@ -61,7 +65,10 @@ class TradeTracker:
                 )
                 ot[trade.id] = dict()
 
+            # loop limit orders in trade
             for order in [o for o in trade.orders if type(o.order_type) == LimitOrder]:
+
+                # if order untracked, create ordertracker and track
                 if order.id not in ot[trade.id]:
                     self.log_update(
                         msg_type=MessageTypes.TRACK_ORDER,
@@ -77,6 +84,7 @@ class TradeTracker:
                     )
                     continue
 
+                # check if size matched change
                 if order.size_matched != ot[trade.id][order.id].matched:
                     self.log_update(
                         msg_type=MessageTypes.MATCHED_SIZE,
@@ -90,7 +98,14 @@ class TradeTracker:
                         },
                     )
 
+                # check for status change
                 if order.status != ot[trade.id][order.id].status:
+
+                    msg = ''
+                    if order.status == OrderStatus.VIOLATION:
+                        if hasattr(order, 'violation_message'):
+                            msg = getattr(order, 'violation_message')
+
                     self.log_update(
                         msg_type=MessageTypes.STATUS_UPDATE,
                         dt=publish_time,
@@ -99,7 +114,8 @@ class TradeTracker:
                             "side": order.side,
                             "price": order.order_type.price,
                             "size": order.order_type.size,
-                            "status": order.status.value
+                            "status": order.status.value,
+                            'msg': msg,
                         },
                         order=order
                     )

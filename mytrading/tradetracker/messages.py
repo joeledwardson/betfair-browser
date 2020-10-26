@@ -75,7 +75,11 @@ def formatter(attrs: Dict) -> str:
     price = attrs.get("price")
     size = attrs.get("size", -1)
     status = attrs.get("status")
-    return f'order side {side} at {price} for £{size:.2f}, now status {status}'
+    str = f'order side {side} at {price} for £{size:.2f}, now status {status}'
+    msg = attrs.get("msg")
+    if msg:
+        str += f', message: "{msg}"'
+    return str
 
 
 @register_formatter(MessageTypes.OPEN_PLACE)
