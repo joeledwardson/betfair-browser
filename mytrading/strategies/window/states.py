@@ -13,7 +13,7 @@ from flumine.order.ordertype import LimitOrder, OrderTypes
 from mytrading.tradetracker.messages import MessageTypes
 from typing import Dict, List
 from mytrading.process.prices import best_price
-from mytrading.strategy.side import select_ladder_side, select_operator_side, invert_side
+from mytrading.process.side import select_ladder_side, select_operator_side, invert_side
 
 active_logger = logging.getLogger(__name__)
 
@@ -136,6 +136,9 @@ class WindowTradeStateIdle(tradestates.TradeStateIdle):
         )
 
     def get_ltp_spread(self, ltp_max, ltp_min) -> int:
+        """
+        get tick spread between ltp max and min
+        """
         index_min = closest_tick(ltp_min, return_index=True)
         index_max = closest_tick(ltp_max, return_index=True)
         return index_max - index_min
@@ -457,7 +460,7 @@ class WindowTradeStateOpenMatching(tradestates.TradeStateOpenMatching):
                 ]
 
 
-class WindowTradeStateHedgePlaceTake(tradestates.TradeStateHedgePlaceTake):
+class WindowTradeStateHedgePlaceTake(tradestates.TradeStateHedgePlaceBase):
     """take the best price available from either ltp or best back/lay for hedging"""
 
     def get_hedge_price(
@@ -476,7 +479,7 @@ class WindowTradeStateHedgePlaceTake(tradestates.TradeStateHedgePlaceTake):
         return get_price(ltp, close_ladder, close_side)
 
 
-class WindowTradeStateHedgeTakeWait(tradestates.TradeStateHedgeTakeWait):
+class WindowTradeStateHedgeTakeWait(tradestates.TradeStateHedgeWaitBase):
 
     def price_moved(
             self,

@@ -154,7 +154,7 @@ class MyScalpStrategy(MyFeatureStrategy):
                     mytrading.trademachine.tradestates.TradeStateHedgePlaceTake(
                         min_hedge_price=self.min_hedge_price
                     ),
-                    mytrading.trademachine.tradestates.TradeStateHedgeTakeWait(),
+                    mytrading.trademachine.tradestates.TradeStateHedgeWaitTake(),
                     mytrading.trademachine.tradestates.TradeStateClean()
                 ]
             },
