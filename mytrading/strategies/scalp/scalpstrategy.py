@@ -26,7 +26,7 @@ class MyScalpStrategy(MyFeatureStrategy):
     def __init__(self, *args, **kwargs):
         super().__init__('scalp', *args, **kwargs)
 
-    StrategyTradeTrackerType = WallTradeTracker
+    trade_tracker_class = WallTradeTracker
 
     # minimum size of 'wall' stake
     wall_minimum_size = 100

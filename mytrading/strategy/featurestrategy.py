@@ -10,7 +10,7 @@ from enum import Enum
 from mytrading.trademachine.tradestates import TradeStateTypes
 import mytrading.feature.config
 import mytrading.trademachine.tradestates
-from mytrading.trademachine import trademachine as bftm
+from mytrading.trademachine.trademachine import RunnerStateMachine
 from mytrading.feature import feature as bff
 from mytrading.feature.feature import RunnerFeatureBase
 from .basestrategy import MyBaseStrategy
@@ -21,7 +21,6 @@ from mytrading.tradetracker.messages import MessageTypes
 from mytrading.utils.storage import construct_hist_dir, DIR_BASE, SUBDIR_STRATEGY_HISTORIC, EXT_ORDER_RESULT, \
     EXT_ORDER_INFO, EXT_STRATEGY_INFO
 from myutils.timing import EdgeDetector
-from myutils import statemachine as stm
 from myutils.jsonfile import add_to_file
 
 # number of seconds before start that trading is stopped and greened up
@@ -41,9 +40,6 @@ class MyFeatureStrategy(MyBaseStrategy):
     By default features configuration is left blank so default features are used for each runner, but this can be
     overridden
     """
-
-    # trade tracker class
-    StrategyTradeTrackerType = TradeTracker
 
     # list of states that indicate no trade or anything is active
     inactive_states = [
@@ -90,7 +86,7 @@ class MyFeatureStrategy(MyBaseStrategy):
         self.trade_trackers: Dict[str, Dict[int, TradeTracker]] = dict()
 
         # hold state machine {market ID -> {selection ID -> state machine}} dictionary
-        self.state_machines: Dict[str, Dict[int, stm.StateMachine]] = dict()
+        self.state_machines: Dict[str, Dict[int, RunnerStateMachine]] = dict()
 
         # feature holder {market ID -> feature holder} dictionary
         self.feature_holders: Dict[str, FeatureHolder] = dict()
@@ -103,24 +99,35 @@ class MyFeatureStrategy(MyBaseStrategy):
         self.allow = EdgeDetector(False)
 
     def get_features_config(self, runner: RunnerBook) -> Dict:
+        """
+        get dictionary of feature configurations to pass to generate_features() and create runner features
+        """
         raise NotImplementedError
 
     def _update_cutoff(self, market_book: MarketBook):
-        """update `cutoff`, denoting whether trading is cutoff (too close to start) based on market book timestamp"""
+        """
+        update `cutoff` instance, denoting whether trading is cutoff (too close to start) based on market book timestamp
+        """
         self.cutoff.update(market_book.publish_time >=
                            (market_book.market_definition.market_time - timedelta(seconds=self.cutoff_seconds)))
 
     def _update_allow(self, market_book: MarketBook):
-        """update `allow`, denoting if close enough to start of race based on market book timestamp"""
+        """
+        update `allow` instance, denoting if close enough to start of race based on market book timestamp
+        """
         self.allow.update(market_book.publish_time >=
                             (market_book.market_definition.market_time - timedelta(seconds=self.pre_seconds)))
 
     def _get_strategy_dir(self, base_dir, name, dt: datetime):
-        """get strategy output directory to store results"""
+        """
+        get strategy output directory to store results
+        """
         return path.join(base_dir, name, dt.strftime('%Y-%m-%dT%H_%M_%S'))
 
     def _get_output_dir(self, market_book: MarketBook):
-        """get output directory for current market to store files"""
+        """
+        get output directory for current market to store files
+        """
 
         # get event, dated market path
         market_dir = construct_hist_dir(market_book)
@@ -128,11 +135,23 @@ class MyFeatureStrategy(MyBaseStrategy):
         # combine strategy dir with market constructed path
         return path.join(self.strategy_dir, market_dir)
 
+    def _get_orderinfo_path(self, market_book: MarketBook):
+        """
+        get path for order info file for a market
+        """
+        return path.join(
+            self.output_dirs[market_book.market_id],
+            market_book.market_id + EXT_ORDER_INFO
+        )
+
     def _reset_complete_trade(
             self,
-            state_machine: bftm.RunnerStateMachine,
+            state_machine: RunnerStateMachine,
             trade_tracker: TradeTracker,
             reset_state: Enum = None):
+        """
+        process a complete trade by forcing trade machine back to initial state, clearing active order and active trade
+        """
 
         # clear existing states from state machine
         state_machine.flush()
@@ -145,7 +164,9 @@ class MyFeatureStrategy(MyBaseStrategy):
         trade_tracker.active_trade = None
 
     def process_closed_market(self, market: Market, market_book: MarketBook) -> None:
-        """log updates of each order in trade_tracker for market close"""
+        """
+        log updates of each order in trade_tracker for market close
+        """
 
         # check market that is closing is in trade trackers
         if market.market_id not in self.trade_trackers:
@@ -194,15 +215,25 @@ class MyFeatureStrategy(MyBaseStrategy):
         """
         return FeatureHolder()
 
-    def create_state_machine(self, runner: RunnerBook, market: Market, market_book: MarketBook) -> stm.StateMachine:
+    def create_state_machine(self, runner: RunnerBook, market: Market, market_book: MarketBook) -> RunnerStateMachine:
+        """
+        create trade state machine for a new runner
+        """
         raise NotImplementedError
 
-    def create_trade_tracker(self, runner: RunnerBook, market: Market, market_book: MarketBook) -> TradeTracker:
-
-        output_path = path.join(self.output_dirs[market.market_id], market.market_id + EXT_ORDER_INFO)
-        return self.StrategyTradeTrackerType(
+    def create_trade_tracker(
+            self,
+            runner: RunnerBook,
+            market: Market,
+            market_book: MarketBook,
+            file_path) -> TradeTracker:
+        """
+        create a TradeTracker instance for a new runner, taking 'file_path' as argument for trade tracker's order
+        info log
+        """
+        return TradeTracker(
             selection_id=runner.selection_id,
-            file_path=output_path
+            file_path=file_path
         )
 
     def create_features(
@@ -212,7 +243,9 @@ class MyFeatureStrategy(MyBaseStrategy):
             market: Market,
             market_book: MarketBook
     ) -> Dict[str, RunnerFeatureBase]:
-        """generate a dictionary of features for a given runner on receiving its first market book"""
+        """
+        generate a dictionary of features for a given runner on receiving its first market book
+        """
 
         return bff.generate_features(
             selection_id=runner.selection_id,
@@ -224,7 +257,7 @@ class MyFeatureStrategy(MyBaseStrategy):
     def process_trade_machine(
             self,
             runner: RunnerBook,
-            state_machine: bftm.RunnerStateMachine,
+            state_machine: RunnerStateMachine,
             trade_tracker: TradeTracker) -> bool:
 
         # only run state if past timestamp when trading allowed
@@ -319,11 +352,19 @@ class MyFeatureStrategy(MyBaseStrategy):
                 active_logger.info(
                     f'creating state machine and trade tracker for "{runner.selection_id}"'
                 )
+
+                # get order info path from market book
+                file_path = self._get_orderinfo_path(market_book)
+
+                # create trade tracker for runner
                 self.trade_trackers[market.market_id][runner.selection_id] = self.create_trade_tracker(
                     runner=runner,
                     market=market,
-                    market_book=market_book
+                    market_book=market_book,
+                    file_path=file_path
                 )
+
+                # create state machine for runner
                 self.state_machines[market.market_id][runner.selection_id] = self.create_state_machine(
                     runner=runner,
                     market=market,
