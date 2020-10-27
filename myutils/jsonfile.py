@@ -5,7 +5,9 @@ active_logger = logging.getLogger(__name__)
 
 
 def add_to_file(file_path, data, mode='a'):
-    """add a serializable data object as a new line to a file"""
+    """
+    add a serializable data object as a new line to a file
+    """
     with open(file_path, mode=mode) as f:
         try:
             json_data = json.dumps(data)
@@ -17,7 +19,9 @@ def add_to_file(file_path, data, mode='a'):
 
 
 def read_file(file_path):
-    """get a list of de-serialized objects from each line in a file"""
+    """
+    get a list of de-serialized objects from each line in a file
+    """
     with open(file_path) as f:
         lines = f.readlines()
 
@@ -30,7 +34,9 @@ def read_file(file_path):
 
 
 def is_jsonable(x):
-    """determine if data can be serialized"""
+    """
+    determine if data can be serialized
+    """
     try:
         json.dumps(x)
         return True
