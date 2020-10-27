@@ -67,7 +67,7 @@ def plotly_regression(data: Dict, features) -> Dict:
     """
     txt_rsqaured = f'rsquared: {data["rsquared"]:.2f}'
     return {
-        'x': data['dts'],
+        'x': data['x'],
         'y': data['predicted'],
         'text': [txt_rsqaured for x in data['dts']]
     }

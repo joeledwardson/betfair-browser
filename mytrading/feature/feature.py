@@ -209,8 +209,34 @@ class RunnerFeatureBase:
         """
         raise NotImplementedError
 
+    @classmethod
+    def pre_serialize(cls, plotly_data: List[Dict]):
+        """
+        pre-process for serialization of data
+        """
+        data = plotly_data.copy()
+        for entry in data:
+            entry['x'] = [x.timestamp() for x in entry['x']]
+        return data
+
+    @classmethod
+    def post_de_serialize(cls, plotly_data: List[Dict]):
+        """
+        post_process de-serialized feature plotly data
+        """
+        for entry in plotly_data:
+            entry['x'] = [datetime.fromtimestamp(x) for x in entry]
+        return plotly_data
+
     def get_plotly_data(self):
-        """get feature data in list of plotly form dicts, where 'x' is timestamps and 'y' are feature values"""
+        """
+        get feature data in list of plotly form dicts, where 'x' is timestamps and 'y' are feature values
+        by default only one entry is returned, but this style leaves the possibility open for returning list of dicts
+        for inheritance base method overloading, must adhere to rules:
+        - be list of dicts
+        - each dict entry be a list of values
+        - 'x' key values must be datetime entries for feature so can serialize
+        """
         return [{
             'x': self.dts,
             'y': self.processed_vals
@@ -460,7 +486,9 @@ class RunnerFeatureRegression(RunnerFeatureWindowBase):
     """
 
     def get_plotly_data(self):
-        """Return list of regression results"""
+        """
+        Return list of regression results
+        """
         return self.values
 
     def __init__(
@@ -530,7 +558,7 @@ class RunnerFeatureRegression(RunnerFeatureWindowBase):
 
         if abs(res_wls.rsquared) >= self.regression_strength_filter:
             return {
-                'dts': dat['dts'].copy(),  # stop making hard reference
+                'x': dat['dts'].copy(),  # stop making hard reference
                 'predicted': y_pred,
                 'params': res_wls.params,
                 'rsquared': res_wls.rsquared

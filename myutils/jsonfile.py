@@ -4,13 +4,13 @@ import logging
 active_logger = logging.getLogger(__name__)
 
 
-def add_to_file(file_path, data):
+def add_to_file(file_path, data, mode='a'):
     """add a serializable data object as a new line to a file"""
-    with open(file_path, mode='a') as f:
+    with open(file_path, mode=mode) as f:
         try:
             json_data = json.dumps(data)
-        except  TypeError as e:
-            active_logger.critical(f'failed to serialise data: "{data}"\n{e}')
+        except TypeError as e:
+            active_logger.critical(f'failed to serialise data writing to file: "{file_path}"\n{e}')
             return
 
         f.writelines([json_data + '\n'])
@@ -25,7 +25,7 @@ def read_file(file_path):
         json_data = [json.loads(line) for line in lines]
         return json_data
     except TypeError as e:
-        active_logger.critical(f'failed to load data: "{data}"\ne')
+        active_logger.critical(f'failed to load data from: "{file_path}"\n{e}')
         return []
 
 

@@ -7,18 +7,19 @@ from typing import Dict
 from os import path, makedirs
 from enum import Enum
 
+from myutils.timing import EdgeDetector, decorator_timer
+from myutils.jsonfile import add_to_file
 from ..trademachine.tradestates import TradeStateTypes
 from ..trademachine.trademachine import RunnerStateMachine
 from ..feature.feature import generate_features, RunnerFeatureBase
 from ..feature.featureholder import FeatureHolder
+from ..feature.storage import features_to_file, get_feature_file_name
 from ..tradetracker.tradetracker import TradeTracker
 from ..tradetracker.orderinfo import serializable_order_info
 from ..tradetracker.messages import MessageTypes
-from ..utils.storage import construct_hist_dir, DIR_BASE, SUBDIR_STRATEGY_HISTORIC, EXT_ORDER_RESULT, \
-    EXT_ORDER_INFO, EXT_STRATEGY_INFO
+from ..utils.storage import construct_hist_dir, DIR_BASE, SUBDIR_STRATEGY_HISTORIC, EXT_ORDER_RESULT
+from ..utils.storage import EXT_ORDER_INFO, EXT_STRATEGY_INFO
 from .basestrategy import MyBaseStrategy
-from myutils.timing import EdgeDetector
-from myutils.jsonfile import add_to_file
 
 # number of seconds before start that trading is stopped and greened up
 PRE_SECONDS = 180
@@ -26,7 +27,6 @@ PRE_SECONDS = 180
 # seconds before race start trading allowed
 CUTOFF_SECONDS = 2
 
-# STRATEGY_DIR = path.join(DIR_BASE, SUBDIR_STRATEGY_HISTORIC)
 
 active_logger = logging.getLogger(__name__)
 
@@ -164,9 +164,11 @@ class MyFeatureStrategy(MyBaseStrategy):
         trade_tracker.active_order = None
         trade_tracker.active_trade = None
 
+    @decorator_timer
     def process_closed_market(self, market: Market, market_book: MarketBook) -> None:
         """
-        log updates of each order in trade_tracker for market close
+        log updates of each order in trade_tracker for market close, in order info tracker, order result and write
+        features to file
         """
 
         # check market that is closing is in trade trackers
@@ -178,12 +180,28 @@ class MyFeatureStrategy(MyBaseStrategy):
             active_logger.critical(f'market closed ID "{market_book.market_id}" not found in output dirs')
             return
 
+        # get market output dir
+        output_dir = self.output_dirs[market.market_id]
+
         # loop runners
         for selection_id, runner_trade_tracker in self.trade_trackers[market.market_id].items():
 
+            # check markets exist in features and runner exist in market features
+            if market.market_id in self.feature_holders:
+
+                fh = self.feature_holders[market.market_id]
+                if selection_id in fh.features:
+
+                    # get runner features and write to file
+                    features = fh.features[selection_id]
+
+                    features_file_path = path.join(output_dir, get_feature_file_name(selection_id))
+                    active_logger.info(f'writing features for "{selection_id}" to file "{features_file_path}"')
+                    features_to_file(features_file_path, features)
+
             # get file path for order result, using selection ID as file name and order result extension
             file_path = path.join(
-                self.output_dirs[market.market_id],
+                output_dir,
                 str(selection_id) + EXT_ORDER_RESULT
             )
 
