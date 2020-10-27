@@ -10,7 +10,7 @@ from mytrading.trademachine.trademachine import RunnerStateMachine
 from mytrading.strategy.featurestrategy import MyFeatureStrategy
 from mytrading.process.ticks.ticks import LTICKS_DECODED
 from mytrading.process.ladder import BfLadderPoint, get_ladder_point
-from mytrading.feature.config import get_default_features_config
+from mytrading.feature.config import get_features_default_configs
 import logging
 
 active_logger = logging.getLogger(__name__)
@@ -93,7 +93,7 @@ class MyWindowStrategy(MyFeatureStrategy):
 
     def get_features_config(self, runner: RunnerBook) -> Dict:
         # use default features but not regression
-        features = get_default_features_config()
+        features = get_features_default_configs()
         del features['best back regression']
         del features['best lay regression']
         return features

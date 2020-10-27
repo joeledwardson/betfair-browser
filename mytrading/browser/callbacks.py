@@ -12,7 +12,7 @@ from mytrading.process.prices import starting_odds
 from mytrading.browser.data import DashData
 from mytrading.browser.tables.runners import get_runner_id
 from mytrading.browser.tables.files import get_files_table, get_table_market
-from mytrading.visual.visual import generate_feature_plot
+from mytrading.visual.figure import generate_feature_plot
 from mytrading.browser.text import html_lines
 from mytrading.browser.profit import get_display_profits
 from mytrading.visual.profits import process_profit_table, read_profit_table

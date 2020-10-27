@@ -1,62 +1,13 @@
-from betfairlightweight.resources import MarketBook
-from plotly.subplots import make_subplots
 import plotly.graph_objects as go
-from datetime import timedelta
 from typing import List, Dict
 from datetime import datetime
 import logging
-from myutils.timing import decorator_timer
-from mytrading.feature.feature import RunnerFeatureBase
-from mytrading.feature.window import Windows
-from .dataprocessors import process_plotly_data
-from .figprocessors import post_process_figure
+from ..feature.feature import RunnerFeatureBase
+from .processors.dataprocessors import process_plotly_data
+from .processors.figprocessors import post_process_figure
 
 active_logger = logging.getLogger(__name__)
 active_logger.setLevel(logging.INFO)
-
-
-def get_yaxes_names(feature_plot_configs: dict, default_yaxis: str) -> List[str]:
-    """get list of yaxis names from default configuration and list of feature configurations"""
-
-    return list(set(
-        [default_yaxis] + [c.get('y_axis', default_yaxis)
-                           for c in feature_plot_configs.values()]
-    ))
-
-
-def create_figure(y_axes_names: List[str], vertical_spacing=0.05) -> go.Figure:
-    """create chart with subplots based on 'y_axis' properties of feature plot configurations"""
-
-    n_cols = 1
-    n_rows = len(y_axes_names)
-
-    return make_subplots(
-        cols=n_cols,
-        rows=n_rows,
-        shared_xaxes=True,
-        specs=[[{'secondary_y': True} for y in range(n_cols)] for x in range(n_rows)],
-        vertical_spacing=vertical_spacing)
-
-
-@decorator_timer
-def runner_features(
-        selection_id: int,
-        records: List[List[MarketBook]],
-        windows: Windows,
-        features: Dict[str, RunnerFeatureBase]):
-    """
-    process historical records with a set of features for a selected runner
-    """
-    feature_records = []
-    for i in range(len(records)):
-        new_book = records[i][0]
-        feature_records.append(new_book)
-        windows.update_windows(feature_records, new_book)
-
-        runner_index = next((i for i, r in enumerate(new_book.runners) if r.selection_id == selection_id), None)
-        if runner_index is not None:
-            for feature in features.values():
-                feature.process_runner(feature_records, new_book, windows, runner_index)
 
 
 def add_feature_trace(
@@ -198,18 +149,3 @@ def add_feature_parent(
         )
 
 
-def set_figure_layout(fig: go.Figure, title: str, market_time: datetime, display_s: int):
-    """
-    set plotly figure layout with a title, limit x axis from start time minus display seconds
-    """
-
-    fig.update_layout(title=title) , # hovermode='x')
-    fig.update_xaxes({
-        'rangeslider': {
-            'visible': False
-        },
-        'range':  [
-            market_time - timedelta(seconds=display_s),
-            market_time
-        ],
-    })

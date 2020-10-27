@@ -260,7 +260,7 @@ class MyFeatureStrategy(MyBaseStrategy):
             selection_id=runner.selection_id,
             book=market_book,
             windows=feature_holder.windows,
-            features_config=self.get_features_config(runner)
+            feature_configs=self.get_features_config(runner)
         )
 
     def process_trade_machine(

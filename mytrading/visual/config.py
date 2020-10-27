@@ -8,7 +8,7 @@ BACK_REGRESSION_NAME = 'best back regression'
 LAY_REGRESSION_NAME = 'best lay regression'
 
 
-def get_default_plot_config() -> dict:
+def get_plot_default_config() -> dict:
     """
     get default plotly chart configurations dict for plotting features
     configuration includes keys:
@@ -28,7 +28,7 @@ def get_default_plot_config() -> dict:
     }
 
 
-def get_plot_configs(
+def get_plot_feature_default_configs(
         ltp_diff_opacity=0.4,
         ltp_diff_s=1
 ) -> Dict[str, Dict]:

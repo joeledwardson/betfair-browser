@@ -585,7 +585,7 @@ def generate_features(
         selection_id: int,
         book: MarketBook,
         windows: window.Windows,
-        features_config: dict,
+        feature_configs: dict,
 ) -> Dict[str, RunnerFeatureBase]:
     """
     create dictionary of features based on a dictionary of `features_config`,
@@ -595,7 +595,7 @@ def generate_features(
         - 'kwargs': dict of constructor arguments used when creating feature
     """
     features = dict()
-    for name, conf in features_config.items():
+    for name, conf in feature_configs.items():
         feature_class = globals()[conf['name']]
         features[name] = feature_class(**conf.get('kwargs', {}))
         features[name].race_initializer(selection_id, book, windows)

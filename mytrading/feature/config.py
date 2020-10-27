@@ -1,7 +1,7 @@
 from typing import Dict
 
 
-def get_default_features_config(
+def get_features_default_configs(
         wom_ticks=5,
         ltp_window_s=40,
         ltp_window_delay_s=2,

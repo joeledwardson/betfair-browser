@@ -1,21 +1,23 @@
-from datetime import timedelta
+from datetime import timedelta, datetime
 from typing import List, Dict
 
 import pandas as pd
 from betfairlightweight.resources import MarketBook
 from plotly import graph_objects as go
+from plotly.subplots import make_subplots
 
-import mytrading.feature.config
-import mytrading.visual
-import mytrading.visual.config
-from mytrading.feature import window, window as bfw, feature as bff
-from .functions import get_yaxes_names, create_figure, add_feature_parent, set_figure_layout, runner_features
-from mytrading.visual.orderinfo import plot_orders
-from mytrading.visual.config import get_default_plot_config
+from ..feature.window import Windows
+from ..feature.feature import RunnerFeatureBase, generate_features
+from ..feature.historic import runner_features
+from ..feature.config import get_features_default_configs
+from .config import get_plot_feature_default_configs, get_plot_default_config
+from .feature import add_feature_parent
+from .orderinfo import plot_orders
 from myutils import generic
 import logging
 
 active_logger = logging.getLogger(__name__)
+
 # number of seconds to buffer when trimming record list
 PROCESS_BUFFER_S = 10
 
@@ -31,8 +33,8 @@ def fig_to_file(fig: go.Figure, file_path, mode='a'):
 
 def fig_historical(
         records: List[List[MarketBook]],
-        features: Dict[str, bff.RunnerFeatureBase],
-        windows: window.Windows,
+        features: Dict[str, RunnerFeatureBase],
+        windows: Windows,
         feature_plot_configs: Dict[str, Dict],
         selection_id,
         title,
@@ -88,7 +90,7 @@ def fig_historical(
     # loop records and process features
     runner_features(selection_id, records, windows, features)
 
-    default_plot_config = get_default_plot_config()
+    default_plot_config = get_plot_default_config()
     y_axes_names = get_yaxes_names(feature_plot_configs, default_plot_config['y_axis'])
     fig = create_figure(y_axes_names)
 
@@ -120,7 +122,9 @@ def generate_feature_plot(
         selection_id: int,
         display_seconds: int,
         title: str,
-        orders_df: pd.DataFrame
+        orders_df: pd.DataFrame,
+        feature_configs: Dict=None,
+        feature_plot_configs: Dict=None,
 ) -> go.Figure:
     """create historical feature plot for a single runners based on record list, default configs and optional orders
     frame"""
@@ -128,17 +132,21 @@ def generate_feature_plot(
     if not hist_records:
         return go.Figure()
 
+    if feature_configs is None:
+        feature_configs = get_features_default_configs()
+
     # create runner feature instances (use defaults)
-    windows = bfw.Windows()
-    features = bff.generate_features(
+    windows = Windows()
+    features = generate_features(
         selection_id=selection_id,
         book=hist_records[0][0],
         windows=windows,
-        features_config=mytrading.feature.config.get_default_features_config()
+        feature_configs=feature_configs
     )
 
-    # create feature plotting configurations (use defaults)
-    feature_plot_configs = mytrading.visual.config.get_plot_configs()
+    if feature_plot_configs is None:
+        # create feature plotting configurations (use defaults)
+        feature_plot_configs = get_plot_feature_default_configs()
 
     # create runner feature figure and append to html output path
     fig = fig_historical(
@@ -153,3 +161,43 @@ def generate_feature_plot(
     )
 
     return fig
+
+
+def get_yaxes_names(feature_plot_configs: dict, default_yaxis: str) -> List[str]:
+    """get list of yaxis names from default configuration and list of feature configurations"""
+
+    return list(set(
+        [default_yaxis] + [c.get('y_axis', default_yaxis)
+                           for c in feature_plot_configs.values()]
+    ))
+
+
+def create_figure(y_axes_names: List[str], vertical_spacing=0.05) -> go.Figure:
+    """create chart with subplots based on 'y_axis' properties of feature plot configurations"""
+
+    n_cols = 1
+    n_rows = len(y_axes_names)
+
+    return make_subplots(
+        cols=n_cols,
+        rows=n_rows,
+        shared_xaxes=True,
+        specs=[[{'secondary_y': True} for y in range(n_cols)] for x in range(n_rows)],
+        vertical_spacing=vertical_spacing)
+
+
+def set_figure_layout(fig: go.Figure, title: str, market_time: datetime, display_s: int):
+    """
+    set plotly figure layout with a title, limit x axis from start time minus display seconds
+    """
+
+    fig.update_layout(title=title) , # hovermode='x')
+    fig.update_xaxes({
+        'rangeslider': {
+            'visible': False
+        },
+        'range':  [
+            market_time - timedelta(seconds=display_s),
+            market_time
+        ],
+    })
