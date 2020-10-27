@@ -4,6 +4,8 @@ from typing import Dict
 from flumine.markets.market import Market
 from betfairlightweight.resources.bettingresources import MarketBook, RunnerBook
 import logging
+
+from myutils.timing import timing_register
 from ...trademachine import tradestates as basestates
 from ...trademachine.trademachine import RunnerStateMachine
 from ...strategy.featurestrategy import MyFeatureStrategy
@@ -97,6 +99,7 @@ class MyWindowStrategy(MyFeatureStrategy):
         del features['best lay regression']
         return features
 
+    @timing_register
     def process_market_book(self, market: Market, market_book: MarketBook) -> None:
 
         # update feature data (calls market_initialisation() if new market)

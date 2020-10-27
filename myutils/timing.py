@@ -3,8 +3,12 @@ import time
 from datetime import datetime, timedelta
 import pytz
 import logging
+import pandas as pd
+from typing import List, Dict
+
 
 active_logger = logging.getLogger(__name__)
+function_timings = {}
 
 
 class EdgeDetector:
@@ -161,7 +165,9 @@ class TimeSimulator():
 
 
 def decorator_timer(func):
-    """Print the runtime of the decorated function"""
+    """
+    log the runtime of the decorated function
+    """
 
     # preserve function information
     @functools.wraps(func)
@@ -182,6 +188,53 @@ def decorator_timer(func):
         return val
 
     return wrapper_timer
+
+
+def timing_register(func):
+    """
+    register a function for execution times to be logged
+    """
+
+    # create empty list for runtimes
+    function_timings[func.__name__] = []
+
+    # preserve function information
+    @functools.wraps(func)
+    def wrapper_timer(*args, **kwargs):
+
+        # gets time in seconds (with decimal places)
+        start_time = time.perf_counter()
+
+        # execute function and store output
+        val = func(*args, **kwargs)
+
+        # get time after function complete
+        end_time = time.perf_counter()
+
+        # add execution time to list
+        elapsed_time = end_time - start_time
+        function_timings[func.__name__].append(timedelta(seconds=elapsed_time))
+
+        return val
+
+    return wrapper_timer
+
+
+def get_function_timings(func_name) -> pd.Series:
+    return pd.Series(function_timings[func_name])
+
+
+def get_timed_functions() -> List[str]:
+    return list(function_timings.keys())
+
+
+def timed_functions_summary():
+    for f in get_timed_functions():
+        print(f'printing function timings for "{f}"')
+        d = get_function_timings(f).describe()
+        for name, val in d.iteritems():
+            print(f'{name:5}: {val}')
+        print('\n')
 
 
 class RepeatingTimer:
