@@ -4,7 +4,7 @@ import dash_core_components as dcc
 from myutils.timing import format_timedelta
 from .tables.runners import get_runners_table, get_runner_id
 from .tables.market import get_market_table
-from .tables.files import get_files_table, get_table_market
+from .tables.files import get_files_table
 from .tables.orders import get_orders_table
 from .data import DashData
 

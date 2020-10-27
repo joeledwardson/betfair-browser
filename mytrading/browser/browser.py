@@ -3,12 +3,20 @@ import dash
 import logging
 import argparse
 from .data import DashData
-from .callbacks import market_callback, file_table_callback, figure_callback, orders_callback
+from .callbacks.figure import figure_callback
+from .callbacks.files import file_table_callback
+from .callbacks.orders import orders_callback
+from .callbacks.market import market_callback
 from .layout import get_layout
 from datetime import timedelta
 
 
 def run_browser(debug: bool, default_chart_offset: timedelta, input_dir: str):
+    """
+    run dash app browser - input_dir specifies input directory for entry point for browser but also expected root for:
+    - "historical" dir
+    - "recorded" dir
+    """
     gdd = DashData(input_dir)
 
     app = dash.Dash(__name__)

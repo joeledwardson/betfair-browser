@@ -3,9 +3,9 @@ from os import path
 from typing import List, Tuple
 import dash_table
 import pandas as pd
+from betfairlightweight import APIClient
 
 from .table import create_table
-from ..data import DashData
 from ..event import get_event_dir_info
 from ..filetracker import FileTracker
 from ..market import get_market_info, get_orders_market, get_historical_market, get_recorded_market
@@ -119,7 +119,7 @@ def get_files_table(
 
 
 def get_hist_cell_path(
-        dash_data: DashData,
+        file_tracker: FileTracker,
         active_cell,
         file_info: List[str]
 ) -> str:
@@ -136,21 +136,22 @@ def get_hist_cell_path(
         return ''
 
     row = active_cell['row']
-    if not len(dash_data.file_tracker.dirs) <= row < len(dash_data.file_tracker.display_list):
+    if not len(file_tracker.dirs) <= row < len(file_tracker.display_list):
         file_info.append(f'Row {row}, is not a valid file selection')
         return ''
 
-    file_name = dash_data.file_tracker.get_file_name(row)
+    file_name = file_tracker.get_file_name(row)
 
     if not re.match(RE_MARKET_ID, file_name):
         file_info.append(f'active cell file "{file_name}" does not match market ID')
         return ''
 
-    return path.join(dash_data.file_tracker.root, file_name)
+    return path.join(file_tracker.root, file_name)
 
 
 def get_table_market(
-        dash_data: DashData,
+        file_tracker: FileTracker,
+        trading: APIClient,
         base_dir: str,
         file_info: List[str],
         active_cell
@@ -163,20 +164,20 @@ def get_table_market(
     """
 
     # try to look if there are orders inside directory
-    if is_orders_dir(dash_data.file_tracker.files):
-        file_info.append(f'found order result/info files in "{dash_data.file_tracker.root}"')
+    if is_orders_dir(file_tracker.files):
+        file_info.append(f'found order result/info files in "{file_tracker.root}"')
         return get_orders_market(
-            dash_data.file_tracker.root,
+            file_tracker.root,
             base_dir,
-            dash_data.trading,
+            trading,
             file_info)
 
     # try to get path of historic file from table selected cell
-    hist_path = get_hist_cell_path(dash_data, active_cell, file_info)
+    hist_path = get_hist_cell_path(file_tracker, active_cell, file_info)
     if hist_path:
-        return get_historical_market(hist_path, dash_data.trading, file_info)
+        return get_historical_market(hist_path, trading, file_info)
 
     # try to use directory to get recorded/catalogue market data
-    return get_recorded_market(dash_data.file_tracker.root, dash_data.trading, file_info)
+    return get_recorded_market(file_tracker.root, trading, file_info)
 
 

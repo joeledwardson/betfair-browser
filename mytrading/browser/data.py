@@ -34,11 +34,18 @@ class DashData:
         # API client instance
         self.trading = get_api_client()
 
-        # dict of {selection ID: starting odds} of runners in active market
-        self.start_odds: Dict[int, float] = {}
-
         # market information of active market
         self.market_info = MarketInfo()
 
         # directory of market information for active market
         self.market_dir = ''
+
+        # dict of {selection ID: starting odds} of runners in active market
+        self.start_odds: Dict[int, float] = {}
+
+    def clear_market(self):
+        self.market_info = None
+        self.market_dir = ''
+        self.start_odds = {}
+
+
