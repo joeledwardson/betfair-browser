@@ -7,11 +7,12 @@ from plotly import graph_objects as go
 from plotly.subplots import make_subplots
 
 from ..feature.window import Windows
-from ..feature.feature import RunnerFeatureBase, generate_features
-from ..feature.historic import runner_features
+from ..feature.features import RunnerFeatureBase
+from ..feature.utils import generate_features, get_feature_data
+from ..feature.historic import hist_runner_features
 from ..feature.config import get_features_default_configs
 from .config import get_plot_feature_default_configs, get_plot_default_config
-from .feature import add_feature_parent
+from .feature import add_feature_trace
 from .orderinfo import plot_orders
 from myutils import generic
 import logging
@@ -32,15 +33,13 @@ def fig_to_file(fig: go.Figure, file_path, mode='a'):
 
 
 def fig_historical(
-        records: List[List[MarketBook]],
-        features: Dict[str, RunnerFeatureBase],
-        windows: Windows,
+        all_features_data: Dict[str, List[Dict]],
         feature_plot_configs: Dict[str, Dict],
-        selection_id,
-        title,
-        display_s=0,
+        title: str,
+        chart_start: datetime,
+        chart_end: datetime,
         orders_df: pd.DataFrame=None,
-        orders_config=None
+        orders_plot_config=None
 ):
     """
     create figure using default features for historical record list and a selected runner ID
@@ -53,18 +52,100 @@ def fig_historical(
     - orders_df: dataframe of order update to add as annotated scatter points
     """
 
-    if len(records) == 0:
-        active_logger.warning('records set empty')
+    # check features dict is not empty
+    if not len(all_features_data):
+        active_logger.warning(f'error printing figure "{title}", feature data empty')
         return go.Figure()
+
+    # get deafult configuration for plot chart
+    default_plot_config = get_plot_default_config()
+
+    # get list of yaxes names from feature plot configurations and default plot configuration
+    y_axes_names = get_yaxes_names(feature_plot_configs, default_plot_config['y_axis'])
+
+    # create figure based off axis names with correct number of subplots
+    fig = create_figure(y_axes_names)
+
+    # loop feature data
+    for feature_name in all_features_data.keys():
+
+        # get feature plot configuration
+        conf = feature_plot_configs.get(feature_name, {})
+
+        # add feature trace with data
+        add_feature_trace(
+            fig=fig,
+            feature_name=feature_name,
+            all_features_data=all_features_data,
+            default_config=default_plot_config,
+            feature_config=conf,
+            y_axes_names=y_axes_names,
+            chart_start=chart_start,
+            chart_end=chart_end,
+        )
+
+    # if order info dataframe passed and not emptythen plot
+    if orders_df is not None and orders_df.shape[0]:
+        orders_df = orders_df[
+            (orders_df.index >= chart_start) &
+            (orders_df.index <= chart_end)
+        ]
+        plot_orders(fig, orders_df.copy(), orders_plot_config)
+
+    # set figure layout and return
+    set_figure_layout(fig, title, chart_start, chart_end)
+    return fig
+
+
+def generate_feature_plot(
+        hist_records: List[List[MarketBook]],
+        selection_id: int,
+        title: str,
+        display_seconds: int,
+        feature_configs: Dict = None,
+        feature_plot_configs: Dict = None,
+        orders_df: pd.DataFrame = None,
+        orders_plot_config: Dict = None,
+) -> go.Figure:
+    """
+    create historical feature plot for a single runners based on record list, default configs and optional orders
+    frame
+    """
+
+    # check record set empty
+    if not hist_records:
+        active_logger.warning(f'error creating figure "{title}", records set empty')
+        return go.Figure()
+
+    # use default feature configuration if not passed
+    if feature_configs is None:
+        feature_configs = get_features_default_configs()
+
+    # create runner feature instances
+    windows = Windows()
+    features = generate_features(
+        selection_id=selection_id,
+        book=hist_records[0][0],
+        windows=windows,
+        feature_configs=feature_configs
+    )
+
+    # run feature processors on historic data
+    hist_runner_features(selection_id, hist_records, windows, features)
+
+    # create feature plotting configurations (use defaults if not passed)
+    if feature_plot_configs is None:
+        feature_plot_configs = get_plot_feature_default_configs()
+
     # use last record as first records market time can be accurate
-    market_time = records[-1][0].market_definition.market_time
+    market_time = hist_records[-1][0].market_definition.market_time
 
     # if display seconds passed use offset from start time, if not just use first record
-    if display_s:
-        chart_start = market_time - timedelta(seconds=display_s)
-        active_logger.info(f'using chart start {chart_start}, {display_s}s before market time')
+    if display_seconds:
+        chart_start = market_time - timedelta(seconds=display_seconds)
+        active_logger.info(f'using chart start {chart_start}, {display_seconds}s before market time')
     else:
-        chart_start = records[0][0].publish_time
+        chart_start = hist_records[0][0].publish_time
         active_logger.info(f'using first record for chart start {chart_start}')
 
     # chart end is market start
@@ -79,85 +160,26 @@ def fig_historical(
                            f'{PROCESS_BUFFER_S}s')
 
     # trim record list
-    records = [r for r in records if chart_start <= r[0].publish_time <= chart_end]
+    hist_records = [r for r in hist_records if chart_start <= r[0].publish_time <= chart_end]
 
-    if not len(records):
+    # check trimmed record set not empty
+    if not len(hist_records):
         active_logger.warning('trimmed records empty')
         return go.Figure()
 
-    active_logger.info(f'trimmed records {len(records)}')
-
-    # loop records and process features
-    runner_features(selection_id, records, windows, features)
-
-    default_plot_config = get_plot_default_config()
-    y_axes_names = get_yaxes_names(feature_plot_configs, default_plot_config['y_axis'])
-    fig = create_figure(y_axes_names)
-
-    for feature_name, feature in features.items():
-        conf = feature_plot_configs.get(feature_name, {})
-        add_feature_parent(
-            display_name=feature_name,
-            feature=feature,
-            features=features,
-            fig=fig,
-            conf=conf,
-            default_plot_config=default_plot_config,
-            y_axes_names=y_axes_names,
-            chart_start=chart_start,
-            chart_end=chart_end,
-        )
-
-    if orders_df is not None and orders_df.shape[0]:
-        orders_df = orders_df[
-            (orders_df.index >= market_time - timedelta(seconds=display_s)) &
-            (orders_df.index <= market_time)]
-        plot_orders(fig, orders_df.copy(), orders_config)
-    set_figure_layout(fig, title, market_time, display_s)
-    return fig
-
-
-def generate_feature_plot(
-        hist_records: List[List[MarketBook]],
-        selection_id: int,
-        display_seconds: int,
-        title: str,
-        orders_df: pd.DataFrame,
-        feature_configs: Dict=None,
-        feature_plot_configs: Dict=None,
-) -> go.Figure:
-    """create historical feature plot for a single runners based on record list, default configs and optional orders
-    frame"""
-
-    if not hist_records:
-        return go.Figure()
-
-    if feature_configs is None:
-        feature_configs = get_features_default_configs()
-
-    # create runner feature instances (use defaults)
-    windows = Windows()
-    features = generate_features(
-        selection_id=selection_id,
-        book=hist_records[0][0],
-        windows=windows,
-        feature_configs=feature_configs
-    )
-
-    if feature_plot_configs is None:
-        # create feature plotting configurations (use defaults)
-        feature_plot_configs = get_plot_feature_default_configs()
+    # get feature data from feature set
+    all_features_data = {}
+    get_feature_data(all_features_data, features, pre_serialize=False)
 
     # create runner feature figure and append to html output path
     fig = fig_historical(
-        records=hist_records,
-        features=features,
-        windows=windows,
+        all_features_data = all_features_data,
         feature_plot_configs=feature_plot_configs,
-        selection_id=selection_id,
         title=title,
-        display_s=display_seconds,
-        orders_df=orders_df
+        chart_start=chart_start,
+        chart_end=chart_end,
+        orders_df=orders_df,
+        orders_plot_config=orders_plot_config,
     )
 
     return fig
@@ -186,7 +208,7 @@ def create_figure(y_axes_names: List[str], vertical_spacing=0.05) -> go.Figure:
         vertical_spacing=vertical_spacing)
 
 
-def set_figure_layout(fig: go.Figure, title: str, market_time: datetime, display_s: int):
+def set_figure_layout(fig: go.Figure, title: str, chart_start: datetime, chart_end: datetime):
     """
     set plotly figure layout with a title, limit x axis from start time minus display seconds
     """
@@ -197,7 +219,7 @@ def set_figure_layout(fig: go.Figure, title: str, market_time: datetime, display
             'visible': False
         },
         'range':  [
-            market_time - timedelta(seconds=display_s),
-            market_time
+            chart_start,
+            chart_end
         ],
     })

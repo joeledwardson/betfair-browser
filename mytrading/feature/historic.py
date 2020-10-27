@@ -2,13 +2,13 @@ from typing import List, Dict
 
 from betfairlightweight.resources import MarketBook
 
-from .feature import RunnerFeatureBase
+from .features import RunnerFeatureBase
 from .window import Windows
 from myutils.timing import decorator_timer
 
 
 @decorator_timer
-def runner_features(
+def hist_runner_features(
         selection_id: int,
         records: List[List[MarketBook]],
         windows: Windows,

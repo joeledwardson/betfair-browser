@@ -2,7 +2,6 @@ import plotly.graph_objects as go
 from typing import List, Dict
 from datetime import datetime
 import logging
-from ..feature.feature import RunnerFeatureBase
 from .processors.dataprocessors import process_plotly_data
 from .processors.figprocessors import post_process_figure
 
@@ -13,17 +12,16 @@ active_logger.setLevel(logging.INFO)
 def add_feature_trace(
         fig: go.Figure,
         feature_name: str,
-        feature: RunnerFeatureBase,
-        features: Dict[str, RunnerFeatureBase],
-        def_conf: Dict,
-        ftr_conf: Dict,
+        all_features_data: Dict[str, List[Dict]],
+        default_config: Dict,
+        feature_config: Dict,
         y_axes_names: List,
         chart_start: datetime = None,
         chart_end: datetime = None):
     """
     create trace from feature data and add to figure
     - fig: plotly figure to add traces
-    - feature_name: name of feature to use on chart
+    - feature_name: name of feature to use on chart, and to index feature data
     - def_conf: default plotly configuration
     - ftr_conf: plotly configuration specific to feature, if non-empty override `def_conf` values
     - y_axes_names: list of y-axes names for grid selection
@@ -33,28 +31,28 @@ def add_feature_trace(
     active_logger.info(f'plotting feature: "{feature_name}"')
 
     # if told to ignore feature then exit
-    if ftr_conf.get('ignore'):
+    if feature_config.get('ignore'):
         return
 
     # get default y-axis name
-    def_yaxis = def_conf['y_axis']
+    def_yaxis = default_config['y_axis']
 
     # get y-axis (if not exist use default) and produce grid row index (starting from 1)
-    row = list(y_axes_names).index(ftr_conf.get('y_axis', def_yaxis)) + 1
+    row = list(y_axes_names).index(feature_config.get('y_axis', def_yaxis)) + 1
 
     # plotly chart function, chart kwargs, trace kwargs updating with grid row and (single column)
-    chart_func = ftr_conf.get('chart', def_conf['chart'])
-    chart_args = ftr_conf.get('chart_args', def_conf['chart_args'])
-    trace_args = ftr_conf.get('trace_args', def_conf['trace_args'])
+    chart_func = feature_config.get('chart', default_config['chart'])
+    chart_args = feature_config.get('chart_args', default_config['chart_args'])
+    trace_args = feature_config.get('trace_args', default_config['trace_args'])
     trace_args.update({'col': 1, 'row': row})
 
     # get list of plotly data dictionary
-    trace_data_lists = feature.get_plotly_data()
+    trace_data_lists = all_features_data[feature_name]
 
-    value_processors = ftr_conf.get('value_processors', [])
+    value_processors = feature_config.get('value_processors', [])
 
     for trace_data in trace_data_lists:
-        trace_data = process_plotly_data(trace_data, features, value_processors)
+        trace_data = process_plotly_data(trace_data, all_features_data, value_processors)
 
         # check there is data
         if not('x' in trace_data and len(trace_data['x'])):
@@ -93,59 +91,59 @@ def add_feature_trace(
         fig.add_trace(chart, **trace_args)
 
     # run figure post processors
-    post_process_figure(fig, ftr_conf.get('fig_post_processors', []))
+    post_process_figure(fig, feature_config.get('fig_post_processors', []))
 
 
-def add_feature_parent(
-        display_name: str,
-        feature: RunnerFeatureBase,
-        features: Dict[str, RunnerFeatureBase],
-        fig: go.Figure,
-        conf: dict,
-        default_plot_config: Dict,
-        y_axes_names: List[str],
-        chart_start: datetime = None,
-        chart_end: datetime = None,
-):
-    """
-    add a feature trace to a chart, including all its children features
-    """
 
-    # plot feature
-    add_feature_trace(
-        fig=fig,
-        feature_name=display_name,
-        feature=feature,
-        features=features,
-        def_conf=default_plot_config,
-        y_axes_names=y_axes_names,
-        ftr_conf=conf,
-        chart_start=chart_start,
-        chart_end=chart_end,
-    )
-
-    # get sub features config if exist
-    sub_configs = conf.get('sub_features', {})
-
-    # loop sub features
-    for sub_name, sub_feature in feature.sub_features.items():
-
-        # get sub-feature specific configuration
-        sub_conf = sub_configs.get(sub_name, {})
-
-        # create display name by using using a dot (.) between parent and sub feature names
-        sub_display_name = '.'.join([display_name, sub_name])
-
-        add_feature_parent(
-            display_name=sub_display_name,
-            feature=sub_feature,
-            features=features,
-            fig=fig,
-            conf=sub_conf,
-            default_plot_config=default_plot_config,
-            y_axes_names=y_axes_names,
-            chart_start=chart_start,
-            chart_end=chart_end
-        )
+#
+# def add_feature_parent(
+#         feature_name: str,
+#         all_features_data: Dict[str, List[Dict]],
+#         fig: go.Figure,
+#         conf: dict,
+#         default_plot_config: Dict,
+#         y_axes_names: List[str],
+#         chart_start: datetime = None,
+#         chart_end: datetime = None,
+# ):
+#     """
+#     add a feature trace to a chart, including all its children features
+#     """
+#
+#     # plot feature
+#     add_feature_trace(
+#         fig=fig,
+#         feature_name=feature_name,
+#         all_features_data=all_features_data,
+#         def_conf=default_plot_config,
+#         y_axes_names=y_axes_names,
+#         ftr_conf=conf,
+#         chart_start=chart_start,
+#         chart_end=chart_end,
+#     )
+#
+#     # get sub features config if exist
+#     sub_configs = conf.get('sub_features', {})
+#
+#     # loop sub features
+#     for sub_name, sub_feature in feature.sub_features.items():
+#
+#         # get sub-feature specific configuration
+#         sub_conf = sub_configs.get(sub_name, {})
+#
+#         # create display name by using using a dot (.) between parent and sub feature names
+#         sub_display_name = '.'.join([display_name, sub_name])
+#
+#         add_feature_parent(
+#             display_name=sub_display_name,
+#             feature=sub_feature,
+#             features=features,
+#             fig=fig,
+#             conf=sub_conf,
+#             default_plot_config=default_plot_config,
+#             y_axes_names=y_axes_names,
+#             chart_start=chart_start,
+#             chart_end=chart_end
+#         )
 
 

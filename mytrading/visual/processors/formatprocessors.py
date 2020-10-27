@@ -12,7 +12,7 @@ def register_format_processor(func):
     def func(value, feature_name, **kwargs)
     """
     if func.__name__ in format_processors:
-        raise Exception(f'registering plotly format processor {func.__name__}, but already exists!')
+        raise Exception(f'registering plotly format processor "{func.__name__}", but already exists!')
     else:
         format_processors[func.__name__] = func
         return func

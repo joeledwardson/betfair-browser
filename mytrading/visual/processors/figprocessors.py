@@ -10,7 +10,7 @@ def register_figure_processor(func):
     def func(figure, **kwargs)
     """
     if func.__name__ in fig_processors:
-        raise Exception(f'registering plotly figure processor {func.__name__}, but already exists!')
+        raise Exception(f'registering plotly figure processor "{func.__name__}", but already exists!')
     else:
         fig_processors[func.__name__] = func
         return func

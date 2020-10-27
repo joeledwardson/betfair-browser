@@ -7,11 +7,12 @@ from typing import Dict
 from os import path, makedirs
 from enum import Enum
 
-from myutils.timing import EdgeDetector, decorator_timer
+from myutils.timing import EdgeDetector, timing_register
 from myutils.jsonfile import add_to_file
 from ..trademachine.tradestates import TradeStateTypes
 from ..trademachine.trademachine import RunnerStateMachine
-from ..feature.feature import generate_features, RunnerFeatureBase
+from ..feature.features import RunnerFeatureBase
+from ..feature.utils import generate_features
 from ..feature.featureholder import FeatureHolder
 from ..feature.storage import features_to_file, get_feature_file_name
 from ..tradetracker.tradetracker import TradeTracker
@@ -164,7 +165,7 @@ class MyFeatureStrategy(MyBaseStrategy):
         trade_tracker.active_order = None
         trade_tracker.active_trade = None
 
-    @decorator_timer
+    @timing_register
     def process_closed_market(self, market: Market, market_book: MarketBook) -> None:
         """
         log updates of each order in trade_tracker for market close, in order info tracker, order result and write

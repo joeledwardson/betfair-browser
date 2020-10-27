@@ -66,6 +66,7 @@ def market_callback(app: dash.Dash, dd: DashData, input_dir: str):
 
         else:
 
+            # TODO - fix width on record display, not working in HTML
             w = 25
             info_strings.append(f'{"first record timestamp":{w}}: {dd.record_list[0][0].publish_time}')
             info_strings.append(f'{"final record timestamp":{w}}: {dd.record_list[-1][0].publish_time}')
@@ -202,7 +203,11 @@ def figure_callback(app: dash.Dash, dd: DashData, input_dir: str):
 
         # get order information from current directory by searching for order info and filtering to selection ID
         orders_df = None
-        order_file_path = path.join(dd.market_dir, dd.record_list[0][0].market_id + EXT_ORDER_INFO)
+        market_id = dd.record_list[0][0].market_id
+        order_file_path = path.join(
+            dd.market_dir,
+            market_id + EXT_ORDER_INFO
+        )
         if path.isfile(order_file_path):
             orders_df = get_order_updates(order_file_path)
             if orders_df.shape[0]:

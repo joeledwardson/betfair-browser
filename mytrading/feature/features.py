@@ -10,6 +10,19 @@ import operator
 import statistics
 from datetime import datetime, timedelta
 
+features_dict = {}
+
+
+def register_feature(cls):
+    """
+    register a feature, add to dictionary of features
+    """
+    if cls.__name__ in features_dict:
+        raise Exception(f'registering feature "{cls.__name__}", but already exists!')
+    else:
+        features_dict[cls.__name__] = cls
+        return cls
+
 
 class BetfairFeatureException(Exception):
     pass
@@ -210,7 +223,7 @@ class RunnerFeatureBase:
         raise NotImplementedError
 
     @classmethod
-    def pre_serialize(cls, plotly_data: List[Dict]):
+    def pre_serialize(cls, plotly_data: List[Dict]) -> List[Dict]:
         """
         pre-process for serialization of data
         """
@@ -220,13 +233,12 @@ class RunnerFeatureBase:
         return data
 
     @classmethod
-    def post_de_serialize(cls, plotly_data: List[Dict]):
+    def post_de_serialize(cls, plotly_data: List[Dict]) -> None:
         """
         post_process de-serialized feature plotly data
         """
         for entry in plotly_data:
             entry['x'] = [datetime.fromtimestamp(x) for x in entry]
-        return plotly_data
 
     def get_plotly_data(self):
         """
@@ -247,6 +259,7 @@ class RunnerFeatureBase:
         return self.processed_vals[-1] if len(self.processed_vals) else None
 
 
+@register_feature
 class RunnerFeatureWindowBase(RunnerFeatureBase):
     """
     base feature utilizing a window function (see bf_Windows)
@@ -282,6 +295,7 @@ class RunnerFeatureWindowBase(RunnerFeatureBase):
         windows.add_function(self.window_s, self.window_function)
 
 
+@register_feature
 class RunnerFeatureTradedWindowMin(RunnerFeatureWindowBase):
     """Minimum of recent traded prices in last 'window_s' seconds"""
 
@@ -303,6 +317,7 @@ class RunnerFeatureTradedWindowMin(RunnerFeatureWindowBase):
             return None
 
 
+@register_feature
 class RunnerFeatureTradedWindowMax(RunnerFeatureWindowBase):
     """Maximum of recent traded prices in last 'window_s' seconds"""
 
@@ -324,6 +339,7 @@ class RunnerFeatureTradedWindowMax(RunnerFeatureWindowBase):
             return None
 
 
+@register_feature
 class RunnerFeatureBookSplitWindow(RunnerFeatureWindowBase):
     """
      percentage of recent traded volume in the last 'window_s' seconds that is above current best back price
@@ -358,6 +374,7 @@ class RunnerFeatureBookSplitWindow(RunnerFeatureWindowBase):
         return None
 
 
+@register_feature
 class RunnerFeatureLTP(RunnerFeatureBase):
     """Last traded price of runner"""
     def runner_update(
@@ -369,6 +386,7 @@ class RunnerFeatureLTP(RunnerFeatureBase):
         return new_book.runners[runner_index].last_price_traded
 
 
+@register_feature
 class RunnerFeatureWOM(RunnerFeatureBase):
     """
     Weight of money (difference of available-to-lay to available-to-back)
@@ -392,6 +410,7 @@ class RunnerFeatureWOM(RunnerFeatureBase):
             return None
 
 
+@register_feature
 class RunnerFeatureTradedDiff(RunnerFeatureWindowBase):
     """Difference in total traded runner volume in the last 'window_s' seconds"""
 
@@ -411,6 +430,7 @@ class RunnerFeatureTradedDiff(RunnerFeatureWindowBase):
             raise BetfairFeatureException(f'error getting window attribute "tv_diff_totals"\n{e}')
 
 
+@register_feature
 class RunnerFeatureBestBack(RunnerFeatureBase):
     """Best available back price of runner"""
 
@@ -424,6 +444,7 @@ class RunnerFeatureBestBack(RunnerFeatureBase):
         return best_price(new_book.runners[runner_index].ex.available_to_back)
 
 
+@register_feature
 class RunnerFeatureBestLay(RunnerFeatureBase):
     """Best available lay price of runner"""
 
@@ -437,6 +458,7 @@ class RunnerFeatureBestLay(RunnerFeatureBase):
         return best_price(new_book.runners[runner_index].ex.available_to_lay)
 
 
+@register_feature
 class RunnerFeatureBackLadder(RunnerFeatureBase):
     """best available price-sizes on back side within specified number of elements of best price"""
 
@@ -453,6 +475,7 @@ class RunnerFeatureBackLadder(RunnerFeatureBase):
         return new_book.runners[runner_index].ex.available_to_back[:self.n_elements]
 
 
+@register_feature
 class RunnerFeatureLayLadder(RunnerFeatureBase):
     """best available price-sizes on lay side within specified number of elements of best price"""
 
@@ -469,6 +492,7 @@ class RunnerFeatureLayLadder(RunnerFeatureBase):
         return new_book.runners[runner_index].ex.available_to_lay[:self.n_elements]
 
 
+@register_feature
 class RunnerFeatureRegression(RunnerFeatureWindowBase):
     """
     Perform regressions on a runner values from a window
@@ -567,6 +591,7 @@ class RunnerFeatureRegression(RunnerFeatureWindowBase):
         return None
 
 
+@register_feature
 class RunnerFeatureSub(RunnerFeatureBase):
     def __init__(self, parent: RunnerFeatureBase, **kwargs):
         super().__init__(parent=parent, **kwargs)
@@ -574,6 +599,7 @@ class RunnerFeatureSub(RunnerFeatureBase):
             raise BetfairFeatureException(f'sub-feature has not received "parent" argument')
 
 
+@register_feature
 class RunnerFeatureDelayer(RunnerFeatureSub):
     """delay a parent feature by x number of seconds"""
 
@@ -598,6 +624,7 @@ class RunnerFeatureDelayer(RunnerFeatureSub):
             return self.parent.processed_vals[self.delay_index]
 
 
+@register_feature
 class RunnerFeatureTVTotal(RunnerFeatureBase):
     """total traded volume of runner"""
     def runner_update(
@@ -607,26 +634,5 @@ class RunnerFeatureTVTotal(RunnerFeatureBase):
             windows: Windows,
             runner_index):
         return traded_runner_vol(new_book.runners[runner_index])
-
-
-def generate_features(
-        selection_id: int,
-        book: MarketBook,
-        windows: Windows,
-        feature_configs: dict,
-) -> Dict[str, RunnerFeatureBase]:
-    """
-    create dictionary of features based on a dictionary of `features_config`,
-    - key: feature usage name
-    - value: dict of
-        - 'name': class name of feature
-        - 'kwargs': dict of constructor arguments used when creating feature
-    """
-    features = dict()
-    for name, conf in feature_configs.items():
-        feature_class = globals()[conf['name']]
-        features[name] = feature_class(**conf.get('kwargs', {}))
-        features[name].race_initializer(selection_id, book, windows)
-    return features
 
 

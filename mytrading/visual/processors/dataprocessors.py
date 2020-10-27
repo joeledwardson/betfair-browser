@@ -11,23 +11,23 @@ def register_data_processor(func):
     register a plotly processor, add to dictionary of processors
     signature:
 
-    def func(data, features, **kwargs)
+    def func(data, features_data_data, **kwargs)
     """
     if func.__name__ in plotly_processors:
-        raise Exception(f'registering plotly data processor {func.__name__}, but already exists!')
+        raise Exception(f'registering plotly data processor "{func.__name__}", but already exists!')
     else:
         plotly_processors[func.__name__] = func
         return func
 
 
-def process_plotly_data(data, features, processors_config):
+def process_plotly_data(data, features_data_data, processors_config):
     """
     use plotly data processors to process data
     """
     for cfg in processors_config:
         func = plotly_processors[cfg['name']]
         kwargs = cfg.get('kwargs', {})
-        data = func(data, features, **kwargs)
+        data = func(data, features_data_data, **kwargs)
     return data
 
 
@@ -39,7 +39,7 @@ def remove_duplicates(data: pd.Series) -> pd.Series:
 
 
 @register_data_processor
-def plotly_df_to_data(data: pd.DataFrame, features) -> Dict:
+def plotly_df_to_data(data: pd.DataFrame, features_data) -> Dict:
     """
     convert dataframe to dictionary (assuming columns are appropriate for plotly chart arg) and use index for 'x' vals
     """
@@ -49,7 +49,7 @@ def plotly_df_to_data(data: pd.DataFrame, features) -> Dict:
 
 
 @register_data_processor
-def plotly_series_to_data(data: pd.Series, features) -> Dict:
+def plotly_series_to_data(data: pd.Series, features_data) -> Dict:
     """
     convert series to dictionary with 'x' and 'y'
     """
@@ -60,21 +60,25 @@ def plotly_series_to_data(data: pd.Series, features) -> Dict:
 
 
 @register_data_processor
-def plotly_regression(data: Dict, features) -> Dict:
+def plotly_regression(data: Dict, features_data) -> Dict:
     """
     convert returned values dict from 'RunnerFeatureRegression' feature into plotly compatible dict with 'x',
     'y' and 'text'
     """
+
+    # 'rsquared' should be a single value in dictionary in which to create text from
     txt_rsqaured = f'rsquared: {data["rsquared"]:.2f}'
+
+    # return x and y coordinate lists with repeated text string indicating rsqaured value
     return {
         'x': data['x'],
         'y': data['predicted'],
-        'text': [txt_rsqaured for x in data['dts']]
+        'text': [txt_rsqaured for x in data['x']]
     }
 
 
 @register_data_processor
-def values_resampler(data: pd.DataFrame, features, n_seconds, sampling_function='last') -> pd.DataFrame:
+def values_resampler(data: pd.DataFrame, features_data, n_seconds, sampling_function='last') -> pd.DataFrame:
     """
     resample 'df' DataFrame for 'n_seconds', using last value each second and forward filling
     can override default sampling function 'last' with `sampling_function` arg
@@ -84,7 +88,7 @@ def values_resampler(data: pd.DataFrame, features, n_seconds, sampling_function=
 
 
 @register_data_processor
-def plotly_data_to_series(data: dict, features) -> pd.Series:
+def plotly_data_to_series(data: dict, features_data) -> pd.Series:
     """
     convert 'data' x-y plotly values (dict with 'x' and 'y' indexed list values) to pandas series where index is 'x'
     """
@@ -92,7 +96,7 @@ def plotly_data_to_series(data: dict, features) -> pd.Series:
 
 
 @register_data_processor
-def plotly_pricesize_display(data: Dict, features):
+def plotly_pricesize_display(data: Dict, features_data):
     """
     convert a list of price sizes to a html friendly display string
     """
@@ -108,7 +112,7 @@ def plotly_pricesize_display(data: Dict, features):
 @register_data_processor
 def plotly_set_attrs(
         data: Dict,
-        features,
+        features_data,
         feature_name,
         feature_value_processors,
         attr_configs: List[Dict],
@@ -131,7 +135,7 @@ def plotly_set_attrs(
     """
 
     # have to remove duplicate datetime indexes from each series or pandas winges when trying to make a dataframe
-    sr_data = plotly_data_to_series(data, features)
+    sr_data = plotly_data_to_series(data, features_data)
     sr_data = remove_duplicates(sr_data)
 
     df_data = {
@@ -141,28 +145,31 @@ def plotly_set_attrs(
     assert(type(attr_configs) is list)
 
     # get data from feature to be used as color in plot (assume single plotting element)
-    attr_data = features[feature_name].get_plotly_data()[0]
-    attr_data = process_plotly_data(attr_data, features, feature_value_processors)
+    attr_data = features_data[feature_name]
 
-    # check has x and y values
-    if 'y' in data and len(data['y']) and 'x' in data and len(data['x']):
+    if len(attr_data):
+        attr_data = attr_data[0]
+        attr_data = process_plotly_data(attr_data, features_data, feature_value_processors)
 
-        # create series and remove duplicates from color data
-        sr_attr = pd.Series(attr_data['y'], index=attr_data['x'])
-        sr_attr = remove_duplicates(sr_attr)
+        # check has x and y values
+        if 'y' in data and len(data['y']) and 'x' in data and len(data['x']):
 
-        for cfg in attr_configs:
+            # create series and remove duplicates from color data
+            sr_attr = pd.Series(attr_data['y'], index=attr_data['x'])
+            sr_attr = remove_duplicates(sr_attr)
 
-            formatter_name = cfg.get('formatter_name')
-            if formatter_name:
-                formatter = format_processors[formatter_name]
-                formatter_kwargs = cfg.get('formatter_kwargs', {})
-                sr_attr_final = sr_attr.apply(partial(formatter, **formatter_kwargs))
-            else:
-                sr_attr_final = sr_attr
+            for cfg in attr_configs:
 
-            attr_name = cfg['attr_name']
-            df_data[attr_name] = sr_attr_final
+                formatter_name = cfg.get('formatter_name')
+                if formatter_name:
+                    formatter = format_processors[formatter_name]
+                    formatter_kwargs = cfg.get('formatter_kwargs', {})
+                    sr_attr_final = sr_attr.apply(partial(formatter, **formatter_kwargs))
+                else:
+                    sr_attr_final = sr_attr
+
+                attr_name = cfg['attr_name']
+                df_data[attr_name] = sr_attr_final
 
     df = pd.DataFrame(df_data)
     df = df.fillna(method='ffill')
