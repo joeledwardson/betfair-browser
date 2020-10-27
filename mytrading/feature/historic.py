@@ -3,7 +3,7 @@ from typing import List, Dict
 from betfairlightweight.resources import MarketBook
 
 from .feature import RunnerFeatureBase
-from .feature.window import Windows
+from .window import Windows
 from myutils.timing import decorator_timer
 
 

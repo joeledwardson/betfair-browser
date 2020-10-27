@@ -2,8 +2,8 @@ from betfairlightweight.resources.bettingresources import PriceSize, RunnerBook,
 import pandas as pd
 import logging
 from typing import List, Dict
-from mytrading.process.getter import GETTER
-from mytrading.process.runner import get_book
+from .getter import GETTER
+from .runner import get_book
 
 
 active_logger = logging.getLogger(__name__)

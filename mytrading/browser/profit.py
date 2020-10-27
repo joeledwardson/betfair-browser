@@ -1,8 +1,8 @@
 from os import path, listdir
 from typing import Iterable, List
 
-from mytrading.tradetracker.orderinfo import dict_order_profit
-from mytrading.utils.storage import EXT_ORDER_RESULT
+from ..tradetracker.orderinfo import dict_order_profit
+from ..utils.storage import EXT_ORDER_RESULT
 from myutils.jsonfile import read_file
 
 

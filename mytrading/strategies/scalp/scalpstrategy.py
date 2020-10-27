@@ -1,13 +1,13 @@
 from flumine.markets.market import Market
 from betfairlightweight.resources.bettingresources import MarketBook, RunnerBook
 
-import mytrading.trademachine.tradestates
-from mytrading.strategies.scalp.states import WallTradeStateIdle, WallTradeStateOpenPlace, \
-    WallTradeStateOpenMatching, WallTradeStateHedgeSelect, WallTradeStateHedgeOffset, WallTradeStateHedgeWait
-from mytrading.strategies.scalp.tradetracker import WallTradeTracker
-from mytrading.trademachine import trademachine as bftm
-from mytrading.strategy.featurestrategy import MyFeatureStrategy
-from mytrading.process.ladder import BfLadderPoint, get_ladder_point
+from ...trademachine import tradestates
+from ...trademachine.trademachine import RunnerStateMachine
+from ...strategy.featurestrategy import MyFeatureStrategy
+from ...process.ladder import BfLadderPoint, get_ladder_point
+from . import states as wallstates
+from .tradetracker import WallTradeTracker
+
 
 import logging
 
@@ -120,45 +120,45 @@ class MyScalpStrategy(MyFeatureStrategy):
             runner: RunnerBook,
             market: Market,
             market_book: MarketBook
-    ) -> bftm.RunnerStateMachine:
+    ) -> RunnerStateMachine:
         """
         get trading state machine for selected runner
         """
 
-        return bftm.RunnerStateMachine(
+        return RunnerStateMachine(
             states={
                 state.name: state
                 for state in [
-                    mytrading.trademachine.tradestates.TradeStateCreateTrade(),
-                    WallTradeStateIdle(
+                    tradestates.TradeStateCreateTrade(),
+                    wallstates.WallTradeStateIdle(
                         max_tick_spread=self.max_tick_spread
                     ),
-                    WallTradeStateOpenPlace(
+                    wallstates.WallTradeStateOpenPlace(
                         stake_size=self.stake_size
                     ),
-                    WallTradeStateOpenMatching(
+                    wallstates.WallTradeStateOpenMatching(
                         wall_ticks=self.wall_ticks,
                         wall_validation=self.wall_validation
                     ),
-                    mytrading.trademachine.tradestates.TradeStateBin(),
-                    mytrading.trademachine.tradestates.TradeStatePending(),
-                    WallTradeStateHedgeSelect(),
-                    WallTradeStateHedgeOffset(
+                    tradestates.TradeStateBin(),
+                    tradestates.TradeStatePending(),
+                    wallstates.WallTradeStateHedgeSelect(),
+                    wallstates.WallTradeStateHedgeOffset(
                         tick_target=self.tick_target,
                         min_hedge_price=self.min_hedge_price
                     ),
-                    WallTradeStateHedgeWait(
+                    wallstates.WallTradeStateHedgeWait(
                         wall_ticks=self.wall_ticks,
                         wall_validation=self.wall_validation
                     ),
-                    mytrading.trademachine.tradestates.TradeStateHedgePlaceTake(
+                    tradestates.TradeStateHedgePlaceTake(
                         min_hedge_price=self.min_hedge_price
                     ),
-                    mytrading.trademachine.tradestates.TradeStateHedgeWaitTake(),
-                    mytrading.trademachine.tradestates.TradeStateClean()
+                    tradestates.TradeStateHedgeWaitTake(),
+                    tradestates.TradeStateClean()
                 ]
             },
-            initial_state=mytrading.trademachine.tradestates.TradeStateCreateTrade.name,
+            initial_state=tradestates.TradeStateCreateTrade.name,
             selection_id=runner.selection_id,
         )
 

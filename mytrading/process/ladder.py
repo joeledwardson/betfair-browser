@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 from betfairlightweight.resources.bettingresources import RunnerBookEX
-from mytrading.process.ticks.ticks import LTICKS_DECODED
+from .ticks.ticks import LTICKS_DECODED
 import logging
 
 active_logger = logging.getLogger(__name__)

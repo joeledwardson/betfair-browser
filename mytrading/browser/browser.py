@@ -2,9 +2,9 @@ from __future__ import annotations
 import dash
 import logging
 import argparse
-from mytrading.browser.data import DashData
-from mytrading.browser.callbacks import market_callback, file_table_callback, figure_callback, orders_callback
-from mytrading.browser.layout import get_layout
+from .data import DashData
+from .callbacks import market_callback, file_table_callback, figure_callback, orders_callback
+from .layout import get_layout
 from datetime import timedelta
 
 DEFAULT_CHART_OFFSET = timedelta(minutes=3)
@@ -22,7 +22,6 @@ parser.add_argument(
     action='store_true',
     help='run in debug mode'
 )
-
 
 args = parser.parse_args()
 input_dir = args.input_dir

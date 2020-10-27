@@ -7,19 +7,16 @@ from typing import Dict
 from os import path, makedirs
 from enum import Enum
 
-from mytrading.trademachine.tradestates import TradeStateTypes
-import mytrading.feature.config
-import mytrading.trademachine.tradestates
-from mytrading.trademachine.trademachine import RunnerStateMachine
-from mytrading.feature import feature as bff
-from mytrading.feature.feature import RunnerFeatureBase
-from .basestrategy import MyBaseStrategy
-from mytrading.feature.featureholder import FeatureHolder
-from mytrading.tradetracker.tradetracker import TradeTracker
-from mytrading.tradetracker.orderinfo import serializable_order_info
-from mytrading.tradetracker.messages import MessageTypes
-from mytrading.utils.storage import construct_hist_dir, DIR_BASE, SUBDIR_STRATEGY_HISTORIC, EXT_ORDER_RESULT, \
+from ..trademachine.tradestates import TradeStateTypes
+from ..trademachine.trademachine import RunnerStateMachine
+from ..feature.feature import generate_features, RunnerFeatureBase
+from ..feature.featureholder import FeatureHolder
+from ..tradetracker.tradetracker import TradeTracker
+from ..tradetracker.orderinfo import serializable_order_info
+from ..tradetracker.messages import MessageTypes
+from ..utils.storage import construct_hist_dir, DIR_BASE, SUBDIR_STRATEGY_HISTORIC, EXT_ORDER_RESULT, \
     EXT_ORDER_INFO, EXT_STRATEGY_INFO
+from .basestrategy import MyBaseStrategy
 from myutils.timing import EdgeDetector
 from myutils.jsonfile import add_to_file
 
@@ -256,7 +253,7 @@ class MyFeatureStrategy(MyBaseStrategy):
         generate a dictionary of features for a given runner on receiving its first market book
         """
 
-        return bff.generate_features(
+        return generate_features(
             selection_id=runner.selection_id,
             book=market_book,
             windows=feature_holder.windows,
@@ -286,7 +283,7 @@ class MyFeatureStrategy(MyBaseStrategy):
             if not self.cutoff.current_value:
 
                 # if trade tracker done then create a new one
-                if state_machine.current_state_key == mytrading.trademachine.tradestates.TradeStateTypes.CLEANING:
+                if state_machine.current_state_key == TradeStateTypes.CLEANING:
                     active_logger.info(f'runner "{runner.selection_id}" finished trade, resetting...')
                     self._reset_complete_trade(state_machine, trade_tracker)
 

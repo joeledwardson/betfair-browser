@@ -6,8 +6,8 @@ from bs4 import BeautifulSoup
 from datetime import datetime
 import logging
 import os
-from mytrading.process.names import names_to_id, name_processor, get_names
-from mytrading.utils.storage import SUBDIR_CATALOGUE, get_hist_cat
+from .process.names import names_to_id, name_processor, get_names
+from .utils.storage import SUBDIR_CATALOGUE, get_hist_cat
 
 
 oc_logger = logging.getLogger('')

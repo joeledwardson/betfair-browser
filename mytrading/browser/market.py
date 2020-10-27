@@ -4,11 +4,11 @@ from typing import List, Tuple
 import logging
 import re
 from betfairlightweight import APIClient
-from mytrading.utils.storage import SUBDIR_HISTORICAL, SUBDIR_RECORDED
-from mytrading.utils.storage import RE_MARKET_ID
-from mytrading.utils.storage import get_hist_marketdef, search_recorded_cat, search_recorded_stream
-from mytrading.utils.storage import strategy_path_to_hist, get_historical
-from mytrading.browser.marketinfo import MarketInfo
+from ..utils.storage import SUBDIR_HISTORICAL, SUBDIR_RECORDED
+from ..utils.storage import RE_MARKET_ID
+from ..utils.storage import get_hist_marketdef, search_recorded_cat, search_recorded_stream
+from ..utils.storage import strategy_path_to_hist, get_historical
+from .marketinfo import MarketInfo
 
 
 def get_market_info(market_path):

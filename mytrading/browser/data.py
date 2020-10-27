@@ -1,8 +1,8 @@
 from typing import List, Tuple, Dict
 from betfairlightweight.resources.bettingresources import MarketBook
-from mytrading.utils.security import get_api_client
-from mytrading.browser.filetracker import FileTracker
-from mytrading.browser.marketinfo import MarketInfo
+from ..utils.security import get_api_client
+from .filetracker import FileTracker
+from .marketinfo import MarketInfo
 
 
 class ButtonTracker:

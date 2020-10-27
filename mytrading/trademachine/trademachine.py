@@ -1,6 +1,6 @@
-from mytrading.tradetracker.messages import MessageTypes
-from mytrading.tradetracker.tradetracker import TradeTracker
-from mytrading.process.prices import best_price
+from ..tradetracker.messages import MessageTypes
+from ..tradetracker.tradetracker import TradeTracker
+from ..process.prices import best_price
 from myutils import statemachine as stm
 from betfairlightweight.resources import MarketBook
 from flumine import BaseStrategy

@@ -2,8 +2,8 @@ from typing import Dict, List
 import logging
 import pandas as pd
 import dash_table
-from mytrading.browser.tables.table import create_table
-from mytrading.visual.profits import PROFIT_COLUMNS
+from ..tables.table import create_table
+from ...visual.profits import PROFIT_COLUMNS
 
 active_logger = logging.getLogger(__name__)
 

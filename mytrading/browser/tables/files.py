@@ -4,15 +4,15 @@ from typing import List, Tuple
 import dash_table
 import pandas as pd
 
-from mytrading.browser.tables.table import create_table
-from mytrading.browser.data import DashData
-from mytrading.browser.event import get_event_dir_info
-from mytrading.browser.filetracker import FileTracker
-from mytrading.browser.market import get_market_info, get_orders_market, get_historical_market, get_recorded_market
-from mytrading.browser.marketinfo import MarketInfo
-from mytrading.browser.profit import get_display_profits
-from mytrading.utils.storage import RE_EVENT, EXT_ORDER_RESULT, RE_MARKET_ID
-from mytrading.utils.storage import strategy_rel_path, strategy_path_convert, is_orders_dir
+from .table import create_table
+from ..data import DashData
+from ..event import get_event_dir_info
+from ..filetracker import FileTracker
+from ..market import get_market_info, get_orders_market, get_historical_market, get_recorded_market
+from ..marketinfo import MarketInfo
+from ..profit import get_display_profits
+from ...utils.storage import RE_EVENT, EXT_ORDER_RESULT, RE_MARKET_ID
+from ...utils.storage import strategy_rel_path, strategy_path_convert, is_orders_dir
 
 
 def get_display_info(

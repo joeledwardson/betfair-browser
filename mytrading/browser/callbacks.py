@@ -6,16 +6,16 @@ from datetime import timedelta, datetime
 from dash.dependencies import Input, Output, State
 import re
 
-from mytrading.tradetracker.orderinfo import get_order_updates
-from mytrading.utils.storage import EXT_ORDER_INFO, EXT_ORDER_RESULT
-from mytrading.process.prices import starting_odds
-from mytrading.browser.data import DashData
-from mytrading.browser.tables.runners import get_runner_id
-from mytrading.browser.tables.files import get_files_table, get_table_market
-from mytrading.visual.figure import generate_feature_plot
-from mytrading.browser.text import html_lines
-from mytrading.browser.profit import get_display_profits
-from mytrading.visual.profits import process_profit_table, read_profit_table
+from ..tradetracker.orderinfo import get_order_updates
+from ..utils.storage import EXT_ORDER_INFO, EXT_ORDER_RESULT
+from ..process.prices import starting_odds
+from ..visual.figure import generate_feature_plot
+from ..visual.profits import process_profit_table, read_profit_table
+from .text import html_lines
+from .profit import get_display_profits
+from .data import DashData
+from .tables.runners import get_runner_id
+from .tables.files import get_files_table, get_table_market
 from myutils.mydash.context import triggered_id
 from myutils.generic import dict_sort
 

@@ -1,10 +1,11 @@
 from betfairlightweight.resources.bettingresources import RunnerBookEX
 
-from mytrading.utils.types import BfUtilsException
 import logging
 from typing import List
 import operator
 from typing import Dict, Callable
+
+from ..utils.types import BfUtilsException
 
 
 active_logger = logging.getLogger(__name__)

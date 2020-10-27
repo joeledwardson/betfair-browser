@@ -1,6 +1,6 @@
 from typing import Dict
 from enum import Enum
-from mytrading.tradetracker.messages import register_formatter
+from ...tradetracker.messages import register_formatter
 
 
 class WallMessageTypes(Enum):

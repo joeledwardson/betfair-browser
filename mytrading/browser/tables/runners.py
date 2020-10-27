@@ -1,10 +1,8 @@
 from typing import Dict, List
 import logging
 import pandas as pd
-
 import dash_table
-
-from mytrading.browser.tables.table import create_table
+from ..tables.table import create_table
 
 active_logger = logging.getLogger(__name__)
 

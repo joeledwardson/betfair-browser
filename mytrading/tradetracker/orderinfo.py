@@ -3,7 +3,7 @@ import pandas as pd
 from flumine.order.order import BetfairOrder
 from myutils.jsonfile import read_file, add_to_file
 import logging
-from mytrading.process.profit import order_profit
+from ..process.profit import order_profit
 from typing import Dict
 from enum import Enum
 

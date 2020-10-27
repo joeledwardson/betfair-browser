@@ -2,11 +2,11 @@ from datetime import timedelta
 import dash_html_components as html
 import dash_core_components as dcc
 from myutils.timing import format_timedelta
-from mytrading.browser.tables.runners import get_runners_table, get_runner_id
-from mytrading.browser.tables.market import get_market_table
-from mytrading.browser.tables.files import get_files_table, get_table_market
-from mytrading.browser.tables.orders import get_orders_table
-from mytrading.browser.data import DashData
+from .tables.runners import get_runners_table, get_runner_id
+from .tables.market import get_market_table
+from .tables.files import get_files_table, get_table_market
+from .tables.orders import get_orders_table
+from .data import DashData
 
 
 def infobox(height=70, **kwargs) -> html.Div:

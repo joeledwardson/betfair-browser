@@ -1,7 +1,7 @@
 from betfairlightweight.resources.bettingresources import MarketBook
 import logging
 from typing import List, Dict
-from mytrading.process.getter import GETTER
+from .getter import GETTER
 
 active_logger = logging.getLogger(__name__)
 

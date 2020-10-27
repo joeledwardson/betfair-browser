@@ -1,7 +1,7 @@
 from betfairlightweight.resources.bettingresources import MarketBook
 
-from mytrading.feature.windowprocessors import WindowProcessorTradedVolumeLadder, WindowProcessorLTPS, \
-    WindowProcessorBestBack, WindowProcessorBestLay
+from .windowprocessors import WindowProcessorTradedVolumeLadder, WindowProcessorLTPS
+from .windowprocessors import WindowProcessorBestBack, WindowProcessorBestLay
 from typing import List, Dict
 
 

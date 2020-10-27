@@ -1,11 +1,11 @@
 import pandas as pd
 from plotly import graph_objects as go
 import logging
-from mytrading.tradetracker.messages import format_message
+from ..tradetracker.messages import format_message
 
 # must import all strategy message processors
-from mytrading.strategies.scalp.messages import WallMessageTypes
-from mytrading.strategies.window.messages import WindowMessageTypes
+from ..strategies.scalp.messages import WallMessageTypes
+from ..strategies.window.messages import WindowMessageTypes
 
 
 active_logger = logging.getLogger(__name__)

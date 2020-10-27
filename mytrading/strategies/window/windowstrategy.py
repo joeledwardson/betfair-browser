@@ -3,15 +3,14 @@
 from typing import Dict
 from flumine.markets.market import Market
 from betfairlightweight.resources.bettingresources import MarketBook, RunnerBook
-from mytrading.trademachine import tradestates as basestates
+import logging
+from ...trademachine import tradestates as basestates
+from ...trademachine.trademachine import RunnerStateMachine
+from ...strategy.featurestrategy import MyFeatureStrategy
+from ...process.ticks.ticks import LTICKS_DECODED
+from ...feature.config import get_features_default_configs
 from . import states as windowstates
 from .tradetracker import WindowTradeTracker
-from mytrading.trademachine.trademachine import RunnerStateMachine
-from mytrading.strategy.featurestrategy import MyFeatureStrategy
-from mytrading.process.ticks.ticks import LTICKS_DECODED
-from mytrading.process.ladder import BfLadderPoint, get_ladder_point
-from mytrading.feature.config import get_features_default_configs
-import logging
 
 active_logger = logging.getLogger(__name__)
 active_logger.setLevel(logging.INFO)

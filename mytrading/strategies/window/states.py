@@ -1,19 +1,21 @@
-from datetime import datetime
-from mytrading.trademachine.tradestates import TradeStateTypes
-from mytrading.process.ticks.ticks import closest_tick
-from mytrading.trademachine import tradestates
-from .tradetracker import WindowTradeTracker
-from .messages import WindowMessageTypes
-import logging
 from betfairlightweight.resources import MarketBook
 from flumine import BaseStrategy
 from flumine.markets.market import Market
 from flumine.order.order import BetfairOrder, OrderStatus
 from flumine.order.ordertype import LimitOrder, OrderTypes
-from mytrading.tradetracker.messages import MessageTypes
+
 from typing import Dict, List
-from mytrading.process.prices import best_price
-from mytrading.process.side import select_ladder_side, select_operator_side, invert_side
+import logging
+from datetime import datetime
+
+from ...process.prices import best_price
+from ...process.side import select_ladder_side, select_operator_side, invert_side
+from ...tradetracker.messages import MessageTypes
+from ...trademachine.tradestates import TradeStateTypes
+from ...process.ticks.ticks import closest_tick
+from ...trademachine import tradestates
+from .tradetracker import WindowTradeTracker
+from .messages import WindowMessageTypes
 
 active_logger = logging.getLogger(__name__)
 

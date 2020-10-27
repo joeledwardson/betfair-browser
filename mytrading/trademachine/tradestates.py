@@ -8,11 +8,11 @@ from flumine.order.order import BetfairOrder, OrderStatus
 from flumine.order.ordertype import LimitOrder, OrderTypes
 from flumine.order.trade import Trade
 
-from mytrading.process.matchbet import get_match_bet_sums
-from mytrading.process.profit import order_profit
-from mytrading.process.side import select_ladder_side, select_operator_side, invert_side
-from mytrading.tradetracker.tradetracker import TradeTracker
-from mytrading.tradetracker.messages import MessageTypes
+from ..process.matchbet import get_match_bet_sums
+from ..process.profit import order_profit
+from ..process.side import select_ladder_side, select_operator_side, invert_side
+from ..tradetracker.tradetracker import TradeTracker
+from ..tradetracker.messages import MessageTypes
 from myutils import statemachine as stm
 
 

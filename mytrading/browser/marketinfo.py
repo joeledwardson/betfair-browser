@@ -1,8 +1,8 @@
 from __future__ import annotations
 from betfairlightweight.resources.streamingresources import MarketDefinition
 from betfairlightweight.resources.bettingresources import MarketCatalogue, MarketBook
-from mytrading.process.times import event_time
-from mytrading.process.names import get_names
+from ..process.times import event_time
+from ..process.names import get_names
 
 
 class MarketInfo:
