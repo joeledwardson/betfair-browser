@@ -25,7 +25,6 @@ def file_table_callback(app: dash.Dash, dd: DashData, input_dir: str):
     )
     def update_files_table(return_n_clicks, profit_n_clicks, active_cell):
 
-
         profit_pressed = triggered_id() == 'button-profit'
         return_pressed = triggered_id() == 'button-return'
 

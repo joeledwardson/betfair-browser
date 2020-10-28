@@ -37,7 +37,9 @@ active_logger = logging.getLogger(__name__)
 
 
 def get_historical(api_client : APIClient, directory: str) -> Queue:
-    """Get Queue object from historical Betfair data file"""
+    """
+    Get Queue object from historical Betfair data fil
+    e"""
 
     output_queue = Queue()
 
@@ -57,8 +59,10 @@ def get_historical(api_client : APIClient, directory: str) -> Queue:
 
 
 def get_first_book(file_path: str) -> MarketBook:
-    """read the first line in a historical/streaming file and get the MarketBook parsed object, without reading or
-    processing the rest of the file"""
+    """
+    read the first line in a historical/streaming file and get the MarketBook parsed object, without reading or
+    processing the rest of the file
+    """
 
     try:
         with open(file_path) as f:
@@ -76,7 +80,9 @@ def get_first_book(file_path: str) -> MarketBook:
 
 
 def _construct_hist_dir(event_type_id, event_dt: datetime, event_id, market_id) -> str:
-    """get path conforming to betfair historical data standards for a given event datetime, event ID, and market ID"""
+    """
+    get path conforming to betfair historical data standards for a given event datetime, event ID, and market ID
+    """
 
     # cant use %d from strftime as it 0-pads and betfair doesnt
     return path.join(
@@ -89,7 +95,9 @@ def _construct_hist_dir(event_type_id, event_dt: datetime, event_id, market_id) 
 
 
 def construct_hist_dir(market_book: MarketBook) -> str:
-    """get path conforming to betfair historical data standards for a given market book"""
+    """
+    get path conforming to betfair historical data standards for a given market book
+    """
     event_type_id = market_book.market_definition.event_type_id
     market_id = market_book.market_id
     event_id = market_book.market_definition.event_id
@@ -99,7 +107,10 @@ def construct_hist_dir(market_book: MarketBook) -> str:
 
 
 def construct_file_hist_dir(file_path: str) -> str:
-    """get path conforming to betfair historical data standards for a given historical/streaming file path"""
+    """
+    get path conforming to betfair historical data standards for a given historical/streaming file path by using
+    first book
+    """
     bk = get_first_book(file_path)
     if bk:
         return construct_hist_dir(bk)
@@ -108,7 +119,9 @@ def construct_file_hist_dir(file_path: str) -> str:
 
 
 def get_hist_cat(catalogue_path) -> MarketCatalogue:
-    """Get betfair catalogue file"""
+    """
+    Get betfair catalogue file
+    """
     try:
         with open(catalogue_path) as f:
             dat = f.read()
@@ -120,7 +133,9 @@ def get_hist_cat(catalogue_path) -> MarketCatalogue:
 
 
 def get_hist_marketdef(market_path):
-    """get market definition from historical market, given its file path"""
+    """
+    get market definition from historical market, given its file path
+    """
     bk = get_first_book(market_path)
     if not bk:
         return None
@@ -129,7 +144,9 @@ def get_hist_marketdef(market_path):
 
 
 def search_recorded_cat(market_path: str):
-    """get catalogue from a recorded market, given its directory path"""
+    """
+    get catalogue from a recorded market, given its directory path
+    """
     sub_dir_files = listdir(market_path)
     for f in sub_dir_files:
         if path.splitext(f)[1] == EXT_CATALOGUE:
@@ -139,7 +156,9 @@ def search_recorded_cat(market_path: str):
 
 
 def search_recorded_stream(api_client: APIClient, market_path: str):
-    """get recorded stream market, given its directory path"""
+    """
+    get recorded stream market, given its directory path
+    """
     sub_dir_files = listdir(market_path)
     for f in sub_dir_files:
         if path.splitext(f)[1] == EXT_RECORDED:
@@ -149,13 +168,17 @@ def search_recorded_stream(api_client: APIClient, market_path: str):
 
 
 def is_orders_dir(files: List[str]) -> bool:
-    """indicate if directory holds order information and order result files"""
+    """
+    indicate if directory holds order information and order result files
+    """
     file_exts = [path.splitext(f)[1] for f in files]
     return EXT_ORDER_INFO in file_exts or EXT_ORDER_RESULT in file_exts
 
 
 def strategy_rel_path(strategy_path: str) -> str:
-    """get relative path for sub-directory/file to root strategy directory, return blank string on fail"""
+    """
+    get relative path for sub-directory/file to root strategy directory, return blank string on fai
+    l"""
 
     p = PurePath(strategy_path)
     if SUBDIR_STRATEGY_HISTORIC in p.parts:
@@ -176,8 +199,10 @@ def strategy_rel_path(strategy_path: str) -> str:
 
 
 def strategy_path_to_hist(strategy_path: str, historic_base_dir: str) -> str:
-    """convert a market directory contained with a strategies dir to corresponding historic market dir if exists,
-    otherwise return blank string"""
+    """
+    convert a market directory contained with a strategies dir to corresponding historic market dir if exists,
+    otherwise return blank string
+    """
     rel_path = strategy_rel_path(strategy_path)
     if rel_path:
         hist_path = path.join(historic_base_dir, rel_path)
@@ -187,7 +212,9 @@ def strategy_path_to_hist(strategy_path: str, historic_base_dir: str) -> str:
 
 
 def strategy_path_convert(strategy_path: str, base_dir: str) -> str:
-    """convert a path within a strategy to either historical path or recorded path"""
+    """
+    convert a path within a strategy to either historical path or recorded path
+    """
     return (
             strategy_path_to_hist(strategy_path, path.join(base_dir, SUBDIR_HISTORICAL)) or
             strategy_path_to_hist(strategy_path, path.join(base_dir, SUBDIR_RECORDED))
@@ -195,7 +222,9 @@ def strategy_path_convert(strategy_path: str, base_dir: str) -> str:
 
 
 def walk_first(top) -> (str, List, List):
-    """get root, dirs & files"""
+    """
+    get root, dirs & files
+    """
     try:
         return next(iter(walk(top)))
     except StopIteration as e:

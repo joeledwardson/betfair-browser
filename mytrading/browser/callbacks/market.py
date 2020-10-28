@@ -9,7 +9,7 @@ from ...process.prices import starting_odds
 from ...utils.storage import EXT_ORDER_RESULT
 from ..data import DashData
 from ..profit import get_display_profits
-from ..tables.files import get_table_market
+from ..tables.market import get_records_market
 from ..text import html_lines
 from ..marketinfo import MarketInfo
 from myutils.generic import dict_sort
@@ -64,7 +64,7 @@ def market_callback(app: dash.Dash, dd: DashData, input_dir: str):
         tbl_market = []
 
         # try to get record list and market information from active directory (indicated from file_tracker in dash_data)
-        success, record_list, market_info = get_table_market(
+        success, record_list, market_info = get_records_market(
             file_tracker=dd.file_tracker,
             trading=dd.trading,
             base_dir=input_dir,
