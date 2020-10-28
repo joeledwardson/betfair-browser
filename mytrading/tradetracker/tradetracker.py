@@ -149,15 +149,6 @@ class TradeTracker:
         if not display_odds and self._log:
             display_odds = self._log[-1]['display_odds']
 
-        # # get active trade ID if exists, if trade arg not passed
-        # if trade:
-        #     trade_id = trade.id
-        # elif self.active_trade:
-        #     trade_id = self.active_trade.id
-        # else:
-        #     trade_id = None
-        # trade_id = str(trade_id)
-
         # get trade ID if trade exists else None
         trade_id = self.active_trade.id if self.active_trade else None
 

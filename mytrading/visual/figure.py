@@ -6,12 +6,12 @@ from betfairlightweight.resources import MarketBook
 from plotly import graph_objects as go
 from plotly.subplots import make_subplots
 
+from ..tradetracker.messages import MessageTypes
 from ..feature.window import Windows
-from ..feature.features import RunnerFeatureBase
 from ..feature.utils import generate_features, get_feature_data
 from ..feature.historic import hist_runner_features
 from ..feature.config import get_features_default_configs
-from .config import get_plot_feature_default_configs, get_plot_default_config
+from .config import get_plot_default_config
 from .feature import add_feature_trace
 from .orderinfo import plot_orders
 from myutils import generic
@@ -21,6 +21,86 @@ active_logger = logging.getLogger(__name__)
 
 # number of seconds to buffer when trimming record list
 PROCESS_BUFFER_S = 10
+
+# offset either side of order info
+ORDER_OFFSET_SECONDS = 2
+
+
+def modify_start(chart_start: datetime, orders_df: pd.DataFrame, buffer_seconds: float) -> datetime:
+    """
+    set start time to first order info update received minus buffer, if less than existing chart start
+
+    Parameters
+    ----------
+    chart_start :
+
+    Returns
+    -------
+
+    """
+    if orders_df.shape[0]:
+        orders_start = orders_df.index[0]
+        orders_start = orders_start - timedelta(seconds=buffer_seconds)
+        if orders_start < chart_start:
+            return orders_start
+    return chart_start
+
+
+def modify_end(chart_end: datetime, orders_df: pd.DataFrame, buffer_seconds: float) -> datetime:
+    """
+    set end time to last order info update minus received buffer, if more than existing chart end
+    removes market close from data frame when looking at last order timestamp
+
+    Parameters
+    ----------
+    chart_end :
+    orders_df :
+    buffer_seconds :
+
+    Returns
+    -------
+
+    """
+    if orders_df.shape[0]:
+        trimmed_orders = orders_df[orders_df['msg_type'] != MessageTypes.MARKET_CLOSE.value]
+        if trimmed_orders.shape[0]:
+            orders_end = trimmed_orders.index[-1]
+            orders_end = orders_end + timedelta(seconds=buffer_seconds)
+            if orders_end > chart_end:
+                return orders_end
+    return chart_end
+
+
+def get_chart_start(display_seconds: float, market_time: datetime, first: datetime) -> datetime:
+    """
+    get datetime of start of chart, based on `display_seconds` number which if non-zero indicates number of seconds
+    before start time to use, otherwise just take `first` book timestamp
+
+    Parameters
+    ----------
+    display_seconds :
+    market_time :
+    first :
+
+    Returns
+    -------
+
+    """
+
+    # check if display seconds is nonzero use offset from start time
+    if display_seconds:
+
+        # use offset from start time
+        chart_start = market_time - timedelta(seconds=display_seconds)
+        active_logger.info(f'using chart start {chart_start}, {display_seconds}s before market time')
+        return chart_start
+
+    else:
+
+        # display seconds 0, just use first record
+        chart_start = first
+        active_logger.info(f'using first record for chart start {chart_start}')
+        return chart_start
 
 
 def fig_to_file(fig: go.Figure, file_path, mode='a'):
@@ -101,9 +181,10 @@ def generate_feature_plot(
         hist_records: List[List[MarketBook]],
         selection_id: int,
         title: str,
-        display_seconds: int,
+        chart_start: datetime,
+        chart_end: datetime,
+        feature_plot_configs: Dict,
         feature_configs: Dict = None,
-        feature_plot_configs: Dict = None,
         orders_df: pd.DataFrame = None,
         orders_plot_config: Dict = None,
 ) -> go.Figure:
@@ -132,35 +213,6 @@ def generate_feature_plot(
 
     # run feature processors on historic data
     hist_runner_features(selection_id, hist_records, windows, features)
-
-    # create feature plotting configurations (use defaults if not passed)
-    if feature_plot_configs is None:
-        feature_plot_configs = get_plot_feature_default_configs()
-
-    # use last record as first records market time can be accurate
-    market_time = hist_records[-1][0].market_definition.market_time
-
-    # if display seconds passed use offset from start time, if not just use first record
-    if display_seconds:
-        chart_start = market_time - timedelta(seconds=display_seconds)
-        active_logger.info(f'using chart start {chart_start}, {display_seconds}s before market time')
-    else:
-        chart_start = hist_records[0][0].publish_time
-        active_logger.info(f'using first record for chart start {chart_start}')
-
-    # chart end is market start
-    chart_end = market_time
-    active_logger.info(f'using market time for chart end {chart_end}')
-
-    # if features are using windows,
-    if windows.windows:
-        max_window_s = max(windows.windows.keys())
-        chart_start = chart_start - timedelta(seconds=max_window_s+PROCESS_BUFFER_S)
-        active_logger.info(f'setting chart start to {chart_start}, accounting for window {max_window_s}s and buffer '
-                           f'{PROCESS_BUFFER_S}s')
-
-    # trim record list
-    hist_records = [r for r in hist_records if chart_start <= r[0].publish_time <= chart_end]
 
     # check trimmed record set not empty
     if not len(hist_records):

@@ -1,9 +1,12 @@
 from typing import Dict
 from os import path, makedirs
+import logging
 from myutils.jsonfile import add_to_file, read_file
 from ..utils.storage import EXT_FEATURE
 from .utils import get_feature_data
 from .features import RunnerFeatureBase
+
+active_logger = logging.getLogger(__name__)
 
 
 def get_feature_file_name(selection_id) -> str:
@@ -34,7 +37,22 @@ def features_from_file(file_path: str):
     """
     retrieve feature data sets from files
     """
+
+    # read from file
     data = read_file(file_path)
-    for entry in data:
-        RunnerFeatureBase.post_de_serialize(entry)
+
+    # check not empty
+    if len(data) == 0:
+        active_logger.critical(f'features read from file "{file_path}" is empty')
+        return {}
+
+    # take first element
+    data = data[0]
+
+    # loop feature data in dict
+    for _, feature_data in data.items():
+
+        # de-serialize timestamps
+        RunnerFeatureBase.post_de_serialize(feature_data)
+
     return data

@@ -238,7 +238,7 @@ class RunnerFeatureBase:
         post_process de-serialized feature plotly data
         """
         for entry in plotly_data:
-            entry['x'] = [datetime.fromtimestamp(x) for x in entry]
+            entry['x'] = [datetime.fromtimestamp(x) for x in entry['x']]
 
     def get_plotly_data(self):
         """

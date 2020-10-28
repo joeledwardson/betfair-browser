@@ -7,7 +7,10 @@ from dash.dependencies import Output, Input, State
 
 from ...tradetracker.orderinfo import get_order_updates
 from ...utils.storage import EXT_ORDER_INFO, EXT_FEATURE
-from ...visual.figure import generate_feature_plot
+from ...visual.figure import generate_feature_plot, get_chart_start, fig_historical, modify_start, modify_end
+from ...visual.figure import ORDER_OFFSET_SECONDS
+from ...visual.config import get_plot_feature_default_configs
+from ...feature.storage import features_from_file
 
 from ..data import DashData
 from ..tables.runners import get_runner_id
@@ -108,20 +111,71 @@ def figure_callback(app: dash.Dash, dd: DashData, input_dir: str):
         # if chart offset specified then use as display offset, otherwise ignore
         display_seconds = chart_offset.total_seconds() if chart_offset else 0
 
+        # get first book datetime
+        first_datetime = dd.record_list[0][0].publish_time
+
+        # get market time from market info
+        market_time = dd.market_info.market_time
+
+        # get start of chart datetime
+        chart_start = get_chart_start(display_seconds, market_time, first_datetime)
+
+        # use market start as end
+        chart_end = market_time
+
+        # check if orders dataframe exist
+        if orders_df is not None:
+
+            # modify chart start/end based on orders dataframe
+            chart_start = modify_start(chart_start, orders_df, ORDER_OFFSET_SECONDS)
+            chart_end = modify_end(chart_end, orders_df, ORDER_OFFSET_SECONDS)
+
+        # for now using default plotting configuration
+        feature_plot_configs = get_plot_feature_default_configs()
+
         # construct feature info
         feature_info_path = path.join(
             dd.market_dir,
             str(selection_id) + EXT_FEATURE
         )
 
-        # create features and figure from record list (using defaults)
-        fig = generate_feature_plot(
-            hist_records=dd.record_list,
-            selection_id=selection_id,
-            display_seconds=display_seconds,
-            title=title,
-            orders_df=orders_df
-        )
+        # check if file exists
+        if path.isfile(feature_info_path):
+
+            # try to read features from file
+            all_features_data = features_from_file(feature_info_path)
+
+            # check not empty
+            if not len(all_features_data):
+
+                info_strings.append(f'found feature file "{feature_info_path}" but no data')
+                return html_lines(info_strings)
+
+            else:
+
+                info_strings.append(f'found {len(all_features_data)} features in "{feature_info_path}", plotting')
+
+                fig = fig_historical(
+                    all_features_data=all_features_data,
+                    feature_plot_configs=feature_plot_configs,
+                    title=title,
+                    chart_start=chart_start,
+                    chart_end=chart_end,
+                    orders_df=orders_df
+                )
+
+        else:
+
+            # no feature file, generate default features for plot
+            fig = generate_feature_plot(
+                hist_records=dd.record_list,
+                selection_id=selection_id,
+                title=title,
+                chart_start=chart_start,
+                chart_end=chart_end,
+                feature_plot_configs=feature_plot_configs,
+                orders_df=orders_df
+            )
 
         # display figure
         fig.show()
