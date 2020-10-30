@@ -14,8 +14,6 @@ import logging
 from typing import List
 from pathlib import PurePath
 
-DIR_BASE = r"D:\Betfair_data"
-
 SUBDIR_HISTORICAL = 'historical'
 SUBDIR_RECORDED = 'recorded'
 SUBDIR_STRATEGY_HISTORIC = 'historic_strategies'
