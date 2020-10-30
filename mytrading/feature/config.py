@@ -63,14 +63,14 @@ def get_features_default_configs(
                 'value_processor_args': {
                     'n_entries': ltp_moving_average_entries
                 },
-                'sub_features_config': {
-                    'delay': {
-                        'name': 'RunnerFeatureDelayer',
-                        'kwargs': {
-                            'delay_seconds': ltp_window_delay_s
-                        }
-                    }
-                }
+                # 'sub_features_config': {
+                #     'delay': {
+                #         'name': 'RunnerFeatureDelayer',
+                #         'kwargs': {
+                #             'delay_seconds': ltp_window_delay_s
+                #         }
+                #     }
+                # }
             }
         },
 
@@ -84,14 +84,14 @@ def get_features_default_configs(
                 'value_processor_args': {
                     'n_entries': ltp_moving_average_entries
                 },
-                'sub_features_config': {
-                    'delay': {
-                        'name': 'RunnerFeatureDelayer',
-                        'kwargs': {
-                            'delay_seconds': ltp_window_delay_s
-                        }
-                    }
-                }
+                # 'sub_features_config': {
+                #     'delay': {
+                #         'name': 'RunnerFeatureDelayer',
+                #         'kwargs': {
+                #             'delay_seconds': ltp_window_delay_s
+                #         }
+                #     }
+                # }
             }
         },
 
