@@ -103,8 +103,7 @@ class TradeTracker:
 
                     msg = ''
                     if order.status == OrderStatus.VIOLATION:
-                        if hasattr(order, 'violation_message'):
-                            msg = getattr(order, 'violation_message')
+                        msg = order.violation_msg
 
                     self.log_update(
                         msg_type=MessageTypes.STATUS_UPDATE,
