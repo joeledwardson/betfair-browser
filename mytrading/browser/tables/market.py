@@ -109,7 +109,7 @@ def get_historical_market(
         file_info.append(f'found {len(records)} historical records in "{historical_path}"')
 
         if len(records):
-            market_info = MarketInfo.from_historical(records[-1][0].market_definition)
+            market_info = MarketInfo.from_historical(records[-1][0].market_definition, records[0][0])
             return True, records, market_info
         else:
             file_info.append('file empty')

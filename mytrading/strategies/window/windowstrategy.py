@@ -25,6 +25,7 @@ class MyWindowStrategy(MyFeatureStrategy):
 
     def __init__(
             self,
+            base_dir,
             stake_size,
             min_hedge_price,
             max_odds,
@@ -34,7 +35,7 @@ class MyWindowStrategy(MyFeatureStrategy):
             *args,
             **kwargs):
 
-        super().__init__('ltp_window', *args, **kwargs)
+        super().__init__('ltp_window', base_dir, *args, **kwargs)
         self.stake_size = stake_size
         self.min_hedge_price = min_hedge_price
         self.max_odds = max_odds

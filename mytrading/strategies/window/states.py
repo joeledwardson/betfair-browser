@@ -36,14 +36,16 @@ def get_price(ltp, ladder, side):
     """
 
     ltp = ltp or 0
-    price = best_price(ladder) or 0
+    price = best_price(ladder)
 
     # if greening on back side, take max of LTP and best back
     if side == 'BACK':
+        price = price or 0
         return max(ltp, price)
 
     # if greening on lay side, take min of LTP and best lay
     else:
+        price = price or 1000
         return min(ltp, price)
 
 
@@ -445,8 +447,17 @@ class WindowTradeStateOpenMatching(tradestates.TradeStateOpenMatching):
         # check if not fully matched
         elif sts != OrderStatus.EXECUTION_COMPLETE:
 
+            # get ladder on close side for hedging
+            available = select_ladder_side(
+                market_book.runners[runner_index].ex,
+                trade_tracker.active_order.side
+            )
+
+            # get LTP/back/lay price
+            price_available = get_price(ltp, available, trade_tracker.active_order.side)
+
             # check if price has drifted since placement of open order
-            if (up and ltp > price) or (not up and ltp < price):
+            if (up and price_available > price) or (not up and price_available < price):
                 trade_tracker.log_update(
                     msg_type=WindowMessageTypes.PLACE_DRIFT,
                     msg_attrs={

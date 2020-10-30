@@ -225,7 +225,7 @@ class TradeStateOpenPlace(TradeStateBase):
     ):
         limit_order = self.place_order(market_book, market, runner_index, trade_tracker, strategy, **inputs)
         if not limit_order:
-            return TradeStateTypes.CLEANING
+            return [TradeStateTypes.PENDING, self.next_state]
         else:
             trade_tracker.log_update(
                 msg_type=MessageTypes.OPEN_PLACE,
