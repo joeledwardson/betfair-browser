@@ -19,7 +19,7 @@ orders_default_config = {
 }
 
 
-def plot_orders(fig: go.Figure, orders_df: pd.DataFrame, display_config=None):
+def plot_orders(fig: go.Figure, orders_df: pd.DataFrame, display_config=None, show_trade_id=True):
     """
     add dataframe of order information to plot
     """
@@ -61,12 +61,22 @@ def plot_orders(fig: go.Figure, orders_df: pd.DataFrame, display_config=None):
 
     for i, (trade_id, df) in enumerate(orders_df.groupby(['trade_id'])):
 
-        # so can see annotations for overlapping points need to combine text (use last instance for display odds)
+        # group dataframe by index (timestamps)
         grouped_df = df.groupby(df.index)
-        grouped_msg = grouped_df['msg']
-        msgs = grouped_msg.apply(lambda x: '<br>'.join(x))
-        display_odds = df.groupby(df.index)['display_odds'].last()
-        df = pd.concat([msgs, display_odds], axis=1)
+
+        # combine messages by joining with newline
+        msgs = grouped_df['msg'].apply(lambda x: '<br>'.join(x))
+
+        # take last of display odds and trade ID within each timestamp to display
+        display_odds = grouped_df['display_odds'].last()
+        trade_ids = grouped_df['trade_id'].last()
+
+        # combine messages, display odds and trade ID in dataframe
+        df = pd.concat([msgs, display_odds, trade_ids], axis=1)
+
+        # if messages are to contain trade ID, then format trade ID with messages
+        if show_trade_id:
+            df['msg'] = df[['trade_id', 'msg']].apply(lambda x: f'trade ID: {x["trade_id"]}<br>{x["msg"]}', axis=1)
 
         fig.add_trace(
             go.Scatter(
