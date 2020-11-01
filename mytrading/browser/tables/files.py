@@ -4,8 +4,8 @@ from typing import List
 import dash_table
 import pandas as pd
 
-from ...utils.storage import RE_EVENT, EXT_ORDER_RESULT, RE_MARKET_ID, get_hist_marketdef, get_first_book, \
-    search_recorded_cat, walk_first
+from ...utils.storage import RE_EVENT, EXT_ORDER_RESULT, RE_MARKET_ID, EXT_FEATURE
+from ...utils.storage import get_hist_marketdef, get_first_book, search_recorded_cat, walk_first
 from ...utils.storage import strategy_rel_path, strategy_path_convert, is_orders_dir
 from ..filetracker import FileTracker
 from ..marketinfo import MarketInfo
@@ -49,6 +49,9 @@ def get_display_info(
         # construct full path of element with parent directory
         element_path = path.join(dir_path, e)
 
+        # get file extension
+        file_ext = path.splitext(e)[1]
+
         # check if element is directory and matches betfair event
         if re.match(RE_EVENT, e) and path.isdir(element_path):
             event_path = element_path
@@ -74,8 +77,8 @@ def get_display_info(
             # use blank string if function returned None otherwise convert MarketInfo object to string
             info = str(info) if info else ''
 
-        # check if element is strategy order result
-        elif path.splitext(e)[1] == EXT_ORDER_RESULT:
+        # check if element is strategy order result or feature info
+        elif file_ext in [EXT_ORDER_RESULT, EXT_FEATURE]:
 
             # check that were able to get relevant market information
             if order_market_info is not None:
