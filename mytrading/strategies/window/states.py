@@ -7,6 +7,7 @@ from flumine.order.ordertype import LimitOrder, OrderTypes
 from typing import Dict, List
 import logging
 from datetime import datetime
+from enum import Enum
 
 from ...process.prices import best_price
 from ...process.side import select_ladder_side, select_operator_side, invert_side
@@ -18,6 +19,13 @@ from .tradetracker import WindowTradeTracker
 from .messages import WindowMessageTypes
 
 active_logger = logging.getLogger(__name__)
+
+
+class WindowTradeStateTypes(Enum):
+
+    WINDOW_HEDGE_PLACE = 'window - placing hedge at optimal price'
+    WINDOW_HEDGE_WAIT = 'window - waiting for hedge to match'
+
 
 
 def window_bail(ltp, ltp_min, ltp_max, up):
@@ -50,10 +58,15 @@ def get_price(ltp, ladder, side):
 
 
 class WindowTradeStateIdle(tradestates.TradeStateIdle):
+    """
+    Override idle state whereby on successful breach of ltp window max/min, trade tracker is set with `direction_up`
+    indicator and advance to next state
+    """
 
-    def __init__(self, max_odds, ltp_min_spread, max_ladder_spread, track_seconds, **kwargs):
+    def __init__(self, max_odds, ltp_min_spread, max_ladder_spread, track_seconds, min_total_matched, **kwargs):
         super().__init__(**kwargs)
 
+        self.min_total_matched: float = min_total_matched
         self.track_seconds = track_seconds
         self.max_odds = max_odds
         self.ltp_min_spread: int = ltp_min_spread
@@ -63,7 +76,19 @@ class WindowTradeStateIdle(tradestates.TradeStateIdle):
         self.tracker_start: datetime = datetime.now()
         self.tracking: bool = False
 
-    def validate(self, ltp: float, ltp_spread: int, ladder_spread: int) -> bool:
+        self.ltp = 0
+        self.window_value = 0
+        self.ladder_spread = 0
+        self.total_matched = 0
+        self.ltp_spread = 0
+
+    def enter(self, **kwargs):
+        """
+        When entering IDLE state make sure window tracking has been cleared
+        """
+        self.tracking = False
+
+    def validate(self, ltp: float, ltp_spread: int, ladder_spread: int, total_matched: float) -> bool:
         """
         validate if a LTP has breached ltp min/max window values, ltp min/max have sufficient spread, and back/lay
         ladder spread is within maximum spread
@@ -71,18 +96,36 @@ class WindowTradeStateIdle(tradestates.TradeStateIdle):
         if ltp <= self.max_odds:
             if ltp_spread >= self.ltp_min_spread:
                 if ladder_spread <= self.max_ladder_spread and ladder_spread != 0:
-                    return True
+                    if total_matched >= self.min_total_matched:
+                        return True
         return False
+
+    def track_msg_attrs(self, direction_up: bool) -> dict:
+        """
+        get tracking message attrs dictionary
+
+        Returns
+        -------
+
+        """
+        return {
+            'direction_up': direction_up,
+            'ltp': self.ltp,
+            'ltp_max': self.max_odds,
+            'window_value': self.window_value,
+            'window_spread': self.ltp_spread,
+            'window_spread_min': self.ltp_min_spread,
+            'ladder_spread': self.ladder_spread,
+            'ladder_spread_max': self.max_ladder_spread,
+            'total_matched': self.total_matched or 0,
+            'min_total_matched': self.min_total_matched,
+        }
 
     def track_start(
             self,
             dt: datetime,
             trade_tracker: WindowTradeTracker,
-            ltp,
             direction_up: bool,
-            window_value,
-            window_spread,
-            ladder_spread,
     ):
         """
         begin tracking a breach of LTP min/max window
@@ -96,28 +139,15 @@ class WindowTradeStateIdle(tradestates.TradeStateIdle):
 
         trade_tracker.log_update(
             msg_type=WindowMessageTypes.TRACK_START,
-            msg_attrs={
-                'direction_up': direction_up,
-                'ltp': ltp,
-                'ltp_max': self.max_odds,
-                'window_value': window_value,
-                'window_spread': window_spread,
-                'window_spread_min': self.ltp_min_spread,
-                'ladder_spread': ladder_spread,
-                'ladder_spread_max': self.max_ladder_spread
-            },
+            msg_attrs=self.track_msg_attrs(direction_up),
             dt=dt,
-            display_odds=ltp,
+            display_odds=self.ltp,
         )
 
     def track_stop(
             self,
             dt: datetime,
             trade_tracker: WindowTradeTracker,
-            ltp,
-            window_value,
-            window_spread,
-            ladder_spread,
     ):
         """
         stop an active track
@@ -126,18 +156,9 @@ class WindowTradeStateIdle(tradestates.TradeStateIdle):
 
         trade_tracker.log_update(
             msg_type=WindowMessageTypes.TRACK_FAIL,
-            msg_attrs={
-                'direction_up': self.up,
-                'ltp': ltp,
-                'ltp_max': self.max_odds,
-                'window_value': window_value,
-                'window_spread': window_spread,
-                'window_spread_min': self.ltp_min_spread,
-                'ladder_spread': ladder_spread,
-                'ladder_spread_max': self.max_ladder_spread
-            },
+            msg_attrs=self.track_msg_attrs(self.up),
             dt=dt,
-            display_odds=ltp,
+            display_odds=self.ltp,
         )
 
     def get_ltp_spread(self, ltp_max, ltp_min) -> int:
@@ -159,6 +180,7 @@ class WindowTradeStateIdle(tradestates.TradeStateIdle):
             best_back: float,
             best_lay: float,
             ladder_spread: int,
+            total_matched: float,
             **inputs,
     ):
         dt = market_book.publish_time
@@ -168,23 +190,27 @@ class WindowTradeStateIdle(tradestates.TradeStateIdle):
             return
 
         # get LTP spread
-        ltp_spread = self.get_ltp_spread(ltp_max, ltp_min)
+        self.ltp_spread = self.get_ltp_spread(ltp_max, ltp_min)
+
+        # assign inputs to state variables
+        self.ladder_spread = ladder_spread
+        self.total_matched = total_matched
+        self.ltp = ltp
 
         start = False
         stop = False
         done = False
         up = False
-        window_value = 0
 
         # check if broken upper window
         if ltp > ltp_max:
 
-            window_value = ltp_max
+            self.window_value = ltp_max
             up = True
 
             # if not tracking, start
             if not self.tracking:
-                if self.validate(ltp, ltp_spread, ladder_spread):
+                if self.validate(ltp, self.ltp_spread, ladder_spread, total_matched):
                     start = True
 
             else:
@@ -193,7 +219,7 @@ class WindowTradeStateIdle(tradestates.TradeStateIdle):
                 if self.up:
 
                     # check that still meets validation
-                    if self.validate(ltp, ltp_spread, ladder_spread):
+                    if self.validate(ltp, self.ltp_spread, ladder_spread, total_matched):
 
                         # check for completion time
                         if (dt - self.tracker_start).total_seconds() >= self.track_seconds:
@@ -208,18 +234,18 @@ class WindowTradeStateIdle(tradestates.TradeStateIdle):
                 # tracking down instead of up, switch direction
                 else:
 
-                    window_value = ltp_min
+                    self.window_value = ltp_min
                     stop = True
 
         # check if broken lower window
         elif ltp < ltp_min:
 
-            window_value = ltp_min
+            self.window_value = ltp_min
             up = False
 
             # if not tracking, start
             if not self.tracking:
-                if self.validate(ltp, ltp_spread, ladder_spread):
+                if self.validate(ltp, self.ltp_spread, ladder_spread, total_matched):
                     start = True
 
             else:
@@ -228,7 +254,7 @@ class WindowTradeStateIdle(tradestates.TradeStateIdle):
                 if not self.up:
 
                     # check for validation
-                    if self.validate(ltp, ltp_spread, ladder_spread):
+                    if self.validate(ltp, self.ltp_spread, ladder_spread, total_matched):
 
                         # check for time completion
                         if (dt - self.tracker_start).total_seconds() >= self.track_seconds:
@@ -243,7 +269,7 @@ class WindowTradeStateIdle(tradestates.TradeStateIdle):
                 # tracking up instead of down, switch direction
                 else:
 
-                    window_value = ltp_max
+                    self.window_value = ltp_max
                     stop = True
 
         # if here reached then have not broken upper/lower window
@@ -251,9 +277,9 @@ class WindowTradeStateIdle(tradestates.TradeStateIdle):
 
             # get window value from direction
             if self.up:
-                window_value = ltp_max
+                self.window_value = ltp_max
             else:
-                window_value = ltp_min
+                self.window_value = ltp_min
 
             # if tracking then stop
             if self.tracking:
@@ -262,34 +288,20 @@ class WindowTradeStateIdle(tradestates.TradeStateIdle):
 
         if stop:
 
-            self.track_stop(
-                dt=dt,
-                trade_tracker=trade_tracker,
-                ltp=ltp,
-                window_value=window_value,
-                window_spread=ltp_spread,
-                ladder_spread=ladder_spread
-            )
+            # stop active track of window breach
+            self.track_stop(dt=dt, trade_tracker=trade_tracker)
 
         elif start:
 
-            self.track_start(
-                dt=dt,
-                trade_tracker=trade_tracker,
-                ltp=ltp,
-                direction_up=up,
-                window_value=window_value,
-                window_spread=ltp_spread,
-                ladder_spread=ladder_spread
-            )
+            # start tracking window breach
+            self.track_start(dt=dt, trade_tracker=trade_tracker, direction_up=up)
 
         elif done:
 
+            # completed window breach, use trade tracker direction for log
             trade_tracker.log_update(
                 msg_type=WindowMessageTypes.TRACK_SUCCESS,
-                msg_attrs={
-                    'direction_up': True
-                },
+                msg_attrs=self.track_msg_attrs(trade_tracker.direction_up),
                 dt=dt
             )
 
@@ -436,11 +448,13 @@ class WindowTradeStateOpenMatching(tradestates.TradeStateOpenMatching):
                     'ltp': ltp,
                     'window_value': window_value
                 },
-                dt=market_book.publish_time
+                dt=market_book.publish_time,
+                display_odds=ltp,
             )
 
             return [
                 TradeStateTypes.BIN,
+                TradeStateTypes.PENDING,
                 TradeStateTypes.HEDGE_SELECT
             ]
 
@@ -474,57 +488,57 @@ class WindowTradeStateOpenMatching(tradestates.TradeStateOpenMatching):
                 ]
 
 
-class WindowTradeStateHedgePlaceTake(tradestates.TradeStateHedgePlaceBase):
-    """take the best price available from either ltp or best back/lay for hedging"""
-
-    def get_hedge_price(
-            self,
-            open_ladder: List[Dict],
-            close_ladder: List[Dict],
-            close_side,
-            trade_tracker: WindowTradeTracker,
-            market_book: MarketBook,
-            market: Market,
-            runner_index: int,
-            strategy: BaseStrategy,
-            ltp,
-            **inputs
-    ):
-        return get_price(ltp, close_ladder, close_side)
-
-
-class WindowTradeStateHedgeTakeWait(tradestates.TradeStateHedgeWaitBase):
-
-    def price_moved(
-            self,
-            market_book: MarketBook,
-            market: Market,
-            runner_index: int,
-            trade_tracker: WindowTradeTracker,
-            strategy: BaseStrategy,
-            ltp,
-            **inputs
-    ) -> float:
-
-        order = trade_tracker.active_order
-
-        # get ladder on close side for hedging
-        available = select_ladder_side(
-            market_book.runners[runner_index].ex,
-            order.side
-        )
-
-        # get LTP/back/lay price
-        price = get_price(ltp, available, order.side)
-
-        # if on back side, and new price is smaller than active green price then change
-        if order.side == 'BACK':
-            if price < order.order_type.price:
-                return price
-
-        # if on lay side, and new price is larger than active green price then change
-        else:
-            if price > order.order_type.price:
-                return price
-
-        return 0
+# class WindowTradeStateHedgePlaceTake(tradestates.TradeStateHedgePlaceBase):
+#     """take the best price available from either ltp or best back/lay for hedging"""
+#
+#     def get_hedge_price(
+#             self,
+#             open_ladder: List[Dict],
+#             close_ladder: List[Dict],
+#             close_side,
+#             trade_tracker: WindowTradeTracker,
+#             market_book: MarketBook,
+#             market: Market,
+#             runner_index: int,
+#             strategy: BaseStrategy,
+#             ltp,
+#             **inputs
+#     ):
+#         return get_price(ltp, close_ladder, close_side)
+#
+#
+# class WindowTradeStateHedgeTakeWait(tradestates.TradeStateHedgeWaitBase):
+#
+#     def price_moved(
+#             self,
+#             market_book: MarketBook,
+#             market: Market,
+#             runner_index: int,
+#             trade_tracker: WindowTradeTracker,
+#             strategy: BaseStrategy,
+#             ltp,
+#             **inputs
+#     ) -> float:
+#
+#         order = trade_tracker.active_order
+#
+#         # get ladder on close side for hedging
+#         available = select_ladder_side(
+#             market_book.runners[runner_index].ex,
+#             order.side
+#         )
+#
+#         # get LTP/back/lay price
+#         price = get_price(ltp, available, order.side)
+#
+#         # if on back side, and new price is smaller than active green price then change
+#         if order.side == 'BACK':
+#             if price < order.order_type.price:
+#                 return price
+#
+#         # if on lay side, and new price is larger than active green price then change
+#         else:
+#             if price > order.order_type.price:
+#                 return price
+#
+#         return 0

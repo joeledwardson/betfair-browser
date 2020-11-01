@@ -294,7 +294,7 @@ class TradeStateOpenMatching(TradeStateBase):
                     },
                     dt=market_book.publish_time
                 )
-                return TradeStateTypes.CLEANING
+                return self.next_state
 
 
 class TradeStateBin(TradeStateBase):
@@ -324,7 +324,9 @@ class TradeStateBin(TradeStateBase):
 
         elif sts == OrderStatus.EXECUTABLE:
             # partial match, cancel() checks for EXECUTABLE state when this when called
+            # cancel active order
             trade_tracker.active_order.cancel(trade_tracker.active_order.size_remaining)
+            # can immediately exit state as hopefully user has put pending state next to wait 1 cycle
             return True
 
         else:
@@ -416,12 +418,14 @@ class TradeStateHedgePlaceBase(TradeStateBase):
             close_ladder = runner.ex.available_to_back
 
         # check that ladders not empty
-        if not open_ladder or not close_ladder:
+        if not close_ladder:
             trade_tracker.log_update(
                 msg_type=MessageTypes.BOOKS_EMPTY,
                 dt=market_book.publish_time
             )
-            return TradeStateTypes.CLEANING
+
+            # wait for ladder to populate
+            return None
 
         # get green price for hedging
         green_price = self.get_hedge_price(
@@ -439,7 +443,7 @@ class TradeStateHedgePlaceBase(TradeStateBase):
         # convert price to 2dp
         green_price = round(green_price, ndigits=2)
 
-        # if function returns 0 then error, abort
+        # if function returns 0 then error
         if not green_price:
             trade_tracker.log_update(
                 msg_type=MessageTypes.GREEN_INVALID,
@@ -448,7 +452,9 @@ class TradeStateHedgePlaceBase(TradeStateBase):
                 },
                 dt=market_book.publish_time
             )
-            return TradeStateTypes.CLEANING
+
+            # try repeat
+            return None
 
         # compute size from outstanding profit and price, round to 2dp
         green_size = abs(outstanding_profit) / green_price
@@ -501,109 +507,6 @@ class TradeStateHedgePlaceTake(TradeStateHedgePlaceBase):
         """
         return close_ladder[0]['price'] if close_ladder else 0
 
-    def run(
-            self,
-            market_book: MarketBook,
-            market: Market,
-            runner_index: int,
-            trade_tracker: TradeTracker,
-            strategy: BaseStrategy,
-            **inputs
-    ):
-
-        # get oustanding profit on trade (dif between profit in win/loss case)
-        match_bet_sums = get_match_bet_sums(trade_tracker.active_trade)
-        outstanding_profit = match_bet_sums.outstanding_profit()
-
-        # abort if below minimum required to hedge
-        if abs(outstanding_profit) <= self.min_hedge_price:
-            trade_tracker.log_update(
-                msg_type=MessageTypes.HEDGE_NOT_MET,
-                msg_attrs={
-                    'outstanding_profit': outstanding_profit,
-                    'min_hedge': self.min_hedge_price
-                },
-                dt=market_book.publish_time
-            )
-            return TradeStateTypes.CLEANING
-
-        runner = market_book.runners[runner_index]
-
-        if outstanding_profit > 0:
-            # value is positive: trade is "underlayed", i.e. needs more lay money
-
-            close_side = 'LAY'
-            open_ladder = runner.ex.available_to_back
-            close_ladder = runner.ex.available_to_lay
-
-        else:
-            # value is negative: trade is "overlayed", i.e. needs more back moneyy
-
-            close_side = 'BACK'
-            open_ladder = runner.ex.available_to_lay
-            close_ladder = runner.ex.available_to_back
-
-        # check that ladders not empty
-        if not open_ladder or not close_ladder:
-            trade_tracker.log_update(
-                msg_type=MessageTypes.BOOKS_EMPTY,
-                dt=market_book.publish_time
-            )
-            return TradeStateTypes.CLEANING
-
-        # get green price for hedging
-        green_price = self.get_hedge_price(
-            open_ladder,
-            close_ladder,
-            close_side,
-            trade_tracker,
-            market_book,
-            market,
-            runner_index,
-            strategy,
-            **inputs
-        )
-
-        # convert price to 2dp
-        green_price = round(green_price, ndigits=2)
-
-        # if function returns 0 then error, abort
-        if not green_price:
-            trade_tracker.log_update(
-                msg_type=MessageTypes.GREEN_INVALID,
-                msg_attrs={
-                    'green_price': green_price
-                },
-                dt=market_book.publish_time
-            )
-            return TradeStateTypes.CLEANING
-
-        # compute size from outstanding profit and price, round to 2dp
-        green_size = abs(outstanding_profit) / green_price
-        green_size = round(green_size, 2)
-
-        # place order
-        trade_tracker.log_update(
-            msg_type=MessageTypes.GREEN_PLACE,
-            msg_attrs={
-                'close_side': close_side,
-                'green_price': green_price,
-                'green_size': green_size
-            },
-            dt=market_book.publish_time,
-            display_odds=green_price,
-        )
-        green_order = trade_tracker.active_trade.create_order(
-            side=close_side,
-            order_type=LimitOrder(
-                price=green_price,
-                size=green_size
-            ))
-        strategy.place_order(market, green_order)
-
-        trade_tracker.active_order = green_order
-        return [TradeStateTypes.PENDING, self.next_state]
-
 
 class TradeStateHedgeWaitBase(TradeStateBase):
     """
@@ -641,7 +544,7 @@ class TradeStateHedgeWaitBase(TradeStateBase):
 
         order = trade_tracker.active_order
 
-        # if there has been an error with the order, try to hedge again
+        # check if there has been an error with the order
         if order.status in order_error_states:
             trade_tracker.log_update(
                 msg_type=MessageTypes.HEDGE_ERROR,
@@ -650,13 +553,23 @@ class TradeStateHedgeWaitBase(TradeStateBase):
                 },
                 dt=market_book.publish_time
             )
+
+            # try to hedge again
             return TradeStateTypes.HEDGE_PLACE_TAKE
+
         elif order.status == OrderStatus.EXECUTION_COMPLETE:
+
+            # hedge done, move on
             return self.next_state
+
         elif order.status == OrderStatus.CANCELLING:
+
+            # hedge cancelling, try again
             return TradeStateTypes.HEDGE_PLACE_TAKE
+
         elif order.status == OrderStatus.EXECUTABLE:
 
+            # hedge matching, get new price
             new_price = self.price_moved(
                 market_book,
                 market,
@@ -665,7 +578,10 @@ class TradeStateHedgeWaitBase(TradeStateBase):
                 strategy,
                 **inputs
             )
+
+            # non-zero value indicates price has moved
             if new_price:
+
                 trade_tracker.log_update(
                     msg_type=MessageTypes.HEDGE_REPLACE,
                     msg_attrs={
@@ -675,6 +591,8 @@ class TradeStateHedgeWaitBase(TradeStateBase):
                     dt=market_book.publish_time,
                     display_odds=new_price,
                 )
+
+                # bin active hedge and hedge again with new price
                 return [
                     TradeStateTypes.BIN,
                     TradeStateTypes.PENDING,
@@ -693,7 +611,11 @@ class TradeStateHedgeWaitBase(TradeStateBase):
                 },
                 dt=market_book.publish_time,
             )
-            return [TradeStateTypes.BIN, TradeStateTypes.HEDGE_PLACE_TAKE]
+            return [
+                TradeStateTypes.BIN,
+                TradeStateTypes.PENDING,
+                TradeStateTypes.HEDGE_PLACE_TAKE
+            ]
 
 
 class TradeStateHedgeWaitTake(TradeStateHedgeWaitBase):
@@ -711,6 +633,7 @@ class TradeStateHedgeWaitTake(TradeStateHedgeWaitBase):
             **inputs
     ) -> float:
 
+        # check active order exists
         order = trade_tracker.active_order
         if not order:
             return 0
@@ -720,15 +643,18 @@ class TradeStateHedgeWaitTake(TradeStateHedgeWaitBase):
             market_book.runners[runner_index].ex,
             order.side
         )
+
         # get operator for comparing available price and current hedge price
         op = select_operator_side(
             order.side,
             invert=True
         )
-        new_price = available[0]['price']
+
+        # get available price for hedging if not empty
+        new_price = available[0]['price'] if available else 0
 
         # if current price is not the same as order price then move
-        if available and op(new_price, order.order_type.price):
+        if new_price and op(new_price, order.order_type.price):
             return new_price
         else:
             return 0

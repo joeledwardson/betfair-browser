@@ -281,6 +281,7 @@ class MyFeatureStrategy(MyBaseStrategy):
 
     def process_trade_machine(
             self,
+            publish_time: datetime,
             runner: RunnerBook,
             state_machine: RunnerStateMachine,
             trade_tracker: TradeTracker) -> bool:
@@ -293,6 +294,13 @@ class MyFeatureStrategy(MyBaseStrategy):
 
             # if just passed point where trading has stopped, force hedge trade
             if self.cutoff.rising:
+
+                # log cutoff point
+                trade_tracker.log_update(
+                    msg_type=MessageTypes.CUTOFF_REACHED,
+                    dt=publish_time
+                )
+
                 if cs not in self.inactive_states:
                     active_logger.info(f'forcing "{state_machine.selection_id}" to stop trading and hedge')
                     state_machine.flush()

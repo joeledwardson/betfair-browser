@@ -10,6 +10,7 @@ from ...trademachine import tradestates as basestates
 from ...trademachine.trademachine import RunnerStateMachine
 from ...strategy.featurestrategy import MyFeatureStrategy
 from ...process.ticks.ticks import LTICKS_DECODED
+from ...process.tradedvolume import traded_runner_vol
 from ...feature.config import get_features_default_configs
 from . import states as windowstates
 from .tradetracker import WindowTradeTracker
@@ -32,6 +33,7 @@ class MyWindowStrategy(MyFeatureStrategy):
             ltp_min_spread,
             max_ladder_spread,
             track_seconds,
+            min_total_matched,
             *args,
             **kwargs):
 
@@ -42,6 +44,7 @@ class MyWindowStrategy(MyFeatureStrategy):
         self.ltp_min_spread = ltp_min_spread
         self.max_ladder_spread = max_ladder_spread
         self.track_seconds = track_seconds
+        self.min_total_matched = min_total_matched
 
     def create_state_machine(
             self,
@@ -62,7 +65,8 @@ class MyWindowStrategy(MyFeatureStrategy):
                         max_odds=self.max_odds,
                         ltp_min_spread=self.ltp_min_spread,
                         max_ladder_spread=self.max_ladder_spread,
-                        track_seconds=self.track_seconds
+                        track_seconds=self.track_seconds,
+                        min_total_matched=self.min_total_matched,
                     ),
                     windowstates.WindowTradeStateOpenPlace(
                         stake_size=self.stake_size
@@ -71,10 +75,10 @@ class MyWindowStrategy(MyFeatureStrategy):
                     basestates.TradeStateBin(),
                     basestates.TradeStatePending(),
                     basestates.TradeStateHedgeSelect(),
-                    windowstates.WindowTradeStateHedgePlaceTake(
+                    basestates.TradeStateHedgePlaceTake(
                         min_hedge_price=self.min_hedge_price
                     ),
-                    windowstates.WindowTradeStateHedgeTakeWait(),
+                    basestates.TradeStateHedgeWaitTake(),
                     basestates.TradeStateClean()
                 ]
             },
@@ -116,7 +120,7 @@ class MyWindowStrategy(MyFeatureStrategy):
             if runner.selection_id == 28567519 and runner.last_price_traded == 3.25:
                 my_breakpoint = True
 
-            if self.process_trade_machine(runner, state_machine, trade_tracker):
+            if self.process_trade_machine(market_book.publish_time, runner, state_machine, trade_tracker):
 
                 # get best back and lay from features, or 0 if
                 best_back = features['best back'].last_value() or 0
@@ -124,6 +128,7 @@ class MyWindowStrategy(MyFeatureStrategy):
                 ltp = features['ltp'].last_value() or 0
                 ltp_min = features['ltp min'].last_value() or 0
                 ltp_max = features['ltp max'].last_value() or 0
+                total_matched = traded_runner_vol(runner)
 
                 if best_back in LTICKS_DECODED and best_lay in LTICKS_DECODED:
                     ladder_spread = LTICKS_DECODED.index(best_lay) - LTICKS_DECODED.index(best_back)
@@ -142,6 +147,7 @@ class MyWindowStrategy(MyFeatureStrategy):
                     ltp_min=ltp_min,
                     ltp_max=ltp_max,
                     ladder_spread=ladder_spread,
+                    total_matched=total_matched,
                 )
 
             # update order tracker

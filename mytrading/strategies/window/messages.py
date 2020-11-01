@@ -23,8 +23,7 @@ def get_direction(direction_up: bool) -> str:
     return 'up' if direction_up else 'down'
 
 
-@register_formatter(WindowMessageTypes.TRACK_START)
-def formatter(attrs: Dict) -> str:
+def get_window_breach_info(attrs: dict) -> str:
     window_name = get_window_name(attrs.get('direction_up'))
     ltp = attrs.get('ltp')
     ltp_max = attrs.get('ltp_max')
@@ -33,36 +32,36 @@ def formatter(attrs: Dict) -> str:
     ltp_min_spread = attrs.get('window_spread_min')
     ladder_spread = attrs.get('ladder_spread')
     ladder_spread_max = attrs.get('ladder_spread_max')
+    total_matched = attrs.get('total_matched', 0)
+    min_total_matched = attrs.get('min_total_matched', 0)
 
     return \
-        f'tracking window breach of {window_name} at {window_value:.2f} with LTP of {ltp}\n' \
-        f'-> ltp {ltp} within max odds {ltp_max}\n' \
+        f'-> LTP is {ltp}, vs {window_name} of {window_value:.2f}\n' \
+        f'-> total matched £{total_matched:.2f} >= minimum required £{min_total_matched:.2f}\n' \
+        f'-> LTP {ltp} within max odds {ltp_max}\n' \
         f'-> window spread {window_spread} exceeds minimum {ltp_min_spread}\n' \
         f'-> and ladder spread {ladder_spread} within max {ladder_spread_max}'
+
+
+@register_formatter(WindowMessageTypes.TRACK_START)
+def formatter(attrs: Dict) -> str:
+    window_name = get_window_name(attrs.get('direction_up'))
+    breach_info = get_window_breach_info(attrs)
+    return f'tracking window breach of {window_name}\n{breach_info}'
 
 
 @register_formatter(WindowMessageTypes.TRACK_SUCCESS)
 def formatter(attrs: Dict) -> str:
     window_name = get_window_name(attrs.get('direction_up'))
-    return f'successfully window breach of {window_name}, '
+    breach_info = get_window_breach_info(attrs)
+    return f'successful window breach of {window_name}\n{breach_info}'
 
 
 @register_formatter(WindowMessageTypes.TRACK_FAIL)
 def formatter(attrs: Dict) -> str:
     window_name = get_window_name(attrs.get('direction_up'))
-    ltp = attrs.get('ltp')
-    ltp_max = attrs.get('ltp_max')
-    window_value = attrs.get('window_value')
-    window_spread = attrs.get('window_spread')
-    ltp_min_spread = attrs.get('window_spread_min')
-    ladder_spread = attrs.get('ladder_spread')
-    ladder_spread_max = attrs.get('ladder_spread_max')
-
-    return \
-        f'breach of {window_name} at {window_value:.2f} failed, with LTP of {ltp}\n' \
-        f'-> ltp {ltp} must be within {ltp_max}\n' \
-        f'-> window spread {window_spread} must exceed minimum {ltp_min_spread}\n' \
-        f'-> and ladder spread {ladder_spread} must be within {ladder_spread_max}'
+    breach_info = get_window_breach_info(attrs)
+    return f'breach of {window_name} failed\n{breach_info}'
 
 
 @register_formatter(WindowMessageTypes.OPEN_PLACE_FAIL)
