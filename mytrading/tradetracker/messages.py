@@ -50,6 +50,7 @@ class MessageTypes(Enum):
     HEDGE_UNKNOWN = 'unknown hedge order status'
     TRADE_COMPLETE = 'trade complete'
     STATE_CHANGE = 'state change'
+    CUTOFF_REACHED = 'reached cutoff point for trading'
 
 
 @register_formatter(MessageTypes.TRACK_TRADE)
