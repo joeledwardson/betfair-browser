@@ -60,6 +60,9 @@ class TradeStateBase(stm.State):
         if next_state:
             self.next_state = next_state
 
+    # set this value to false where entering into state should not be printed to info log in trademachine
+    print_change_message = True
+
     # use enumerations for name of state for other states to refer to
     name: TradeStateTypes = TradeStateTypes.BASE
 
@@ -166,6 +169,9 @@ class TradeStateIdle(TradeStateBase):
     """
     name = TradeStateTypes.IDLE
     next_state = TradeStateTypes.OPEN_PLACING
+
+    # on entering IDLE state dont print update message
+    print_change_message = False
 
     # return true to move to next state opening trade, false to remain idle
     def trade_criteria(
