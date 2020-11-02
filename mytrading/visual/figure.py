@@ -6,6 +6,7 @@ from betfairlightweight.resources import MarketBook
 from plotly import graph_objects as go
 from plotly.subplots import make_subplots
 
+from ..process.ticks.ticks import LTICKS_DECODED, closest_tick
 from ..tradetracker.messages import MessageTypes
 from ..feature.window import Windows
 from ..feature.utils import generate_features, get_feature_data
@@ -265,7 +266,22 @@ def set_figure_layout(fig: go.Figure, title: str, chart_start: datetime, chart_e
     set plotly figure layout with a title, limit x axis from start time minus display seconds
     """
 
-    fig.update_layout(title=title) , # hovermode='x')
+    # get primary yaxis maximum and minimum values by getting max/min of each trace
+    y_min = min([min(trace['y']) for trace in fig.data if 'y' in trace and 'yaxis' in trace and trace['yaxis']=='y'])
+    y_max = max([max(trace['y']) for trace in fig.data if 'y' in trace and 'yaxis' in trace and trace['yaxis']=='y'])
+
+    # get index of minimum yaxis value, subtract 1 for display buffer
+    i_min = closest_tick(y_min, return_index=True)
+    i_min = max(0, i_min - 1)
+
+    # get index of maximum yaxis value, add 1 for display buffer
+    i_max = closest_tick(y_max, return_index=True)
+    i_max = min(len(LTICKS_DECODED) - 1, i_max + 1)
+
+    # set title
+    fig.update_layout(title=title)
+
+    # remove range slider and set chart xaxis display limits
     fig.update_xaxes({
         'rangeslider': {
             'visible': False
@@ -275,3 +291,16 @@ def set_figure_layout(fig: go.Figure, title: str, chart_start: datetime, chart_e
             chart_end
         ],
     })
+
+    # set primary yaxis gridlines to betfair ticks within range
+    fig.update_yaxes({
+        'tickmode': 'array',
+        'tickvals': LTICKS_DECODED[i_min:i_max+1],
+    })
+
+    # set secondary yaxis, manually set ticks to auto and number to display or for some reason they appear bunched up?
+    fig.update_yaxes({
+        'showgrid': False,
+        'tickmode': 'auto',
+        'nticks': 10,
+    }, secondary_y=True)
