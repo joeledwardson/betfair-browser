@@ -14,7 +14,6 @@ orders_default_config = {
     'trace_args': {},
     'chart_args': {
         'marker_size': 10,
-        'opacity': 0.8,
     }
 }
 
