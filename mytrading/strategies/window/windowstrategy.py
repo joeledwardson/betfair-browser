@@ -104,53 +104,32 @@ class MyWindowStrategy(MyFeatureStrategy):
         del features['best lay regression']
         return features
 
-    @timing_register
-    def process_market_book(self, market: Market, market_book: MarketBook) -> None:
+    def trade_machine_kwargs(
+            self,
+            market: Market,
+            market_book: MarketBook,
+            runner_index: int,
+    ) -> dict:
 
-        # update feature data (calls market_initialisation() if new market)
-        self.strategy_process_market_book(market, market_book)
+        # get runner instance and dict of runner features
+        runner = market_book.runners[runner_index]
+        features = self.feature_holders[market.market_id].features[runner.selection_id]
 
-        # loop runners
-        for runner_index, runner in enumerate(market_book.runners):
+        # get best back and lay from features, or 0 if
+        best_back = features['best back'].last_value() or 0
+        best_lay = features['best lay'].last_value() or 0
 
-            trade_tracker = self.trade_trackers[market.market_id][runner.selection_id]
-            state_machine = self.state_machines[market.market_id][runner.selection_id]
-            features = self.feature_holders[market.market_id].features[runner.selection_id]
+        if best_back in LTICKS_DECODED and best_lay in LTICKS_DECODED:
+            ladder_spread = LTICKS_DECODED.index(best_lay) - LTICKS_DECODED.index(best_back)
+        else:
+            ladder_spread = 0
 
-            if runner.selection_id == 28567519 and runner.last_price_traded == 3.25:
-                my_breakpoint = True
-
-            if self.process_trade_machine(market_book.publish_time, runner, state_machine, trade_tracker):
-
-                # get best back and lay from features, or 0 if
-                best_back = features['best back'].last_value() or 0
-                best_lay = features['best lay'].last_value() or 0
-                ltp = features['ltp'].last_value() or 0
-                ltp_min = features['ltp min'].last_value() or 0
-                ltp_max = features['ltp max'].last_value() or 0
-                total_matched = traded_runner_vol(runner)
-
-                if best_back in LTICKS_DECODED and best_lay in LTICKS_DECODED:
-                    ladder_spread = LTICKS_DECODED.index(best_lay) - LTICKS_DECODED.index(best_back)
-                else:
-                    ladder_spread = 0
-
-                state_machine.run(
-                    market_book=market_book,
-                    market=market,
-                    runner_index=runner_index,
-                    trade_tracker=trade_tracker,
-                    strategy=self,
-                    best_back=best_back,
-                    best_lay=best_lay,
-                    ltp=ltp,
-                    ltp_min=ltp_min,
-                    ltp_max=ltp_max,
-                    ladder_spread=ladder_spread,
-                    total_matched=total_matched,
-                )
-
-            # update order tracker
-            trade_tracker.update_order_tracker(market_book.publish_time)
-
-
+        return dict(
+            best_back=best_back,
+            best_lay=best_lay,
+            ladder_spread=ladder_spread,
+            ltp=features['ltp'].last_value() or 0,
+            ltp_min=features['ltp min'].last_value() or 0,
+            ltp_max=features['ltp max'].last_value() or 0,
+            total_matched=traded_runner_vol(runner),
+        )

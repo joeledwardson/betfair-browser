@@ -3,12 +3,13 @@ from betfairlightweight.resources.bettingresources import MarketBook, RunnerBook
 
 from datetime import timedelta, datetime, timezone
 import logging
-from typing import Dict
+from typing import Dict, List
 from os import path, makedirs
 from enum import Enum
 
 from myutils.timing import EdgeDetector, timing_register
 from myutils.jsonfile import add_to_file
+from ..process.prices import best_price
 from ..trademachine.tradestates import TradeStateTypes
 from ..trademachine.trademachine import RunnerStateMachine
 from ..feature.features import RunnerFeatureBase
@@ -95,6 +96,9 @@ class MyFeatureStrategy(MyBaseStrategy):
         # create edge detection for cutoff and trading allowed
         self.cutoff = EdgeDetector(False)
         self.allow = EdgeDetector(False)
+
+        # list of tracked markets
+        self.tracked_markets: List[str] = []
 
     def get_features_config(self, runner: RunnerBook) -> Dict:
         """
@@ -279,12 +283,50 @@ class MyFeatureStrategy(MyBaseStrategy):
             feature_configs=self.get_features_config(runner)
         )
 
-    def process_trade_machine(
+    def _process_trade_machine(
             self,
-            publish_time: datetime,
+            market_book: MarketBook,
             runner: RunnerBook,
             state_machine: RunnerStateMachine,
             trade_tracker: TradeTracker) -> bool:
+        """
+        determine whether to run state machine for a given runner, if past allow trading point value and not past
+        cutoff point.
+
+        when reaching cutoff point, will force states to cancel active trade and hedge. Also, will return true if
+        past cutoff point but not finished hedging active trade
+
+        Parameters
+        ----------
+        publish_time :
+        runner :
+        state_machine :
+        trade_tracker :
+
+        Returns
+        -------
+
+        """
+
+        # check if first book received where allowed to trade
+        if self.allow.rising:
+
+            # set display odds as either LTP/best back/best lay depending if any/all are available
+            ltp = runner.last_price_traded
+            best_back = best_price(runner.ex.available_to_back)
+            best_lay = best_price(runner.ex.available_to_lay)
+            display_odds = ltp or best_back or best_lay or 0
+
+            # log message
+            trade_tracker.log_update(
+                msg_type=MessageTypes.ALLOW_REACHED,
+                dt=market_book.publish_time,
+                msg_attrs={
+                    'pre_seconds': self.pre_seconds,
+                    'start_time': market_book.market_definition.market_time.isoformat()
+                },
+                display_odds=display_odds
+            )
 
         # only run state if past timestamp when trading allowed
         if self.allow.current_value:
@@ -298,7 +340,11 @@ class MyFeatureStrategy(MyBaseStrategy):
                 # log cutoff point
                 trade_tracker.log_update(
                     msg_type=MessageTypes.CUTOFF_REACHED,
-                    dt=publish_time
+                    dt=market_book.publish_time,
+                    msg_attrs={
+                        'cutoff_seconds': self.cutoff_seconds,
+                        'start_time': market_book.market_definition.market_time.isoformat()
+                    }
                 )
 
                 if cs not in self.inactive_states:
@@ -322,11 +368,35 @@ class MyFeatureStrategy(MyBaseStrategy):
 
         return False
 
-    def strategy_process_market_book(self, market: Market, market_book: MarketBook):
+    def trade_machine_kwargs(
+            self,
+            market: Market,
+            market_book: MarketBook,
+            runner_index: int,
+    ) -> dict:
+        """
+
+        Parameters
+        ----------
+        market :
+        market_book :
+        runner_index :
+
+        Returns
+        -------
+
+        """
+        raise NotImplementedError
+
+    @timing_register
+    def process_market_book(self, market: Market, market_book: MarketBook):
         """
         get runner feature data for current market with new `market_book` received
         - if first time market is received then `market_initialisation()` is called
         """
+
+        assert(market.market_id == market_book.market_id and
+               f'expected market id "{market.market_id}" to be the same as market book id "{market_book.market_id}"')
 
         # update cutoff and trading allowed flags
         self._update_cutoff(market_book)
@@ -339,7 +409,10 @@ class MyFeatureStrategy(MyBaseStrategy):
             active_logger.info(f'received pre-race trade allow flag at {market_book.publish_time}')
 
         # check if market has been initialised
-        if market.market_id not in self.feature_holders:
+        if market.market_id not in self.tracked_markets:
+
+            # add market to tracked list
+            self.tracked_markets.append(market.market_id)
 
             # create and store output directory for current market
             output_dir = self._get_output_dir(market_book)
@@ -360,9 +433,13 @@ class MyFeatureStrategy(MyBaseStrategy):
         # get feature data instance for current market
         feature_holder = self.feature_holders[market.market_id]
 
-        # if runner doesnt have an element in features dict then add (this must be done before window processing!)
+        # loop runners
         for runner in market_book.runners:
+
+            # check if runner has features initialised
             if runner.selection_id not in feature_holder.features:
+
+                # initialise runner features (this must be done before window processing!)
                 feature_holder.features[runner.selection_id] = self.create_features(
                     runner=runner,
                     feature_holder=feature_holder,
@@ -379,8 +456,10 @@ class MyFeatureStrategy(MyBaseStrategy):
         # process features
         feature_holder.process_market_book(market_book)
 
-        # create trade tracker and state machine if runner not yet initialised
-        for runner in market_book.runners:
+        # loop runners
+        for runner_index, runner in enumerate(market_book.runners):
+
+            # check if runner is being tracked
             if runner.selection_id not in self.trade_trackers[market.market_id]:
                 active_logger.info(
                     f'creating state machine and trade tracker for "{runner.selection_id}"'
@@ -403,3 +482,25 @@ class MyFeatureStrategy(MyBaseStrategy):
                     market=market,
                     market_book=market_book
                 )
+
+            # get trade tracker, state machine for runner
+            trade_tracker = self.trade_trackers[market.market_id][runner.selection_id]
+            state_machine = self.state_machines[market.market_id][runner.selection_id]
+
+            # check if state machine is to be run
+            if self._process_trade_machine(market_book, runner, state_machine, trade_tracker):
+
+                # get feature specific state machine kwargs
+                additional_kwargs = self.trade_machine_kwargs(market, market_book, runner_index)
+
+                state_machine.run(
+                    market_book=market_book,
+                    market=market,
+                    runner_index=runner_index,
+                    trade_tracker=trade_tracker,
+                    strategy=self,
+                    **additional_kwargs
+                )
+
+            # update order tracker
+            trade_tracker.update_order_tracker(market_book.publish_time)

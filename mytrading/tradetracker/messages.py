@@ -50,6 +50,7 @@ class MessageTypes(Enum):
     HEDGE_UNKNOWN = 'unknown hedge order status'
     TRADE_COMPLETE = 'trade complete'
     STATE_CHANGE = 'state change'
+    ALLOW_REACHED = 'reached allowed trading point'
     CUTOFF_REACHED = 'reached cutoff point for trading'
 
 
@@ -153,3 +154,17 @@ def formatter(attrs: Dict) -> str:
 @register_formatter(MessageTypes.STATE_CHANGE)
 def formatter(attrs: Dict) -> str:
     return f'state machine changed from state "{attrs.get("old_state")}" to "{attrs.get("new_state")}"'
+
+
+@register_formatter(MessageTypes.CUTOFF_REACHED)
+def formatter(attrs: Dict) -> str:
+    cutoff_seconds = attrs.get('cutoff_seconds')
+    start_time = attrs.get('start_time')
+    return f'cutoff point reached {cutoff_seconds}s beofre start time: {start_time}'
+
+
+@register_formatter(MessageTypes.ALLOW_REACHED)
+def formatter(attrs: Dict) -> str:
+    pre_seconds = attrs.get('pre_seconds')
+    start_time = attrs.get('start_time')
+    return f'allowed trading point reached {pre_seconds}s before start time: {start_time}'
