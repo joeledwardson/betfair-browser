@@ -176,3 +176,7 @@ def plotly_set_attrs(
     return df
 
 
+@register_data_processor
+def df_fillna(df: pd.DataFrame, method='ffill'):
+    return df.fillna(method=method)
+
