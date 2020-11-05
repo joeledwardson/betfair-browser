@@ -142,7 +142,7 @@ class TradeTracker:
         """
 
         # print update to stream
-        active_logger.log(level, f'{dt} {self.selection_id} {format_message(msg_type.value, msg_attrs)}')
+        active_logger.log(level, f'{dt} {self.selection_id} {format_message(msg_type.name, msg_attrs)}')
 
         # use previous log odds if not given
         if not display_odds and self._log:

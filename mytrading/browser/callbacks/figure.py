@@ -5,7 +5,7 @@ from typing import List, Dict
 import dash
 from dash.dependencies import Output, Input, State
 
-from ...tradetracker.orderinfo import get_order_updates
+from ...tradetracker.orderinfo import get_order_updates, filter_market_close
 from ...utils.storage import EXT_ORDER_INFO, EXT_FEATURE
 from ...visual.figure import generate_feature_plot, get_chart_start, fig_historical, modify_start, modify_end
 from ...visual.figure import ORDER_OFFSET_SECONDS
@@ -44,18 +44,31 @@ def get_orders_df(market_dir: str, market_id: str, selection_id: int, info_strin
         market_id + EXT_ORDER_INFO
     )
 
-    # get orders dataframe if file exists and not empty
+    # check order info file exists
     if path.isfile(order_file_path):
+
+        # get order updates to dataframe
         orders_df = get_order_updates(order_file_path)
+
+        # check if not empty
         if orders_df.shape[0]:
+
+            # filter to selection ID
             orders_df = orders_df[orders_df['selection_id'] == selection_id]
+
+            # filter market close orders
+            orders_df = filter_market_close(orders_df)
+
         else:
+
+            # set dataframe to None if empty to indicate fail
             orders_df = None
 
     if orders_df is None:
         orders_str = f'"{order_file_path}" not found'
     else:
         orders_str = f'found {orders_df.shape[0]} order infos in "{order_file_path}"'
+
     info_strings.append(orders_str)
     return orders_df
 

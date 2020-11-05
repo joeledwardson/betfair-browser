@@ -1,11 +1,12 @@
 from datetime import datetime
 import pandas as pd
 from flumine.order.order import BetfairOrder
-from myutils.jsonfile import read_file, add_to_file
 import logging
-from ..process.profit import order_profit
 from typing import Dict
 from enum import Enum
+from myutils.jsonfile import read_file, add_to_file
+from ..process.profit import order_profit
+from .messages import MessageTypes
 
 
 active_logger = logging.getLogger(__name__)
@@ -42,6 +43,24 @@ def get_order_updates(file_path) -> pd.DataFrame:
                 order_df.index = order_df['dt'].apply(datetime.fromtimestamp)
                 return order_df.drop(['dt'], axis=1)
     return pd.DataFrame()
+
+
+def filter_market_close(orders_df: pd.DataFrame) -> pd.DataFrame:
+    """
+    filter market close messages from order info dataframe
+
+    Parameters
+    ----------
+    orders_df :
+
+    Returns
+    -------
+
+    """
+    if orders_df.shape[0] and 'msg_type' in orders_df.columns:
+        return orders_df[orders_df['msg_type'] != MessageTypes.MARKET_CLOSE.name]
+    else:
+        return orders_df
 
 
 def serializable_order_info(order: BetfairOrder) -> dict:
@@ -98,7 +117,7 @@ def write_order_update(
     add_to_file(file_path, {
         'selection_id': selection_id,
         'dt': dt.timestamp(),
-        'msg_type': msg_type.value,
+        'msg_type': msg_type.name,
         'msg_attrs': msg_attrs,
         'display_odds': display_odds,
         'order_info': order_info,

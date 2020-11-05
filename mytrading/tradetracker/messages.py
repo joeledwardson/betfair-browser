@@ -24,10 +24,10 @@ def register_formatter(key: Enum):
     formatters
     """
     def decorator(func):
-        if key.value in message_formatters:
-            raise Exception(f'registering message type "{key.value}", but already exists!')
+        if key.name in message_formatters:
+            raise Exception(f'registering message type "{key.name}", but already exists!')
         else:
-            message_formatters[key.value] = func
+            message_formatters[key.name] = func
         return func
     return decorator
 
