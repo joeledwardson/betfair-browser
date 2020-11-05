@@ -11,7 +11,7 @@ def register_data_processor(func):
     register a plotly processor, add to dictionary of processors
     signature:
 
-    def func(data, features_data_data, **kwargs)
+    def func(data, features_data, **kwargs)
     """
     if func.__name__ in plotly_processors:
         raise Exception(f'registering plotly data processor "{func.__name__}", but already exists!')
@@ -20,14 +20,14 @@ def register_data_processor(func):
         return func
 
 
-def process_plotly_data(data, features_data_data, processors_config):
+def process_plotly_data(data: Dict, features_data: Dict[str, Dict[str, List]], processors_config: List[Dict]):
     """
     use plotly data processors to process data
     """
     for cfg in processors_config:
         func = plotly_processors[cfg['name']]
         kwargs = cfg.get('kwargs', {})
-        data = func(data, features_data_data, **kwargs)
+        data = func(data, features_data, **kwargs)
     return data
 
 
@@ -78,17 +78,17 @@ def plotly_regression(data: Dict, features_data) -> Dict:
 
 
 @register_data_processor
-def values_resampler(data: pd.DataFrame, features_data, n_seconds, sampling_function='last') -> pd.DataFrame:
+def plotly_values_resampler(data: pd.DataFrame, features_data, n_seconds, agg_function) -> pd.DataFrame:
     """
     resample 'df' DataFrame for 'n_seconds', using last value each second and forward filling
     can override default sampling function 'last' with `sampling_function` arg
     """
     rule = f'{n_seconds}S'
-    return data.resample(rule).apply(sampling_function).fillna(method='ffill') if data.shape[0] else data
+    return data.resample(rule).agg(agg_function) if data.shape[0] else data
 
 
 @register_data_processor
-def plotly_data_to_series(data: dict, features_data) -> pd.Series:
+def plotly_data_to_series(data: Dict, features_data) -> pd.Series:
     """
     convert 'data' x-y plotly values (dict with 'x' and 'y' indexed list values) to pandas series where index is 'x'
     """
@@ -112,71 +112,129 @@ def plotly_pricesize_display(data: Dict, features_data):
 @register_data_processor
 def plotly_set_attrs(
         data: Dict,
-        features_data,
-        feature_name,
-        feature_value_processors,
+        features_data: Dict[str, Dict[str, List]],
         attr_configs: List[Dict],
 ) -> pd.DataFrame:
     """
-    For a given dictionary 'vals' of plotly data containing 'x' and 'y' lists of values, set additional dictionary
-    attributes to be accepted by a plotly chart function
+    adds a different feature's data to the current feature plotly data
 
-    - 'name': feature name of which to get data from
-    - 'data_processors': data processors configuration to apply to feature
+    Parameters
+    ----------
+    data :
+    features_data :
+    attr_configs: list of feature config dicts whose data to collect, whose attributes include:
+             - 'feature_name' : name of the feature whose' data to append to existing `data` dict (used as key to
+             `features_data`) note that only the **first** of the list of data from the feature is used TODO (improve)
+            - 'attr_name': list of plotly attribute names to set with feature values (e.g. ['color'])
+            - feature_value_processors (optional): list of 'value_processors' whose signature should be identical to
+            those used in configuration in ..\config.py
 
+    Returns
+    -------
 
-    'feature_configs' dictionary specifies what features to use as additional attributes and how to process them
-    - list of feature configuration dictionaries:
-    -   'name': feature name to get values from (only first index from values list is used!)
-    -   'processors': list of processor(data: dict) functions to run on data retrieved from feature
-    -   'attr formatters': dictionary of:
-    -       key: attribute name to set in plotly dictionary
-    -       value: formatter(value) to format data into visualisation form
     """
 
-    # have to remove duplicate datetime indexes from each series or pandas winges when trying to make a dataframe
+    # convert data to pandas series
     sr_data = plotly_data_to_series(data, features_data)
+
+    # remove duplicate datetime indexes from each series or pandas winges when trying to make a dataframe
     sr_data = remove_duplicates(sr_data)
 
+    # create dictionary to use for dataframe, starting with trace output 'y' with base values (plotly features will
+    # be added later in function from additional feature)
     df_data = {
         'y': sr_data,
     }
 
+    # check has x and y values
+    if not ('y' in data and len(data['y']) and 'x' in data and len(data['x'])):
+
+        # if don't, just return pandas dataframe now without adding attributes
+        return pd.DataFrame(df_data)
+
+    # check haven't forgotten [] braces and passed a dict by mistake
     assert(type(attr_configs) is list)
 
-    # get data from feature to be used as color in plot (assume single plotting element)
-    attr_data = features_data[feature_name]
+    # loop feature configurations
+    for cfg in attr_configs:
 
-    if len(attr_data):
+        # get attributes from configuration dict
+        feature_name = cfg['feature_name']
+        attr_names = cfg['attr_names']
+        assert(type(attr_names) == list)
+        feature_value_processors = cfg.get('feature_value_processors')
+
+        # get data from feature using feature name as key
+        attr_data = features_data[feature_name]
+
+        # check feature data list is not empty
+        if len(attr_data) == 0:
+            continue
+
+        # take first data set in list
         attr_data = attr_data[0]
-        attr_data = process_plotly_data(attr_data, features_data, feature_value_processors)
 
-        # check has x and y values
-        if 'y' in data and len(data['y']) and 'x' in data and len(data['x']):
+        # process feature data if processors passed
+        if feature_value_processors is not None:
 
-            # create series and remove duplicates from color data
-            sr_attr = pd.Series(attr_data['y'], index=attr_data['x'])
-            sr_attr = remove_duplicates(sr_attr)
+            # perform nested run of data processors (process_plotly_data() is called to reach current execution point),
+            # on the feature data
+            attr_data = process_plotly_data(attr_data, features_data, feature_value_processors)
 
-            for cfg in attr_configs:
+        # create series from feature data
+        sr_attr = pd.Series(attr_data['y'], index=attr_data['x'])
 
-                formatter_name = cfg.get('formatter_name')
-                if formatter_name:
-                    formatter = format_processors[formatter_name]
-                    formatter_kwargs = cfg.get('formatter_kwargs', {})
-                    sr_attr_final = sr_attr.apply(partial(formatter, **formatter_kwargs))
-                else:
-                    sr_attr_final = sr_attr
+        # remove duplicates (otherwise pandas singes when trying to create dataframe)
+        sr_attr = remove_duplicates(sr_attr)
 
-                attr_name = cfg['attr_name']
-                df_data[attr_name] = sr_attr_final
+        # assign to attribute names
+        for name in attr_names:
+            df_data[name] = sr_attr
 
+    # create dataframe with using dictionary with additional plotly attributes set from feature data
     df = pd.DataFrame(df_data)
-    df = df.fillna(method='ffill')
     return df
 
 
 @register_data_processor
-def df_fillna(df: pd.DataFrame, method='ffill'):
-    return df.fillna(method=method)
+def plotly_df_formatter(data: pd.DataFrame, features_data, formatter_name, df_column, formatter_kwargs: Dict=None):
+    """
+    apply a value formatter to a column in a pandas dataframe
 
+    Parameters
+    ----------
+    data :
+    features_data :
+    formatter_name :
+    df_column : column in pandas dataframe to apply to
+    formatter_kwargs : dictionary of kwargs to apply to formatter function
+
+    Returns
+    -------
+
+    """
+
+    # set formatter kwargs to empty dictionary if not passed
+    if formatter_kwargs is None:
+        formatter_kwargs = {}
+
+    # get formatter function from dictionary
+    formatter = format_processors[formatter_name]
+
+    # generate partial function using formatter kwargs and function
+    f = partial(formatter, **formatter_kwargs)
+
+    # apply function to column values
+    data[df_column] = data[df_column].apply(f)
+
+    return data
+
+
+@register_data_processor
+def plotly_df_fillna(data: pd.DataFrame, features_data, method='ffill'):
+    return data.fillna(method=method)
+
+
+@register_data_processor
+def plotly_df_diff(data: pd.DataFrame, features_data):
+    return data.diff()

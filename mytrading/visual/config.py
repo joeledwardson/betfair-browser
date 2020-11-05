@@ -55,14 +55,16 @@ def get_plot_feature_default_configs(
             'value_processors': [{
                 'name': 'plotly_set_attrs',
                 'kwargs': {
-                    'feature_name': 'back ladder',
-                    'feature_value_processors': [{
-                        'name': 'plotly_pricesize_display'
-                    }],
                     'attr_configs': [{
-                        'attr_name': 'text',
-                    }]
+                        'feature_name': 'back ladder',
+                        'feature_value_processors': [{
+                            'name': 'plotly_pricesize_display'
+                        }],
+                        'attr_names': ['text'],
+                    }],
                 }
+            }, {
+                'name': 'plotly_df_fillna',
             }, {
                 'name': 'plotly_df_to_data',
             }],
@@ -74,14 +76,16 @@ def get_plot_feature_default_configs(
             'value_processors': [{
                 'name': 'plotly_set_attrs',
                 'kwargs': {
-                    'feature_name': 'lay ladder',
-                    'feature_value_processors': [{
-                        'name': 'plotly_pricesize_display'
-                    }],
                     'attr_configs': [{
-                        'attr_name': 'text',
-                    }]
+                        'feature_name': 'lay ladder',
+                        'feature_value_processors': [{
+                            'name': 'plotly_pricesize_display'
+                        }],
+                        'attr_names': ['text'],
+                    }],
                 }
+            }, {
+                'name': 'plotly_df_fillna',
             }, {
                 'name': 'plotly_df_to_data',
             }],
@@ -98,9 +102,6 @@ def get_plot_feature_default_configs(
         'book split': {
             'ignore': True,
         },
-        'tv': {
-            'ignore': True,
-        },
         'ltp': {
             'chart_args': {
                 'mode': 'lines+markers'
@@ -108,71 +109,82 @@ def get_plot_feature_default_configs(
             'value_processors': [{
                 'name': 'plotly_set_attrs',
                 'kwargs': {
-                    'feature_name': 'tv',
-                    'feature_value_processors': [],
                     'attr_configs': [{
-                        'attr_name': 'text',
-                        'formatter_name': 'formatter_decimal',
-                        'formatter_kwargs': {
-                            'name': 'traded vol',
-                            'prefix': '£',
-                        }
+                        'feature_name': 'tv',
+                        'attr_names': ['text'],
                     }],
                 }
             }, {
+                'name': 'plotly_df_fillna',
+            }, {
+                'name': 'plotly_df_formatter',
+                'kwargs': {
+                    'formatter_name': 'formatter_decimal',
+                    'df_column': 'text',
+                    'formatter_kwargs': {
+                        'name': 'traded vol',
+                        'prefix': '£',
+                    }
+                }
+            },{
                 'name': 'plotly_df_to_data',
             }],
         },
         'ltp diff': {
+            'ignore': True,
+        },
+        'tv': {
             'chart': go.Bar,
             'chart_args': {
-                # default plotly colours go white, so use a green to red with grey 0 scale
                 'marker': {
                     'colorscale': [
                         [0, 'rgb(250,50,50)'],
                         [1, 'rgb(50,250,50)']
-                    ],
-                    'cmid': 0,
+                    ],  # default plotly colours go white, so use a green to red scale
+                    'cmid': 0,  # with grey 0 scale
                 },
                 'opacity': ltp_diff_opacity,
                 'width': 1000,  # 1 seconds width of bars
-                'offset': -1000,  # end of bar to be aligned with timestamp
+                'offset': 0,  # end of bar to be aligned with timestamp
             },
             'trace_args': {
                 'secondary_y': True
             },
             'value_processors': [{
+                'name': 'plotly_data_to_series'
+            }, {
+                'name': 'plotly_df_diff'
+            }, {
+                'name': 'plotly_series_to_data'
+            }, {
                 'name': 'plotly_set_attrs',
                 'kwargs': {
-                    'feature_name': 'wom',
-                    'feature_value_processors': [{
-                        'name': 'plotly_data_to_series',
-                    }, {
-                        'name': 'values_resampler',
-                        'kwargs': {
-                            'n_seconds': ltp_diff_s,
-                            'sampling_function': 'mean',
-                        }
-                    }, {
-                        'name': 'plotly_series_to_data'
-                    }],
                     'attr_configs': [{
-                        'attr_name': 'marker_color'
-                    }, {
-                        'attr_name': 'text',
-                        'formatter_name': 'formatter_decimal',
-                        'formatter_kwargs': {
-                            'name': 'weight of money',
-                            'prefix': '£',
-                        }
+                        'feature_name': 'wom',
+                        'attr_names': ['text', 'marker_color'],
                     }],
                 },
             }, {
-                'name': 'values_resampler',
+                'name': 'plotly_values_resampler',
                 'kwargs': {
                     'n_seconds': ltp_diff_s,
+                    'agg_function': {
+                        'y': 'sum',
+                        'text': 'mean',
+                        'marker_color': 'mean',
+                    }
                 }
             }, {
+                'name': 'plotly_df_formatter',
+                'kwargs': {
+                    'formatter_name': 'formatter_decimal',
+                    'df_column': 'text',
+                    'formatter_kwargs': {
+                        'name': 'weight of money',
+                        'prefix': '£',
+                    }
+                },
+            },{
                 'name': 'plotly_df_to_data'
             }],
         },
@@ -206,22 +218,22 @@ def get_plot_feature_default_configs(
                 }
             }],
         },
-        'ltp min': {
-            'sub_features': {
-                'delay': {
-                    'chart_args': {
-                        'visible': 'legendonly',
-                    }
-                }
-            }
-        },
-        'ltp max': {
-            'sub_features': {
-                'delay': {
-                    'chart_args': {
-                        'visible': 'legendonly',
-                    }
-                }
-            }
-        }
+        # 'ltp min': {
+        #     'sub_features': {
+        #         'delay': {
+        #             'chart_args': {
+        #                 'visible': 'legendonly',
+        #             }
+        #         }
+        #     }
+        # },
+        # 'ltp max': {
+        #     'sub_features': {
+        #         'delay': {
+        #             'chart_args': {
+        #                 'visible': 'legendonly',
+        #             }
+        #         }
+        #     }
+        # }
     }
