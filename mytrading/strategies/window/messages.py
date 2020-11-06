@@ -44,13 +44,17 @@ def get_window_breach_info(attrs: dict) -> str:
     ladder_spread_max = attrs.get('ladder_spread_max')
     total_matched = attrs.get('total_matched', 0)
     min_total_matched = attrs.get('min_total_matched', 0)
+    ltp_previous = attrs.get('ltp_previous')
+    ltp_tick_delta = attrs.get('ltp_tick_delta')
+    ltp_max_tick_delta = attrs.get('ltp_max_tick_delta')
 
     return \
         f'-> LTP is {ltp}, vs {window_name} of {window_value:.2f}\n' \
         f'-> total matched £{total_matched:.2f} >= minimum required £{min_total_matched:.2f}\n' \
         f'-> LTP {ltp} within max odds {ltp_max}\n' \
         f'-> window spread {window_spread} exceeds minimum {ltp_min_spread}\n' \
-        f'-> and ladder spread {ladder_spread} within max {ladder_spread_max}'
+        f'-> ladder spread {ladder_spread} within max {ladder_spread_max}\n' \
+        f'-> ltp {ltp} compared to previous {ltp_previous} is {ltp_tick_delta} ticks <= {ltp_max_tick_delta}'
 
 
 @register_formatter(WindowMessageTypes.WDW_MSG_TRACK_START)

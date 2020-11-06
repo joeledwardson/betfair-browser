@@ -9,7 +9,7 @@ from myutils.timing import timing_register
 from ...trademachine import tradestates as basestates
 from ...trademachine.trademachine import RunnerStateMachine
 from ...strategy.featurestrategy import MyFeatureStrategy
-from ...process.ticks.ticks import LTICKS_DECODED
+from ...process.ticks.ticks import LTICKS_DECODED, tick_spread
 from ...process.tradedvolume import traded_runner_vol
 from ...feature.config import get_features_default_configs
 from . import states as windowstates
@@ -31,6 +31,7 @@ class MyWindowStrategy(MyFeatureStrategy):
             min_hedge_price,
             max_odds,
             ltp_min_spread,
+            ltp_max_tick_delta,
             max_ladder_spread,
             track_seconds,
             min_total_matched,
@@ -42,6 +43,7 @@ class MyWindowStrategy(MyFeatureStrategy):
         self.min_hedge_price = min_hedge_price
         self.max_odds = max_odds
         self.ltp_min_spread = ltp_min_spread
+        self.ltp_max_tick_delta = ltp_max_tick_delta
         self.max_ladder_spread = max_ladder_spread
         self.track_seconds = track_seconds
         self.min_total_matched = min_total_matched
@@ -64,6 +66,7 @@ class MyWindowStrategy(MyFeatureStrategy):
                     windowstates.WindowTradeStateIdle(
                         max_odds=self.max_odds,
                         ltp_min_spread=self.ltp_min_spread,
+                        ltp_max_tick_delta=self.ltp_max_tick_delta,
                         max_ladder_spread=self.max_ladder_spread,
                         track_seconds=self.track_seconds,
                         min_total_matched=self.min_total_matched,
@@ -98,6 +101,7 @@ class MyWindowStrategy(MyFeatureStrategy):
         )
 
     def get_features_config(self, runner: RunnerBook) -> Dict:
+
         # use default features but not regression
         features = get_features_default_configs()
         del features['best back regression']
@@ -119,17 +123,22 @@ class MyWindowStrategy(MyFeatureStrategy):
         best_back = features['best back'].last_value() or 0
         best_lay = features['best lay'].last_value() or 0
 
-        if best_back in LTICKS_DECODED and best_lay in LTICKS_DECODED:
-            ladder_spread = LTICKS_DECODED.index(best_lay) - LTICKS_DECODED.index(best_back)
-        else:
-            ladder_spread = 0
+        # get back/lay spread, checking they are both valid odds
+        ladder_spread = tick_spread(best_back, best_lay, check_values=True)
+
+        # get LTP
+        ltp = features['ltp'].last_value() or 0
+
+        # get ltp previous value
+        ltp_previous = features['ltp'].sub_features['previous value'].last_value() or 0
 
         return dict(
+            ltp=ltp,
+            ltp_previous=ltp_previous,
+            ltp_min=features['ltp min'].last_value() or 0,
+            ltp_max=features['ltp max'].last_value() or 0,
             best_back=best_back,
             best_lay=best_lay,
             ladder_spread=ladder_spread,
-            ltp=features['ltp'].last_value() or 0,
-            ltp_min=features['ltp min'].last_value() or 0,
-            ltp_max=features['ltp max'].last_value() or 0,
             total_matched=traded_runner_vol(runner),
         )

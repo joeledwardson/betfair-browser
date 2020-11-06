@@ -13,7 +13,7 @@ from ...process.prices import best_price
 from ...process.side import select_ladder_side, select_operator_side, invert_side
 from ...tradetracker.messages import MessageTypes
 from ...trademachine.tradestates import TradeStateTypes
-from ...process.ticks.ticks import closest_tick
+from ...process.ticks.ticks import closest_tick, tick_spread
 from ...trademachine import tradestates
 from .tradetracker import WindowTradeTracker
 from .messages import WindowMessageTypes
@@ -63,7 +63,16 @@ class WindowTradeStateIdle(tradestates.TradeStateIdle):
     indicator and advance to next state
     """
 
-    def __init__(self, max_odds, ltp_min_spread, max_ladder_spread, track_seconds, min_total_matched, **kwargs):
+    def __init__(
+            self,
+            max_odds,
+            ltp_min_spread,
+            max_ladder_spread,
+            track_seconds,
+            min_total_matched,
+            ltp_max_tick_delta,
+            **kwargs
+    ):
         super().__init__(**kwargs)
 
         self.min_total_matched: float = min_total_matched
@@ -71,12 +80,15 @@ class WindowTradeStateIdle(tradestates.TradeStateIdle):
         self.max_odds = max_odds
         self.ltp_min_spread: int = ltp_min_spread
         self.max_ladder_spread: int = max_ladder_spread
+        self.ltp_max_tick_delta = ltp_max_tick_delta
 
         self.up: bool = True
         self.tracker_start: datetime = datetime.now()
         self.tracking: bool = False
 
         self.ltp = 0
+        self.ltp_previous = 0
+        self.ltp_tick_delta = 0
         self.window_value = 0
         self.ladder_spread = 0
         self.total_matched = 0
@@ -88,7 +100,14 @@ class WindowTradeStateIdle(tradestates.TradeStateIdle):
         """
         self.tracking = False
 
-    def validate(self, ltp: float, ltp_spread: int, ladder_spread: int, total_matched: float) -> bool:
+    def validate(
+            self,
+            ltp: float,
+            ltp_spread: int,
+            ladder_spread: int,
+            total_matched: float,
+            ltp_tick_delta: int,
+    ) -> bool:
         """
         validate if a LTP has breached ltp min/max window values, ltp min/max have sufficient spread, and back/lay
         ladder spread is within maximum spread
@@ -97,7 +116,8 @@ class WindowTradeStateIdle(tradestates.TradeStateIdle):
             if ltp_spread >= self.ltp_min_spread:
                 if ladder_spread <= self.max_ladder_spread and ladder_spread != 0:
                     if total_matched >= self.min_total_matched:
-                        return True
+                        if ltp_tick_delta <= self.ltp_max_tick_delta:
+                            return True
         return False
 
     def track_msg_attrs(self, direction_up: bool) -> dict:
@@ -119,6 +139,9 @@ class WindowTradeStateIdle(tradestates.TradeStateIdle):
             'ladder_spread_max': self.max_ladder_spread,
             'total_matched': self.total_matched or 0,
             'min_total_matched': self.min_total_matched,
+            'ltp_previous': self.ltp_previous,
+            'ltp_tick_delta': self.ltp_tick_delta,
+            'ltp_max_tick_delta': self.ltp_max_tick_delta
         }
 
     def track_start(
@@ -161,20 +184,12 @@ class WindowTradeStateIdle(tradestates.TradeStateIdle):
             display_odds=self.ltp,
         )
 
-    def get_ltp_spread(self, ltp_max, ltp_min) -> int:
-        """
-        get tick spread between ltp max and min
-        """
-        index_min = closest_tick(ltp_min, return_index=True)
-        index_max = closest_tick(ltp_max, return_index=True)
-        return index_max - index_min
-
-
     def run(
             self,
             market_book: MarketBook,
             trade_tracker: WindowTradeTracker,
             ltp: float,
+            ltp_previous: float,
             ltp_min: float,
             ltp_max: float,
             best_back: float,
@@ -190,12 +205,16 @@ class WindowTradeStateIdle(tradestates.TradeStateIdle):
             return
 
         # get LTP spread
-        self.ltp_spread = self.get_ltp_spread(ltp_max, ltp_min)
+        self.ltp_spread = tick_spread(ltp_max, ltp_min, check_values=False)
+
+        # get tick difference between ltp and previous ltp
+        self.ltp_tick_delta = tick_spread(ltp, ltp_previous, check_values=False)
 
         # assign inputs to state variables
         self.ladder_spread = ladder_spread
         self.total_matched = total_matched
         self.ltp = ltp
+        self.ltp_previous = ltp_previous
 
         start = False
         stop = False
@@ -210,7 +229,7 @@ class WindowTradeStateIdle(tradestates.TradeStateIdle):
 
             # if not tracking, start
             if not self.tracking:
-                if self.validate(ltp, self.ltp_spread, ladder_spread, total_matched):
+                if self.validate(ltp, self.ltp_spread, ladder_spread, total_matched, self.ltp_tick_delta):
                     start = True
 
             else:
@@ -219,7 +238,7 @@ class WindowTradeStateIdle(tradestates.TradeStateIdle):
                 if self.up:
 
                     # check that still meets validation
-                    if self.validate(ltp, self.ltp_spread, ladder_spread, total_matched):
+                    if self.validate(ltp, self.ltp_spread, ladder_spread, total_matched, self.ltp_tick_delta):
 
                         # check for completion time
                         if (dt - self.tracker_start).total_seconds() >= self.track_seconds:
@@ -245,7 +264,7 @@ class WindowTradeStateIdle(tradestates.TradeStateIdle):
 
             # if not tracking, start
             if not self.tracking:
-                if self.validate(ltp, self.ltp_spread, ladder_spread, total_matched):
+                if self.validate(ltp, self.ltp_spread, ladder_spread, total_matched, self.ltp_tick_delta):
                     start = True
 
             else:
@@ -254,7 +273,7 @@ class WindowTradeStateIdle(tradestates.TradeStateIdle):
                 if not self.up:
 
                     # check for validation
-                    if self.validate(ltp, self.ltp_spread, ladder_spread, total_matched):
+                    if self.validate(ltp, self.ltp_spread, ladder_spread, total_matched, self.ltp_tick_delta):
 
                         # check for time completion
                         if (dt - self.tracker_start).total_seconds() >= self.track_seconds:
