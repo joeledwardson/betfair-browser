@@ -291,6 +291,9 @@ class WindowTradeStateIdle(tradestates.TradeStateIdle):
             # stop active track of window breach
             self.track_stop(dt=dt, trade_tracker=trade_tracker)
 
+            # exit active trade to separate failed breach trades
+            return TradeStateTypes.CLEANING
+
         elif start:
 
             # start tracking window breach
