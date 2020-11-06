@@ -62,3 +62,40 @@ TICKS_DECODED: np.ndarray = int_decode(TICKS)
 
 # list of Betfair ticks in actual floating values
 LTICKS_DECODED = TICKS_DECODED.tolist()
+
+
+def tick_spread(value_0: float, value_1: float, check_values: bool) -> int:
+    """
+    get tick spread between two odds values
+
+    - if `check_values` is True and both values don't correspond to tick
+    values, then 0 is returned
+    - if `check_values` if False then the closest tick value is used for `value_0` and `value_1`
+
+    Parameters
+    ----------
+    value_0 :
+    value_1 :
+    check_values:
+
+    Returns
+    -------
+
+    """
+    if check_values:
+
+        # check that both values are valid odds
+        if value_0 in LTICKS_DECODED and value_1 in LTICKS_DECODED:
+
+            # get tick spread
+            return abs(LTICKS_DECODED.index(value_0) - LTICKS_DECODED.index(value_1))
+
+        else:
+
+            # both values are not valid odds
+            return 0
+
+    else:
+
+        # dont check values are valid odds, just use closet odds values
+        return abs(closest_tick(value_0, return_index=True) - closest_tick(value_1, return_index=True))
