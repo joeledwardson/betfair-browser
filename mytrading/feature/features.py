@@ -446,7 +446,9 @@ class RunnerFeatureBestBack(RunnerFeatureBase):
 
 @register_feature
 class RunnerFeatureBestLay(RunnerFeatureBase):
-    """Best available lay price of runner"""
+    """
+    Best available lay price of runner
+    """
 
     def runner_update(
             self,
@@ -460,7 +462,9 @@ class RunnerFeatureBestLay(RunnerFeatureBase):
 
 @register_feature
 class RunnerFeatureBackLadder(RunnerFeatureBase):
-    """best available price-sizes on back side within specified number of elements of best price"""
+    """
+    best available price-sizes on back side within specified number of elements of best price
+    """
 
     def __init__(self, n_elements, *args, **kwargs):
         self.n_elements = n_elements
@@ -477,7 +481,9 @@ class RunnerFeatureBackLadder(RunnerFeatureBase):
 
 @register_feature
 class RunnerFeatureLayLadder(RunnerFeatureBase):
-    """best available price-sizes on lay side within specified number of elements of best price"""
+    """
+    best available price-sizes on lay side within specified number of elements of best price
+    """
 
     def __init__(self, n_elements, *args, **kwargs):
         self.n_elements = n_elements
@@ -593,6 +599,9 @@ class RunnerFeatureRegression(RunnerFeatureWindowBase):
 
 @register_feature
 class RunnerFeatureSub(RunnerFeatureBase):
+    """
+    feature that must be used as a sub-feature to existing feature
+    """
     def __init__(self, parent: RunnerFeatureBase, **kwargs):
         super().__init__(parent=parent, **kwargs)
         if parent is None:
@@ -600,8 +609,10 @@ class RunnerFeatureSub(RunnerFeatureBase):
 
 
 @register_feature
-class RunnerFeatureDelayer(RunnerFeatureSub):
-    """delay a parent feature by x number of seconds"""
+class RunnerFeatureSubDelayer(RunnerFeatureSub):
+    """
+    delay a parent feature by x number of seconds
+    """
 
     def __init__(self, delay_seconds, **kwargs):
         self.delay_seconds = delay_seconds

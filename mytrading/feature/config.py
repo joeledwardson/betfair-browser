@@ -65,7 +65,7 @@ def get_features_default_configs(
                 },
                 # 'sub_features_config': {
                 #     'delay': {
-                #         'name': 'RunnerFeatureDelayer',
+                #         'name': 'RunnerFeatureSubDelayer',
                 #         'kwargs': {
                 #             'delay_seconds': ltp_window_delay_s
                 #         }
@@ -86,7 +86,7 @@ def get_features_default_configs(
                 },
                 # 'sub_features_config': {
                 #     'delay': {
-                #         'name': 'RunnerFeatureDelayer',
+                #         'name': 'RunnerFeatureSubDelayer',
                 #         'kwargs': {
                 #             'delay_seconds': ltp_window_delay_s
                 #         }
