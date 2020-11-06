@@ -109,9 +109,15 @@ def get_features_default_configs(
             },
         },
 
-        # put LTP last so it shows up above LTP max/min when plotting
         'ltp': {
             'name': 'RunnerFeatureLTP',
+            'kwargs': {
+                'sub_features_config': {
+                    'last_value': {
+                        'name': 'RunnerFeatureSubLastValue'
+                    }
+                }
+            }
         },
 
         'tv': {

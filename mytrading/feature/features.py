@@ -160,17 +160,12 @@ class RunnerFeatureBase:
                 # specify that do want to update
                 update = True
 
-                if (new_book.market_definition.market_time - new_book.publish_time).total_seconds() < 30:
-                    my_debug_point = True
-
                 # increment previous timestamps
                 self.last_timestamp = self.last_timestamp + timedelta(milliseconds=self.periodic_ms)
 
                 # if periodically timestamped flag specified, set timestamp to sampled time
                 if self.periodic_timestamps:
                     publish_time = self.last_timestamp
-
-
 
         # if periodic update milliseconds not specified, update regardless
         else:
@@ -633,6 +628,48 @@ class RunnerFeatureSubDelayer(RunnerFeatureSub):
 
         if len(self.parent.processed_vals):
             return self.parent.processed_vals[self.delay_index]
+
+
+@register_feature
+class RunnerFeatureSubLastValue(RunnerFeatureSub):
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        # store parent active value (until change)
+        self.active_value = None
+
+    def runner_update(
+            self,
+            market_list: List[MarketBook],
+            new_book: MarketBook,
+            windows: Windows,
+            runner_index):
+
+        # check parent value list not empty
+        if len(self.parent.processed_vals):
+
+            # get most recent value from parent
+            current_value = self.parent.processed_vals[-1]
+
+            # check if active value is None
+            if self.active_value is None:
+
+                # first initialisation, just use value dont check for change
+                self.active_value = current_value
+                return current_value
+
+            # check if current parent value is different from stored active value
+            elif current_value != self.active_value:
+
+                # stored active value is now previous value
+                previous_value = self.active_value
+
+                # update active value
+                self.active_value = current_value
+
+                # return previous state value
+                return previous_value
 
 
 @register_feature
