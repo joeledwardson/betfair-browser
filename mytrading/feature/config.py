@@ -124,29 +124,29 @@ def get_features_default_configs(
             'name': 'RunnerFeatureTVTotal',
         },
 
-        'best back regression': {
-            'name': 'RunnerFeatureRegression',
-            'kwargs': {
-                'periodic_ms': regression_update_ms,
-                'window_function': 'WindowProcessorBestBack',
-                'regressions_seconds': regression_seconds,
-                'regression_strength_filter': regression_strength_filter,
-                'regression_gradient_filter': regression_gradient_filter,
-                'regression_preprocessor': 'value_processor_invert',
-                'regression_postprocessor': 'value_processor_invert',
-            },
-        },
-
-        'best lay regression': {
-            'name': 'RunnerFeatureRegression',
-            'kwargs':  {
-                'periodic_ms': regression_update_ms,
-                'window_function': 'WindowProcessorBestLay',
-                'regressions_seconds': regression_seconds,
-                'regression_strength_filter': regression_strength_filter,
-                'regression_gradient_filter': regression_gradient_filter * -1,
-                'regression_preprocessor': 'value_processor_invert',
-                'regression_postprocessor': 'value_processor_invert',
-            },
-        },
+        # 'best back regression': {
+        #     'name': 'RunnerFeatureRegression',
+        #     'kwargs': {
+        #         'periodic_ms': regression_update_ms,
+        #         'window_function': 'WindowProcessorBestBack',
+        #         'regressions_seconds': regression_seconds,
+        #         'regression_strength_filter': regression_strength_filter,
+        #         'regression_gradient_filter': regression_gradient_filter,
+        #         'regression_preprocessor': 'value_processor_invert',
+        #         'regression_postprocessor': 'value_processor_invert',
+        #     },
+        # },
+        #
+        # 'best lay regression': {
+        #     'name': 'RunnerFeatureRegression',
+        #     'kwargs':  {
+        #         'periodic_ms': regression_update_ms,
+        #         'window_function': 'WindowProcessorBestLay',
+        #         'regressions_seconds': regression_seconds,
+        #         'regression_strength_filter': regression_strength_filter,
+        #         'regression_gradient_filter': regression_gradient_filter * -1,
+        #         'regression_preprocessor': 'value_processor_invert',
+        #         'regression_postprocessor': 'value_processor_invert',
+        #     },
+        # },
     }
