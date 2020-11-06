@@ -37,7 +37,7 @@ def plot_orders(fig: go.Figure, orders_df: pd.DataFrame, display_config=None, sh
         return
 
     # replace blank trade ID so they are not ignored by pandas groupby
-    orders_df['trade_id'].fillna('-1')
+    orders_df['trade_id'] = orders_df['trade_id'].fillna('0')
 
     # use message formatter to convert message type and attributes into single string message
     orders_df['msg'] = orders_df[['msg_type', 'msg_attrs']].apply(
@@ -58,7 +58,8 @@ def plot_orders(fig: go.Figure, orders_df: pd.DataFrame, display_config=None, sh
     # get default configuration if not passed
     display_config = display_config or orders_default_config
 
-    for i, (trade_id, df) in enumerate(orders_df.groupby(['trade_id'])):
+    # loop groups but dont sort
+    for i, (trade_id, df) in enumerate(orders_df.groupby(['trade_id'], sort=False)):
 
         # group dataframe by index (timestamps)
         grouped_df = df.groupby(df.index)
