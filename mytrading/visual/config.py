@@ -130,6 +130,11 @@ def get_plot_feature_default_configs(
                 'name': 'plotly_df_to_data',
             }],
         },
+        'ltp.previous value': {
+            'chart_args': {
+                'visible': 'legendonly',
+            },
+        },
         'ltp diff': {
             'ignore': True,
         },

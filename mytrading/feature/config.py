@@ -113,7 +113,7 @@ def get_features_default_configs(
             'name': 'RunnerFeatureLTP',
             'kwargs': {
                 'sub_features_config': {
-                    'last_value': {
+                    'previous value': {
                         'name': 'RunnerFeatureSubLastValue'
                     }
                 }
