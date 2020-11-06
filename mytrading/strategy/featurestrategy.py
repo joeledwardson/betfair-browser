@@ -221,7 +221,7 @@ class MyFeatureStrategy(MyBaseStrategy):
                     add_to_file(file_path, order_info)
 
                     runner_trade_tracker.log_update(
-                        msg_type=MessageTypes.MARKET_CLOSE,
+                        msg_type=MessageTypes.MSG_MARKET_CLOSE,
                         msg_attrs={
                             'runner_status': order.runner_status,
                             'order_id': str(order.id)
@@ -319,7 +319,7 @@ class MyFeatureStrategy(MyBaseStrategy):
 
             # log message
             trade_tracker.log_update(
-                msg_type=MessageTypes.ALLOW_REACHED,
+                msg_type=MessageTypes.MSG_ALLOW_REACHED,
                 dt=market_book.publish_time,
                 msg_attrs={
                     'pre_seconds': self.pre_seconds,
@@ -339,7 +339,7 @@ class MyFeatureStrategy(MyBaseStrategy):
 
                 # log cutoff point
                 trade_tracker.log_update(
-                    msg_type=MessageTypes.CUTOFF_REACHED,
+                    msg_type=MessageTypes.MSG_CUTOFF_REACHED,
                     dt=market_book.publish_time,
                     msg_attrs={
                         'cutoff_seconds': self.cutoff_seconds,

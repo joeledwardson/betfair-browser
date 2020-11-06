@@ -138,7 +138,7 @@ class WindowTradeStateIdle(tradestates.TradeStateIdle):
         trade_tracker.direction_up = direction_up
 
         trade_tracker.log_update(
-            msg_type=WindowMessageTypes.TRACK_START,
+            msg_type=WindowMessageTypes.WDW_MSG_TRACK_START,
             msg_attrs=self.track_msg_attrs(direction_up),
             dt=dt,
             display_odds=self.ltp,
@@ -155,7 +155,7 @@ class WindowTradeStateIdle(tradestates.TradeStateIdle):
         self.tracking = False
 
         trade_tracker.log_update(
-            msg_type=WindowMessageTypes.TRACK_FAIL,
+            msg_type=WindowMessageTypes.WDW_MSG_TRACK_FAIL,
             msg_attrs=self.track_msg_attrs(self.up),
             dt=dt,
             display_odds=self.ltp,
@@ -300,7 +300,7 @@ class WindowTradeStateIdle(tradestates.TradeStateIdle):
 
             # completed window breach, use trade tracker direction for log
             trade_tracker.log_update(
-                msg_type=WindowMessageTypes.TRACK_SUCCESS,
+                msg_type=WindowMessageTypes.WDW_MSG_TRACK_SUCCESS,
                 msg_attrs=self.track_msg_attrs(trade_tracker.direction_up),
                 dt=dt
             )
@@ -330,9 +330,11 @@ class WindowTradeStateOpenPlace(tradestates.TradeStateOpenPlace):
 
         if ltp_min < ltp < ltp_max:
             trade_tracker.log_update(
-                msg_type=WindowMessageTypes.OPEN_PLACE_FAIL,
+                msg_type=WindowMessageTypes.WDW_MSG_LTP_FAIL,
                 msg_attrs={
-                    'reason': 'ltp not breached bounds'
+                    'ltp': ltp,
+                    'ltp_min': ltp_min,
+                    'ltp_max': ltp_max,
                 },
                 dt=market_book.publish_time
             )
@@ -347,10 +349,7 @@ class WindowTradeStateOpenPlace(tradestates.TradeStateOpenPlace):
             # abort if no lay information
             if best_lay == 0:
                 trade_tracker.log_update(
-                    msg_type=WindowMessageTypes.OPEN_PLACE_FAIL,
-                    msg_attrs={
-                        'reason': 'best lay invalid'
-                    },
+                    msg_type=WindowMessageTypes.WDW_MSG_LAY_INVALID,
                     dt=market_book.publish_time
                 )
                 return None
@@ -364,10 +363,7 @@ class WindowTradeStateOpenPlace(tradestates.TradeStateOpenPlace):
             # abort if no back information
             if best_back == 0:
                 trade_tracker.log_update(
-                    msg_type=WindowMessageTypes.OPEN_PLACE_FAIL,
-                    msg_attrs={
-                        'reason': 'best back invalid'
-                    },
+                    msg_type=WindowMessageTypes.WDW_MSG_BACK_INVALID,
                     dt=market_book.publish_time
                 )
                 return None
@@ -381,9 +377,11 @@ class WindowTradeStateOpenPlace(tradestates.TradeStateOpenPlace):
             stake_size = stake_size - matched
             if stake_size <= 0:
                 trade_tracker.log_update(
-                    msg_type=WindowMessageTypes.OPEN_PLACE_FAIL,
+                    msg_type=WindowMessageTypes.WDW_MSG_STK_INVALID,
                     msg_attrs={
-                        'reason': 'stake size invalid'
+                        'start_stake_size': self.stake_size,
+                        'matched': matched,
+                        'stake_size': stake_size,
                     },
                     dt=market_book.publish_time
                 )
@@ -427,7 +425,7 @@ class WindowTradeStateOpenMatching(tradestates.TradeStateOpenMatching):
         # if error detected then bail
         if sts in tradestates.order_error_states:
             trade_tracker.log_update(
-                msg_type=MessageTypes.OPEN_ERROR,
+                msg_type=MessageTypes.MSG_OPEN_ERROR,
                 msg_attrs={
                     'order_status': str(sts),
                 },
@@ -442,7 +440,7 @@ class WindowTradeStateOpenMatching(tradestates.TradeStateOpenMatching):
             window_value = ltp_min if up else ltp_max
 
             trade_tracker.log_update(
-                msg_type=WindowMessageTypes.DIRECTION_CHANGE,
+                msg_type=WindowMessageTypes.WDW_MSG_DIR_CHANGE,
                 msg_attrs={
                     'direction_up': up,
                     'ltp': ltp,
@@ -473,7 +471,7 @@ class WindowTradeStateOpenMatching(tradestates.TradeStateOpenMatching):
             # check if price has drifted since placement of open order
             if (up and price_available > price) or (not up and price_available < price):
                 trade_tracker.log_update(
-                    msg_type=WindowMessageTypes.PLACE_DRIFT,
+                    msg_type=WindowMessageTypes.WDW_MSG_PLACE_DRIFT,
                     msg_attrs={
                         'direction_up': up,
                         'old_ltp': price,

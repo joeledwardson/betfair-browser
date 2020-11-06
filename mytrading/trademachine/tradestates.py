@@ -234,7 +234,7 @@ class TradeStateOpenPlace(TradeStateBase):
             return [TradeStateTypes.PENDING, self.next_state]
         else:
             trade_tracker.log_update(
-                msg_type=MessageTypes.OPEN_PLACE,
+                msg_type=MessageTypes.MSG_OPEN_PLACE,
                 msg_attrs={
                     'side':  limit_order.side,
                     'price': limit_order.order_type.price,
@@ -288,7 +288,7 @@ class TradeStateOpenMatching(TradeStateBase):
 
             elif sts in order_error_states:
                 trade_tracker.log_update(
-                    msg_type=MessageTypes.OPEN_ERROR,
+                    msg_type=MessageTypes.MSG_OPEN_ERROR,
                     msg_attrs={
                         'order_status': str(sts),
                     },
@@ -392,7 +392,7 @@ class TradeStateHedgePlaceBase(TradeStateBase):
         # abort if below minimum required to hedge
         if abs(outstanding_profit) <= self.min_hedge_price:
             trade_tracker.log_update(
-                msg_type=MessageTypes.HEDGE_NOT_MET,
+                msg_type=MessageTypes.MSG_HEDGE_NOT_MET,
                 msg_attrs={
                     'outstanding_profit': outstanding_profit,
                     'min_hedge': self.min_hedge_price
@@ -420,7 +420,7 @@ class TradeStateHedgePlaceBase(TradeStateBase):
         # check that ladders not empty
         if not close_ladder:
             trade_tracker.log_update(
-                msg_type=MessageTypes.BOOKS_EMPTY,
+                msg_type=MessageTypes.MSG_BOOKS_EMPTY,
                 dt=market_book.publish_time
             )
 
@@ -446,7 +446,7 @@ class TradeStateHedgePlaceBase(TradeStateBase):
         # if function returns 0 then error
         if not green_price:
             trade_tracker.log_update(
-                msg_type=MessageTypes.GREEN_INVALID,
+                msg_type=MessageTypes.MSG_GREEN_INVALID,
                 msg_attrs={
                     'green_price': green_price
                 },
@@ -462,7 +462,7 @@ class TradeStateHedgePlaceBase(TradeStateBase):
 
         # place order
         trade_tracker.log_update(
-            msg_type=MessageTypes.GREEN_PLACE,
+            msg_type=MessageTypes.MSG_GREEN_PLACE,
             msg_attrs={
                 'close_side': close_side,
                 'green_price': green_price,
@@ -547,7 +547,7 @@ class TradeStateHedgeWaitBase(TradeStateBase):
         # check if there has been an error with the order
         if order.status in order_error_states:
             trade_tracker.log_update(
-                msg_type=MessageTypes.HEDGE_ERROR,
+                msg_type=MessageTypes.MSG_HEDGE_ERROR,
                 msg_attrs={
                     'order_status': order.status.value,
                 },
@@ -583,7 +583,7 @@ class TradeStateHedgeWaitBase(TradeStateBase):
             if new_price:
 
                 trade_tracker.log_update(
-                    msg_type=MessageTypes.HEDGE_REPLACE,
+                    msg_type=MessageTypes.MSG_HEDGE_REPLACE,
                     msg_attrs={
                         'old_price': order.order_type.price,
                         'new_price': new_price
@@ -605,7 +605,7 @@ class TradeStateHedgeWaitBase(TradeStateBase):
             # theoretically should never reach here - pending states covered, error states, EXECUTABLE and
             # EXECUTION_COMPLETE
             trade_tracker.log_update(
-                msg_type=MessageTypes.HEDGE_UNKNOWN,
+                msg_type=MessageTypes.MSG_HEDGE_UNKNOWN,
                 msg_attrs={
                     'order_status': order.status.value
                 },
@@ -696,7 +696,7 @@ class TradeStateClean(TradeStateBase):
                 for o in orders)
 
             trade_tracker.log_update(
-                msg_type=MessageTypes.TRADE_COMPLETE,
+                msg_type=MessageTypes.MSG_TRADE_COMPLETE,
                 msg_attrs={
                     'win_profit': win_profit,
                     'loss_profit': loss_profit

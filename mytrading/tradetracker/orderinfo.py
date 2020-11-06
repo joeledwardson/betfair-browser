@@ -58,7 +58,7 @@ def filter_market_close(orders_df: pd.DataFrame) -> pd.DataFrame:
 
     """
     if orders_df.shape[0] and 'msg_type' in orders_df.columns:
-        return orders_df[orders_df['msg_type'] != MessageTypes.MARKET_CLOSE.name]
+        return orders_df[orders_df['msg_type'] != MessageTypes.MSG_MARKET_CLOSE.name]
     else:
         return orders_df
 

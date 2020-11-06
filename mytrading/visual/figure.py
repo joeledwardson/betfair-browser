@@ -63,7 +63,7 @@ def modify_end(chart_end: datetime, orders_df: pd.DataFrame, buffer_seconds: flo
 
     """
     if orders_df.shape[0]:
-        trimmed_orders = orders_df[orders_df['msg_type'] != MessageTypes.MARKET_CLOSE.value]
+        trimmed_orders = orders_df[orders_df['msg_type'] != MessageTypes.MSG_MARKET_CLOSE.value]
         if trimmed_orders.shape[0]:
             orders_end = trimmed_orders.index[-1]
             orders_end = orders_end + timedelta(seconds=buffer_seconds)

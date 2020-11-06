@@ -56,7 +56,7 @@ class TradeTracker:
             # add untracked trades to tracker
             if trade.id not in ot:
                 self.log_update(
-                    msg_type=MessageTypes.TRACK_TRADE,
+                    msg_type=MessageTypes.MSG_TRACK_TRADE,
                     dt=publish_time,
                     msg_attrs={
                         "trade_id": trade.id
@@ -71,7 +71,7 @@ class TradeTracker:
                 # if order untracked, create ordertracker and track
                 if order.id not in ot[trade.id]:
                     self.log_update(
-                        msg_type=MessageTypes.TRACK_ORDER,
+                        msg_type=MessageTypes.MSG_TRACK_ORDER,
                         dt=publish_time,
                         msg_attrs={
                             "order_id": order.id
@@ -87,7 +87,7 @@ class TradeTracker:
                 # check if size matched change
                 if order.size_matched != ot[trade.id][order.id].matched:
                     self.log_update(
-                        msg_type=MessageTypes.MATCHED_SIZE,
+                        msg_type=MessageTypes.MSG_MATCHED_SIZE,
                         dt=publish_time,
                         msg_attrs={
                             "order_id": order.id,
@@ -106,7 +106,7 @@ class TradeTracker:
                         msg = order.violation_msg
 
                     self.log_update(
-                        msg_type=MessageTypes.STATUS_UPDATE,
+                        msg_type=MessageTypes.MSG_STATUS_UPDATE,
                         dt=publish_time,
                         msg_attrs={
                             "order_id": order.id,

@@ -43,7 +43,7 @@ class RunnerStateMachine(stm.StateMachine):
             return
 
         trade_tracker.log_update(
-            msg_type=MessageTypes.STATE_CHANGE,
+            msg_type=MessageTypes.MSG_STATE_CHANGE,
             msg_attrs={
                 'old_state': str(old_state),
                 'new_state': str(new_state)
