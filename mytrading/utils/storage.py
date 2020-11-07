@@ -9,7 +9,7 @@ import sys
 from betfairlightweight.resources.bettingresources import MarketBook,  MarketCatalogue
 from betfairlightweight import APIClient
 import json
-from os import path, listdir, walk
+from os import path, listdir
 import logging
 from typing import List
 from pathlib import PurePath
@@ -219,12 +219,3 @@ def strategy_path_convert(strategy_path: str, base_dir: str) -> str:
     )
 
 
-def walk_first(top) -> (str, List, List):
-    """
-    get root, dirs & files
-    """
-    try:
-        return next(iter(walk(top)))
-    except StopIteration as e:
-        logging.warning(f'failed to retrieve files from "{top}"')
-        return '', [], []
