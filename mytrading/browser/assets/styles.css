@@ -2,3 +2,7 @@
     /* dash adds negative margins for cells */
     margin-left: 0 !important;
 }
+
+h2 {
+    margin: 4px 0px;
+}
