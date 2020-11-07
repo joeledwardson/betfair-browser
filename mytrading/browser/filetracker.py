@@ -4,6 +4,9 @@ from typing import List, Tuple, Dict
 from natsort import natsorted
 from ..utils.storage import walk_first
 from itertools import chain
+import logging
+
+active_logger = logging.getLogger(__name__)
 
 
 class FileTracker:
@@ -21,7 +24,16 @@ class FileTracker:
         self.display_list = self.get_display_list()
 
     def _get_update(self, top) -> Tuple[str, List, List, List]:
+
+        # check top path exists
+        if not path.exists(top):
+
+            # reset to original
+            active_logger.warning(f'path: "{top}" does not exist, resetting to "{self.start_dir}"')
+            top = self.start_dir
+
         root, dirs, files = walk_first(top)
+
         # sort into windows explorer display order
         dirs = natsorted(dirs)
         files = natsorted(files)
