@@ -3,7 +3,7 @@ from typing import Iterable, List
 
 from ..tradetracker.orderinfo import dict_order_profit
 from ..utils.storage import EXT_ORDER_RESULT
-from myutils.jsonfile import read_file
+from myutils.jsonfile import read_file_lines
 
 
 def get_profits(element_path):
@@ -11,7 +11,7 @@ def get_profits(element_path):
 
     if path.isfile(element_path):
         if path.splitext(element_path)[1] == EXT_ORDER_RESULT:
-            lines = read_file(element_path)
+            lines = read_file_lines(element_path)
             return sum(dict_order_profit(o) for o in lines)
         else:
             return None

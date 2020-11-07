@@ -1,7 +1,7 @@
 from datetime import datetime
 import pandas as pd
 from flumine.order.order import BetfairOrder
-from myutils.jsonfile import read_file
+from myutils.jsonfile import read_file_lines
 import logging
 
 active_logger = logging.getLogger(__name__)

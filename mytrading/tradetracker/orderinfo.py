@@ -4,7 +4,7 @@ from flumine.order.order import BetfairOrder
 import logging
 from typing import Dict
 from enum import Enum
-from myutils.jsonfile import read_file, add_to_file
+from myutils.jsonfile import read_file_lines, add_to_file
 from ..process.profit import order_profit
 from .messages import MessageTypes
 
@@ -36,7 +36,7 @@ def get_order_updates(file_path) -> pd.DataFrame:
     get `TradeTracker` data written to file in dataframe format, if fail, return None
     """
     if file_path:
-        order_data = read_file(file_path)
+        order_data = read_file_lines(file_path)
         if order_data:
             order_df = pd.DataFrame(order_data)
             if order_df.shape[0]:

@@ -4,7 +4,7 @@ import pandas as pd
 
 from ..tradetracker.orderinfo import dict_order_profit
 from myutils.generic import dgetattr, dattr_name
-from myutils.jsonfile import read_file
+from myutils.jsonfile import read_file_lines
 from myutils.timing import format_timedelta
 from flumine.markets.market import Market
 import plotly.graph_objects as go
@@ -86,7 +86,7 @@ def read_profit_table(file_path: str) -> pd.DataFrame:
     """
 
     # get order results
-    lines = read_file(file_path)
+    lines = read_file_lines(file_path)
 
     # filter to limit orders
     lines = [order for order in lines if order['order_type']['order_type'] == 'Limit']

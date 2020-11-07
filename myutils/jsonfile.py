@@ -18,7 +18,7 @@ def add_to_file(file_path, data, mode='a', indent=None):
         f.writelines([json_data + '\n'])
 
 
-def read_file(file_path):
+def read_file_lines(file_path):
     """
     get a list of de-serialized objects from each line in a file
     """

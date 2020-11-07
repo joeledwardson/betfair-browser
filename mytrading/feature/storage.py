@@ -1,7 +1,7 @@
 from typing import Dict
 from os import path, makedirs
 import logging
-from myutils.jsonfile import add_to_file, read_file
+from myutils.jsonfile import add_to_file, read_file_lines
 from ..utils.storage import EXT_FEATURE
 from .utils import get_feature_data
 from .features import RunnerFeatureBase
@@ -39,7 +39,7 @@ def features_from_file(file_path: str):
     """
 
     # read from file
-    data = read_file(file_path)
+    data = read_file_lines(file_path)
 
     # check not empty
     if len(data) == 0:

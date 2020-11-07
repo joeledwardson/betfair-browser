@@ -5,7 +5,8 @@ import dash_table
 import pandas as pd
 
 from ...utils.storage import RE_EVENT, EXT_ORDER_RESULT, RE_MARKET_ID, EXT_FEATURE
-from ...utils.storage import get_hist_marketdef, get_first_book, search_recorded_cat, walk_first
+from ...utils.storage import get_hist_marketdef, get_first_book, search_recorded_cat
+from myutils.mypath import walk_first
 from ...utils.storage import strategy_rel_path, strategy_path_convert, is_orders_dir
 from ..filetracker import FileTracker
 from ..marketinfo import MarketInfo

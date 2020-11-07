@@ -23,7 +23,7 @@ class ButtonTracker:
 
 class DashData:
 
-    def __init__(self, input_dir: str):
+    def __init__(self, input_dir: str, feature_configs_dir=None):
 
         # hold list of records from active historical file
         self.record_list: List[List[MarketBook]] = []
@@ -42,6 +42,12 @@ class DashData:
 
         # dict of {selection ID: starting odds} of runners in active market
         self.start_odds: Dict[int, float] = {}
+
+        # directory that holds feature configurations
+        self.feature_configs_dir = feature_configs_dir
+
+        # dictionary holding feature configurations of directory indicated above
+        self.feature_configs = dict()
 
     def clear_market(self):
         self.market_info = None

@@ -2,7 +2,7 @@ from __future__ import annotations
 from os import path
 from typing import List, Tuple, Dict
 from natsort import natsorted
-from ..utils.storage import walk_first
+from myutils.mypath import walk_first
 from itertools import chain
 import logging
 
