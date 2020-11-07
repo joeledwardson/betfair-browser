@@ -4,13 +4,13 @@ import logging
 active_logger = logging.getLogger(__name__)
 
 
-def add_to_file(file_path, data, mode='a'):
+def add_to_file(file_path, data, mode='a', indent=None):
     """
     add a serializable data object as a new line to a file
     """
     with open(file_path, mode=mode) as f:
         try:
-            json_data = json.dumps(data)
+            json_data = json.dumps(data, indent=indent)
         except TypeError as e:
             active_logger.critical(f'failed to serialise data writing to file: "{file_path}"\n{e}')
             return
