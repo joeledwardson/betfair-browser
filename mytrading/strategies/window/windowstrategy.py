@@ -100,7 +100,7 @@ class MyWindowStrategy(MyFeatureStrategy):
             file_path=file_path
         )
 
-    def get_features_config(self, runner: RunnerBook) -> Dict:
+    def get_features_config(self) -> Dict:
 
         # use default features but not regression
         features = get_features_default_configs()

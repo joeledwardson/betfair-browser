@@ -100,7 +100,7 @@ class MyFeatureStrategy(MyBaseStrategy):
         # list of tracked markets
         self.tracked_markets: List[str] = []
 
-    def get_features_config(self, runner: RunnerBook) -> Dict:
+    def get_features_config(self) -> Dict:
         """
         get dictionary of feature configurations to pass to generate_features() and create runner features
         """
