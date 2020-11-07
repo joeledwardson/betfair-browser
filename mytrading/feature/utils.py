@@ -34,7 +34,7 @@ def write_feature_configs(
         indent=4,
 ):
     """
-    write a feature configuration to a file
+    write a feature configuration to a JSON file
 
     Parameters
     ----------
