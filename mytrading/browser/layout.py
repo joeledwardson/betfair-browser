@@ -61,23 +61,6 @@ def get_layout(input_dir: str, dash_data: DashData, chart_offset: timedelta):
                     ),
 
                     html.H2(
-                        children='Feature Config Selection'
-                    ),
-
-                    infobox(
-                        id='infobox-feature-config',
-                        height=50,
-                        children=''
-                    ),
-
-                    html.Div(
-                        children=[
-                            html.Button(children='reload feature configs', id='button-feature-config', n_clicks=0),
-                            dcc.Dropdown(id='input-feature-config', placeholder='Select feature config'),
-                        ],
-                    ),
-
-                    html.H2(
                         children='Runner info'
                     ),
 
@@ -113,6 +96,23 @@ def get_layout(input_dir: str, dash_data: DashData, chart_offset: timedelta):
 
                     html.Div(
                         children=get_market_table()
+                    ),
+
+                    html.H2(
+                        children='Feature Config Selection'
+                    ),
+
+                    infobox(
+                        id='infobox-feature-config',
+                        height=50,
+                        children=''
+                    ),
+
+                    html.Div(
+                        children=[
+                            html.Button(children='reload feature configs', id='button-feature-config', n_clicks=0),
+                            dcc.Dropdown(id='input-feature-config', placeholder='Select feature config'),
+                        ],
                     ),
 
                     html.H2(
