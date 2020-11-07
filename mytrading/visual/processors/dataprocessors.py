@@ -2,8 +2,10 @@ from typing import Dict, List
 import pandas as pd
 from .formatprocessors import format_processors
 from functools import partial
+import logging
 
 plotly_processors = {}
+active_logger = logging.getLogger(__name__)
 
 
 def register_data_processor(func):
@@ -149,6 +151,8 @@ def plotly_set_attrs(
     # check has x and y values
     if not ('y' in data and len(data['y']) and 'x' in data and len(data['x'])):
 
+        active_logger.warning('either x or y data is empty when trying to set attribute')
+
         # if don't, just return pandas dataframe now without adding attributes
         return pd.DataFrame(df_data)
 
@@ -224,8 +228,14 @@ def plotly_df_formatter(data: pd.DataFrame, features_data, formatter_name, df_co
     # generate partial function using formatter kwargs and function
     f = partial(formatter, **formatter_kwargs)
 
-    # apply function to column values
-    data[df_column] = data[df_column].apply(f)
+    if df_column in data.columns:
+
+        # apply function to column values
+        data[df_column] = data[df_column].apply(f)
+
+    else:
+
+        active_logger.warning(f'column "{df_column}" does not exist in dataframe columns: {data.columns.tolist()}')
 
     return data
 
