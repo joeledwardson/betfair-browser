@@ -2,6 +2,7 @@ from typing import Dict
 
 from betfairlightweight.resources import MarketBook
 
+from myutils.jsonfile import add_to_file
 from .features import RunnerFeatureBase, features_dict
 from .window import Windows
 
@@ -25,6 +26,27 @@ def generate_features(
         features[name] = feature_class(**conf.get('kwargs', {}))
         features[name].race_initializer(selection_id, book, windows)
     return features
+
+
+def write_feature_configs(
+        feature_configs: dict,
+        file_path: str,
+        indent=4,
+):
+    """
+    write a feature configuration to a file
+
+    Parameters
+    ----------
+    feature_configs :
+    file_path :
+    indent :
+
+    Returns
+    -------
+
+    """
+    add_to_file(file_path, feature_configs, mode='w', indent=indent)
 
 
 def get_feature_data(data: Dict, features: Dict[str, RunnerFeatureBase], parent_name='', pre_serialize=True):
