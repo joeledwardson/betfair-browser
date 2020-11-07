@@ -66,13 +66,15 @@ def get_layout(input_dir: str, dash_data: DashData, chart_offset: timedelta):
 
                     infobox(
                         id='infobox-feature-config',
-                        height=20,
+                        height=50,
                         children=''
                     ),
 
                     html.Div(
-                        html.Button(children='reload feature configs', id='button-feature-config', n_clicks=0),
-                        dcc.Dropdown(id='input-feature-config', placeholder='Select feature config'),
+                        children=[
+                            html.Button(children='reload feature configs', id='button-feature-config', n_clicks=0),
+                            dcc.Dropdown(id='input-feature-config', placeholder='Select feature config'),
+                        ],
                     ),
 
                     html.H2(
