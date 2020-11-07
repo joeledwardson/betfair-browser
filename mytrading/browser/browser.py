@@ -7,18 +7,24 @@ from .callbacks.figure import figure_callback
 from .callbacks.files import file_table_callback
 from .callbacks.orders import orders_callback
 from .callbacks.market import market_callback
-from .callbacks.feature_configs import feature_configs_callback
+from .callbacks.featureconfigs import feature_configs_callback
 from .layout import get_layout
 from datetime import timedelta
 
 
-def run_browser(debug: bool, default_chart_offset: timedelta, input_dir: str, feature_configs_dir: str=None):
+def run_browser(
+        debug: bool,
+        default_chart_offset: timedelta,
+        input_dir: str,
+        feature_configs_dir: str = None,
+        plot_configs_dir: str = None,
+):
     """
     run dash app browser - input_dir specifies input directory for entry point for browser but also expected root for:
     - "historical" dir
     - "recorded" dir
     """
-    gdd = DashData(input_dir, feature_configs_dir=feature_configs_dir)
+    gdd = DashData(input_dir, feature_configs_dir=feature_configs_dir, plot_configs_dir=plot_configs_dir)
 
     app = dash.Dash(__name__)
     logging.basicConfig(level=logging.INFO)
