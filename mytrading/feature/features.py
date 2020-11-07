@@ -43,23 +43,29 @@ class RunnerFeatureValueProcessors:
     """
     @staticmethod
     def value_processor_identity():
-        """return same value"""
+        """
+        return same value
+        """
         def inner(value, values: List, datetimes: List[datetime]):
             return value
         return inner
 
     @staticmethod
     def value_processor_moving_average(n_entries):
-        """moving average over `n_entries`"""
+        """
+        moving average over `n_entries`
+        """
         def inner(value, values: List, datetimes: List[datetime]):
             return statistics.mean(values[-n_entries:])
         return inner
 
     @staticmethod
     def value_processor_invert():
-        """get 1/value"""
+        """
+        get 1/value unless value is 0 where return 0
+        """
         def inner(value, values: List, datetimes: List[datetime]):
-            return 1 / value
+            return 1 / value if value != 0 else 0
         return inner
 
     @classmethod
@@ -176,15 +182,19 @@ class RunnerFeatureBase:
             return
 
         # add datetime, value and processed value to lists
-        def send_update(publish_time):
+        def send_update(_publish_time):
 
             # get feature value, ignore if None
             value = self.runner_update(market_list, new_book, windows, runner_index)
             if value is None:
                 return
 
+            # if sub-feature, use parent timestamp
+            if self.parent is not None and self.parent.dts:
+                _publish_time = self.parent.dts[-1]
+
             # add raw value and timestamp to lists
-            self.dts.append(publish_time)
+            self.dts.append(_publish_time)
             self.values.append(value)
 
             # compute value processor on raw value
@@ -597,9 +607,9 @@ class RunnerFeatureSub(RunnerFeatureBase):
     """
     feature that must be used as a sub-feature to existing feature
     """
-    def __init__(self, parent: RunnerFeatureBase, **kwargs):
-        super().__init__(parent=parent, **kwargs)
-        if parent is None:
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        if kwargs.get('parent') is None:
             raise BetfairFeatureException(f'sub-feature has not received "parent" argument')
 
 
@@ -609,10 +619,10 @@ class RunnerFeatureSubDelayer(RunnerFeatureSub):
     delay a parent feature by x number of seconds
     """
 
-    def __init__(self, delay_seconds, **kwargs):
+    def __init__(self, delay_seconds, *args, **kwargs):
         self.delay_seconds = delay_seconds
         self.delay_index = 0
-        super().__init__(**kwargs)
+        super().__init__(*args, **kwargs)
 
     def runner_update(
             self,
@@ -674,7 +684,9 @@ class RunnerFeatureSubLastValue(RunnerFeatureSub):
 
 @register_feature
 class RunnerFeatureTVTotal(RunnerFeatureBase):
-    """total traded volume of runner"""
+    """
+    total traded volume of runner
+    """
     def runner_update(
             self,
             market_list: List[MarketBook],
@@ -684,3 +696,83 @@ class RunnerFeatureTVTotal(RunnerFeatureBase):
         return traded_runner_vol(new_book.runners[runner_index])
 
 
+@register_feature
+class RunnerFeatureSubRegression(RunnerFeatureSub):
+    """
+    Perform regressions on a runner values as a sub-feature
+
+
+    - window_function: window function, must be derived from WindowProcessorFeatureBase
+    - regression_seconds: number of seconds up to current record in which to apply regression
+    - regression_strength_filter: minimum r-squared required to store regression
+    - regression_preprocessor: apply pre-processor to feature values before performing linear regression (select from
+    RunnerFeatureValueProcessors)
+    - regression_postprocessor: apply post-processor to linear regression to convert back to feature values (select
+    from RunnerFeatureValueProcessors)
+    """
+
+    def get_plotly_data(self):
+        """
+        Return list of regression results
+        """
+        return self.values
+
+    def __init__(
+            self,
+            element_count,
+            regression_strength_filter=0,
+            regression_gradient_filter=0,
+            regression_preprocessor: str = 'value_processor_identity',
+            regression_preprocessor_args: dict = None,
+            *args,
+            **kwargs):
+        super().__init__(
+            *args,
+            **kwargs,
+        )
+        self.element_count = element_count
+
+        self.regression_strength_filter = regression_strength_filter
+        self.regression_gradient_filter = regression_gradient_filter
+
+        pre_kwargs = regression_preprocessor_args or {}
+        self.regression_preprocessor = RunnerFeatureValueProcessors.get_processor(regression_preprocessor)(
+            **pre_kwargs
+        )
+        self.comparator = operator.gt if regression_gradient_filter >= 0 else operator.le
+
+    def runner_update(
+            self,
+            market_list: List[MarketBook],
+            new_book: MarketBook,
+            windows: Windows,
+            runner_index):
+
+        dts = self.parent.dts[-self.element_count:]
+        x = [(x - new_book.publish_time).total_seconds() for x in dts]
+        y = self.parent.processed_vals[-self.element_count:]
+
+        if not x or not y or len(x) != len(y):
+            return None
+
+        y_processed = [self.regression_preprocessor(v, y, dts) for v in y]
+
+        X = np.column_stack([x])
+        X = sm.add_constant(X)
+
+        mod_wls = sm.WLS(y_processed, X)
+        res_wls = mod_wls.fit()
+        if len(res_wls.params) != 2:
+            return
+
+        gradient = res_wls.params[1]
+        if not self.comparator(gradient, self.regression_gradient_filter):
+            return
+
+        if abs(res_wls.rsquared) >= self.regression_strength_filter:
+            return {
+                'gradient': gradient,
+                'rsquared': res_wls.rsquared
+            }
+
+        return None
