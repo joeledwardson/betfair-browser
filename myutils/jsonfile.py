@@ -20,7 +20,7 @@ def add_to_file(file_path, data, mode='a', indent=None):
 
 def read_file_lines(file_path):
     """
-    get a list of de-serialized objects from each line in a file
+    get a list of de-serialized objects from each line in a file, return empty list on fail
     """
     with open(file_path) as f:
         lines = f.readlines()
@@ -31,6 +31,28 @@ def read_file_lines(file_path):
     except TypeError as e:
         active_logger.critical(f'failed to load data from: "{file_path}"\n{e}')
         return []
+
+
+def read_file_data(file_path):
+    """
+    read and parse string data from file, taking entire file as one string, return None on fail
+
+    Parameters
+    ----------
+    file_path :
+
+    Returns
+    -------
+
+    """
+    with open(file_path) as f:
+        data = f.read()
+    try:
+        json_data = json.loads(data)
+        return json_data
+    except TypeError as e:
+        active_logger.critical(f'failed to load data from: "{file_path}"\n{e}')
+        return None
 
 
 def is_jsonable(x):
