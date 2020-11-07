@@ -111,7 +111,9 @@ def get_layout(input_dir: str, dash_data: DashData, chart_offset: timedelta):
                     html.Div(
                         children=[
                             html.Button(children='reload feature configs', id='button-feature-config', n_clicks=0),
+                            html.Button(children='reload plot configs', id='button-plot-config', n_clicks=0),
                             dcc.Dropdown(id='input-feature-config', placeholder='Select feature config'),
+                            dcc.Dropdown(id='input-plot-config', placeholder='Select plot config'),
                         ],
                     ),
 
