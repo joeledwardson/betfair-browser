@@ -39,9 +39,10 @@ def get_orders_df(market_dir: str, market_id: str, selection_id: int, info_strin
     orders_df = None
 
     # construct orderinfo file path form market ID
+    order_file_name = market_id + EXT_ORDER_INFO
     order_file_path = path.join(
         market_dir,
-        market_id + EXT_ORDER_INFO
+        order_file_name
     )
 
     # check order info file exists
@@ -65,7 +66,7 @@ def get_orders_df(market_dir: str, market_id: str, selection_id: int, info_strin
             orders_df = None
 
     if orders_df is None:
-        orders_str = f'"{order_file_path}" not found'
+        orders_str = f'"{order_file_name}" not found'
     else:
         orders_str = f'found {orders_df.shape[0]} order infos in "{order_file_path}"'
 
@@ -85,9 +86,10 @@ def figure_callback(app: dash.Dash, dd: DashData, input_dir: str):
         state=[
             State('table-runners', 'active_cell'),
             State('input-chart-offset', 'value'),
+            State('input-feature-config', 'value'),
         ]
     )
-    def fig_button(fig_button_clicks, runners_active_cell, chart_offset_str):
+    def fig_button(fig_button_clicks, runners_active_cell, chart_offset_str, feature_config_name):
 
         # get datetime/None chart offset from time input
         chart_offset = get_chart_offset(chart_offset_str)
@@ -179,7 +181,29 @@ def figure_callback(app: dash.Dash, dd: DashData, input_dir: str):
 
         else:
 
-            # no feature file, generate default features for plot
+            # no feature info file
+            if feature_config_name is None:
+
+                # feature config not specified
+                info_strings.append('no feature config specified, using default')
+                feature_configs = None
+
+            else:
+
+                # feature config specified, check is id dict
+                if feature_config_name in dd.feature_configs:
+
+                    info_strings.append(f'using feature configuration: "{feature_config_name}"')
+                    feature_configs = dd.feature_configs[feature_config_name]
+
+                else:
+
+                    # feature config not found
+                    info_strings.append(f'feature configuration "{feature_config_name}" not found in list, '
+                                        f'using default')
+                    feature_configs = None
+
+            # generate plot by simulating features
             fig = generate_feature_plot(
                 hist_records=dd.record_list,
                 selection_id=selection_id,
@@ -187,7 +211,8 @@ def figure_callback(app: dash.Dash, dd: DashData, input_dir: str):
                 chart_start=chart_start,
                 chart_end=chart_end,
                 feature_plot_configs=feature_plot_configs,
-                orders_df=orders_df
+                orders_df=orders_df,
+                feature_configs=feature_configs
             )
 
         # display figure
