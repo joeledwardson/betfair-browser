@@ -226,5 +226,5 @@ def walk_first(top) -> (str, List, List):
     try:
         return next(iter(walk(top)))
     except StopIteration as e:
-        logging.warning(f'failed to retrieve files form "{top}"')
+        logging.warning(f'failed to retrieve files from "{top}"')
         return '', [], []
