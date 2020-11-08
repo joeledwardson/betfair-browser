@@ -1,7 +1,8 @@
 from os import path
-
 import dash
 from dash.dependencies import Output, Input, State
+from typing import Dict, List
+import logging
 
 from mytrading.browser.data import DashData
 from mytrading.browser.tables.runners import get_runner_id
@@ -12,11 +13,62 @@ from myutils.mydash.context import triggered_id
 from myutils.mypath import walk_first
 from myutils.jsonfile import read_file_data
 
+active_logger = logging.getLogger(__name__)
+
+
+def get_configs(config_dir: str, info_strings: List[str]) -> Dict:
+    """
+    get dictionary of configuration file name (without ext) to dict from dir
+
+    Parameters
+    ----------
+    info_strings :
+    config_dir :
+
+    Returns
+    -------
+
+    """
+
+    # check directory is set
+    if type(config_dir) is not str:
+        info_strings.append('directory not set')
+        return dict()
+
+    # check actually exists
+    if not path.exists(config_dir):
+        info_strings.append('directory does not exist!')
+        return dict()
+
+    # dict of configs to return
+    configs = dict()
+
+    # get files in directory
+    _, _, files = walk_first(config_dir)
+
+    # loop files
+    for file_name in files:
+
+        # get file path and name without ext
+        file_path = path.join(config_dir, file_name)
+        name, _ = path.splitext(file_name)
+
+        # read configuration from dictionary
+        cfg = read_file_data(file_path)
+
+        # check config successfully parsed
+        if cfg is not None:
+            configs[name] = cfg
+
+    info_strings.append(f'{len(configs)} valid feature configuration files found from {len(files)} files')
+    return configs
+
 
 def feature_configs_callback(app: dash.Dash, dd: DashData, input_dir: str):
     @app.callback(
         output=[
             Output('input-feature-config', 'options'),
+            Output('input-plot-config', 'options'),
             Output('infobox-feature-config', 'children')
         ],
         inputs=[
@@ -26,50 +78,30 @@ def feature_configs_callback(app: dash.Dash, dd: DashData, input_dir: str):
     def update_files_table(n_clicks):
 
         # get feature configs directory from data object
-        config_dir = dd.feature_configs_dir
+        feature_dir = dd.feature_configs_dir
+        plot_dir = dd.plot_configs_dir
 
         info_strings = list()
-        info_strings.append(f'Feature configurations dir: "{config_dir}"')
+        info_strings.append(f'Feature configurations dir: "{feature_dir}"')
+        info_strings.append(f'Plot configurations dir: "{plot_dir}"')
 
-        # options to output to dropdown
-        options = []
+        dd.feature_configs = get_configs(feature_dir, info_strings)
+        dd.plot_configs = get_configs(plot_dir, info_strings)
 
-        # clear feature configurations
-        dd.feature_configs = dict()
+        active_logger.info(f'feature configs: {list(dd.feature_configs.keys())}')
+        active_logger.info(f'plot configs: {list(dd.plot_configs.keys())}')
 
-        # check directory is set
-        if type(config_dir) is str:
+        feature_options = [{
+            'label': v,
+            'value': v,
+        } for v in dd.feature_configs.values()]
+        plot_options = [{
+            'label': v,
+            'value': v,
+        } for v in dd.plot_configs.values()]
 
-            # check actually exists
-            if path.exists(config_dir):
-
-                # get files in directory
-                _, _, files = walk_first(config_dir)
-
-                # loop files
-                for file_name in files:
-
-                    # get file path and name without ext
-                    file_path = path.join(config_dir, file_name)
-                    name, _ = path.splitext(file_name)
-
-                    # read configuration from dictionary
-                    cfg = read_file_data(file_path)
-
-                    # check config successfully parsed
-                    if cfg is not None:
-                        dd.feature_configs[name] = cfg
-                        options.append({
-                            'label': name,
-                            'value': name
-                        })
-
-                info_strings.append(f'{len(options)} valid feature configuration files found from {len(files)} files')
-
-            else:
-                info_strings.append('directory does not exist!')
-
-        else:
-            info_strings.append('directory not set')
-
-        return options, html_lines(info_strings)
+        return [
+            feature_options,
+            plot_options,
+            html_lines(info_strings),
+        ]
