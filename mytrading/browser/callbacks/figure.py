@@ -1,7 +1,7 @@
 import re
 from datetime import datetime, timedelta
 from os import path
-from typing import List, Dict
+from typing import List, Dict, Union
 import dash
 from dash.dependencies import Output, Input, State
 
@@ -28,6 +28,43 @@ def get_chart_offset(chart_offset_str):
         except ValueError:
             pass
     return None
+
+
+def get_config(
+        selected_name,
+        config_dict: Dict[str, Dict],
+        info_strings: List[str],
+        config_type: str,
+) -> Union[None, Dict]:
+    """
+    get feature/plot configurations seeing if name selected by name in dropdown is valid, otherwise getting default
+    configuration
+
+    Returns
+    -------
+
+    """
+
+    # check if no configuration selected from dropdown
+    if selected_name is None:
+
+        # use default
+        info_strings.append(f'no {config_type} configuration specified, using default')
+        return None
+
+    else:
+
+        # config name specified in dropdown, check is id dict
+        if selected_name in config_dict:
+
+            info_strings.append(f'using {config_type} configuration: "{selected_name}"')
+            return config_dict[selected_name]
+
+        else:
+
+            # configuration not found
+            info_strings.append(f'{config_type} configuration "{selected_name}" not found in list, using default')
+            return None
 
 
 def get_orders_df(market_dir: str, market_id: str, selection_id: int, info_strings: List[str]):
@@ -87,16 +124,17 @@ def figure_callback(app: dash.Dash, dd: DashData, input_dir: str):
             State('table-runners', 'active_cell'),
             State('input-chart-offset', 'value'),
             State('input-feature-config', 'value'),
+            State('input-plot-config', 'value')
         ]
     )
-    def fig_button(fig_button_clicks, runners_active_cell, chart_offset_str, feature_config_name):
+    def fig_button(btn_clicks, runners_cell, chart_offset_str, feature_config_name, plot_config_name):
 
         # get datetime/None chart offset from time input
         chart_offset = get_chart_offset(chart_offset_str)
 
         # add runner selected cell and chart offset time to infobox
         info_strings = list()
-        info_strings.append(f'Runners active cell: {runners_active_cell}')
+        info_strings.append(f'Runners active cell: {runners_cell}')
         info_strings.append(f'Chart offset: {chart_offset}')
 
         # if no active market selected then abort
@@ -105,7 +143,7 @@ def figure_callback(app: dash.Dash, dd: DashData, input_dir: str):
             return html_lines(info_strings)
 
         # get selection ID of runner from active runner cell, or abort on fail
-        selection_id = get_runner_id(runners_active_cell, dd.start_odds, info_strings)
+        selection_id = get_runner_id(runners_cell, dd.start_odds, info_strings)
         if not selection_id:
             return html_lines(info_strings)
 
@@ -145,8 +183,11 @@ def figure_callback(app: dash.Dash, dd: DashData, input_dir: str):
             chart_start = modify_start(chart_start, orders_df, ORDER_OFFSET_SECONDS)
             chart_end = modify_end(chart_end, orders_df, ORDER_OFFSET_SECONDS)
 
-        # for now using default plotting configuration
-        feature_plot_configs = get_plot_feature_default_configs()
+        # get plot configuration
+        feature_plot_configs = get_config(plot_config_name, dd.plot_configs, info_strings, config_type='plot')
+
+        # use default plot configuration if none selected
+        feature_plot_configs = feature_plot_configs or get_plot_feature_default_configs()
 
         # construct feature info
         feature_info_path = path.join(
@@ -181,27 +222,8 @@ def figure_callback(app: dash.Dash, dd: DashData, input_dir: str):
 
         else:
 
-            # no feature info file
-            if feature_config_name is None:
-
-                # feature config not specified
-                info_strings.append('no feature config specified, using default')
-                feature_configs = None
-
-            else:
-
-                # feature config specified, check is id dict
-                if feature_config_name in dd.feature_configs:
-
-                    info_strings.append(f'using feature configuration: "{feature_config_name}"')
-                    feature_configs = dd.feature_configs[feature_config_name]
-
-                else:
-
-                    # feature config not found
-                    info_strings.append(f'feature configuration "{feature_config_name}" not found in list, '
-                                        f'using default')
-                    feature_configs = None
+            # get feature configuration dict from selected in dropdown, leaving as None on fail
+            feature_configs = get_config(feature_config_name, dd.feature_configs, info_strings, config_type='feature')
 
             # generate plot by simulating features
             fig = generate_feature_plot(
