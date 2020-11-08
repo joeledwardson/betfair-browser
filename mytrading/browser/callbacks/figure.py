@@ -4,13 +4,15 @@ from os import path
 from typing import List, Dict, Union
 import dash
 from dash.dependencies import Output, Input, State
+from importlib import reload
 
 from ...tradetracker.orderinfo import get_order_updates, filter_market_close
 from ...utils.storage import EXT_ORDER_INFO, EXT_FEATURE
-from ...visual.figure import generate_feature_plot, get_chart_start, fig_historical, modify_start, modify_end
-from ...visual.figure import ORDER_OFFSET_SECONDS
-from ...visual.config import get_plot_feature_default_configs
 from ...feature.storage import features_from_file
+
+# import visual libraries not functions so that they can be reloaded
+from ...visual import figure as figurelib
+from ...visual import config as configlib
 
 from ..data import DashData
 from ..tables.runners import get_runner_id
@@ -129,6 +131,10 @@ def figure_callback(app: dash.Dash, dd: DashData, input_dir: str):
     )
     def fig_button(btn_clicks, runners_cell, chart_offset_str, feature_config_name, plot_config_name):
 
+        # reload plotting and config lib
+        reload(figurelib)
+        reload(configlib)
+
         # get datetime/None chart offset from time input
         chart_offset = get_chart_offset(chart_offset_str)
 
@@ -171,7 +177,7 @@ def figure_callback(app: dash.Dash, dd: DashData, input_dir: str):
         market_time = dd.market_info.market_time
 
         # get start of chart datetime
-        chart_start = get_chart_start(display_seconds, market_time, first_datetime)
+        chart_start = figurelib.get_chart_start(display_seconds, market_time, first_datetime)
 
         # use market start as end
         chart_end = market_time
@@ -180,14 +186,14 @@ def figure_callback(app: dash.Dash, dd: DashData, input_dir: str):
         if orders_df is not None:
 
             # modify chart start/end based on orders dataframe
-            chart_start = modify_start(chart_start, orders_df, ORDER_OFFSET_SECONDS)
-            chart_end = modify_end(chart_end, orders_df, ORDER_OFFSET_SECONDS)
+            chart_start = figurelib.modify_start(chart_start, orders_df, figurelib.ORDER_OFFSET_SECONDS)
+            chart_end = figurelib.modify_end(chart_end, orders_df, figurelib.ORDER_OFFSET_SECONDS)
 
         # get plot configuration
         feature_plot_configs = get_config(plot_config_name, dd.plot_configs, info_strings, config_type='plot')
 
         # use default plot configuration if none selected
-        feature_plot_configs = feature_plot_configs or get_plot_feature_default_configs()
+        feature_plot_configs = feature_plot_configs or configlib.get_plot_feature_default_configs()
 
         # construct feature info
         feature_info_path = path.join(
@@ -211,7 +217,7 @@ def figure_callback(app: dash.Dash, dd: DashData, input_dir: str):
 
                 info_strings.append(f'found {len(all_features_data)} features in "{feature_info_path}", plotting')
 
-                fig = fig_historical(
+                fig = figurelib.fig_historical(
                     all_features_data=all_features_data,
                     feature_plot_configs=feature_plot_configs,
                     title=title,
@@ -226,7 +232,7 @@ def figure_callback(app: dash.Dash, dd: DashData, input_dir: str):
             feature_configs = get_config(feature_config_name, dd.feature_configs, info_strings, config_type='feature')
 
             # generate plot by simulating features
-            fig = generate_feature_plot(
+            fig = figurelib.generate_feature_plot(
                 hist_records=dd.record_list,
                 selection_id=selection_id,
                 title=title,
