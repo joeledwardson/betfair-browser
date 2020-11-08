@@ -256,6 +256,16 @@ class TradeStateOpenMatching(TradeStateBase):
     name = TradeStateTypes.OPEN_MATCHING
     next_state = TradeStateTypes.HEDGE_SELECT
 
+    def __init__(self, move_on_complete=True, *args, **kwargs):
+        """
+
+        Parameters
+        ----------
+        move_on_complete : specifies whether to move to next state once active order status becomes EXECUTION_COMPLETE
+        """
+        self.move_on_complete = move_on_complete
+        super().__init__(*args, **kwargs)
+
     # return new state(s) if different action required, otherwise None
     def open_order_processing(
             self,
@@ -265,7 +275,7 @@ class TradeStateOpenMatching(TradeStateBase):
             trade_tracker: TradeTracker,
             strategy: BaseStrategy,
             **inputs
-    ):
+    ) -> Union[None, List[Enum]]:
         raise NotImplementedError
 
     def run(
@@ -283,7 +293,7 @@ class TradeStateOpenMatching(TradeStateBase):
         else:
             sts = trade_tracker.active_order.status
 
-            if sts == OrderStatus.EXECUTION_COMPLETE:
+            if sts == OrderStatus.EXECUTION_COMPLETE and self.move_on_complete:
                 return self.next_state
 
             elif sts in order_error_states:
