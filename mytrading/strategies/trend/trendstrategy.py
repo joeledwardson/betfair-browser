@@ -146,5 +146,5 @@ class MyTrendStrategy(MyFeatureStrategy):
         trend_data.smoothed_ltp = smoothed_ltp
 
         return {
-            'trend_data': trend_data.__dict__
+            'trend_data': trend_data
         }
