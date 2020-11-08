@@ -1,5 +1,5 @@
 from typing import Dict
-from plotly import graph_objects as go
+
 
 # name of back regression feature
 BACK_REGRESSION_NAME = 'best back regression'
@@ -12,14 +12,14 @@ def get_plot_default_config() -> dict:
     """
     get default plotly chart configurations dict for plotting features
     configuration includes keys:
-    - 'chart': plotly chart function
+    - 'chart': plotly chart function name within plotly.graph_objects
     - 'chart_args': dictionary of plotly chart arguments
     - 'trace_args': dictionary of arguments used when plotly trace added to figure
     - 'y_axis': name of y-axis, used as a set to distinguish different y-axes on subplots (just used to
     differentiate between subplots, name doesn't actually appear on axis)
     """
     return {
-        'chart': go.Scatter,
+        'chart': 'Scatter',
         'chart_args': {
             'mode': 'lines'
         },
@@ -139,7 +139,7 @@ def get_plot_feature_default_configs(
             'ignore': True,
         },
         'tv': {
-            'chart': go.Bar,
+            'chart': 'Bar',
             'chart_args': {
                 'marker': {
                     'colorscale': [

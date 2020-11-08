@@ -12,7 +12,7 @@ active_logger.setLevel(logging.INFO)
 def add_feature_trace(
         fig: go.Figure,
         feature_name: str,
-        all_features_data: Dict[str, List[Dict]],
+        all_features_data: Dict[str, Dict[str, List]],
         default_config: Dict,
         feature_config: Dict,
         y_axes_names: List,
@@ -41,7 +41,7 @@ def add_feature_trace(
     row = list(y_axes_names).index(feature_config.get('y_axis', def_yaxis)) + 1
 
     # plotly chart function, chart kwargs, trace kwargs updating with grid row and (single column)
-    chart_func = feature_config.get('chart', default_config['chart'])
+    chart_name = feature_config.get('chart', default_config['chart'])
     chart_args = feature_config.get('chart_args', default_config['chart_args'])
     trace_args = feature_config.get('trace_args', default_config['trace_args'])
     trace_args.update({'col': 1, 'row': row})
@@ -81,6 +81,9 @@ def add_feature_trace(
 
         # slice trace data to values within plotting range
         trace_data = {k: v[index_start:index_end] for k, v in trace_data.items()}
+
+        # get plotly chart function from chart function name
+        chart_func = getattr(go, chart_name)
 
         # create plotly chart using feature name, trace data, kwargs and add to plotly figure
         chart = chart_func(
