@@ -523,105 +523,6 @@ class RunnerFeatureLayLadder(RunnerFeatureBase):
 
 
 @register_feature
-class RunnerFeatureRegression(RunnerFeatureWindowBase):
-    """
-    Perform regressions on a runner values from a window
-
-    Special sub-set of window processors is `WindowProcessorFeatureBase`, where the key for values stored in the
-    window is kept in `window_var` which is used to retrieve feature values from window
-
-    - window_function: window function, must be derived from WindowProcessorFeatureBase
-    - regression_seconds: number of seconds up to current record in which to apply regression
-    - regression_strength_filter: minimum r-squared required to store regression
-    - regression_preprocessor: apply pre-processor to feature values before performing linear regression (select from
-    RunnerFeatureValueProcessors)
-    - regression_postprocessor: apply post-processor to linear regression to convert back to feature values (select
-    from RunnerFeatureValueProcessors)
-    """
-
-    def get_plotly_data(self):
-        """
-        Return list of regression results
-        """
-        return self.values
-
-    def __init__(
-            self,
-            window_function: str,
-            regressions_seconds,
-            regression_strength_filter=0,
-            regression_gradient_filter=0,
-            regression_preprocessor: str = 'value_processor_identity',
-            regression_postprocessor: str = 'value_processor_identity',
-            **kwargs):
-        super().__init__(
-            window_s=regressions_seconds,
-            window_function=window_function,
-            **kwargs
-        )
-        self.window_attr_name = None
-        self.regression_strength_filter = regression_strength_filter
-        self.regression_gradient_filter = regression_gradient_filter
-        self.regression_preprocessor = RunnerFeatureValueProcessors.get_processor(regression_preprocessor)()
-        self.regression_postprocessor = RunnerFeatureValueProcessors.get_processor(regression_postprocessor)()
-        self.comparator = operator.gt if regression_gradient_filter >= 0 else operator.le
-
-    def race_initializer(
-            self,
-            selection_id: int,
-            first_book: MarketBook,
-            windows: Windows):
-
-        super().race_initializer(selection_id, first_book, windows)
-
-        # get the key for window values according to window function, use to retrieve values
-        self.window_attr_name = windows.FUNCTIONS[self.window_function].window_var
-
-    def runner_update(
-            self,
-            market_list: List[MarketBook],
-            new_book: MarketBook,
-            windows: Windows,
-            runner_index):
-
-        dat = self.window[self.window_attr_name][self.selection_id]
-        dts = dat['dts'].copy(),  # stop making hard reference
-        x = [(x - new_book.publish_time).total_seconds() for x in dat['dts']]
-        y = dat['values']
-
-        if not y or not x:
-            return None
-
-        y_processed = [self.regression_preprocessor(v, y, dts) for v in y]
-
-        X = np.column_stack([x])
-        X = sm.add_constant(X)
-
-        mod_wls = sm.WLS(y_processed, X)
-        res_wls = mod_wls.fit()
-        y_pred = res_wls.predict()
-        y_pred = [self.regression_postprocessor(v, y_pred, dts) for v in y_pred]
-
-        # TODO - incorporate regreesion postprocessor to predicted results, but dont want to calculate here is it is
-        #  not required in real time, only for plotting
-        if len(res_wls.params) < 2:
-            return
-
-        if not self.comparator(res_wls.params[1], self.regression_gradient_filter):
-            return
-
-        if abs(res_wls.rsquared) >= self.regression_strength_filter:
-            return {
-                'x': dat['dts'].copy(),  # stop making hard reference
-                'predicted': y_pred,
-                'params': res_wls.params,
-                'rsquared': res_wls.rsquared
-            }
-
-        return None
-
-
-@register_feature
 class RunnerFeatureSub(RunnerFeatureBase):
     """
     feature that must be used as a sub-feature to existing feature
@@ -717,42 +618,40 @@ class RunnerFeatureTVTotal(RunnerFeatureBase):
 
 @register_feature
 class RunnerFeatureSubRegression(RunnerFeatureSub):
+
     """
     Perform regressions on a runner values as a sub-feature
-
-
-    - window_function: window function, must be derived from WindowProcessorFeatureBase
-    - regression_seconds: number of seconds up to current record in which to apply regression
-    - regression_strength_filter: minimum r-squared required to store regression
     - regression_preprocessor: apply pre-processor to feature values before performing linear regression (select from
     RunnerFeatureValueProcessors)
-    - regression_postprocessor: apply post-processor to linear regression to convert back to feature values (select
-    from RunnerFeatureValueProcessors)
     """
 
     def __init__(
             self,
             element_count,
-            regression_strength_filter=0,
-            regression_gradient_filter=0,
             regression_preprocessor: str = 'value_processor_identity',
             regression_preprocessor_args: dict = None,
             *args,
             **kwargs):
+        """
+
+        Parameters
+        ----------
+        element_count : number of elements at which to perform regression across
+        regression_preprocessor : name of preprocessor function to use
+        regression_preprocessor_args : kwargs passed to preprocessor function constructor
+        args :
+        kwargs :
+        """
         super().__init__(
             *args,
             **kwargs,
         )
         self.element_count = element_count
 
-        self.regression_strength_filter = regression_strength_filter
-        self.regression_gradient_filter = regression_gradient_filter
-
         pre_kwargs = regression_preprocessor_args or {}
         self.regression_preprocessor = RunnerFeatureValueProcessors.get_processor(regression_preprocessor)(
             **pre_kwargs
         )
-        self.comparator = operator.gt if regression_gradient_filter >= 0 else operator.le
 
     def runner_update(
             self,
@@ -772,21 +671,6 @@ class RunnerFeatureSubRegression(RunnerFeatureSub):
             return None
 
         y_processed = [self.regression_preprocessor(v, y, dts) for v in y]
-
-        # X = np.column_stack([x])
-        # X = sm.add_constant(X)
-        #
-        # mod_wls = sm.WLS(y_processed, X)
-        # res_wls = mod_wls.fit()
-        # if len(res_wls.params) != 2:
-        #     return
-        #
-        # gradient = res_wls.params[1]
-        # if not self.comparator(gradient, self.regression_gradient_filter):
-        #     return
-        #
-        # if res_wls.centered_tss != 0 and abs(res_wls.rsquared) >= self.regression_strength_filter:
-
         X = np.expand_dims(x, -1)
         reg = LinearRegression().fit(X, y_processed)
 
