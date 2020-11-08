@@ -1,7 +1,7 @@
-from typing import Dict
 from os import path, makedirs
 import logging
 from myutils.jsonfile import add_to_file, read_file_lines
+from typing import List, Dict
 from ..utils.storage import EXT_FEATURE
 from .utils import get_feature_data
 from .features import RunnerFeatureBase
@@ -33,7 +33,7 @@ def features_to_file(file_path: str, features: Dict[str, RunnerFeatureBase]):
     add_to_file(file_path, data, mode='w')
 
 
-def features_from_file(file_path: str):
+def features_from_file(file_path: str) -> Dict[str, List[Dict[str, List]]]:
     """
     retrieve feature data sets from files
     """

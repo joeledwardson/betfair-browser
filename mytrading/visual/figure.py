@@ -114,7 +114,7 @@ def fig_to_file(fig: go.Figure, file_path, mode='a'):
 
 
 def fig_historical(
-        all_features_data: Dict[str, List[Dict]],
+        all_features_data: Dict[str, List[Dict[str, List]]],
         feature_plot_configs: Dict[str, Dict],
         title: str,
         chart_start: datetime,

@@ -12,7 +12,7 @@ active_logger.setLevel(logging.INFO)
 def add_feature_trace(
         fig: go.Figure,
         feature_name: str,
-        all_features_data: Dict[str, Dict[str, List]],
+        all_features_data: Dict[str, List[Dict[str, List]]],
         default_config: Dict,
         feature_config: Dict,
         y_axes_names: List,

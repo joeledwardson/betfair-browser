@@ -22,7 +22,11 @@ def register_data_processor(func):
         return func
 
 
-def process_plotly_data(data: Dict, features_data: Dict[str, Dict[str, List]], processors_config: List[Dict]):
+def process_plotly_data(
+        data: Dict,
+        features_data: Dict[str, List[Dict[str, List]]],
+        processors_config: List[Dict]
+):
     """
     use plotly data processors to process data
     """
