@@ -204,12 +204,8 @@ def generate_feature_plot(
     if feature_configs is None:
         feature_configs = get_features_default_configs()
 
-    # create runner feature instances
-    windows = Windows()
+    # create runner feature instances (do not use feature holder as that is for a list of runners, not a single runner)
     features = generate_features(
-        selection_id=selection_id,
-        book=hist_records[0][0],
-        windows=windows,
         feature_configs=feature_configs
     )
 
@@ -227,8 +223,12 @@ def generate_feature_plot(
     if not len(hist_records):
         active_logger.warning('trimmed records empty')
         return go.Figure()
-
     active_logger.info(f'trimmed record set has {len(hist_records)} records')
+
+    # initialise features with first of trimmed books and windows
+    windows = Windows()
+    for feature in features.values():
+        feature.race_initializer(selection_id, hist_records[0][0], windows)
 
     # run feature processors on historic data
     hist_runner_features(selection_id, hist_records, windows, features)
