@@ -55,6 +55,18 @@ class MessageTypes(Enum):
     MSG_STATE_CHANGE = 'state change'
     MSG_ALLOW_REACHED = 'reached allowed trading point'
     MSG_CUTOFF_REACHED = 'reached cutoff point for trading'
+    MSG_LAY_EMPTY = 'lay empty'
+    MSG_BACK_EMPTY = 'back empty'
+
+
+@register_formatter(MessageTypes.MSG_LAY_EMPTY)
+def formatter(attrs: Dict) -> str:
+    return f'could not place trade, lay ladder empty'
+
+
+@register_formatter(MessageTypes.MSG_BACK_EMPTY)
+def formatter(attrs: Dict) -> str:
+    return f'could not place trade, back ladder empty'
 
 
 @register_formatter(MessageTypes.MSG_TRACK_TRADE)
