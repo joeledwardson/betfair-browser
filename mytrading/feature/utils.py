@@ -49,7 +49,12 @@ def write_feature_configs(
     add_to_file(file_path, feature_configs, mode='w', indent=indent)
 
 
-def get_feature_data(data: Dict, features: Dict[str, RunnerFeatureBase], parent_name='', pre_serialize=True):
+def get_feature_data(
+        data: Dict,
+        features: Dict[str, RunnerFeatureBase],
+        parent_name='',
+        pre_serialize=True
+):
     """
     recursively get plotly data from feature list (indexed by feature name)
     assign feature data to 'data' dictionary with feature name
@@ -78,3 +83,35 @@ def get_feature_data(data: Dict, features: Dict[str, RunnerFeatureBase], parent_
 
         # call function recursively with sub features
         get_feature_data(data, feature.sub_features, parent_name=feature_name, pre_serialize=pre_serialize)
+
+
+def get_max_buffer(
+        features: Dict[str, RunnerFeatureBase],
+) -> int:
+    """
+    get maximum number of seconds as delay from feature set for computations
+
+    Parameters
+    ----------
+    features :
+
+    Returns
+    -------
+
+    """
+
+    # inner function for recursion
+    def _get_delay(dly, ftrs):
+
+        # loop features
+        for ftr in ftrs.values():
+
+            # update maximum delay
+            dly = max(dly, ftr.computation_buffer_seconds())
+
+            # loop sub-features
+            dly = _get_delay(dly, ftr.sub_features)
+
+        return dly
+
+    return _get_delay(0, features)
