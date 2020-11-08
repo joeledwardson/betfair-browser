@@ -15,13 +15,6 @@ class WindowMessageTypes(Enum):
     WDW_MSG_STK_INVALID = 'stake size invalid'
 
 
-class WindowMessageFailTypes(Enum):
-    BEST_LAY_INVALID = 'best lay invalid'
-    BEST_BACK_INVALID = 'best back invalid'
-    STAKE_SIZE_INVALID = 'stake size invalid'
-    LTP_BREACH_FAIL = 'ltp not breached bounds'
-
-
 def get_window_name(direction_up: bool) -> str:
     if bool(direction_up):
         return 'LTP max'
