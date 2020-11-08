@@ -1,9 +1,9 @@
 import dash
 from dash.dependencies import Output, Input
 
-from mytrading.browser.data import DashData
-from mytrading.browser.tables.files import get_files_table
-from mytrading.browser.text import html_lines
+from ..data import DashData
+from ..tables.files import get_files_table
+from ..text import html_lines
 from myutils.mydash.context import triggered_id
 
 

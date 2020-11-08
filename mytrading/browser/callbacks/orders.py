@@ -3,11 +3,11 @@ from os import path
 import dash
 from dash.dependencies import Output, Input, State
 
-from mytrading.browser.data import DashData
-from mytrading.browser.tables.runners import get_runner_id
-from mytrading.browser.text import html_lines
-from mytrading.utils.storage import EXT_ORDER_RESULT
-from mytrading.visual.profits import read_profit_table, process_profit_table
+from ..data import DashData
+from ..tables.runners import get_runner_id
+from ..text import html_lines
+from ...utils.storage import EXT_ORDER_RESULT
+from ...visual.profits import read_profit_table, process_profit_table
 from myutils.mydash.context import triggered_id
 
 

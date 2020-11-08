@@ -6,11 +6,13 @@ from typing import List, Tuple
 import dash_table
 from betfairlightweight import APIClient
 
-from mytrading.browser.filetracker import FileTracker
-from mytrading.browser.marketinfo import MarketInfo
-from mytrading.browser.tables.files import get_hist_cell_path
-from mytrading.utils.storage import is_orders_dir, get_historical, search_recorded_cat, search_recorded_stream, \
-    strategy_path_to_hist, SUBDIR_HISTORICAL, RE_MARKET_ID, SUBDIR_RECORDED
+from ...utils.storage import is_orders_dir, get_historical, search_recorded_cat, search_recorded_stream
+from ...utils.storage import strategy_path_to_hist
+from ...utils.storage import SUBDIR_HISTORICAL, RE_MARKET_ID, SUBDIR_RECORDED
+from ..filetracker import FileTracker
+from ..marketinfo import MarketInfo
+from ..tables.files import get_hist_cell_path
+
 
 
 def get_market_table(
