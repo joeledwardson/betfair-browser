@@ -100,7 +100,7 @@ def get_trend_plot_configs(tv_bar_width_ms, tv_opacity):
             }, {
                 'name': 'plotly_values_resampler',
                 'kwargs': {
-                    'n_seconds': tv_bar_width_ms*1000,
+                    'n_seconds': int(tv_bar_width_ms/1000),
                     'agg_function': {
                         'y': 'sum',
                         'text': 'mean',
@@ -150,6 +150,26 @@ def get_trend_plot_configs(tv_bar_width_ms, tv_opacity):
 
         'ltp smoothed.regression': {
             'ignore': True,
+        },
+
+        'best lay smoothed': {
+            'value_processors': [{
+                'name': 'plotly_set_attrs',
+                'kwargs': {
+                    'attr_configs': [{
+                        'feature_name': 'best lay smoothed.regression',
+                        'attr_names': ['text'],
+                    }],
+                }
+            }, {
+                'name': 'plotly_df_formatter',
+                'kwargs': {
+                    'formatter_name': 'formatter_regression',
+                    'df_column': 'text',
+                }
+            }, {
+                'name': 'plotly_df_to_data',
+            }],
         },
 
         'best back smoothed': {
