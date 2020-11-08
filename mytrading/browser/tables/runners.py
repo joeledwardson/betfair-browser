@@ -7,18 +7,19 @@ from ..tables.table import create_table
 active_logger = logging.getLogger(__name__)
 
 
-def get_runners_table(
-        table_id='table-runners',
-) -> dash_table.DataTable:
-    """get empty mydash DataTable for runner information"""
+def get_runners_table(height) -> dash_table.DataTable:
+    """
+    get empty mydash DataTable for runner information
+    """
     return create_table(
-        table_id=table_id,
+        table_id='table-runners',
         df=pd.DataFrame({
             'Selection ID': [],
             'Name': [],
             'Starting Odds': [],
             'Profit': [],
         }),
+        height=height,
     )
 
 

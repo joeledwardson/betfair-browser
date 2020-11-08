@@ -14,6 +14,13 @@ from ..profit import get_display_profits
 from .table import create_table
 
 
+class FilesTableProperties:
+    """
+    store height of files table that can be globally modified
+    """
+    height: int = None
+
+
 def get_display_info(
         base_dir: str,
         dir_path: str,
@@ -110,7 +117,6 @@ def get_files_table(
         base_dir: str,
         do_profits=False,
         active_cell=None,
-        table_id='table-files',
 ) -> dash_table.DataTable:
     """
     get filled dash datatable displaying list of dirs, files and relevant information
@@ -144,8 +150,9 @@ def get_files_table(
     })
 
     return create_table(
-        table_id=table_id,
+        table_id='table-files',
         df=df,
+        height=FilesTableProperties.height,
         active_cell=active_cell,
     )
 

@@ -16,7 +16,7 @@ active_logger = logging.getLogger(__name__)
 def create_table(
         table_id: str,
         df: pd.DataFrame,
-        height=200,
+        height,
         padding_top='5px',
         padding_right='30px',
         padding_bottom='5px',

@@ -4,9 +4,12 @@ import dash_core_components as dcc
 from myutils.timing import format_timedelta
 from .tables.runners import get_runners_table, get_runner_id
 from .tables.market import get_market_table
-from .tables.files import get_files_table
+from .tables.files import get_files_table, FilesTableProperties
 from .tables.orders import get_orders_table
 from .data import DashData
+
+# set files table height as it is needed when re-created in callbacks
+FilesTableProperties.height = 200
 
 
 def infobox(height=70, **kwargs) -> html.Div:
@@ -79,7 +82,7 @@ def get_layout(input_dir: str, dash_data: DashData, chart_offset: timedelta):
                     ),
 
                     html.Div(
-                        children=get_runners_table(),
+                        children=get_runners_table(height=200),
                     ),
 
                 ]
@@ -95,7 +98,7 @@ def get_layout(input_dir: str, dash_data: DashData, chart_offset: timedelta):
                     ),
 
                     html.Div(
-                        children=get_market_table()
+                        children=get_market_table(height=140, width=600)
                     ),
 
                     html.H2(
@@ -104,16 +107,38 @@ def get_layout(input_dir: str, dash_data: DashData, chart_offset: timedelta):
 
                     infobox(
                         id='infobox-feature-config',
-                        height=50,
                         children=''
                     ),
 
                     html.Div(
                         children=[
-                            html.Button(children='reload feature configs', id='button-feature-config', n_clicks=0),
-                            html.Button(children='reload plot configs', id='button-plot-config', n_clicks=0),
-                            dcc.Dropdown(id='input-feature-config', placeholder='Select feature config'),
-                            dcc.Dropdown(id='input-plot-config', placeholder='Select plot config'),
+                            html.Button(
+                                children='reload feature configs',
+                                id='button-feature-config',
+                                n_clicks=0
+                            ),
+                            html.Div(
+                                style={
+                                    'display': 'grid',
+                                    'grid-template-columns': '50% 50%'
+                                },
+                                children=[
+                                    dcc.Dropdown(
+                                        id='input-feature-config',
+                                        placeholder='Select feature config',
+                                        style={
+                                            'margin': '4px 0px'
+                                        }
+                                    ),
+                                    dcc.Dropdown(
+                                        id='input-plot-config',
+                                        placeholder='Select plot config',
+                                        style={
+                                            'margin': '4px 0px'
+                                        }
+                                    ),
+                                ]
+                            )
                         ],
                     ),
 
@@ -136,7 +161,7 @@ def get_layout(input_dir: str, dash_data: DashData, chart_offset: timedelta):
                     ),
 
                     html.Div(
-                        children=get_orders_table(),
+                        children=get_orders_table(height=360),
                     ),
 
                 ]

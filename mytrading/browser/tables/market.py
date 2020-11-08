@@ -14,15 +14,14 @@ from mytrading.utils.storage import is_orders_dir, get_historical, search_record
 
 
 def get_market_table(
-        id='table-market',
-        height=140,
-        width=600
+        height,
+        width
 ) -> dash_table.DataTable:
     """
     get empty dash DataTable for runner information
     """
     return dash_table.DataTable(
-        id=id,
+        id='table-market',
         columns=[{
             'name': x,
             'id': x
