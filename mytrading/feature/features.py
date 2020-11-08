@@ -711,12 +711,6 @@ class RunnerFeatureSubRegression(RunnerFeatureSub):
     from RunnerFeatureValueProcessors)
     """
 
-    def get_plotly_data(self):
-        """
-        Return list of regression results
-        """
-        return self.values
-
     def __init__(
             self,
             element_count,
