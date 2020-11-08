@@ -9,7 +9,7 @@ from plotly.subplots import make_subplots
 from ..process.ticks.ticks import LTICKS_DECODED, closest_tick
 from ..tradetracker.messages import MessageTypes
 from ..feature.window import Windows
-from ..feature.utils import generate_features, get_feature_data
+from ..feature.utils import generate_features, get_feature_data, get_max_buffer
 from ..feature.historic import hist_runner_features
 from ..feature.config import get_features_default_configs
 from .config import get_plot_default_config
@@ -198,6 +198,7 @@ def generate_feature_plot(
     if not hist_records:
         active_logger.warning(f'error creating figure "{title}", records set empty')
         return go.Figure()
+    active_logger.info(f'creating figure from {len(hist_records)} records')
 
     # use default feature configuration if not passed
     if feature_configs is None:
@@ -212,13 +213,25 @@ def generate_feature_plot(
         feature_configs=feature_configs
     )
 
-    # run feature processors on historic data
-    hist_runner_features(selection_id, hist_records, windows, features)
+    # get computations start buffer seconds
+    buffer_s = get_max_buffer(features)
+    chart_buffer_s = buffer_s + PROCESS_BUFFER_S
+    active_logger.info(f'using {buffer_s}s + {PROCESS_BUFFER_S}s before start for computations')
+
+    # trim records to within computation windows
+    modified_start = chart_start - timedelta(seconds=chart_buffer_s)
+    hist_records = [r for r in hist_records if modified_start <= r[0].publish_time <= chart_end]
+    active_logger.info(f'chart start: {chart_start}, computation start time: {modified_start}, end: {chart_end}')
 
     # check trimmed record set not empty
     if not len(hist_records):
         active_logger.warning('trimmed records empty')
         return go.Figure()
+
+    active_logger.info(f'trimmed record set has {len(hist_records)} records')
+
+    # run feature processors on historic data
+    hist_runner_features(selection_id, hist_records, windows, features)
 
     # get feature data from feature set
     all_features_data = {}
