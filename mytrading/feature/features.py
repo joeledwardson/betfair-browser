@@ -768,6 +768,9 @@ class RunnerFeatureSubRegression(RunnerFeatureSub):
         if not x or not y or len(x) != len(y):
             return None
 
+        if len(x) < self.element_count:
+            return None
+
         y_processed = [self.regression_preprocessor(v, y, dts) for v in y]
 
         # X = np.column_stack([x])
