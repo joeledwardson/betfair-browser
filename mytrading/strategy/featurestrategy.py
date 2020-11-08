@@ -265,22 +265,13 @@ class MyFeatureStrategy(MyBaseStrategy):
             file_path=file_path
         )
 
-    def create_features(
-            self,
-            runner: RunnerBook,
-            feature_holder: FeatureHolder,
-            market: Market,
-            market_book: MarketBook
-    ) -> Dict[str, RunnerFeatureBase]:
+    def create_features(self) -> Dict[str, RunnerFeatureBase]:
         """
         generate a dictionary of features for a given runner on receiving its first market book
         """
 
         return generate_features(
-            selection_id=runner.selection_id,
-            book=market_book,
-            windows=feature_holder.windows,
-            feature_configs=self.get_features_config(runner)
+            feature_configs=self.get_features_config()
         )
 
     def _process_trade_machine(
@@ -440,12 +431,7 @@ class MyFeatureStrategy(MyBaseStrategy):
             if runner.selection_id not in feature_holder.features:
 
                 # initialise runner features (this must be done before window processing!)
-                feature_holder.features[runner.selection_id] = self.create_features(
-                    runner=runner,
-                    feature_holder=feature_holder,
-                    market=market,
-                    market_book=market_book
-                )
+                feature_holder.features[runner.selection_id] = self.create_features()
 
         # append new market book to list
         feature_holder.market_books.append(market_book)
