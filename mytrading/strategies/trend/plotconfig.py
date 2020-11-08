@@ -160,6 +160,12 @@ def get_trend_plot_configs(tv_bar_width_ms, tv_opacity):
                     }],
                 }
             }, {
+                'name': 'plotly_df_formatter',
+                'kwargs': {
+                    'formatter_name': 'formatter_regression',
+                    'df_column': 'text',
+                }
+            },{
                 'name': 'plotly_df_to_data',
             }],
         },

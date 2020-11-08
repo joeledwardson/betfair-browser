@@ -61,6 +61,7 @@ def plotly_series_to_data(data: pd.Series, features_data) -> Dict:
     }
 
 
+# TODO - need anymore?
 @register_data_processor
 def plotly_regression(data: Dict, features_data) -> Dict:
     """
@@ -248,3 +249,4 @@ def plotly_df_fillna(data: pd.DataFrame, features_data, method='ffill'):
 @register_data_processor
 def plotly_df_diff(data: pd.DataFrame, features_data):
     return data.diff()
+
