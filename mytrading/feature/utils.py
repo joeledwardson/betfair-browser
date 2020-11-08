@@ -8,9 +8,6 @@ from .window import Windows
 
 
 def generate_features(
-        selection_id: int,
-        book: MarketBook,
-        windows: Windows,
         feature_configs: dict,
 ) -> Dict[str, RunnerFeatureBase]:
     """
@@ -24,7 +21,6 @@ def generate_features(
     for name, conf in feature_configs.items():
         feature_class = features_dict[conf['name']]
         features[name] = feature_class(**conf.get('kwargs', {}))
-        features[name].race_initializer(selection_id, book, windows)
     return features
 
 
