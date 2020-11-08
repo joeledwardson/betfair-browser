@@ -6,8 +6,6 @@ def smoothing_kwargs(
         sampling_ms,
         sampling_count,
         regression_count,
-        regression_strength_filter,
-        regression_gradient_filter
 ):
     return {
         'periodic_ms': sampling_ms,
@@ -22,8 +20,6 @@ def smoothing_kwargs(
                 'kwargs': {
                     'element_count': regression_count,
                     'regression_preprocessor': 'value_processor_invert',
-                    'regression_gradient_filter': regression_gradient_filter,
-                    'regression_strength_filter': regression_strength_filter,
                 },
             }
         }
@@ -35,11 +31,11 @@ def get_trend_feature_configs(
         ltp_window_s,
         ltp_periodic_ms,
         ltp_moving_average_entries,
-        sampling_ms,
-        sampling_count,
+        ladder_sampling_ms,
+        ladder_sampling_count,
+        ltp_sampling_ms,
+        ltp_sampling_count,
         regression_count,
-        regression_strength_filter,
-        regression_gradient_filter,
         n_ladder_elements,
 ) -> Dict[str, Dict]:
     """
@@ -118,33 +114,27 @@ def get_trend_feature_configs(
         'best back smoothed': {
             'name': 'RunnerFeatureBestBack',
             'kwargs': smoothing_kwargs(
-                sampling_ms,
-                sampling_count,
+                ladder_sampling_ms,
+                ladder_sampling_count,
                 regression_count,
-                regression_strength_filter,
-                regression_gradient_filter
             )
         },
 
         'best lay smoothed': {
             'name': 'RunnerFeatureBestLay',
             'kwargs': smoothing_kwargs(
-                sampling_ms,
-                sampling_count,
+                ladder_sampling_ms,
+                ladder_sampling_count,
                 regression_count,
-                regression_strength_filter,
-                regression_gradient_filter
             )
         },
 
         'ltp smoothed': {
             'name': 'RunnerFeatureLTP',
             'kwargs': smoothing_kwargs(
-                sampling_ms,
-                sampling_count,
+                ltp_sampling_ms,
+                ltp_sampling_count,
                 regression_count,
-                regression_strength_filter,
-                regression_gradient_filter
             )
         }
 
