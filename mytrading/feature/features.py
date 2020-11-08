@@ -763,7 +763,7 @@ class RunnerFeatureSubRegression(RunnerFeatureSub):
         if not self.comparator(gradient, self.regression_gradient_filter):
             return
 
-        if abs(res_wls.rsquared) >= self.regression_strength_filter:
+        if res_wls.centered_tss != 0 and abs(res_wls.rsquared) >= self.regression_strength_filter:
             return {
                 'gradient': gradient,
                 'rsquared': res_wls.rsquared
