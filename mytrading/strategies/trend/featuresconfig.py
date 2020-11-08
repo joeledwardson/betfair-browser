@@ -28,14 +28,15 @@ def smoothing_kwargs(
 
 def get_trend_feature_configs(
         wom_ticks,
-        ltp_window_s,
-        ltp_periodic_ms,
-        ltp_moving_average_entries,
+        ltp_window_width_s,
+        ltp_window_sampling_ms,
+        ltp_window_sampling_count,
         ladder_sampling_ms,
         ladder_sampling_count,
+        ladder_regression_count,
         ltp_sampling_ms,
         ltp_sampling_count,
-        regression_count,
+        ltp_regression_count,
         n_ladder_elements,
 ) -> Dict[str, Dict]:
     """
@@ -80,12 +81,12 @@ def get_trend_feature_configs(
         'ltp min': {
             'name': 'RunnerFeatureTradedWindowMin',
             'kwargs': {
-                'periodic_ms': ltp_periodic_ms,
+                'periodic_ms': ltp_window_sampling_ms,
                 'periodic_timestamps': True,
-                'window_s': ltp_window_s,
+                'window_s': ltp_window_width_s,
                 'value_processor': 'value_processor_moving_average',
                 'value_processor_args': {
-                    'n_entries': ltp_moving_average_entries
+                    'n_entries': ltp_window_sampling_count
                 },
             }
         },
@@ -93,12 +94,12 @@ def get_trend_feature_configs(
         'ltp max': {
             'name': 'RunnerFeatureTradedWindowMax',
             'kwargs': {
-                'periodic_ms': ltp_periodic_ms,
+                'periodic_ms': ltp_window_sampling_ms,
                 'periodic_timestamps': True,
-                'window_s': ltp_window_s,
+                'window_s': ltp_window_width_s,
                 'value_processor': 'value_processor_moving_average',
                 'value_processor_args': {
-                    'n_entries': ltp_moving_average_entries
+                    'n_entries': ltp_window_sampling_count
                 },
             }
         },
@@ -116,7 +117,7 @@ def get_trend_feature_configs(
             'kwargs': smoothing_kwargs(
                 ladder_sampling_ms,
                 ladder_sampling_count,
-                regression_count,
+                ladder_regression_count,
             )
         },
 
@@ -125,7 +126,7 @@ def get_trend_feature_configs(
             'kwargs': smoothing_kwargs(
                 ladder_sampling_ms,
                 ladder_sampling_count,
-                regression_count,
+                ladder_regression_count,
             )
         },
 
@@ -134,7 +135,7 @@ def get_trend_feature_configs(
             'kwargs': smoothing_kwargs(
                 ltp_sampling_ms,
                 ltp_sampling_count,
-                regression_count,
+                ltp_regression_count,
             )
         }
 
