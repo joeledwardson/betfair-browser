@@ -127,7 +127,7 @@ def plotly_set_attrs(
     attr_configs: list of feature config dicts whose data to collect, whose attributes include:
              - 'feature_name' : name of the feature whose' data to append to existing `data` dict (used as key to
              `features_data`) note that only the **first** of the list of data from the feature is used TODO (improve)
-            - 'attr_name': list of plotly attribute names to set with feature values (e.g. ['color'])
+            - 'attr_names': list of plotly attribute names to set with feature values (e.g. ['color'])
             - feature_value_processors (optional): list of 'value_processors' whose signature should be identical to
             those used in configuration in ..\config.py
 
