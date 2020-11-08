@@ -35,7 +35,7 @@ def formatter_decimal(value, name, n_decimals=2, prefix='') -> str:
 
 
 @register_format_processor
-def formatter_regression(value, name, rsqaured_dp=0, gradient_dp=2) -> str:
+def formatter_regression(value, rsqaured_dp=0, gradient_dp=2) -> str:
     """
     format regression dictionary with 'gradient' and 'rsquared' attributes
     Parameters
@@ -50,8 +50,20 @@ def formatter_regression(value, name, rsqaured_dp=0, gradient_dp=2) -> str:
     if type(value) is dict:
         rsquared = value.get('rsquared', 0)
         gradient = value.get('gradient', 0)
-        return f'regression:\n' \
-               f'-> r-squared: {rsquared:.{rsqaured_dp}%}\n' \
+        return f'regression:<br>' \
+               f'-> r-squared: {rsquared:.{rsqaured_dp}%}<br>' \
                f'-> gradient: {gradient:.{gradient_dp}%}'
     else:
         return ''
+
+
+@register_format_processor
+def formatter_pricesize(value):
+    """
+    convert a list of price sizes to a html friendly display string
+    """
+    if type(value) is list:
+        return '<br>'.join([f'price: {ps["price"]}, size: £{ps["size"]:.2f}' for ps in value])
+    else:
+        return ''
+

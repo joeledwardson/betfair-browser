@@ -10,14 +10,15 @@ def get_trend_plot_configs(tv_bar_width_ms, tv_opacity):
                 'kwargs': {
                     'attr_configs': [{
                         'feature_name': 'back ladder',
-                        'feature_value_processors': [{
-                            'name': 'plotly_pricesize_display'
-                        }],
                         'attr_names': ['text'],
                     }],
                 }
             }, {
-                'name': 'plotly_df_fillna',
+                'name': 'plotly_df_formatter',
+                'kwargs': {
+                    'formatter_name': 'formatter_pricesize',
+                    'df_column': 'text',
+                }
             }, {
                 'name': 'plotly_df_to_data',
             }],
@@ -32,15 +33,16 @@ def get_trend_plot_configs(tv_bar_width_ms, tv_opacity):
                 'kwargs': {
                     'attr_configs': [{
                         'feature_name': 'lay ladder',
-                        'feature_value_processors': [{
-                            'name': 'plotly_pricesize_display'
-                        }],
                         'attr_names': ['text'],
                     }],
                 }
             }, {
-                'name': 'plotly_df_fillna',
-            }, {
+                'name': 'plotly_df_formatter',
+                'kwargs': {
+                    'formatter_name': 'formatter_pricesize',
+                    'df_column': 'text',
+                }
+            },  {
                 'name': 'plotly_df_to_data',
             }],
         },

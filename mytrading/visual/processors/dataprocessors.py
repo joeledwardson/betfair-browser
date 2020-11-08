@@ -99,20 +99,6 @@ def plotly_data_to_series(data: Dict, features_data) -> pd.Series:
 
 
 @register_data_processor
-def plotly_pricesize_display(data: Dict, features_data):
-    """
-    convert a list of price sizes to a html friendly display string
-    """
-    return {
-        'x': data['x'],
-        'y': [
-            '<br>'.join([f'price: {ps["price"]}, size: £{ps["size"]:.2f}' for ps in ps_list])
-            for ps_list in data['y']
-        ]
-    }
-
-
-@register_data_processor
 def plotly_set_attrs(
         data: Dict,
         features_data: Dict[str, Dict[str, List]],
