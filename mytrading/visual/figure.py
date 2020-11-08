@@ -9,7 +9,7 @@ from plotly.subplots import make_subplots
 from ..process.ticks.ticks import LTICKS_DECODED, closest_tick
 from ..tradetracker.messages import MessageTypes
 from ..feature.window import Windows
-from ..feature.utils import generate_features, get_feature_data, get_max_buffer
+from ..feature.utils import generate_features, get_feature_data, get_max_buffer_s
 from ..feature.historic import hist_runner_features
 from ..feature.config import get_features_default_configs
 from .config import get_plot_default_config
@@ -210,7 +210,7 @@ def generate_feature_plot(
     )
 
     # get computations start buffer seconds
-    buffer_s = get_max_buffer(features)
+    buffer_s = get_max_buffer_s(features)
     chart_buffer_s = buffer_s + PROCESS_BUFFER_S
     active_logger.info(f'using {buffer_s}s + {PROCESS_BUFFER_S}s before start for computations')
 

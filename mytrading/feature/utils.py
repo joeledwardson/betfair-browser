@@ -81,7 +81,7 @@ def get_feature_data(
         get_feature_data(data, feature.sub_features, parent_name=feature_name, pre_serialize=pre_serialize)
 
 
-def get_max_buffer(
+def get_max_buffer_s(
         features: Dict[str, RunnerFeatureBase],
 ) -> int:
     """
