@@ -4,12 +4,8 @@ from dash.dependencies import Output, Input, State
 from typing import Dict, List
 import logging
 
-from mytrading.browser.data import DashData
-from mytrading.browser.tables.runners import get_runner_id
-from mytrading.browser.text import html_lines
-from mytrading.utils.storage import EXT_ORDER_RESULT
-from mytrading.visual.profits import read_profit_table, process_profit_table
-from myutils.mydash.context import triggered_id
+from ..data import DashData
+from ..text import html_lines
 from myutils.mypath import walk_first
 from myutils.jsonfile import read_file_data
 
