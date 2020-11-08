@@ -161,7 +161,7 @@ def get_layout(input_dir: str, dash_data: DashData, chart_offset: timedelta):
                     ),
 
                     html.Div(
-                        children=get_orders_table(height=360),
+                        children=get_orders_table(height=340),
                     ),
 
                 ]
