@@ -1,16 +1,20 @@
 from __future__ import annotations
 from betfairlightweight.resources.bettingresources import MarketBook
-from .window import Windows
-from ..process.prices import best_price
-from ..process.tradedvolume import traded_runner_vol
 import numpy as np
 from typing import List, Dict
 import statsmodels.api as sm
+from sklearn.linear_model import LinearRegression
 import operator
 import statistics
 from datetime import datetime, timedelta
+import logging
+from ..process.prices import best_price
+from ..process.tradedvolume import traded_runner_vol
+from .window import Windows
+
 
 features_dict = {}
+active_logger = logging.getLogger(__name__)
 
 
 def register_feature(cls):
@@ -263,6 +267,18 @@ class RunnerFeatureBase:
         """get most recent value processed, if empty return None"""
         return self.processed_vals[-1] if len(self.processed_vals) else None
 
+    def computation_buffer_seconds(self) -> int:
+        """
+        get the number of additional seconds prior to start of analysis needed for computation.
+        e.g. if function compares traded vol to 60 seconds go, return 60 to indicate that need to compute feature 60s
+        before start of analysis
+
+        Returns
+        -------
+
+        """
+        return 0
+
 
 @register_feature
 class RunnerFeatureWindowBase(RunnerFeatureBase):
@@ -298,6 +314,9 @@ class RunnerFeatureWindowBase(RunnerFeatureBase):
         super().race_initializer(selection_id, first_book, windows)
         self.window = windows.add_window(self.window_s)
         windows.add_function(self.window_s, self.window_function)
+
+    def computation_buffer_seconds(self) -> int:
+        return self.window_s
 
 
 @register_feature
@@ -751,22 +770,35 @@ class RunnerFeatureSubRegression(RunnerFeatureSub):
 
         y_processed = [self.regression_preprocessor(v, y, dts) for v in y]
 
-        X = np.column_stack([x])
-        X = sm.add_constant(X)
+        # X = np.column_stack([x])
+        # X = sm.add_constant(X)
+        #
+        # mod_wls = sm.WLS(y_processed, X)
+        # res_wls = mod_wls.fit()
+        # if len(res_wls.params) != 2:
+        #     return
+        #
+        # gradient = res_wls.params[1]
+        # if not self.comparator(gradient, self.regression_gradient_filter):
+        #     return
+        #
+        # if res_wls.centered_tss != 0 and abs(res_wls.rsquared) >= self.regression_strength_filter:
 
-        mod_wls = sm.WLS(y_processed, X)
-        res_wls = mod_wls.fit()
-        if len(res_wls.params) != 2:
-            return
+        X = np.expand_dims(x, -1)
+        reg = LinearRegression().fit(X, y_processed)
 
-        gradient = res_wls.params[1]
-        if not self.comparator(gradient, self.regression_gradient_filter):
-            return
+        if len(reg.coef_) == 1:
 
-        if res_wls.centered_tss != 0 and abs(res_wls.rsquared) >= self.regression_strength_filter:
             return {
-                'gradient': gradient,
-                'rsquared': res_wls.rsquared
-            }
+                    'gradient': reg.coef_[0],
+                    'rsquared': reg.score(X, y_processed)
+                }
 
         return None
+
+    def computation_buffer_seconds(self) -> int:
+        if not self.parent.periodic_ms:
+            active_logger.warning(f'regression sub feature expected parent to have periodic ms')
+            return 0
+        else:
+            return int((self.parent.periodic_ms * self.element_count) / 1000)
