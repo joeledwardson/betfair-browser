@@ -1,5 +1,5 @@
 from enum import Enum
-from typing import List, Dict
+from typing import List, Dict, Union
 
 from betfairlightweight.resources import MarketBook
 from flumine import BaseStrategy
@@ -217,7 +217,7 @@ class TradeStateOpenPlace(TradeStateBase):
             runner_index: int,
             trade_tracker: TradeTracker,
             strategy: BaseStrategy,
-            **inputs) -> BetfairOrder:
+            **inputs) -> Union[None, BetfairOrder]:
         raise NotImplementedError
 
     def run(
