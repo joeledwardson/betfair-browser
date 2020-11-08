@@ -94,11 +94,11 @@ def feature_configs_callback(app: dash.Dash, dd: DashData, input_dir: str):
         feature_options = [{
             'label': v,
             'value': v,
-        } for v in dd.feature_configs.values()]
+        } for v in dd.feature_configs.keys()]
         plot_options = [{
             'label': v,
             'value': v,
-        } for v in dd.plot_configs.values()]
+        } for v in dd.plot_configs.keys()]
 
         return [
             feature_options,
