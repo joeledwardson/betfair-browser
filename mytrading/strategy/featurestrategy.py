@@ -53,14 +53,14 @@ class MyFeatureStrategy(MyBaseStrategy):
             base_dir,
             cutoff_seconds,
             pre_seconds,
-            buffer_seconds,
+            feature_seconds,
             *args,
             **kwargs):
         super().__init__(*args, **kwargs)
 
         self.pre_seconds = pre_seconds
         self.cutoff_seconds = cutoff_seconds
-        self.buffer_seconds = buffer_seconds
+        self.feature_seconds = feature_seconds
 
         # strategy name
         self.strategy_name = name
@@ -111,27 +111,11 @@ class MyFeatureStrategy(MyBaseStrategy):
         """
 
         edge_detector = self.flag_feature[market_book.market_id]
-        if not edge_detector.current_value:
 
-            # get dictionary of (runner ID -> feature name -> feature)
-            runner_features_dict = self.feature_holders[market_book.market_id].features
-
-            # check that there is at least 1 runner
-            if len(runner_features_dict):
-
-                # take first runner feature dict (feature name -> feature)
-                features = next(iter(runner_features_dict.values()))
-
-                # get max buffer for computing features
-                max_buffer_s = get_max_buffer_s(features)
-
-                # compute time based on cutoff seconds + feature buffer seconds + computation buffer seconds
-                feature_offset_s = self.cutoff_seconds + self.buffer_seconds + max_buffer_s
-
-                edge_detector.update(
-                    market_book.publish_time >=
-                    (market_book.market_definition.market_time - timedelta(seconds=feature_offset_s))
-                )
+        edge_detector.update(
+            market_book.publish_time >=
+            (market_book.market_definition.market_time - timedelta(seconds=self.feature_seconds))
+        )
 
         if edge_detector.rising:
             active_logger.info(f'market: "{market_book.market_id}", received feature flag at'
@@ -143,12 +127,11 @@ class MyFeatureStrategy(MyBaseStrategy):
         timestamp
         """
 
-        edge_detector = self.flag_feature[market_book.market_id]
-        if not edge_detector.current_value:
-            edge_detector.update(
-                market_book.publish_time >=
-                (market_book.market_definition.market_time - timedelta(seconds=self.cutoff_seconds))
-            )
+        edge_detector = self.flag_cutoff[market_book.market_id]
+        edge_detector.update(
+            market_book.publish_time >=
+            (market_book.market_definition.market_time - timedelta(seconds=self.cutoff_seconds))
+        )
 
         if edge_detector.rising:
             active_logger.info(f'market: "{market_book.market_id}", received cutoff trade allow flag at ' 
@@ -159,12 +142,11 @@ class MyFeatureStrategy(MyBaseStrategy):
         update `allow` flag instance, denoting if close enough to start of race based on market book timestamp
         """
 
-        edge_detector = self.flag_feature[market_book.market_id]
-        if not edge_detector.current_value:
-            edge_detector.update(
-                market_book.publish_time >=
-                (market_book.market_definition.market_time - timedelta(seconds=self.pre_seconds))
-            )
+        edge_detector = self.flag_allow[market_book.market_id]
+        edge_detector.update(
+            market_book.publish_time >=
+            (market_book.market_definition.market_time - timedelta(seconds=self.pre_seconds))
+        )
         if edge_detector.rising:
             active_logger.info(f'market: "{market_book.market_id}", received allow trade flag at '
                                f'{market_book.publish_time}')
@@ -251,6 +233,8 @@ class MyFeatureStrategy(MyBaseStrategy):
 
         # call user defined further market initialisations
         self.market_initialisation(market, market_book, feature_holder)
+
+        active_logger.info(f'initialised market "{market.market_id}" at time {market.market_start_datetime}')
 
         # create flag instances
         self.flag_allow[market.market_id] = EdgeDetector(False)
@@ -538,10 +522,6 @@ class MyFeatureStrategy(MyBaseStrategy):
 
             # loop runners
             for runner_index, runner in enumerate(market_book.runners):
-
-                # check if runner is being tracked
-                if runner.selection_id not in self.trade_trackers[market.market_id]:
-                    self._runner_initialisation(market, market_book, runner)
 
                 # get trade tracker, state machine for runner
                 trade_tracker = self.trade_trackers[market.market_id][runner.selection_id]
