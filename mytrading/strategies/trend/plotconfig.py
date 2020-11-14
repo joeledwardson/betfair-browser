@@ -60,6 +60,29 @@ def get_trend_plot_configs(tv_bar_width_ms, tv_opacity):
         },
 
         'ltp': {
+            'value_processors': [{
+                'name': 'plotly_set_attrs',
+                'kwargs': {
+                    'attr_configs': [{
+                        'feature_name': 'tv',
+                        'attr_names': ['text'],
+                    }],
+                }
+            }, {
+                'name': 'plotly_df_fillna',
+            }, {
+                'name': 'plotly_df_formatter',
+                'kwargs': {
+                    'formatter_name': 'formatter_decimal',
+                    'df_column': 'text',
+                    'formatter_kwargs': {
+                        'name': 'traded vol',
+                        'prefix': '£',
+                    }
+                }
+            }, {
+                'name': 'plotly_df_to_data',
+            }],
             'chart_args': {
                 'mode': 'lines+markers',
                 'visible': 'legendonly',
@@ -127,29 +150,19 @@ def get_trend_plot_configs(tv_bar_width_ms, tv_opacity):
                 'name': 'plotly_set_attrs',
                 'kwargs': {
                     'attr_configs': [{
-                        'feature_name': 'tv',
+                        'feature_name': 'ltp smoothed.regression',
                         'attr_names': ['text'],
                     }],
                 }
             }, {
-                'name': 'plotly_df_fillna',
-            }, {
                 'name': 'plotly_df_formatter',
                 'kwargs': {
-                    'formatter_name': 'formatter_decimal',
+                    'formatter_name': 'formatter_regression',
                     'df_column': 'text',
-                    'formatter_kwargs': {
-                        'name': 'traded vol',
-                        'prefix': '£',
-                    }
                 }
             }, {
                 'name': 'plotly_df_to_data',
             }],
-        },
-
-        'ltp smoothed.regression': {
-            'ignore': True,
         },
 
         'best lay smoothed': {
@@ -190,6 +203,10 @@ def get_trend_plot_configs(tv_bar_width_ms, tv_opacity):
             },{
                 'name': 'plotly_df_to_data',
             }],
+        },
+
+        'ltp smoothed.regression': {
+            'ignore': True,
         },
 
         'best back smoothed.regression': {
