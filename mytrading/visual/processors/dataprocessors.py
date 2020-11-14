@@ -105,7 +105,7 @@ def plotly_data_to_series(data: Dict, features_data) -> pd.Series:
 @register_data_processor
 def plotly_set_attrs(
         data: Dict,
-        features_data: Dict[str, Dict[str, List]],
+        features_data: Dict[str, List[Dict[str, List]]],
         attr_configs: List[Dict],
 ) -> pd.DataFrame:
     """
