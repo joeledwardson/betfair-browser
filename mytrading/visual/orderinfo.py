@@ -6,6 +6,7 @@ from ..tradetracker.messages import format_message
 # must import all strategy message processors
 from ..strategies.scalp.messages import WallMessageTypes
 from ..strategies.window.messages import WindowMessageTypes
+from ..strategies.trend.messages import TrendMessageTypes
 
 
 active_logger = logging.getLogger(__name__)
