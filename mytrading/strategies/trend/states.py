@@ -80,7 +80,7 @@ class TrendTradeStateIdle(tradestates.TradeStateIdle):
                 dt=dt,
                 msg_attrs={
                     'trend_data': trend_data.__dict__,
-                    'criteria': self.criteria.__dict__,
+                    'trend_criteria': self.criteria.__dict__,
                     'direction_up': trade_tracker.direction_up,
                 },
                 display_odds=trend_data.smoothed_ltp

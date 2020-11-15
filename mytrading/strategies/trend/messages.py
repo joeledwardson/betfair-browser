@@ -47,8 +47,9 @@ def formatter(attrs: Dict) -> str:
         ])
 
     except Exception:
-        return f'sucessful trend: could not process trend data from kwargs {trend_data_kwargs} or criteria from ' \
-               f'kwargs {trend_criteria_kwargs}'
+        return f'sucessful trend: could not process trend/criteria for "TREND_MSG_START" message, attrs passed: ' \
+               f'{list(attrs.keys())}'
+
 
 
 @register_formatter(TrendMessageTypes.TREND_MSG_REVERSE)
