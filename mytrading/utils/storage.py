@@ -92,6 +92,18 @@ def _construct_hist_dir(event_type_id, event_dt: datetime, event_id, market_id) 
     )
 
 
+def construct_hist_dir_cat(catalogue: MarketCatalogue) -> str:
+    """
+    get path conforming to betfair historical data standards for a given market catalogue
+    """
+    event_type_id = catalogue.event_type.id
+    market_id = catalogue.market_id
+    event_id = catalogue.event.id
+    event_dt = catalogue.market_start_time
+
+    return _construct_hist_dir(event_type_id, event_dt, event_id, market_id)
+
+
 def construct_hist_dir(market_book: MarketBook) -> str:
     """
     get path conforming to betfair historical data standards for a given market book
