@@ -146,12 +146,23 @@ def get_trend_plot_configs(tv_bar_width_ms, tv_opacity):
         },
 
         'ltp smoothed': {
+            'chart_args': {
+                'mode': 'lines+markers',
+                'line_color': 'black',
+                'marker': {
+                    'colorscale': [
+                        [0, 'rgb(255,255,0)'],
+                        [1, 'rgb(0,0,255)']
+                    ],  # use red to green scale
+                    'cmid': 0,
+                },
+            },
             'value_processors': [{
                 'name': 'plotly_set_attrs',
                 'kwargs': {
                     'attr_configs': [{
                         'feature_name': 'ltp smoothed.regression',
-                        'attr_names': ['text'],
+                        'attr_names': ['text', 'marker_color'],
                     }],
                 }
             }, {
@@ -159,6 +170,12 @@ def get_trend_plot_configs(tv_bar_width_ms, tv_opacity):
                 'kwargs': {
                     'formatter_name': 'formatter_regression',
                     'df_column': 'text',
+                }
+            }, {
+                'name': 'plotly_df_formatter',
+                'kwargs': {
+                    'formatter_name': 'formatter_regression_color',
+                    'df_column': 'marker_color',
                 }
             }, {
                 'name': 'plotly_df_to_data',
@@ -166,12 +183,23 @@ def get_trend_plot_configs(tv_bar_width_ms, tv_opacity):
         },
 
         'best lay smoothed': {
+            'chart_args': {
+                'mode': 'lines+markers',
+                'line_color': 'black',
+                'marker': {
+                    'colorscale': [
+                        [0, 'rgb(255,0,0)'],
+                        [1, 'rgb(0,255,0)']
+                    ],  # use red to green scale
+                    'cmid': 0,
+                },
+            },
             'value_processors': [{
                 'name': 'plotly_set_attrs',
                 'kwargs': {
                     'attr_configs': [{
                         'feature_name': 'best lay smoothed.regression',
-                        'attr_names': ['text'],
+                        'attr_names': ['text', 'marker_color'],
                     }],
                 }
             }, {
@@ -179,6 +207,12 @@ def get_trend_plot_configs(tv_bar_width_ms, tv_opacity):
                 'kwargs': {
                     'formatter_name': 'formatter_regression',
                     'df_column': 'text',
+                }
+            }, {
+                'name': 'plotly_df_formatter',
+                'kwargs': {
+                    'formatter_name': 'formatter_regression_color',
+                    'df_column': 'marker_color',
                 }
             }, {
                 'name': 'plotly_df_to_data',
@@ -186,12 +220,23 @@ def get_trend_plot_configs(tv_bar_width_ms, tv_opacity):
         },
 
         'best back smoothed': {
+            'chart_args': {
+                'mode': 'lines+markers',
+                'line_color': 'black',
+                'marker': {
+                    'colorscale': [
+                        [0, 'rgb(255,0,0)'],
+                        [1, 'rgb(0,255,0)']
+                    ],  # use red to green scale
+                    'cmid': 0,
+                },
+            },
             'value_processors': [{
                 'name': 'plotly_set_attrs',
                 'kwargs': {
                     'attr_configs': [{
                         'feature_name': 'best back smoothed.regression',
-                        'attr_names': ['text'],
+                        'attr_names': ['text', 'marker_color'],
                     }],
                 }
             }, {
@@ -199,6 +244,12 @@ def get_trend_plot_configs(tv_bar_width_ms, tv_opacity):
                 'kwargs': {
                     'formatter_name': 'formatter_regression',
                     'df_column': 'text',
+                }
+            },{
+                'name': 'plotly_df_formatter',
+                'kwargs': {
+                    'formatter_name': 'formatter_regression_color',
+                    'df_column': 'marker_color',
                 }
             },{
                 'name': 'plotly_df_to_data',

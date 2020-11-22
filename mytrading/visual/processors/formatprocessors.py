@@ -58,6 +58,26 @@ def formatter_regression(value, rsqaured_dp=0, gradient_dp=2) -> str:
 
 
 @register_format_processor
+def formatter_regression_color(value) -> str:
+    """
+    format regression dictionary but producing a value based on its rsquared * gradient
+    ----------
+    value :
+    name :
+
+    Returns
+    -------
+
+    """
+    if type(value) is dict:
+        rsquared = value.get('rsquared', 0)
+        gradient = value.get('gradient', 0)
+        return rsquared * gradient
+    else:
+        return 0
+
+
+@register_format_processor
 def formatter_pricesize(value):
     """
     convert a list of price sizes to a html friendly display string
