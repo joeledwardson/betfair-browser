@@ -1,5 +1,6 @@
 from enum import Enum
 from typing import List, Dict, Union
+from datetime import datetime, timedelta
 
 from betfairlightweight.resources import MarketBook
 from flumine import BaseStrategy
@@ -11,6 +12,7 @@ from flumine.order.trade import Trade
 from ..process.matchbet import get_match_bet_sums
 from ..process.profit import order_profit
 from ..process.side import select_ladder_side, select_operator_side, invert_side
+from ..process.ticks.ticks import closest_tick, LTICKS_DECODED
 from ..tradetracker.tradetracker import TradeTracker
 from ..tradetracker.messages import MessageTypes
 from myutils import statemachine as stm
@@ -493,31 +495,6 @@ class TradeStateHedgePlaceBase(TradeStateBase):
         return [TradeStateTypes.PENDING, self.next_state]
 
 
-class TradeStateHedgePlaceTake(TradeStateHedgePlaceBase):
-    """
-    place an order to hedge active trade orders at the available price
-    """
-
-    def get_hedge_price(
-            self,
-            open_ladder: List[Dict],
-            close_ladder: List[Dict],
-            close_side,
-            trade_tracker: TradeTracker,
-            market_book: MarketBook,
-            market: Market,
-            runner_index: int,
-            strategy: BaseStrategy,
-            **inputs
-    ):
-        """
-        take best available price
-        e.g. if trade was opened as a back (the 'open_side') argument, then take lowest lay price available (the
-        'close_side')
-        """
-        return close_ladder[0]['price'] if close_ladder else 0
-
-
 class TradeStateHedgeWaitBase(TradeStateBase):
     """
     base class for waiting for hedge trade to match
@@ -628,6 +605,31 @@ class TradeStateHedgeWaitBase(TradeStateBase):
             ]
 
 
+class TradeStateHedgePlaceTake(TradeStateHedgePlaceBase):
+    """
+    place an order to hedge active trade orders at the available price
+    """
+
+    def get_hedge_price(
+            self,
+            open_ladder: List[Dict],
+            close_ladder: List[Dict],
+            close_side,
+            trade_tracker: TradeTracker,
+            market_book: MarketBook,
+            market: Market,
+            runner_index: int,
+            strategy: BaseStrategy,
+            **inputs
+    ):
+        """
+        take best available price
+        e.g. if trade was opened as a back (the 'open_side') argument, then take lowest lay price available (the
+        'close_side')
+        """
+        return close_ladder[0]['price'] if close_ladder else 0
+
+
 class TradeStateHedgeWaitTake(TradeStateHedgeWaitBase):
     """
     sees if available price on ladder has moved since placement
@@ -668,6 +670,119 @@ class TradeStateHedgeWaitTake(TradeStateHedgeWaitBase):
             return new_price
         else:
             return 0
+
+
+class TradeStateHedgePlaceQueue(TradeStateHedgePlaceBase):
+    """
+    Queue a hedge order at best price available on opposite side of the book
+    e.g. if hedging on back side, best back is 4.1 and best lay is 4.5 then queue back order at 4.5
+
+    Can specify tick offset for queue, e.g. for 1 tick offset and the example above then would queue back order at 4.4
+    """
+    def __init__(self, tick_offset=0, **kwargs):
+        super().__init__(**kwargs)
+        self.tick_offset = tick_offset
+
+    def get_hedge_price(
+            self,
+            open_ladder: List[Dict],
+            close_ladder: List[Dict],
+            close_side,
+            trade_tracker: TradeTracker,
+            market_book: MarketBook,
+            market: Market,
+            runner_index: int,
+            strategy: BaseStrategy,
+            **inputs
+    ):
+        if not open_ladder:
+            return 0
+
+        price = open_ladder[0]['price']
+        if self.tick_offset:
+            return price
+
+        index = closest_tick(price, return_index=True)
+        if close_side == 'BACK':
+            index = min(index + self.tick_offset, len(LTICKS_DECODED) - 1)
+        else:
+            index = max(index - self.tick_offset, 0)
+        return LTICKS_DECODED[index]
+
+
+class TradeStateHedgeWaitQueue(TradeStateHedgeWaitBase):
+    """
+    Wait for queued hedge to match, if price moves for given period of time then chase
+    """
+
+    def __init__(self, hold_time_ms: int, **kwargs):
+        super().__init__(**kwargs)
+        self.hold_time_ms = hold_time_ms
+        self.reset_time: datetime = datetime.now()
+        self.moving = False
+        self.original_price = 0
+
+    def enter(
+            self,
+            market_book: MarketBook,
+            market: Market,
+            runner_index: int,
+            trade_tracker: TradeTracker,
+            strategy: BaseStrategy,
+            **inputs
+    ):
+        self.reset_time = market_book.publish_time
+        self.moving = False
+        self.original_price = 0
+
+    def price_moved(
+            self,
+            market_book: MarketBook,
+            market: Market,
+            runner_index: int,
+            trade_tracker: TradeTracker,
+            strategy: BaseStrategy,
+            **inputs
+    ) -> float:
+
+        # check active order exists
+        order = trade_tracker.active_order
+        if not order:
+            return 0
+
+        # get ladder on open side for hedging
+        available = select_ladder_side(
+            market_book.runners[runner_index].ex,
+            invert_side(order.side)
+        )
+
+        # get operator for comparing available price and current hedge price (
+        op = select_operator_side(
+            order.side,
+            invert=True
+        )
+
+        # check not empty
+        if not available:
+            return 0
+
+        # get available price
+        new_price = available[0]['price']
+
+        if not self.moving:
+            if op(new_price, order.order_type.price):
+                self.moving = True
+                self.reset_time = market_book.publish_time
+                self.original_price = order.order_type.price
+        else:
+            if op(new_price, self.original_price):
+                if (market_book.publish_time - self.reset_time) > timedelta(milliseconds=self.hold_time_ms):
+                    return new_price
+            else:
+                self.moving = False
+
+        # price not moved
+        return 0
 
 
 class TradeStateClean(TradeStateBase):
