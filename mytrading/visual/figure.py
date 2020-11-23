@@ -279,9 +279,27 @@ def set_figure_layout(fig: go.Figure, title: str, chart_start: datetime, chart_e
     set plotly figure layout with a title, limit x axis from start time minus display seconds
     """
 
+    # verify trace
+    def trace_verify(trace):
+        return (
+            'y' in trace and
+            'yaxis' in trace,
+            trace['yaxis'] == 'y' and
+            len(trace['y']) and
+            generic.constructor_verify(trace['y'][0], float)
+        )
+
     # get primary yaxis maximum and minimum values by getting max/min of each trace
-    y_min = min([min(trace['y']) for trace in fig.data if 'y' in trace and 'yaxis' in trace and trace['yaxis']=='y'])
-    y_max = max([max(trace['y']) for trace in fig.data if 'y' in trace and 'yaxis' in trace and trace['yaxis']=='y'])
+    y_min = min([
+        min(trace['y'])
+        for trace in fig.data
+        if trace_verify(trace)
+    ])
+    y_max = max([
+        max(trace['y'])
+        for trace in fig.data
+        if trace_verify(trace)
+    ])
 
     # get index of minimum yaxis value, subtract 1 for display buffer
     i_min = closest_tick(y_min, return_index=True)
