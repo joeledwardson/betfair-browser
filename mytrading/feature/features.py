@@ -10,6 +10,7 @@ from datetime import datetime, timedelta
 import logging
 from ..process.prices import best_price
 from ..process.tradedvolume import traded_runner_vol
+from ..process.ticks.ticks import tick_spread, LTICKS_DECODED
 from .window import Windows
 
 
@@ -482,6 +483,27 @@ class RunnerFeatureBestLay(RunnerFeatureBase):
             runner_index):
 
         return best_price(new_book.runners[runner_index].ex.available_to_lay)
+
+
+@register_feature
+class RunnerFeatureLadderSpread(RunnerFeatureBase):
+    """
+    tick spread between best lay and best back - defaults to 1000 if cannot find best back or lay
+    """
+    def runner_update(
+            self,
+            market_list: List[MarketBook],
+            new_book: MarketBook,
+            windows: Windows,
+            runner_index):
+
+        best_lay = best_price(new_book.runners[runner_index].ex.available_to_lay)
+        best_back = best_price(new_book.runners[runner_index].ex.available_to_back)
+
+        if best_lay and best_back:
+            return tick_spread(best_back, best_lay, check_values=False)
+        else:
+            return len(LTICKS_DECODED)
 
 
 @register_feature
