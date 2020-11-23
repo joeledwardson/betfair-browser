@@ -166,3 +166,12 @@ def closest_value(array, value, return_index=False):
     else:
         # return value from reversed array
         return array[index]
+
+
+def constructor_verify(value, object_type) -> bool:
+    """Returns True if can create object from type"""
+    try:
+        object_type(value)
+        return True
+    except ValueError:
+        return False
