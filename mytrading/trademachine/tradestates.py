@@ -111,12 +111,16 @@ class TradeStatePending(TradeStateBase):
     """
     intermediary state for waiting for trade to process
     intermediary state: run() returns True when complete
+
+    Specifying `all_trade_orders=True` means all orders within active trade are checked, rather than just the active
+    order
     """
 
     name = TradeStateTypes.PENDING
 
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
+    def __init__(self, all_trade_orders=False, **kwargs):
+        super().__init__(**kwargs)
+        self.all_trade_orders = all_trade_orders
         self.first_call = True
 
     def enter(self, **inputs):
@@ -125,16 +129,30 @@ class TradeStatePending(TradeStateBase):
     # called to operate state - return None to remain in same state, or return string for new state
     def run(self, trade_tracker: TradeTracker, **inputs):
 
-        # check order exists
-        if trade_tracker.active_order is None:
-            return True
+        # hold for 1 state
+        if self.first_call:
+            self.first_call = False
+            return False
 
-        if trade_tracker.active_order.status not in order_pending_states:
-            # wait 1 cycle before exiting state
-            if not self.first_call:
-                return True
+        # select either active order or all active trade orders
+        if not self.all_trade_orders:
+            orders = [trade_tracker.active_order]
+        else:
+            orders = trade_tracker.active_trade.orders if trade_tracker.active_trade else []
 
-        self.first_call = False
+        # loop orders
+        for order in orders:
+
+            # ignore, go to next order if doesn't exist
+            if trade_tracker.active_order is None:
+                continue
+
+            # if order in pending states then not done yet, don't exit state
+            if order.status in order_pending_states:
+                return False
+
+        # exit state if all order(s) not pending
+        return True
 
 
 class TradeStateCreateTrade(TradeStateBase):
