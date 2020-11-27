@@ -15,7 +15,7 @@ from ...process.side import select_ladder_side
 from ...process.ticks.ticks import closest_tick
 from ...tradetracker.messages import MessageTypes
 from ...trademachine.tradestates import TradeStateTypes
-from ...process.ticks.ticks import tick_spread
+from ...process.ticks.ticks import tick_spread, LTICKS_DECODED
 from ...trademachine import tradestates
 from .tradetracker import SpikeTradeTracker
 from .datatypes import SpikeData
@@ -40,13 +40,11 @@ def bound_bottom(sd: SpikeData):
 class SpikeTradeStateIdle(tradestates.TradeStateIdle):
     def __init__(
             self,
-            tick_offset: int,
             window_spread_min: int,
             ladder_spread_max: int,
             **kwargs
     ):
         super().__init__(**kwargs)
-        self.tick_offset = tick_offset
         self.window_spread_min = window_spread_min
         self.ladder_spread_max = ladder_spread_max
 
@@ -85,20 +83,16 @@ class SpikeTradeStateMonitorWindows(tradestates.TradeStateBase):
     place opening back/lay orders on entering, change if price moves and cancel & move to hedging if any of either
     trade is matched
     """
+    def __init__(self, tick_offset: int, stake_size: float, **kwargs):
+        super().__init__(**kwargs)
+        self.tick_offset = tick_offset
+        self.stake_size = stake_size
+        self.entering = False
 
-
-    def enter(
-            self,
-            market_book: MarketBook,
-            market: Market,
-            runner_index: int,
-            trade_tracker: TradeTracker,
-            strategy: BaseStrategy,
-            first_runner: bool,
-            spike_data: SpikeData,
-            **inputs
-    ):
-
+    def enter(self, trade_tracker: SpikeTradeTracker, **inputs):
+        self.entering = True
+        trade_tracker.back_order = None
+        trade_tracker.lay_order = None
 
     def run(
             self,
@@ -120,23 +114,49 @@ class SpikeTradeStateMonitorWindows(tradestates.TradeStateBase):
         ):
             ERROR
 
-
-        if trade_tracker.back_order.size_matched > 0 or trade_tracker.lay_order.size_matched > 0:
-            trade_tracker.back_order.cancel(trade_tracker.back_order.size_remaining)
-            trade_tracker.lay_order.cancel(trade_tracker.lay_order.size_remaining)
-            # MOVE TO NEXT STATE
+        if trade_tracker.back_order and trade_tracker.lay_order:
+            if trade_tracker.back_order.size_matched > 0 or trade_tracker.lay_order.size_matched > 0:
+                trade_tracker.back_order.cancel(trade_tracker.back_order.size_remaining)
+                trade_tracker.lay_order.cancel(trade_tracker.lay_order.size_remaining)
+                # MOVE TO NEXT STATE
 
         top_value = bound_top(spike_data)
         top_tick = closest_tick(top_value, return_index=True)
+        top_tick = min(len(LTICKS_DECODED), top_tick + self.tick_offset)
+        top_value = LTICKS_DECODED[top_tick]
+
         bottom_value = bound_bottom(spike_data)
         bottom_tick = closest_tick(bottom_value, return_index=True)
+        bottom_tick = max(0, bottom_tick - self.tick_offset)
+        bottom_value = LTICKS_DECODED[bottom_tick]
+
+        if self.entering:
+            trade_tracker.back_order = trade_tracker.active_trade.create_order(
+                side='BACK',
+                order_type=LimitOrder(
+                    price=top_value,
+                    size=self.stake_size
+                )
+            )
+            trade_tracker.lay_order = trade_tracker.active_trade.create_order(
+                side='LAY',
+                order_type=LimitOrder(
+                    price=bottom_value,
+                    size=self.stake_size,
+                )
+            )
+
+            strategy.place_order(market, trade_tracker.back_order)
+            strategy.place_order(market, trade_tracker.lay_order)
+            self.entering = False
+
+        else:
+            # TODO can remove back_price from tradetracker?
+            if top_value != trade_tracker.back_order.order_type.price:
+                trade_tracker.back_order.replace(top_value)
+            if bottom_value != trade_tracker.lay_order.order_type.price:
+                trade_tracker.lay_order.replace(bottom_value)
 
 
-
-        if trade_tracker.back_order
-
-
-
-        trade_tracker.back_order
 
 
