@@ -152,8 +152,10 @@ class SpikeTradeStateMonitorWindows(tradestates.TradeStateBase):
 
         if trade_tracker.back_order and trade_tracker.lay_order:
             if trade_tracker.back_order.size_matched > 0 or trade_tracker.lay_order.size_matched > 0:
-                trade_tracker.back_order.cancel(trade_tracker.back_order.size_remaining)
-                trade_tracker.lay_order.cancel(trade_tracker.lay_order.size_remaining)
+                if trade_tracker.back_order.status == OrderStatus.EXECUTABLE:
+                    trade_tracker.back_order.cancel(trade_tracker.back_order.size_remaining)
+                if trade_tracker.lay_order.status == OrderStatus.EXECUTABLE:
+                    trade_tracker.lay_order.cancel(trade_tracker.lay_order.size_remaining)
                 return self.next_state
 
         top_value = bound_top(spike_data)
