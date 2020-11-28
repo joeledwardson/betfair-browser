@@ -37,6 +37,7 @@ class MySpikeStrategy(MyFeatureStrategy):
             window_spread_min: int,
             ladder_spread_max: int,
             tick_offset: int,
+            spike_wait_ms: int,
             hedge_tick_offset: int,
             hedge_hold_ms: int,
             features_kwargs: dict,
@@ -49,6 +50,7 @@ class MySpikeStrategy(MyFeatureStrategy):
         self.window_spread_min = window_spread_min
         self.ladder_spread_max = ladder_spread_max
         self.tick_offset = tick_offset
+        self.spike_wait_ms = spike_wait_ms
         self.hedge_tick_offset = hedge_tick_offset
         self.hedge_hold_ms = hedge_hold_ms
 
@@ -79,6 +81,7 @@ class MySpikeStrategy(MyFeatureStrategy):
                         stake_size=self.stake_size,
                         name=spikestates.SpikeStateTypes.SPIKE_STATE_MONITOR,
                         next_state=[
+                            basestates.TradeStateTypes.WAIT,
                             basestates.TradeStateTypes.PENDING,
                             basestates.TradeStateTypes.HEDGE_SELECT
                         ]
@@ -103,7 +106,10 @@ class MySpikeStrategy(MyFeatureStrategy):
                     basestates.TradeStatePending(
                         all_trade_orders=True,
                     ),
-                    basestates.TradeStateClean()
+                    basestates.TradeStateClean(),
+                    basestates.TradeStateWait(
+                        wait_ms=self.spike_wait_ms
+                    ),
                 ]
             },
             initial_state=basestates.TradeStateCreateTrade.name,
