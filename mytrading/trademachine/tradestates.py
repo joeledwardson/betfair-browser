@@ -146,7 +146,7 @@ class TradeStatePending(TradeStateBase):
         for order in orders:
 
             # ignore, go to next order if doesn't exist
-            if trade_tracker.active_order is None:
+            if order is None:
                 continue
 
             # if order in pending states then not done yet, don't exit state
@@ -338,32 +338,41 @@ class TradeStateBin(TradeStateBase):
 
     name = TradeStateTypes.BIN
 
+    def __init__(self, all_trade_orders=False, **kwargs):
+        super().__init__(**kwargs)
+        self.all_trade_orders = all_trade_orders
+
     def run(
             self,
             trade_tracker: TradeTracker,
             **inputs
     ):
-        # check if order exists
-        if trade_tracker.active_order is None:
-            return True
 
-        # get order status
-        sts = trade_tracker.active_order.status
-
-        if sts in [OrderStatus.PENDING, OrderStatus.UPDATING, OrderStatus.REPLACING]:
-            # still pending
-            return None
-
-        elif sts == OrderStatus.EXECUTABLE:
-            # partial match, cancel() checks for EXECUTABLE state when this when called
-            # cancel active order
-            trade_tracker.active_order.cancel(trade_tracker.active_order.size_remaining)
-            # can immediately exit state as hopefully user has put pending state next to wait 1 cycle
-            return True
-
+        # select either active order or all active trade orders
+        if not self.all_trade_orders:
+            orders = [trade_tracker.active_order]
         else:
-            # order complete/failed, can exit
-            return True
+            orders = trade_tracker.active_trade.orders if trade_tracker.active_trade else []
+
+        done = True
+
+        # loop orders
+        for order in orders:
+
+            # ignore, go to next order if doesn't exist
+            if order is None:
+                continue
+
+            # if order in pending states then not done yet, don't exit state
+            if order.status in order_pending_states:
+                done = False
+
+            elif order.status == OrderStatus.EXECUTABLE:
+                # partial match, cancel() checks for EXECUTABLE state when this when called
+                # cancel active order
+                order.cancel(order.size_remaining)
+
+        return done
 
 
 class TradeStateHedgeSelect(TradeStateBase):
@@ -556,7 +565,7 @@ class TradeStateHedgeWaitBase(TradeStateBase):
             )
 
             # try to hedge again
-            return TradeStateTypes.HEDGE_PLACE_TAKE
+            return TradeStateTypes.HEDGE_SELECT
 
         elif order.status == OrderStatus.EXECUTION_COMPLETE:
 
@@ -566,7 +575,7 @@ class TradeStateHedgeWaitBase(TradeStateBase):
         elif order.status == OrderStatus.CANCELLING:
 
             # hedge cancelling, try again
-            return TradeStateTypes.HEDGE_PLACE_TAKE
+            return TradeStateTypes.HEDGE_SELECT
 
         elif order.status == OrderStatus.EXECUTABLE:
 
@@ -597,7 +606,7 @@ class TradeStateHedgeWaitBase(TradeStateBase):
                 return [
                     TradeStateTypes.BIN,
                     TradeStateTypes.PENDING,
-                    TradeStateTypes.HEDGE_PLACE_TAKE
+                    TradeStateTypes.HEDGE_SELECT
                 ]
                 # replacing doesn't seem to work in back-test mode
                 # order.replace(available[0]['price'])
@@ -615,7 +624,7 @@ class TradeStateHedgeWaitBase(TradeStateBase):
             return [
                 TradeStateTypes.BIN,
                 TradeStateTypes.PENDING,
-                TradeStateTypes.HEDGE_PLACE_TAKE
+                TradeStateTypes.HEDGE_SELECT
             ]
 
 
