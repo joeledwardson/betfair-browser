@@ -57,26 +57,35 @@ class StateMachine:
                 # list returned, add all to queue
                 for s in ret:
                     self.state_queue.put(s)
+                self.current_state_key = self.state_queue.get()
 
-            elif ret is not True and ret is not None:
+            elif ret is None or ret is False or ret == self.current_state_key:
+                # no value returned or same state returned, same state
+                # TODO - new state if same state value returned?
+                self.current_state_key = self.previous_state_key
+
+            elif isinstance(ret, Enum):
                 # True means go to next state, None means use existing, otherwise single state value has been
                 # returned so add to queue
                 self.state_queue.put(ret)
+                self.current_state_key = self.state_queue.get()
 
-            if ret is None or ret == self.current_state_key:
-                # no value returned or same state returned, same state
-                self.current_state_key = self.previous_state_key
+            elif ret is True:
 
-            else:
                 # returned value implies state change (True, list of states, or single new state)
                 if not self.state_queue.qsize():
                     # state has returned true when nothing in queue! (this shouldn't happen)
-                    active_logger.warning('queue has no size')
+                    active_logger.critical('queue has no size')
                     self.current_state_key = self.previous_state_key
 
                 else:
                     # get next state from queue
                     self.current_state_key = self.state_queue.get()
+
+            else:
+
+                # unrecognized return type
+                raise Exception(f'return value "{ret}" in state machine not recognised')
 
             self.is_state_change = self.previous_state_key != self.current_state_key
 
