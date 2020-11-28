@@ -50,6 +50,7 @@ class TradeStateTypes(Enum):
     HEDGE_QUEUE_MATCHING =  'wait for queue hedge to finish'
     CLEANING =              'cleaning trade'
     PENDING =               'pending state'
+    WAIT =                  'wait for a set number of milliseconds'
 
 
 class TradeStateBase(stm.State):
@@ -109,6 +110,7 @@ class TradeStateBase(stm.State):
         return f'Trade state: {self.name}'
 
 
+# intermediary states
 class TradeStatePending(TradeStateBase):
     """
     intermediary state for waiting for trade to process
@@ -157,6 +159,72 @@ class TradeStatePending(TradeStateBase):
         return True
 
 
+class TradeStateBin(TradeStateBase):
+
+    """
+    intermediary state waits for active order to finish pending (if exist) and cancel it
+    intermediary state: run() returns True when complete
+    """
+
+    name = TradeStateTypes.BIN
+
+    def __init__(self, all_trade_orders=False, **kwargs):
+        super().__init__(**kwargs)
+        self.all_trade_orders = all_trade_orders
+
+    def run(
+            self,
+            trade_tracker: TradeTracker,
+            **inputs
+    ):
+
+        # select either active order or all active trade orders
+        if not self.all_trade_orders:
+            orders = [trade_tracker.active_order]
+        else:
+            orders = trade_tracker.active_trade.orders if trade_tracker.active_trade else []
+
+        done = True
+
+        # loop orders
+        for order in orders:
+
+            # ignore, go to next order if doesn't exist
+            if order is None:
+                continue
+
+            # if order in pending states then not done yet, don't exit state
+            if order.status in order_pending_states:
+                done = False
+
+            elif order.status == OrderStatus.EXECUTABLE:
+                # partial match, cancel() checks for EXECUTABLE state when this when called
+                # cancel active order
+                order.cancel(order.size_remaining)
+
+        return done
+
+
+class TradeStateWait(TradeStateBase):
+    """
+    intermediary state that waits for a designates number of milliseconds before continuing
+    """
+    name = TradeStateTypes.WAIT
+
+    def __init__(self, wait_ms, **kwargs):
+        super().__init__(**kwargs)
+        self.wait_ms = wait_ms
+        self.td = timedelta(milliseconds=wait_ms)
+        self.start_time = datetime.now()
+
+    def enter(self, market_book: MarketBook, **inputs):
+        self.start_time = market_book.publish_time
+
+    def run(self, market_book: MarketBook, **inputs):
+        return (market_book.publish_time - self.start_time) >= self.td
+
+
+# core states
 class TradeStateCreateTrade(TradeStateBase):
     """
     Create trade instance and move to next state
@@ -327,52 +395,6 @@ class TradeStateOpenMatching(TradeStateBase):
                     dt=market_book.publish_time
                 )
                 return self.next_state
-
-
-class TradeStateBin(TradeStateBase):
-
-    """
-    intermediary state waits for active order to finish pending (if exist) and cancel it
-    intermediary state: run() returns True when complete
-    """
-
-    name = TradeStateTypes.BIN
-
-    def __init__(self, all_trade_orders=False, **kwargs):
-        super().__init__(**kwargs)
-        self.all_trade_orders = all_trade_orders
-
-    def run(
-            self,
-            trade_tracker: TradeTracker,
-            **inputs
-    ):
-
-        # select either active order or all active trade orders
-        if not self.all_trade_orders:
-            orders = [trade_tracker.active_order]
-        else:
-            orders = trade_tracker.active_trade.orders if trade_tracker.active_trade else []
-
-        done = True
-
-        # loop orders
-        for order in orders:
-
-            # ignore, go to next order if doesn't exist
-            if order is None:
-                continue
-
-            # if order in pending states then not done yet, don't exit state
-            if order.status in order_pending_states:
-                done = False
-
-            elif order.status == OrderStatus.EXECUTABLE:
-                # partial match, cancel() checks for EXECUTABLE state when this when called
-                # cancel active order
-                order.cancel(order.size_remaining)
-
-        return done
 
 
 class TradeStateHedgeSelect(TradeStateBase):
