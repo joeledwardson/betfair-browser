@@ -37,17 +37,19 @@ class TradeStateTypes(Enum):
     Enumeration of trade state keys used for names in state instances
     """
 
-    BASE =              'unimplemented'
-    CREATE_TRADE =      'create trade'
-    IDLE =              'unplaced'
-    OPEN_PLACING =      'placing opening trade'
-    OPEN_MATCHING =     'waiting for opening trade to match'
-    BIN =               'bottling trade'
-    HEDGE_SELECT =      'selecting type of hedge'
-    HEDGE_PLACE_TAKE =  'place hedge trade at available price'
-    HEDGE_TAKE_MATCHING='waiting for hedge to match at available price'
-    CLEANING =          'cleaning trade'
-    PENDING =           'pending state'
+    BASE =                  'unimplemented'
+    CREATE_TRADE =          'create trade'
+    IDLE =                  'unplaced'
+    OPEN_PLACING =          'placing opening trade'
+    OPEN_MATCHING =         'waiting for opening trade to match'
+    BIN =                   'bottling trade'
+    HEDGE_SELECT =          'selecting type of hedge'
+    HEDGE_TAKE_PLACE =      'place hedge trade at available price'
+    HEDGE_TAKE_MATCHING =   'waiting for hedge to match at available price'
+    HEDGE_QUEUE_PLACE =     'queue hedge trade'
+    HEDGE_QUEUE_MATCHING =  'wait for queue hedge to finish'
+    CLEANING =              'cleaning trade'
+    PENDING =               'pending state'
 
 
 class TradeStateBase(stm.State):
@@ -370,7 +372,7 @@ class TradeStateHedgeSelect(TradeStateBase):
     proceed to 'hedge_state' if found in `inputs` kwargs in run()
     """
     name = TradeStateTypes.HEDGE_SELECT
-    next_state = TradeStateTypes.HEDGE_PLACE_TAKE
+    next_state = TradeStateTypes.HEDGE_TAKE_PLACE
 
     def run(self, **inputs):
         return inputs.get('hedge_state', self.next_state)
@@ -383,9 +385,6 @@ class TradeStateHedgePlaceBase(TradeStateBase):
     - check that ladder back/lay is available and that unimplemented method get_hedge_price() doesn't return 0 before
     - placing trade
     """
-
-    name = TradeStateTypes.HEDGE_PLACE_TAKE
-    next_state = TradeStateTypes.HEDGE_TAKE_MATCHING
 
     def __init__(self, min_hedge_price, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -519,9 +518,6 @@ class TradeStateHedgeWaitBase(TradeStateBase):
     price_moved() provides unimplemented method to detect whether price has moved and need to move hedging price
     """
 
-    name = TradeStateTypes.HEDGE_TAKE_MATCHING
-    next_state = TradeStateTypes.CLEANING
-
     def price_moved(
             self,
             market_book: MarketBook,
@@ -628,6 +624,9 @@ class TradeStateHedgePlaceTake(TradeStateHedgePlaceBase):
     place an order to hedge active trade orders at the available price
     """
 
+    name = TradeStateTypes.HEDGE_TAKE_PLACE
+    next_state = TradeStateTypes.HEDGE_TAKE_MATCHING
+
     def get_hedge_price(
             self,
             open_ladder: List[Dict],
@@ -652,6 +651,9 @@ class TradeStateHedgeWaitTake(TradeStateHedgeWaitBase):
     """
     sees if available price on ladder has moved since placement
     """
+
+    name = TradeStateTypes.HEDGE_TAKE_MATCHING
+    next_state = TradeStateTypes.CLEANING
 
     def price_moved(
             self,
@@ -697,6 +699,10 @@ class TradeStateHedgePlaceQueue(TradeStateHedgePlaceBase):
 
     Can specify tick offset for queue, e.g. for 1 tick offset and the example above then would queue back order at 4.4
     """
+
+    name = TradeStateTypes.HEDGE_QUEUE_PLACE
+    next_state = TradeStateTypes.HEDGE_QUEUE_MATCHING
+
     def __init__(self, tick_offset=0, **kwargs):
         super().__init__(**kwargs)
         self.tick_offset = tick_offset
@@ -732,6 +738,9 @@ class TradeStateHedgeWaitQueue(TradeStateHedgeWaitBase):
     """
     Wait for queued hedge to match, if price moves for given period of time then chase
     """
+
+    name = TradeStateTypes.HEDGE_QUEUE_MATCHING
+    next_state = TradeStateTypes.CLEANING
 
     def __init__(self, hold_time_ms: int, **kwargs):
         super().__init__(**kwargs)
