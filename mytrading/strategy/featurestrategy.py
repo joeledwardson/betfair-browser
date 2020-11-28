@@ -44,7 +44,7 @@ class MyFeatureStrategy(MyBaseStrategy):
     force_hedge_states = [
         TradeStateTypes.BIN,
         TradeStateTypes.PENDING,
-        TradeStateTypes.HEDGE_PLACE_TAKE
+        TradeStateTypes.HEDGE_TAKE_PLACE
     ]
 
     def __init__(
