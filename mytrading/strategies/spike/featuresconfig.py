@@ -1,32 +1,7 @@
 from typing import Dict
 
 
-# create kwargs for sampling and moving average
-def smoothing_kwargs(
-        sampling_ms,
-        sampling_count,
-        regression_count,
-):
-    return {
-        'periodic_ms': sampling_ms,
-        'periodic_timestamps': True,
-        'value_processor': 'value_processor_moving_average',
-        'value_processor_args': {
-            'n_entries': sampling_count
-        },
-        'sub_features_config': {
-            'regression': {
-                'name': 'RunnerFeatureSubRegression',
-                'kwargs': {
-                    'element_count': regression_count,
-                    'regression_preprocessor': 'value_processor_invert',
-                },
-            }
-        }
-    }
-
-
-def get_trend_feature_configs(
+def get_spike_feature_configs(
         n_ladder_elements,
         n_wom_ticks,
         ltp_window_width_s,
@@ -112,7 +87,7 @@ def get_trend_feature_configs(
             'name': 'RunnerFeatureLadderSpread',
             'kwargs': {
                 'periodic_ms': spread_sampling_ms,
-                'period_timestamps': True,
+                'periodic_timestamps': True,
                 'value_processor': 'value_processor_moving_average',
                 'value_processor_args': {
                     'n_entries': spread_sampling_count
