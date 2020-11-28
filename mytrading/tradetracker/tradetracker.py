@@ -103,7 +103,7 @@ class TradeTracker:
 
                     msg = ''
                     if order.status == OrderStatus.VIOLATION:
-                        msg = order.violation_msg
+                        msg = order.violation_msg or ''
 
                     self.log_update(
                         msg_type=MessageTypes.MSG_STATUS_UPDATE,
