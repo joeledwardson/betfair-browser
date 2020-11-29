@@ -26,8 +26,7 @@ def features_to_file(file_path: str, features: Dict[str, RunnerFeatureBase]):
     makedirs(dir_path, exist_ok=True)
 
     # get feature data into dictionary
-    data = {}
-    get_feature_data(data, features, pre_serialize=True)
+    data = get_feature_data(features, pre_serialize=True)
 
     # write to file, overwriting if already exist
     add_to_file(file_path, data, mode='w')

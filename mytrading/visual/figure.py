@@ -234,8 +234,7 @@ def generate_feature_plot(
     hist_runner_features(selection_id, hist_records, windows, features)
 
     # get feature data from feature set
-    all_features_data = {}
-    get_feature_data(all_features_data, features, pre_serialize=False)
+    all_features_data = get_feature_data(features, pre_serialize=False)
 
     # create runner feature figure and append to html output path
     fig = fig_historical(

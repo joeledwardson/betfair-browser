@@ -46,39 +46,42 @@ def write_feature_configs(
 
 
 def get_feature_data(
-        data: Dict,
         features: Dict[str, RunnerFeatureBase],
-        parent_name='',
         pre_serialize=True
 ):
     """
     recursively get plotly data from feature list (indexed by feature name)
-    assign feature data to 'data' dictionary with feature name
     assign sub-feature data using '.' to indicate parent with feature naming
 
-    pass empty dictionary to function for it to set attributes
+    return data dictionary
     """
 
-    # loop features and get data
-    for feature_name, feature in features.items():
+    data = {}
 
-        # get plotly data
-        f_data = feature.get_plotly_data()
+    def inner(_features: Dict[str, RunnerFeatureBase], _parent_name):
 
-        # serialize if specified
-        if pre_serialize:
-            f_data = feature.pre_serialize(f_data)
+        # loop features and get data
+        for feature_name, feature in _features.items():
 
-        # if parent name given, use it to prefix sub-name (e.g. for parent 'ltp' and name 'delay' it would be
-        # 'ltp.delay')
-        if parent_name:
-            feature_name = '.'.join([parent_name, feature_name])
+            # get plotly data
+            f_data = feature.get_plotly_data()
 
-        # assign data to name key
-        data[feature_name] = f_data
+            # serialize if specified
+            if pre_serialize:
+                f_data = feature.pre_serialize(f_data)
 
-        # call function recursively with sub features
-        get_feature_data(data, feature.sub_features, parent_name=feature_name, pre_serialize=pre_serialize)
+            # if parent name given, use it to prefix sub-name (e.g. for parent 'ltp' and name 'delay' it would be
+            # 'ltp.delay')
+            if _parent_name:
+                feature_name = '.'.join([_parent_name, feature_name])
+
+            # assign data to name key
+            data[feature_name] = f_data
+
+            # call function recursively with sub features
+            inner(_features=feature.sub_features, _parent_name=feature_name)
+
+    return inner(features, '')
 
 
 def get_max_buffer_s(
