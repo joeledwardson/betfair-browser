@@ -53,6 +53,7 @@ class MarketHandler:
 
         self.windows = Windows()
         self.market_books: List[MarketBook] = []
+        self.closed = False
 
     def update_flag_feature(self, market_book: MarketBook, feature_seconds):
         """
@@ -450,40 +451,48 @@ class MyFeatureStrategy(MyBaseStrategy):
         """
 
         # check market that is closing is in trade trackers
-        if market.market_id in self.market_handlers:
+        if market.market_id not in self.market_handlers:
+            active_logger.warning(f'market ID "{market.market_id}" closing but not tracked')
+            return
 
-            mh = self.market_handlers[market.market_id]
+        # check market hasn't already been closed
+        mh = self.market_handlers[market.market_id]
+        if mh.closed:
+            active_logger.warning(f'market ID "{market.market_id}" already closed')
+            return
 
-            # loop runners
-            for selection_id, rh in mh.runner_handlers.items():
+        mh.closed = True
 
-                file_name = get_feature_file_name(selection_id)
-                file_path = path.join(mh.output_dir, file_name)
-                active_logger.info(f'writing features for "{selection_id}" to file "{file_path}"')
-                features_to_file(file_path, rh.features)
+        # loop runners
+        for selection_id, rh in mh.runner_handlers.items():
 
-                # get file path for order result, using selection ID as file name and order result extension
-                file_path = path.join(
-                    mh.output_dir,
-                    str(selection_id) + EXT_ORDER_RESULT
-                )
+            file_name = get_feature_file_name(selection_id)
+            file_path = path.join(mh.output_dir, file_name)
+            active_logger.info(f'writing features for "{selection_id}" to file "{file_path}"')
+            features_to_file(file_path, rh.features)
 
-                # loop trades
-                for trade in rh.trade_tracker.trades:
+            # get file path for order result, using selection ID as file name and order result extension
+            file_path = path.join(
+                mh.output_dir,
+                str(selection_id) + EXT_ORDER_RESULT
+            )
 
-                    # loop orders
-                    for order in trade.orders:
+            # loop trades
+            for trade in rh.trade_tracker.trades:
 
-                        # add betfair order result to order results file
-                        order_info = serializable_order_info(order)
-                        add_to_file(file_path, order_info)
+                # loop orders
+                for order in trade.orders:
 
-                        rh.trade_tracker.log_update(
-                            msg_type=MessageTypes.MSG_MARKET_CLOSE,
-                            msg_attrs={
-                                'runner_status': order.runner_status,
-                                'order_id': str(order.id)
-                            },
-                            dt=market_book.publish_time,
-                            order=order,
-                        )
+                    # add betfair order result to order results file
+                    order_info = serializable_order_info(order)
+                    add_to_file(file_path, order_info)
+
+                    rh.trade_tracker.log_update(
+                        msg_type=MessageTypes.MSG_MARKET_CLOSE,
+                        msg_attrs={
+                            'runner_status': order.runner_status,
+                            'order_id': str(order.id)
+                        },
+                        dt=market_book.publish_time,
+                        order=order,
+                    )
