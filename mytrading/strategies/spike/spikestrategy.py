@@ -71,8 +71,6 @@ class MySpikeStrategy(MyFeatureStrategy):
         return SpikeTradeTracker(
             selection_id=runner.selection_id,
             file_path=file_path,
-            spike_ltp=0,
-            side_matched='',
         )
 
     def create_state_machine(
@@ -98,13 +96,16 @@ class MySpikeStrategy(MyFeatureStrategy):
                         ladder_spread_max=self.ladder_spread_max,
                         name=spikestates.SpikeStateTypes.SPIKE_STATE_MONITOR,
                         next_state=[
-                            basestates.TradeStateTypes.WAIT,
                             basestates.TradeStateTypes.PENDING,
                             basestates.TradeStateTypes.HEDGE_SELECT
                         ]
                     ),
+                    spikestates.SpikeTradeStateBounce(
+                        name=spikestates.SpikeStateTypes.SPIKE_STATE_BOUNCE,
+                        wait_ms=self.spike_wait_ms,
+                    ),
                     basestates.TradeStateHedgeSelect(
-                        next_state=basestates.TradeStateTypes.HEDGE_QUEUE_PLACE,
+                        next_state=spikestates.SpikeStateTypes.SPIKE_STATE_HEDGE,
                     ),
                     basestates.TradeStateHedgePlaceQueue(
                         tick_offset=self.hedge_tick_offset,
@@ -117,6 +118,15 @@ class MySpikeStrategy(MyFeatureStrategy):
                         min_hedge_price=self.min_hedge_price,
                     ),
                     basestates.TradeStateHedgeWaitTake(),
+                    spikestates.SpikeTradeStateHedge(
+                        name=spikestates.SpikeStateTypes.SPIKE_STATE_HEDGE,
+                        next_state=spikestates.SpikeStateTypes.SPIKE_STATE_HEDGE_WAIT,
+                        min_hedge_price=self.min_hedge_price,
+                    ),
+                    spikestates.SpikeTradeStateHedgeWait(
+                        name=spikestates.SpikeStateTypes.SPIKE_STATE_HEDGE_WAIT,
+                        next_state=basestates.TradeStateTypes.CLEANING,
+                    ),
                     basestates.TradeStateBin(
                         all_trade_orders=True,
                     ),
@@ -124,9 +134,9 @@ class MySpikeStrategy(MyFeatureStrategy):
                         all_trade_orders=True,
                     ),
                     basestates.TradeStateClean(),
-                    basestates.TradeStateWait(
-                        wait_ms=self.spike_wait_ms
-                    ),
+                    # basestates.TradeStateWait(
+                    #     wait_ms=self.spike_wait_ms
+                    # ),
                 ]
             },
             initial_state=basestates.TradeStateCreateTrade.name,
