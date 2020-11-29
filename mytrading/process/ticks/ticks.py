@@ -43,12 +43,13 @@ def int_decode(v):
     return v/1000
 
 
-def closest_tick(value: float, return_index=False):
+def closest_tick(value: float, return_index=False, round_down=False, round_up=False):
     """
     Convert an value to the nearest odds tick, e.g. 2.10000001 would be converted to 2.1
     Specify return_index=True to get index instead of value
     """
-    return generic.closest_value(TICKS_DECODED, value, return_index)
+    return generic.closest_value(TICKS_DECODED, value, return_index=return_index, round_down=round_down,
+                                 round_up=round_up)
 
 
 # numpy array of Betfair ticks in integer encoded form
