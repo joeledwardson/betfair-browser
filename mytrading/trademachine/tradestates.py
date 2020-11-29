@@ -59,7 +59,7 @@ class TradeStateBase(stm.State):
     """
 
     # override default state name and next state without the need for sub-class
-    def __init__(self, name: TradeStateTypes = None, next_state: TradeStateTypes = None):
+    def __init__(self, name: Enum = None, next_state: Enum = None):
         if name:
             self.name = name
         if next_state:
@@ -491,14 +491,14 @@ class TradeStateHedgePlaceBase(TradeStateBase):
 
         # get green price for hedging
         green_price = self.get_hedge_price(
-            open_ladder,
-            close_ladder,
-            close_side,
-            trade_tracker,
-            market_book,
-            market,
-            runner_index,
-            strategy,
+            open_ladder=open_ladder,
+            close_ladder=close_ladder,
+            close_side=close_side,
+            trade_tracker=trade_tracker,
+            market_book=market_book,
+            market=market,
+            runner_index=runner_index,
+            strategy=strategy,
             **inputs
         )
 
@@ -605,16 +605,16 @@ class TradeStateHedgeWaitBase(TradeStateBase):
 
             # hedge matching, get new price
             new_price = self.price_moved(
-                market_book,
-                market,
-                runner_index,
-                trade_tracker,
-                strategy,
+                market_book=market_book,
+                market=market,
+                runner_index=runner_index,
+                trade_tracker=trade_tracker,
+                strategy=strategy,
                 **inputs
             )
 
             # non-zero value indicates price has moved
-            if new_price:
+            if new_price and new_price != order.order_type.price:
 
                 trade_tracker.log_update(
                     msg_type=MessageTypes.MSG_HEDGE_REPLACE,
