@@ -754,14 +754,15 @@ class TradeStateHedgePlaceQueue(TradeStateHedgePlaceBase):
             return 0
 
         price = open_ladder[0]['price']
-        if self.tick_offset:
+        if not self.tick_offset:
             return price
 
         index = closest_tick(price, return_index=True)
         if close_side == 'BACK':
-            index = min(index + self.tick_offset, len(LTICKS_DECODED) - 1)
-        else:
             index = max(index - self.tick_offset, 0)
+        else:
+            index = min(index + self.tick_offset, len(LTICKS_DECODED) - 1)
+
         return LTICKS_DECODED[index]
 
 
@@ -773,9 +774,10 @@ class TradeStateHedgeWaitQueue(TradeStateHedgeWaitBase):
     name = TradeStateTypes.HEDGE_QUEUE_MATCHING
     next_state = TradeStateTypes.CLEANING
 
-    def __init__(self, hold_time_ms: int, **kwargs):
+    def __init__(self, hold_time_ms: int, tick_offset=0, **kwargs):
         super().__init__(**kwargs)
         self.hold_time_ms = hold_time_ms
+        self.tick_offset = tick_offset
         self.reset_time: datetime = datetime.now()
         self.moving = False
         self.original_price = 0
@@ -814,26 +816,29 @@ class TradeStateHedgeWaitQueue(TradeStateHedgeWaitBase):
             invert_side(order.side)
         )
 
-        # get operator for comparing available price and current hedge price (
-        op = select_operator_side(
-            order.side,
-            invert=True
-        )
-
         # check not empty
         if not available:
             return 0
 
         # get available price
         new_price = available[0]['price']
+        price_index = closest_tick(new_price, return_index=True)
+        if order.side == 'BACK':
+            price_index = max(price_index - self.tick_offset, 0)
+            new_price = LTICKS_DECODED[price_index]
+            proceed = new_price < order.order_type.price
+        else:
+            price_index = min(price_index + self.tick_offset, len(LTICKS_DECODED) - 1)
+            new_price = LTICKS_DECODED[price_index]
+            proceed = new_price > order.order_type.price
 
         if not self.moving:
-            if op(new_price, order.order_type.price):
+            if proceed:
                 self.moving = True
                 self.reset_time = market_book.publish_time
                 self.original_price = order.order_type.price
         else:
-            if op(new_price, self.original_price):
+            if proceed:
                 if (market_book.publish_time - self.reset_time) > timedelta(milliseconds=self.hold_time_ms):
                     return new_price
             else:
