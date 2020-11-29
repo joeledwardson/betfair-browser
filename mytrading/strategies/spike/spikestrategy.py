@@ -10,7 +10,7 @@ import logging
 from myutils.timing import timing_register
 from ...trademachine import tradestates as basestates
 from ...trademachine.trademachine import RunnerStateMachine
-from ...strategy.featurestrategy import MyFeatureStrategy
+from ...strategy.featurestrategy import MyFeatureStrategy, MarketHandler
 from ...process.ticks.ticks import LTICKS_DECODED, tick_spread
 from ...process.tradedvolume import traded_runner_vol
 from ...process.prices import best_price, get_ltps
@@ -23,6 +23,7 @@ from .tradetracker import SpikeTradeTracker
 
 active_logger = logging.getLogger(__name__)
 active_logger.setLevel(logging.INFO)
+
 
 
 class MySpikeStrategy(MyFeatureStrategy):
@@ -63,9 +64,9 @@ class MySpikeStrategy(MyFeatureStrategy):
 
     def create_trade_tracker(
             self,
-            runner: RunnerBook,
             market: Market,
             market_book: MarketBook,
+            runner: RunnerBook,
             file_path) -> SpikeTradeTracker:
 
         return SpikeTradeTracker(
@@ -143,13 +144,13 @@ class MySpikeStrategy(MyFeatureStrategy):
             selection_id=runner.selection_id,
         )
 
-    def get_features_config(self) -> Dict:
+    def get_features_config(self, market, market_book, runner_index) -> Dict:
         return self.features_config
 
-    def market_initialisation(self, market: Market, market_book: MarketBook, feature_holder: FeatureHolder):
+    def custom_market_initialisation(self, market: Market, market_book: MarketBook):
         self.spike_data_dicts[market.market_id] = dict()
 
-    def runner_initialisation(self, market: Market, market_book: MarketBook, runner: RunnerBook):
+    def custom_runner_initialisation(self, market: Market, market_book: MarketBook, runner: RunnerBook):
         self.spike_data_dicts[market_book.market_id][runner.selection_id] = SpikeData(
             best_back=0,
             best_lay=0,
@@ -168,7 +169,7 @@ class MySpikeStrategy(MyFeatureStrategy):
         # get runner ID, trend data object and features dict
         selection_id = market_book.runners[runner_index].selection_id
         spike_data = self.spike_data_dicts[market_book.market_id][selection_id]
-        features = self.feature_holders[market_book.market_id].features[selection_id]
+        features = self.market_handlers[market_book.market_id].runner_handlers[selection_id].features
 
         spike_data.best_back = features['best back'].last_value()
         spike_data.best_lay = features['best lay'].last_value()
