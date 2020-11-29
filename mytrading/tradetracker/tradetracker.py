@@ -76,6 +76,7 @@ class TradeTracker:
                         msg_attrs={
                             "order_id": order.id
                         },
+                        order=order,
                         to_file=False
                     )
                     ot[trade.id][order.id] = OrderTracker(
@@ -96,6 +97,8 @@ class TradeTracker:
                             "size": order.order_type.size,
                             "size_matched": order.size_matched
                         },
+                        order=order,
+                        display_odds=order.order_type.price,
                     )
 
                 # check for status change
@@ -116,7 +119,8 @@ class TradeTracker:
                             "status": order.status.value,
                             'msg': msg,
                         },
-                        order=order
+                        order=order,
+                        display_odds=order.order_type.price,
                     )
                 ot[trade.id][order.id].status = order.status
                 ot[trade.id][order.id].matched = order.size_matched
