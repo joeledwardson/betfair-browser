@@ -81,7 +81,8 @@ def get_feature_data(
             # call function recursively with sub features
             inner(_features=feature.sub_features, _parent_name=feature_name)
 
-    return inner(features, '')
+    inner(features, '')
+    return data
 
 
 def get_max_buffer_s(
