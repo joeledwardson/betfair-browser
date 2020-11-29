@@ -17,7 +17,7 @@ PROFIT_COLUMNS = [
     'side',
     'price',
     'size',
-    'avg price',
+    'm-price',
     'matched',
     'order £',
     'trade £',
@@ -51,10 +51,6 @@ def process_profit_table(df: pd.DataFrame, market_start_time: datetime) -> pd.Da
     - format currency columns
     - add trade £ and t-start columns
     """
-
-    # sort earliest first
-    df.sort_values(by=['date'])
-
     # sum order profits in each trade
     df['trade £'] = df.groupby(['trade'])['order £'].transform('sum')
 
@@ -77,7 +73,8 @@ def process_profit_table(df: pd.DataFrame, market_start_time: datetime) -> pd.Da
     for col in currency_cols:
         df[col] = df[col].apply(currency_format)
 
-    return df
+    # sort earliest first
+    return df.sort_values(by=['date'])
 
 
 def read_profit_table(file_path: str) -> pd.DataFrame:
@@ -97,7 +94,7 @@ def read_profit_table(file_path: str) -> pd.DataFrame:
         'side': 'info.side',
         'price': 'order_type.price',
         'size': 'order_type.size',
-        'avg price': 'average_price_matched',
+        'm-price': 'average_price_matched',
         'matched': 'info.size_matched'
     }
 
