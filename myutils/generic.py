@@ -155,11 +155,19 @@ def prettified_members(o, indent=4):
     return json.dumps(json_object, indent=indent)
 
 
-def closest_value(array, value, return_index=False):
+def closest_value(array, value, return_index=False, round_down=False, round_up=False):
     """# get closest value in numpy array, specify return_index=True to return index instead of value"""
 
     # get index in reversed array of smallest distance to value
     index = abs(array - value).argmin()
+
+    # round down if necessary
+    if round_down and index > 0 and array[index] > value:
+        index -= 1
+
+    # round up if necessary
+    if round_up and index < (len(array) - 1) and array[index] < value:
+        index += 1
 
     if return_index:
         return int(index)  # return as regular integer
