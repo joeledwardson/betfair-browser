@@ -18,6 +18,7 @@ from ...feature.featureholder import FeatureHolder
 from .featuresconfig import get_spike_feature_configs
 from . import states as spikestates
 from .datatypes import SpikeData
+from .tradetracker import SpikeTradeTracker
 
 
 active_logger = logging.getLogger(__name__)
@@ -60,6 +61,20 @@ class MySpikeStrategy(MyFeatureStrategy):
         # market -> runner ID -> spike data
         self.spike_data_dicts: Dict[str, Dict[int, SpikeData]] = dict()
 
+    def create_trade_tracker(
+            self,
+            runner: RunnerBook,
+            market: Market,
+            market_book: MarketBook,
+            file_path) -> SpikeTradeTracker:
+
+        return SpikeTradeTracker(
+            selection_id=runner.selection_id,
+            file_path=file_path,
+            spike_ltp=0,
+            side_matched='',
+        )
+
     def create_state_machine(
             self,
             runner: RunnerBook,
@@ -79,6 +94,8 @@ class MySpikeStrategy(MyFeatureStrategy):
                     spikestates.SpikeTradeStateMonitorWindows(
                         tick_offset=self.tick_offset,
                         stake_size=self.stake_size,
+                        window_spread_min=self.window_spread_min,
+                        ladder_spread_max=self.ladder_spread_max,
                         name=spikestates.SpikeStateTypes.SPIKE_STATE_MONITOR,
                         next_state=[
                             basestates.TradeStateTypes.WAIT,

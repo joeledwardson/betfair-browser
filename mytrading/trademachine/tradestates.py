@@ -122,9 +122,10 @@ class TradeStatePending(TradeStateBase):
 
     name = TradeStateTypes.PENDING
 
-    def __init__(self, all_trade_orders=False, **kwargs):
+    def __init__(self, all_trade_orders=False, delay_once=False, **kwargs):
         super().__init__(**kwargs)
         self.all_trade_orders = all_trade_orders
+        self.delay_once = delay_once
         self.first_call = True
 
     def enter(self, **inputs):
@@ -136,7 +137,8 @@ class TradeStatePending(TradeStateBase):
         # hold for 1 state
         if self.first_call:
             self.first_call = False
-            return False
+            if self.delay_once:
+                return False
 
         # select either active order or all active trade orders
         if not self.all_trade_orders:

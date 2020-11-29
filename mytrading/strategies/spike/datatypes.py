@@ -1,4 +1,5 @@
-from dataclasses import dataclass
+from ...tradetracker.tradetracker import TradeTracker
+from dataclasses import dataclass, field
 
 
 @dataclass
