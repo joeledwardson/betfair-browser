@@ -152,8 +152,15 @@ class TradeTracker:
         if not display_odds and self._log:
             display_odds = self._log[-1]['display_odds']
 
+        # if order instance not given then assume current order/trade
+        if not order:
+            order = self.active_order
+            trade = self.active_trade
+        else:
+            trade = order.trade
+
         # get trade ID if trade exists else None
-        trade_id = self.active_trade.id if self.active_trade else None
+        trade_id = trade.id if trade else None
 
         # add to internal list
         self._log.append({
@@ -167,10 +174,6 @@ class TradeTracker:
 
         # write to file if path specified
         if self.file_path and to_file:
-
-            # if order instance not given then assume current order
-            if not order:
-                order = self.active_order
 
             # get order serialized info (if exist)
             if order:
