@@ -8,6 +8,7 @@ class SpikeMessageTypes(Enum):
     SPIKE_MSG_ENTER_FAIL = 'failed on enter window state'
     SPIKE_MSG_CREATE = 'place opening window trades'
     SPIKE_MSG_PRICE_REPLACE = 'replacing price'
+    SPIKE_MSG_BREACHED = 'spike reached'
 
 
 @register_formatter(SpikeMessageTypes.SPIKE_MSG_START)
@@ -48,3 +49,9 @@ def formatter(attrs: Dict) -> str:
     return f'replacing order on "{attrs.get("side")}" side from {attrs.get("old_price", 0):.2f} to new price '\
     f'{attrs.get("new_price", 0):.2f}'
 
+
+@register_formatter(SpikeMessageTypes.SPIKE_MSG_BREACHED)
+def formatter(attrs: Dict) -> str:
+
+    return f'spike detected on "{attrs.get("side")}" from boundary {attrs.get("old_price", 0):.2f} to ltp ' \
+           f'{attrs.get("ltp", 0):.2f} by {attrs.get("spike_ticks")} ticks'
