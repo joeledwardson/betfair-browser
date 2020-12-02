@@ -207,7 +207,6 @@ class SpikeTradeStateMonitorWindows(tradestates.TradeStateBase):
                 tradestates.TradeStateTypes.IDLE,
             ]
 
-
         # create back order if doesn't exist
         if trade_tracker.back_order is None:
             trade_tracker.back_order = trade_tracker.active_trade.create_order(
