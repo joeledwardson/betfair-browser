@@ -5,10 +5,11 @@ from ...tradetracker.messages import register_formatter
 
 class SpikeMessageTypes(Enum):
     SPIKE_MSG_START = 'achieved spike criteria'
-    SPIKE_MSG_ENTER_FAIL = 'failed on enter window state'
+    SPIKE_MSG_VAL_FAIL = 'failed to validate spike data'
     SPIKE_MSG_CREATE = 'place opening window trades'
     SPIKE_MSG_PRICE_REPLACE = 'replacing price'
     SPIKE_MSG_BREACHED = 'spike reached'
+    SPIKE_MSG_SPREAD_FAIL = 'spread validation fail'
 
 
 @register_formatter(SpikeMessageTypes.SPIKE_MSG_START)
@@ -30,7 +31,7 @@ def formatter(attrs: Dict) -> str:
            f'£{attrs.get("size", 0):.2f}'
 
 
-@register_formatter(SpikeMessageTypes.SPIKE_MSG_ENTER_FAIL)
+@register_formatter(SpikeMessageTypes.SPIKE_MSG_VAL_FAIL)
 def formatter(attrs: Dict) -> str:
 
     return '\n'.join([
@@ -47,7 +48,7 @@ def formatter(attrs: Dict) -> str:
 def formatter(attrs: Dict) -> str:
 
     return f'replacing order on "{attrs.get("side")}" side from {attrs.get("old_price", 0):.2f} to new price '\
-    f'{attrs.get("new_price", 0):.2f}'
+           f'{attrs.get("new_price", 0):.2f}'
 
 
 @register_formatter(SpikeMessageTypes.SPIKE_MSG_BREACHED)
@@ -55,3 +56,12 @@ def formatter(attrs: Dict) -> str:
 
     return f'spike detected on "{attrs.get("side")}" from boundary {attrs.get("old_price", 0):.2f} to ltp ' \
            f'{attrs.get("ltp", 0):.2f} by {attrs.get("spike_ticks")} ticks'
+
+
+@register_formatter(SpikeMessageTypes.SPIKE_MSG_SPREAD_FAIL)
+def formatter(attrs: Dict) -> str:
+
+    return f'failed to validate ladder spread or window spread' \
+           f'ladder spread: {attrs.get("ladder_spread")} must be <= max: {attrs.get("ladder_spread_max")}\n' \
+           f'window spread: {attrs.get("window_spread")} must be >= min: {attrs.get("window_spread_min")}'
+

@@ -138,6 +138,11 @@ class SpikeTradeStateMonitorWindows(tradestates.TradeStateBase):
 
         # check back/lay/ltp values are all non-null
         if not validate_spike_data(spike_data):
+            trade_tracker.log_update(
+                msg_type=SpikeMessageTypes.SPIKE_MSG_VAL_FAIL,
+                dt=market_book.publish_time,
+                msg_attrs=spike_data.__dict__,
+            )
             return [
                 tradestates.TradeStateTypes.BIN,
                 tradestates.TradeStateTypes.PENDING,
@@ -201,6 +206,16 @@ class SpikeTradeStateMonitorWindows(tradestates.TradeStateBase):
 
         # check back/lay spread is still within tolerance and ltp min/max spread is above tolerance
         if not(ladder_spread <= self.ladder_spread_max and window_spread >= self.window_spread_min):
+            trade_tracker.log_update(
+                msg_type=SpikeMessageTypes.SPIKE_MSG_SPREAD_FAIL,
+                dt=market_book.publish_time,
+                msg_attrs={
+                    'ladder_spread': ladder_spread,
+                    'ladder_spread_max': self.ladder_spread_max,
+                    'window_spread': window_spread,
+                    'window_spread_min': self.window_spread_min,
+                }
+            )
             return [
                 tradestates.TradeStateTypes.BIN,
                 tradestates.TradeStateTypes.PENDING,
