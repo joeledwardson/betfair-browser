@@ -161,45 +161,55 @@ class SpikeTradeStateMonitorWindows(tradestates.TradeStateBase):
         bottom_value = LTICKS_DECODED[bottom_tick]
 
         # check if any money has been matched on either back or lay spike orders
-        if trade_tracker.back_order and trade_tracker.lay_order:
-            if trade_tracker.back_order.size_matched > 0 or trade_tracker.lay_order.size_matched > 0:
+        breach = False
+        old_tick = 0
+        if trade_tracker.back_order and trade_tracker.back_order.size_matched > 0:
 
-                # cancel remaining
-                if trade_tracker.back_order.status == OrderStatus.EXECUTABLE:
-                    trade_tracker.back_order.cancel(trade_tracker.back_order.size_remaining)
-                if trade_tracker.lay_order.status == OrderStatus.EXECUTABLE:
-                    trade_tracker.lay_order.cancel(trade_tracker.lay_order.size_remaining)
+            # BACK side matched indicator for hedging state to read
+            trade_tracker.side_matched = 'BACK'
 
-                # side side matched indicator for hedging state to read
-                if trade_tracker.back_order.size_matched > 0:
-                    trade_tracker.side_matched = 'BACK'
-                else:
-                    trade_tracker.side_matched = 'LAY'
+            # get previous tick from BACK side
+            old_tick = trade_tracker.previous_max_index
 
-                # set spike ltp for hedging state to read
-                trade_tracker.spike_ltp = spike_data.ltp
+            breach = True
 
-                # record tick difference
-                if trade_tracker.side_matched == 'BACK':
-                    old_tick = trade_tracker.previous_max_index
-                else:
-                    old_tick = trade_tracker.previous_min_index
+        elif trade_tracker.lay_order and trade_tracker.lay_order.size_matched > 0:
 
-                ltp_tick = closest_tick(spike_data.ltp, return_index=True)
-                tick_diff = ltp_tick - old_tick if old_tick else -1
+            # LAY side matched indicator for hedging state to read
+            trade_tracker.side_matched = 'LAY'
 
-                trade_tracker.log_update(
-                    msg_type=SpikeMessageTypes.SPIKE_MSG_BREACHED,
-                    dt=market_book.publish_time,
-                    msg_attrs={
-                        'side': trade_tracker.side_matched,
-                        'old_price': LTICKS_DECODED[old_tick],
-                        'ltp': spike_data.ltp,
-                        'spike_ticks': tick_diff
-                    }
-                )
+            # get previous tick from LAY side
+            old_tick = trade_tracker.previous_min_index
 
-                return self.next_state
+            breach = True
+
+        if breach:
+
+            # cancel remaining from both sides if orders exist
+            if trade_tracker.back_order.status == OrderStatus.EXECUTABLE:
+                trade_tracker.back_order.cancel(trade_tracker.back_order.size_remaining)
+            if trade_tracker.lay_order.status == OrderStatus.EXECUTABLE:
+                trade_tracker.lay_order.cancel(trade_tracker.lay_order.size_remaining)
+
+            # set spike ltp for hedging state to read
+            trade_tracker.spike_ltp = spike_data.ltp
+
+            # record tick difference
+            ltp_tick = closest_tick(spike_data.ltp, return_index=True)
+            tick_diff = ltp_tick - old_tick if old_tick else -1
+
+            trade_tracker.log_update(
+                msg_type=SpikeMessageTypes.SPIKE_MSG_BREACHED,
+                dt=market_book.publish_time,
+                msg_attrs={
+                    'side': trade_tracker.side_matched,
+                    'old_price': LTICKS_DECODED[old_tick],
+                    'ltp': spike_data.ltp,
+                    'spike_ticks': tick_diff
+                }
+            )
+
+            return self.next_state
 
         window_spread = tick_spread(spike_data.ltp_min, spike_data.ltp_max, check_values=False)
         ladder_spread = tick_spread(spike_data.best_back, spike_data.best_lay, check_values=False)
