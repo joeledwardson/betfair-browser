@@ -107,6 +107,7 @@ class SpikeTradeStateMonitorWindows(tradestates.TradeStateBase):
             stake_size: float,
             ladder_spread_max: int,
             window_spread_min: int,
+            update_hold_ms: int,
             **kwargs
     ):
         super().__init__(**kwargs)
@@ -114,12 +115,15 @@ class SpikeTradeStateMonitorWindows(tradestates.TradeStateBase):
         self.stake_size = stake_size
         self.window_spread_min = window_spread_min
         self.ladder_spread_max = ladder_spread_max
-        self.entering = False
+        self.back_timestamp = datetime.now()
+        self.lay_timestamp = datetime.now()
+        self.update_hold_ms = update_hold_ms
 
-    def enter(self, trade_tracker: SpikeTradeTracker, **inputs):
-        self.entering = True
+    def enter(self, trade_tracker: SpikeTradeTracker, market_book: MarketBook, **inputs):
         trade_tracker.back_order = None
         trade_tracker.lay_order = None
+        self.back_timestamp = market_book.publish_time
+        self.lay_timestamp = market_book.publish_time
 
     def run(
             self,
@@ -203,7 +207,6 @@ class SpikeTradeStateMonitorWindows(tradestates.TradeStateBase):
                 tradestates.TradeStateTypes.IDLE,
             ]
 
-
         # create back order if doesn't exist
         if trade_tracker.back_order is None:
             trade_tracker.back_order = trade_tracker.active_trade.create_order(
@@ -251,7 +254,23 @@ class SpikeTradeStateMonitorWindows(tradestates.TradeStateBase):
 
             # check back price moved
             back_price = trade_tracker.back_order.order_type.price
-            if top_value != back_price:
+            back_proceed = False
+
+            # check if upper boundary value is less than current order
+            if top_value < back_price:
+
+                # proceed if value is less than current order price for set amount of time
+                if (market_book.publish_time - self.back_timestamp) >= timedelta(milliseconds=self.update_hold_ms):
+                    back_proceed = True
+            else:
+                # if value is not below current order price reset timestamp
+                self.back_timestamp = market_book.publish_time
+
+                # if upper boundary value is more than current order price then move immediately
+                if top_value > back_price:
+                    back_proceed = True
+
+            if back_proceed:
                 trade_tracker.log_update(
                     msg_type=SpikeMessageTypes.SPIKE_MSG_PRICE_REPLACE,
                     dt=market_book.publish_time,
@@ -272,7 +291,17 @@ class SpikeTradeStateMonitorWindows(tradestates.TradeStateBase):
 
             # check if lay price moved
             lay_price = trade_tracker.lay_order.order_type.price
-            if bottom_value != lay_price:
+            lay_proceed = False
+
+            if bottom_value > lay_price:
+                if (market_book.publish_time - self.lay_timestamp) >= timedelta(milliseconds=self.update_hold_ms):
+                    lay_proceed = True
+            else:
+                self.lay_timestamp = market_book.publish_time
+                if bottom_value < lay_price:
+                    lay_proceed = True
+
+            if lay_proceed:
                 trade_tracker.log_update(
                     msg_type=SpikeMessageTypes.SPIKE_MSG_PRICE_REPLACE,
                     dt=market_book.publish_time,
