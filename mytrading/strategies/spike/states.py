@@ -348,12 +348,66 @@ class SpikeTradeStateMonitorWindows(tradestates.TradeStateBase):
 
 
 def get_window_price(side, spike_data: SpikeData):
+    """
+    get hedging price for opening trade whose side specified by `side` parameter
+    If open trade side is 'BACK', get rounded down ltp window minimum value
+    If open trade side is 'LAY', get rounded up ltp window maximum value
+
+    Parameters
+    ----------
+    side :
+    spike_data :
+
+    Returns
+    -------
+
+    """
+    # validate spike data
+    if not validate_spike_data(spike_data):
+        return 0
+
     if side == 'BACK':
         price = spike_data.ltp_min
         return closest_tick(price, return_index=False, round_down=True)
     else:
         price = spike_data.ltp_max
         return closest_tick(price, return_index=False, round_up=True)
+
+
+def get_window_price_mk2(side, spike_data: SpikeData):
+    """
+    get hedging price for opening trade whose side specified by `side` parameter
+    If open trade side is 'BACK', get maximum of (rounded down ltp window minimum value) and (best lay - offset tick)
+    If open trade side is 'LAY', get minimum of (rounded up ltp window maximum value) and (best back + offset tick)
+
+    Parameters
+    ----------
+    side :
+    spike_data :
+
+    Returns
+    -------
+
+    """
+    # validate spike data
+    if not validate_spike_data(spike_data):
+        return 0
+
+    if side == 'BACK':
+        price = spike_data.ltp_min
+        ltp_min_rounded = closest_tick(price, return_index=False, round_down=True)
+        lay_tick = closest_tick(spike_data.best_lay, return_index=True)
+        lay_tick = max(lay_tick - 1, 0)
+        lay_val = LTICKS_DECODED[lay_tick]
+        return max(ltp_min_rounded, lay_val)
+
+    else:
+        price = spike_data.ltp_max
+        ltp_max_rounded = closest_tick(price, return_index=False, round_up=True)
+        back_tick = closest_tick(spike_data.best_back, return_index=True)
+        back_tick = min(back_tick + 1, len(LTICKS_DECODED) - 1)
+        back_val = LTICKS_DECODED[back_tick]
+        return min(ltp_max_rounded, back_val)
 
 
 class SpikeTradeStateHedge(tradestates.TradeStateHedgePlaceBase):
@@ -363,7 +417,7 @@ class SpikeTradeStateHedge(tradestates.TradeStateHedgePlaceBase):
             spike_data: SpikeData,
             **inputs
     ) -> float:
-        return get_window_price('BACK' if trade_tracker.side_matched == 'LAY' else 'LAY', spike_data)
+        return get_window_price_mk2('BACK' if trade_tracker.side_matched == 'LAY' else 'LAY', spike_data)
 
 
 class SpikeTradeStateHedgeWait(tradestates.TradeStateHedgeWaitBase):
@@ -373,7 +427,7 @@ class SpikeTradeStateHedgeWait(tradestates.TradeStateHedgeWaitBase):
             spike_data: SpikeData,
             **inputs
     ) -> float:
-        return get_window_price('BACK' if trade_tracker.side_matched == 'LAY' else 'LAY', spike_data)
+        return get_window_price_mk2('BACK' if trade_tracker.side_matched == 'LAY' else 'LAY', spike_data)
 
 
 class SpikeTradeStateBounce(tradestates.TradeStateWait):
