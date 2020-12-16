@@ -1,6 +1,7 @@
 from enum import Enum
 from typing import List, Dict, Union
 from datetime import datetime, timedelta
+from flumine.controls.clientcontrols import MaxOrderCount
 
 from betfairlightweight.resources import MarketBook
 from flumine import BaseStrategy
@@ -265,6 +266,10 @@ class TradeStateIdle(TradeStateBase):
     # on entering IDLE state dont print update message
     print_change_message = False
 
+    def __init__(self, trade_transactions_cutoff, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.trade_transactions_cutoff = trade_transactions_cutoff
+
     # return true to move to next state opening trade, false to remain idle
     def trade_criteria(
             self,
@@ -285,6 +290,11 @@ class TradeStateIdle(TradeStateBase):
             strategy: BaseStrategy,
             **inputs
     ):
+
+        max_order_count: MaxOrderCount = market.flumine.client.trading_controls[0]
+        if max_order_count.transaction_count >= self.trade_transactions_cutoff:
+            return None
+
         if self.trade_criteria(
                 market_book=market_book,
                 market=market,
