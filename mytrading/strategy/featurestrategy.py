@@ -1,4 +1,6 @@
 from flumine.markets.market import Market
+from flumine.controls import BaseControl
+from flumine.controls.clientcontrols import MaxOrderCount
 from betfairlightweight.resources.bettingresources import MarketBook, RunnerBook
 
 from datetime import timedelta, datetime, timezone
@@ -152,6 +154,9 @@ class MyFeatureStrategy(MyBaseStrategy):
         makedirs(self.strategy_dir, exist_ok=False)
 
         self.market_handlers: Dict[str, MarketHandler] = dict()
+
+        # self.max_order_count: MaxOrderCount = [ctrl for ctrl in self.client.trading_controls
+        #                                        if ctrl.NAME == "MAX_ORDER_COUNT"][0]
 
     def write_strategy_kwargs(self, **kwargs):
 

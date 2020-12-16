@@ -292,7 +292,7 @@ class TradeStateIdle(TradeStateBase):
     ):
 
         max_order_count: MaxOrderCount = market.flumine.client.trading_controls[0]
-        if max_order_count.transaction_count >= self.trade_transactions_cutoff:
+        if self.trade_transactions_cutoff and max_order_count.transaction_count >= self.trade_transactions_cutoff:
             return None
 
         if self.trade_criteria(

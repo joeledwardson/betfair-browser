@@ -63,6 +63,7 @@ class SpikeTradeStateIdle(tradestates.TradeStateIdle):
 
     def trade_criteria(
             self,
+            market: Market,
             market_book: MarketBook,
             trade_tracker: SpikeTradeTracker,
             first_runner: bool,
