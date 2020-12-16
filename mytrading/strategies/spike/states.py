@@ -186,9 +186,9 @@ class SpikeTradeStateMonitorWindows(tradestates.TradeStateBase):
         if breach:
 
             # cancel remaining from both sides if orders exist
-            if trade_tracker.back_order.status == OrderStatus.EXECUTABLE:
+            if trade_tracker.back_order and trade_tracker.back_order.status == OrderStatus.EXECUTABLE:
                 trade_tracker.back_order.cancel(trade_tracker.back_order.size_remaining)
-            if trade_tracker.lay_order.status == OrderStatus.EXECUTABLE:
+            if trade_tracker.lay_order and trade_tracker.lay_order.status == OrderStatus.EXECUTABLE:
                 trade_tracker.lay_order.cancel(trade_tracker.lay_order.size_remaining)
 
             # set spike ltp for hedging state to read
