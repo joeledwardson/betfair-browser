@@ -34,6 +34,7 @@ class MySpikeStrategy(MyFeatureStrategy):
     def __init__(
             self,
             base_dir: str,
+            trade_transactions_cutoff: int,
             stake_size: float,
             min_hedge_price: float,
             window_spread_min: int,
@@ -48,6 +49,7 @@ class MySpikeStrategy(MyFeatureStrategy):
     ):
 
         super().__init__('spike', base_dir, **kwargs)
+        self.trade_transactions_cutoff = trade_transactions_cutoff
         self.stake_size = stake_size
         self.min_hedge_price = min_hedge_price
         self.window_spread_min = window_spread_min
@@ -88,6 +90,7 @@ class MySpikeStrategy(MyFeatureStrategy):
                 for state in [
                     basestates.TradeStateCreateTrade(),
                     spikestates.SpikeTradeStateIdle(
+                        trade_transactions_cutoff=self.trade_transactions_cutoff,
                         window_spread_min=self.window_spread_min,
                         ladder_spread_max=self.ladder_spread_max,
                         next_state=spikestates.SpikeStateTypes.SPIKE_STATE_MONITOR,
