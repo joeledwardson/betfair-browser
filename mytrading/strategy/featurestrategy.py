@@ -22,7 +22,7 @@ from ..feature.storage import features_to_file, get_feature_file_name
 from ..tradetracker.tradetracker import TradeTracker
 from ..tradetracker.orderinfo import serializable_order_info
 from ..tradetracker.messages import MessageTypes
-from ..utils.storage import construct_hist_dir, SUBDIR_STRATEGY_HISTORIC, EXT_ORDER_RESULT
+from ..utils.storage import construct_hist_dir, SUBDIR_STRATEGY_HISTORIC, EXT_ORDER_RESULT, SUBDIR_STRATEGY_LIVE
 from ..utils.storage import EXT_ORDER_INFO, EXT_STRATEGY_INFO
 from .basestrategy import MyBaseStrategy
 
@@ -130,11 +130,12 @@ class MyFeatureStrategy(MyBaseStrategy):
 
     def __init__(
             self,
-            name,
-            base_dir,
-            cutoff_seconds,
-            pre_seconds,
-            feature_seconds,
+            name: str,
+            base_dir: str,
+            cutoff_seconds: int,
+            pre_seconds: int,
+            feature_seconds: int,
+            historic: bool,
             *args,
             **kwargs):
         super().__init__(*args, **kwargs)
@@ -147,7 +148,8 @@ class MyFeatureStrategy(MyBaseStrategy):
         self.strategy_name = name
 
         # strategies base directory
-        strategy_base_dir = path.join(base_dir, SUBDIR_STRATEGY_HISTORIC)
+        subdir = SUBDIR_STRATEGY_HISTORIC if historic else SUBDIR_STRATEGY_LIVE
+        strategy_base_dir = path.join(base_dir, subdir)
 
         # strategy output dir, create (assume not exist)
         self.strategy_dir = self._get_strategy_dir(strategy_base_dir, name, datetime.now(timezone.utc))
