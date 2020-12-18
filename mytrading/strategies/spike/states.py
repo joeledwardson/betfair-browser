@@ -109,6 +109,7 @@ class SpikeTradeStateMonitorWindows(tradestates.TradeStateBase):
             ladder_spread_max: int,
             window_spread_min: int,
             update_hold_ms: int,
+            enable_lay: bool,
             **kwargs
     ):
         super().__init__(**kwargs)
@@ -119,6 +120,7 @@ class SpikeTradeStateMonitorWindows(tradestates.TradeStateBase):
         self.back_timestamp = datetime.now()
         self.lay_timestamp = datetime.now()
         self.update_hold_ms = update_hold_ms
+        self.enable_lay = enable_lay
 
     def enter(self, trade_tracker: SpikeTradeTracker, market_book: MarketBook, **inputs):
         trade_tracker.back_order = None
@@ -255,7 +257,7 @@ class SpikeTradeStateMonitorWindows(tradestates.TradeStateBase):
             strategy.place_order(market, trade_tracker.back_order)
 
         # create lay order if doesn't exist
-        if trade_tracker.lay_order is None:
+        if trade_tracker.lay_order is None and self.enable_lay:
             trade_tracker.lay_order = trade_tracker.active_trade.create_order(
                 side='LAY',
                 order_type=LimitOrder(

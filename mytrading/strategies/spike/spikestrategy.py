@@ -45,6 +45,7 @@ class MySpikeStrategy(MyFeatureStrategy):
             hedge_tick_offset: int,
             hedge_hold_ms: int,
             features_kwargs: dict,
+            enable_lay: bool,
             **kwargs
     ):
 
@@ -59,6 +60,7 @@ class MySpikeStrategy(MyFeatureStrategy):
         self.spike_wait_ms = spike_wait_ms
         self.hedge_tick_offset = hedge_tick_offset
         self.hedge_hold_ms = hedge_hold_ms
+        self.enable_lay = enable_lay
 
         # generate feature configuration dict
         self.features_config: dict = get_spike_feature_configs(**features_kwargs)
@@ -101,6 +103,7 @@ class MySpikeStrategy(MyFeatureStrategy):
                         window_spread_min=self.window_spread_min,
                         ladder_spread_max=self.ladder_spread_max,
                         update_hold_ms=self.reduction_hold_ms,
+                        enable_lay=self.enable_lay,
                         name=spikestates.SpikeStateTypes.SPIKE_STATE_MONITOR,
                         next_state=[
                             basestates.TradeStateTypes.PENDING,
