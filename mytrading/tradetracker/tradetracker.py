@@ -59,9 +59,8 @@ class TradeTracker:
                     msg_type=MessageTypes.MSG_TRACK_TRADE,
                     dt=publish_time,
                     msg_attrs={
-                        "trade_id": trade.id
+                        "trade_id": str(trade.id)
                     },
-                    to_file=False
                 )
                 ot[trade.id] = dict()
 
@@ -76,8 +75,7 @@ class TradeTracker:
                         msg_attrs={
                             "order_id": order.id
                         },
-                        order=order,
-                        to_file=False
+                        order=order
                     )
                     ot[trade.id][order.id] = OrderTracker(
                         matched=order.size_matched,
