@@ -27,7 +27,7 @@ order_error_states = [
 ]
 order_pending_states = [
     OrderStatus.PENDING,
-    # OrderStatus.CANCELLING, # never leaves cancelling state
+    OrderStatus.CANCELLING,
     OrderStatus.UPDATING,
     OrderStatus.REPLACING
 ]
@@ -178,6 +178,8 @@ class TradeStateBin(TradeStateBase):
     def run(
             self,
             trade_tracker: TradeTracker,
+            market: Market,
+            strategy: BaseStrategy,
             **inputs
     ):
 
@@ -203,7 +205,7 @@ class TradeStateBin(TradeStateBase):
             elif order.status == OrderStatus.EXECUTABLE:
                 # partial match, cancel() checks for EXECUTABLE state when this when called
                 # cancel active order
-                order.cancel(order.size_remaining)
+                strategy.cancel_order(market, order)
 
         return done
 
