@@ -190,9 +190,9 @@ class SpikeTradeStateMonitorWindows(tradestates.TradeStateBase):
 
             # cancel remaining from both sides if orders exist
             if trade_tracker.back_order and trade_tracker.back_order.status == OrderStatus.EXECUTABLE:
-                trade_tracker.back_order.cancel(trade_tracker.back_order.size_remaining)
+                strategy.cancel_order(market, trade_tracker.back_order)
             if trade_tracker.lay_order and trade_tracker.lay_order.status == OrderStatus.EXECUTABLE:
-                trade_tracker.lay_order.cancel(trade_tracker.lay_order.size_remaining)
+                strategy.cancel_order(market, trade_tracker.lay_order)
 
             # set spike ltp for hedging state to read
             trade_tracker.spike_ltp = spike_data.ltp
@@ -310,9 +310,8 @@ class SpikeTradeStateMonitorWindows(tradestates.TradeStateBase):
                     display_odds=top_value,
                 )
 
-                # cancel back order and clear for re-creation
-                trade_tracker.back_order.cancel()
-                trade_tracker.back_order = None
+                # replace back order
+                strategy.replace_order(market, trade_tracker.back_order, top_value)
 
         # check lay order valid
         if trade_tracker.lay_order is not None and trade_tracker.lay_order.status == OrderStatus.EXECUTABLE:
@@ -341,9 +340,8 @@ class SpikeTradeStateMonitorWindows(tradestates.TradeStateBase):
                     display_odds=bottom_value,
                 )
 
-                # cancel lay order and clear for re-creation
-                trade_tracker.lay_order.cancel()
-                trade_tracker.lay_order = None
+                # replace lay order
+                strategy.replace_order(market, trade_tracker.lay_order, bottom_value)
 
         # update previous state boundary max/mins
         trade_tracker.previous_min_index = boundary_bottom_tick
