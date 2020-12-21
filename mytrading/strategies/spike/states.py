@@ -165,7 +165,11 @@ class SpikeTradeStateMonitorWindows(tradestates.TradeStateBase):
         # check if any money has been matched on either back or lay spike orders
         breach = False
         old_tick = 0
-        if trade_tracker.back_order and trade_tracker.back_order.size_matched > 0:
+
+        if any([
+            o.size_matched > 0 for o in trade_tracker.active_trade.orders
+            if o.order_type.ORDER_TYPE == OrderTypes.LIMIT and o.side == 'BACK'
+        ]):
 
             # BACK side matched indicator for hedging state to read
             trade_tracker.side_matched = 'BACK'
@@ -175,7 +179,10 @@ class SpikeTradeStateMonitorWindows(tradestates.TradeStateBase):
 
             breach = True
 
-        elif trade_tracker.lay_order and trade_tracker.lay_order.size_matched > 0:
+        elif any([
+            o.size_matched > 0 for o in trade_tracker.active_trade.orders
+            if o.order_type.ORDER_TYPE == OrderTypes.LIMIT and o.side == 'LAY'
+        ]):
 
             # LAY side matched indicator for hedging state to read
             trade_tracker.side_matched = 'LAY'
@@ -309,7 +316,8 @@ class SpikeTradeStateMonitorWindows(tradestates.TradeStateBase):
                 )
 
                 # replace back order
-                strategy.replace_order(market, trade_tracker.back_order, top_value)
+                strategy.cancel_order(market, trade_tracker.back_order)
+                trade_tracker.back_order = None
 
         # check lay order valid
         if trade_tracker.lay_order is not None and trade_tracker.lay_order.status == OrderStatus.EXECUTABLE:
@@ -339,7 +347,8 @@ class SpikeTradeStateMonitorWindows(tradestates.TradeStateBase):
                 )
 
                 # replace lay order
-                strategy.replace_order(market, trade_tracker.lay_order, bottom_value)
+                strategy.cancel_order(market, trade_tracker.lay_order)
+                trade_tracker.lay_order = None
 
         # update previous state boundary max/mins
         trade_tracker.previous_min_index = boundary_bottom_tick
