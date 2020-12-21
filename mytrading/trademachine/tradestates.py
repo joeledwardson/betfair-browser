@@ -187,7 +187,7 @@ class TradeStateBin(TradeStateBase):
         if not self.all_trade_orders:
             orders = [trade_tracker.active_order]
         else:
-            orders = trade_tracker.active_trade.orders if trade_tracker.active_trade else []
+            orders = [o for o in trade_tracker.active_trade.orders] if trade_tracker.active_trade else []
 
         done = True
 
