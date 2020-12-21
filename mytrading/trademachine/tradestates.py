@@ -206,6 +206,7 @@ class TradeStateBin(TradeStateBase):
                 # partial match, cancel() checks for EXECUTABLE state when this when called
                 # cancel active order
                 strategy.cancel_order(market, order)
+                done = False
 
         return done
 
@@ -641,7 +642,6 @@ class TradeStateHedgeWaitBase(TradeStateBase):
                 # bin active hedge and hedge again with new price
                 return [
                     TradeStateTypes.BIN,
-                    TradeStateTypes.PENDING,
                     TradeStateTypes.HEDGE_SELECT
                 ]
                 # replacing doesn't seem to work in back-test mode
@@ -659,7 +659,6 @@ class TradeStateHedgeWaitBase(TradeStateBase):
             )
             return [
                 TradeStateTypes.BIN,
-                TradeStateTypes.PENDING,
                 TradeStateTypes.HEDGE_SELECT
             ]
 
@@ -860,6 +859,13 @@ class TradeStateHedgeWaitQueue(TradeStateHedgeWaitBase):
 
         # price not moved
         return 0
+
+
+class TradeStateHedgeMk2(TradeStateBase):
+    """
+    Hedge state 2nd generation - one user defined function
+    """
+    pass
 
 
 class TradeStateClean(TradeStateBase):
