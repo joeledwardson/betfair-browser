@@ -1,5 +1,5 @@
 import json
-from ..utils.storage import _construct_hist_dir, construct_hist_dir, EXT_RECORDED, SUBDIR_RECORDED
+from ..utils.storage import _construct_hist_dir, construct_hist_dir, EXT_RECORDED, SUBDIR_RECORDED, EXT_CATALOGUE
 from betfairlightweight.resources.bettingresources import MarketBook
 from flumine.markets.market import Market
 from datetime import timedelta, datetime, timezone
@@ -31,6 +31,7 @@ class MyRecorderStrategy(BaseStrategy):
         super().__init__(*args, **kwargs)
         self.base_dir = base_dir
         self.market_paths = {}
+        self.catalogue_paths = {}
 
     #
     # def process_raw_data(self, publish_time: int, data: dict) -> None:
@@ -96,6 +97,26 @@ class MyRecorderStrategy(BaseStrategy):
 
     def process_market_book(self, market: Market, market_book: MarketBook) -> None:
         market_id = market_book.market_id
+
+        if market_id not in self.catalogue_paths and market.market_catalogue:
+
+            # make sure dir exists
+            dir_path = path.join(
+                self.base_dir,
+                SUBDIR_RECORDED,
+                construct_hist_dir(market_book)
+            )
+            makedirs(dir_path, exist_ok=True)
+
+            # store catalogue
+            catalogue_path = path.join(
+                dir_path,
+                market_id + EXT_CATALOGUE
+            )
+            self.catalogue_paths[market_id] = catalogue_path
+            active_logger.info(f'writing market id "{market_id}" catalogue to "{catalogue_path}"')
+            with open(catalogue_path, 'w') as file_catalogue:
+                file_catalogue.write(market.market_catalogue.json())
 
         if market_id not in self.market_paths:
 
