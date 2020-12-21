@@ -203,9 +203,14 @@ class TradeStateBin(TradeStateBase):
                 done = False
 
             elif order.status == OrderStatus.EXECUTABLE:
-                # partial match, cancel() checks for EXECUTABLE state when this when called
-                # cancel active order
-                strategy.cancel_order(market, order)
+
+                if len(order.status_log) >= 2 and order.status_log[-2] == OrderStatus.CANCELLING:
+                    # check if order has been called to be cancelled but has gone back to EXECUTABLE before finishing
+                    pass
+                else:
+                    # cancel order (flumine checks order is EXECUTABLE before cancelling or throws error)
+                    strategy.cancel_order(market, order)
+
                 done = False
 
         return done
