@@ -148,7 +148,6 @@ class SpikeTradeStateMonitorWindows(tradestates.TradeStateBase):
             )
             return [
                 tradestates.TradeStateTypes.BIN,
-                tradestates.TradeStateTypes.PENDING,
                 tradestates.TradeStateTypes.IDLE,
             ]
 
@@ -231,7 +230,6 @@ class SpikeTradeStateMonitorWindows(tradestates.TradeStateBase):
             )
             return [
                 tradestates.TradeStateTypes.BIN,
-                tradestates.TradeStateTypes.PENDING,
                 tradestates.TradeStateTypes.IDLE,
             ]
 
