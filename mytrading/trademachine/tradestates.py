@@ -596,7 +596,7 @@ class TradeStateHedgeWaitBase(TradeStateBase):
             trade_tracker.log_update(
                 msg_type=MessageTypes.MSG_HEDGE_ERROR,
                 msg_attrs={
-                    'order_status': order.status.value,
+                    'order_status': order.violation_msg,
                 },
                 dt=market_book.publish_time
             )
