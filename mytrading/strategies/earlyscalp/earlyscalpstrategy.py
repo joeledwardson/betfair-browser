@@ -37,6 +37,7 @@ class MyEarlyScalpStrategy(MyFeatureStrategy):
             spread_min: int,
             scalp_cutoff_s: int,
             min_hedge_price: float,
+            trade_transactions_cutoff: int,
             features_kwargs: dict,
             **kwargs
     ):
@@ -46,6 +47,7 @@ class MyEarlyScalpStrategy(MyFeatureStrategy):
         self.spread_min = spread_min
         self.scalp_cutoff_s = scalp_cutoff_s
         self.min_hedge_price = min_hedge_price
+        self.trade_transactions_cutoff = trade_transactions_cutoff
 
         # generate feature configuration dict
         self.features_config: dict = get_scalp_feature_configs(**features_kwargs)
@@ -79,6 +81,7 @@ class MyEarlyScalpStrategy(MyFeatureStrategy):
                     scalpstates.EarlyScalpTradeStateIdle(
                         spread_min=self.spread_min,
                         scalp_cutoff_s=self.scalp_cutoff_s,
+                        trade_transactions_cutoff=self.trade_transactions_cutoff,
                         next_state=scalpstates.EScalpStateTypes.ESCALP_STATE_BACK,
                     ),
                     scalpstates.EarlyScalpTradeStateBack(
