@@ -9,10 +9,11 @@ import sys
 from betfairlightweight.resources.bettingresources import MarketBook,  MarketCatalogue
 from betfairlightweight import APIClient
 import json
-from os import path, listdir
+from os import path, listdir, walk
 import logging
 from typing import List
 from pathlib import PurePath
+import re
 
 SUBDIR_HISTORICAL = 'historical'
 SUBDIR_RECORDED = 'recorded'
@@ -231,3 +232,35 @@ def strategy_path_convert(strategy_path: str, base_dir: str) -> str:
     )
 
 
+def get_historical_markets(input_path: str, market_type: str, base_dir: str) -> List[str]:
+    """
+    get list of historical markets from input path
+    """
+
+    if not path.isdir(input_path):
+        active_logger.critical(f'input path "{input_path}", assuming market file')
+        _markets = [input_path]
+    else:
+        active_logger.info(f'filtering to market type: "{market_type}"')
+        active_logger.info(f'using base dir for strategy: "{base_dir}')
+        active_logger.info('\n')
+
+        _markets = []
+        for root, dirs, files in walk(input_path):
+
+            for f in files:
+                get = False
+                _, file_ext = path.splitext(f)
+                if re.match(RE_MARKET_ID, f):
+                    get = True
+                elif re.match(EXT_RECORDED, file_ext):
+                    get = True
+
+                if get:
+                    file_path = path.join(root, f)
+                    market_definition = get_hist_marketdef(file_path)
+                    if market_definition is not None:
+                        if market_definition.market_type == market_type:
+                            _markets.append(file_path)
+                            active_logger.info(f'adding market {len(_markets):4} from file "{file_path}')
+    return _markets
