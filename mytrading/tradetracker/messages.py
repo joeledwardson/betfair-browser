@@ -57,6 +57,7 @@ class MessageTypes(Enum):
     MSG_CUTOFF_REACHED = 'reached cutoff point for trading'
     MSG_LAY_EMPTY = 'lay empty'
     MSG_BACK_EMPTY = 'back empty'
+    MSG_PRICE_INVALID = 'price invalid'
 
 
 @register_formatter(MessageTypes.MSG_LAY_EMPTY)
@@ -183,3 +184,8 @@ def formatter(attrs: Dict) -> str:
     pre_seconds = attrs.get('pre_seconds')
     start_time = attrs.get('start_time')
     return f'allowed trading point reached {pre_seconds}s before start time: {start_time}'
+
+
+@register_formatter(MessageTypes.MSG_PRICE_INVALID)
+def formatter(attrs: Dict) -> str:
+    return f'price is not a valid tick: "{attrs.get("price")}"'
