@@ -48,7 +48,6 @@ class EarlyScalpTradeStateIdle(tradestates.TradeStateIdle):
             market: Market,
             market_book: MarketBook,
             trade_tracker: EScalpTradeTracker,
-            first_runner: bool,
             data: EScalpData,
             **inputs,
     ) -> bool:
@@ -73,7 +72,7 @@ class EarlyScalpTradeStateIdle(tradestates.TradeStateIdle):
 
         if data.spread >= self.spread_min:
             trade_tracker.log_update(
-                msg_type=EScalpMessageTypes.SPIKE_MSG_START,
+                msg_type=EScalpMessageTypes.ESCALP_MSG_START,
                 dt=market_book.publish_time,
                 msg_attrs={
                     'spread': data.spread,
