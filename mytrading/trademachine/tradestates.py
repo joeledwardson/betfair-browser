@@ -523,8 +523,8 @@ class TradeStateHedgePlaceBase(TradeStateBase):
         # convert price to 2dp
         green_price = round(green_price, ndigits=2)
 
-        # if function returns 0 then error
-        if not green_price:
+        # if function returns 0 or invalid then error
+        if not green_price or green_price and green_price not in LTICKS_DECODED:
             trade_tracker.log_update(
                 msg_type=MessageTypes.MSG_GREEN_INVALID,
                 msg_attrs={
@@ -533,8 +533,8 @@ class TradeStateHedgePlaceBase(TradeStateBase):
                 dt=market_book.publish_time
             )
 
-            # try repeat
-            return None
+            # use best available
+            green_price = close_ladder[0]['price']
 
         # compute size from outstanding profit and price, round to 2dp
         green_size = abs(outstanding_profit) / green_price
