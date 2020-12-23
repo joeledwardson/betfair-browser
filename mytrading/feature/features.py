@@ -583,6 +583,48 @@ class RunnerFeatureSubDelayer(RunnerFeatureSub):
 
 
 @register_feature
+class RunnerFeatureSubConstDelayer(RunnerFeatureSub):
+    """
+    get last parent feature value that has held its value without changing for x number of seconds
+    """
+
+    def __init__(self, hold_seconds, *args, **kwargs):
+        self.hold_seconds = hold_seconds
+        self.value_timestamp: datetime = datetime.now()
+        self.parent_previous = None
+        self.hold_value = None
+        super().__init__(*args, **kwargs)
+
+    def race_initializer(
+            self,
+            selection_id: int,
+            first_book: MarketBook,
+            windows: Windows):
+        self.value_timestamp = first_book.publish_time
+
+    def runner_update(
+            self,
+            market_list: List[MarketBook],
+            new_book: MarketBook,
+            windows: Windows,
+            runner_index):
+
+        parent_current = self.parent.last_value()
+        if self.parent_previous is None:
+            self.parent_previous = parent_current
+
+        if self.parent_previous is not None and parent_current is not None:
+            if self.parent_previous != parent_current:
+                self.value_timestamp = new_book.publish_time
+
+            if (new_book.publish_time - self.value_timestamp).total_seconds() >= self.hold_seconds:
+                self.hold_value = parent_current
+
+        self.parent_previous = parent_current
+        return self.hold_value
+
+
+@register_feature
 class RunnerFeatureSubLastValue(RunnerFeatureSub):
 
     def __init__(self, *args, **kwargs):
