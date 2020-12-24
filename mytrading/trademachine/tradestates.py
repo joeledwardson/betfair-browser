@@ -569,9 +569,9 @@ class TradeStateHedgeWaitBase(TradeStateBase):
     price_moved() provides unimplemented method to detect whether price has moved and need to move hedging price
     """
 
-    def __init__(self, select_state, *args, **kwargs):
+    def __init__(self, hedge_place_state, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.select_state = select_state
+        self.hedge_place_state = hedge_place_state
 
     def price_moved(
             self,
@@ -651,7 +651,7 @@ class TradeStateHedgeWaitBase(TradeStateBase):
                 # bin active hedge and hedge again with new price
                 return [
                     TradeStateTypes.BIN,
-                    self.select_state
+                    self.hedge_place_state
                 ]
                 # replacing doesn't seem to work in back-test mode
                 # order.replace(available[0]['price'])
