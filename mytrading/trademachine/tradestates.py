@@ -541,16 +541,6 @@ class TradeStateHedgePlaceBase(TradeStateBase):
         green_size = round(green_size, 2)
 
         # place order
-        trade_tracker.log_update(
-            msg_type=MessageTypes.MSG_GREEN_PLACE,
-            msg_attrs={
-                'close_side': close_side,
-                'green_price': green_price,
-                'green_size': green_size
-            },
-            dt=market_book.publish_time,
-            display_odds=green_price,
-        )
         green_order = trade_tracker.active_trade.create_order(
             side=close_side,
             order_type=LimitOrder(
@@ -558,6 +548,17 @@ class TradeStateHedgePlaceBase(TradeStateBase):
                 size=green_size
             ))
         strategy.place_order(market, green_order)
+        trade_tracker.log_update(
+            msg_type=MessageTypes.MSG_GREEN_PLACE,
+            msg_attrs={
+                'close_side': close_side,
+                'green_price': green_price,
+                'green_size': green_size,
+                'order_id': str(green_order.id),
+            },
+            dt=market_book.publish_time,
+            display_odds=green_price,
+        )
 
         trade_tracker.active_order = green_order
         return [TradeStateTypes.PENDING, self.next_state]
