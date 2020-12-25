@@ -137,7 +137,8 @@ def formatter(attrs: Dict) -> str:
     close_side = attrs.get('close_side')
     green_price = attrs.get('green_price')
     green_size = attrs.get('green_size', -1)
-    return f'greening active order side {close_side} on {green_price} for £{green_size:.2f}'
+    order_id = attrs.get('order_id')
+    return f'greening active order ID {order_id} side {close_side} on {green_price} for £{green_size:.2f}'
 
 
 @register_formatter(MessageTypes.MSG_HEDGE_ERROR)
