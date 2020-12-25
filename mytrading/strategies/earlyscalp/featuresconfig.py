@@ -3,6 +3,7 @@ from typing import Dict
 
 def get_scalp_feature_configs(
         n_ladder_elements,
+        n_wom_ticks,
         hold_s,
         spread_sampling_ms,
         spread_sampling_count,
@@ -60,6 +61,13 @@ def get_scalp_feature_configs(
 
         'tv': {
             'name': 'RunnerFeatureTVTotal',
+        },
+
+        'wom': {
+            'name': 'RunnerFeatureWOM',
+            'kwargs': {
+                'wom_ticks': n_wom_ticks
+            },
         },
 
         'spread': {
