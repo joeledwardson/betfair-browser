@@ -97,10 +97,10 @@ class MyEarlyScalpStrategy(MyFeatureStrategy):
                         name=scalpstates.EScalpStateTypes.ESCALP_STATE_HEDGE_PLACE,
                         next_state=scalpstates.EScalpStateTypes.ESCALP_STATE_HEDGE_WAIT,
                     ),
-                    scalpstates.EarlyScalpTradeStateHedgePlace(
-                        min_hedge_price=self.min_hedge_price,
+                    scalpstates.EarlyScalpTradeStateHedgeWait(
                         name=scalpstates.EScalpStateTypes.ESCALP_STATE_HEDGE_WAIT,
                         next_state=basestates.TradeStateTypes.CLEANING,
+                        hedge_place_state=scalpstates.EScalpStateTypes.ESCALP_STATE_HEDGE_PLACE,
                     ),
                     basestates.TradeStateBin(
                         all_trade_orders=True,
@@ -109,6 +109,12 @@ class MyEarlyScalpStrategy(MyFeatureStrategy):
                         all_trade_orders=True,
                     ),
                     basestates.TradeStateClean(),
+                    basestates.TradeStateHedgePlaceTake(
+                        min_hedge_price=self.min_hedge_price,
+                    ),
+                    basestates.TradeStateHedgeWaitTake(
+                        hedge_place_state=basestates.TradeStateTypes.HEDGE_TAKE_PLACE,
+                    ),
                     # basestates.TradeStateWait(
                     #     wait_ms=self.spike_wait_ms
                     # ),
