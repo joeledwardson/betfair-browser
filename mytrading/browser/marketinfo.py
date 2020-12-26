@@ -60,5 +60,5 @@ class MarketInfo:
 
     def __repr__(self):
         market_time = event_time(self.market_time, localise=False) if self.market_time else ''
-        return f'{self.event_name} {market_time} {self.market_type}'
+        return f'{self.event_name} {market_time} {self.market_type} "{self.market_id}"'
 
