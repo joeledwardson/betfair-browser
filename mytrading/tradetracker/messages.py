@@ -73,12 +73,12 @@ def formatter(attrs: Dict) -> str:
 
 @register_formatter(MessageTypes.MSG_TRACK_TRADE)
 def formatter(attrs: Dict) -> str:
-    return f'started tracking trade "{attrs.get("trade_id")}"'
+    return f'started tracking trade ID "{attrs.get("trade_id")}"'
 
 
 @register_formatter(MessageTypes.MSG_TRACK_ORDER)
 def formatter(attrs: Dict) -> str:
-    return f'started tracking order "{attrs.get("order_id")}"'
+    return f'started tracking order ID "{attrs.get("order_id")}"'
 
 
 @register_formatter(MessageTypes.MSG_MATCHED_SIZE)
