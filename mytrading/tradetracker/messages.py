@@ -92,11 +92,12 @@ def formatter(attrs: Dict) -> str:
 
 @register_formatter(MessageTypes.MSG_STATUS_UPDATE)
 def formatter(attrs: Dict) -> str:
+    order_id = attrs.get("order_id")
     side = attrs.get("side")
     price = attrs.get("price")
     size = attrs.get("size", -1)
     status = attrs.get("status")
-    str = f'order side {side} at {price} for £{size:.2f}, now status {status}'
+    str = f'order ID "{order_id}" side {side} at {price} for £{size:.2f}, now status {status}'
     msg = attrs.get("msg")
     if msg:
         str += f', message: "{msg}"'
