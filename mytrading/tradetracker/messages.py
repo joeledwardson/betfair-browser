@@ -41,6 +41,7 @@ class MessageTypes(Enum):
     MSG_TRACK_ORDER = 'tracking new order'
     MSG_MATCHED_SIZE = 'order matched amount change'
     MSG_STATUS_UPDATE = 'order status update'
+    MSG_TRADE_UPDATE = 'trade status update'
     MSG_OPEN_PLACE = 'placing opening order'
     MSG_OPEN_ERROR = 'error status open order'
     MSG_MARKET_CLOSE = 'market closed'
@@ -100,6 +101,11 @@ def formatter(attrs: Dict) -> str:
     if msg:
         str += f', message: "{msg}"'
     return str
+
+
+@register_formatter(MessageTypes.MSG_TRADE_UPDATE)
+def formatter(attrs: Dict) -> str:
+    return f'trade ID "{attrs.get("trade_id")}" now status: "{attrs.get("status")}"'
 
 
 @register_formatter(MessageTypes.MSG_OPEN_PLACE)
