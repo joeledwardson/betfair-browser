@@ -94,6 +94,7 @@ class EarlyScalpTradeStateBack(tradestates.TradeStateBase):
 
     def enter(self, trade_tracker: EScalpTradeTracker, market_book: MarketBook, **inputs):
         trade_tracker.back_order = None
+        trade_tracker.lay_order = None
 
     def run(
             self,
@@ -114,12 +115,16 @@ class EarlyScalpTradeStateBack(tradestates.TradeStateBase):
 
         tt = trade_tracker
 
-        if data.lay_delayed not in LTICKS_DECODED:
+        if data.lay_delayed not in LTICKS_DECODED or data.back_delayed not in LTICKS_DECODED:
+            if data.lay_delayed not in LTICKS_DECODED:
+                price = data.lay_delayed
+            else:
+                price = data.back_delayed
             tt.log_update(
                 msg_type=MessageTypes.MSG_PRICE_INVALID,
                 dt=market_book.publish_time,
                 msg_attrs={
-                    'price': data.lay_delayed,
+                    'price': price,
                 }
             )
             return [
@@ -127,29 +132,62 @@ class EarlyScalpTradeStateBack(tradestates.TradeStateBase):
                 tradestates.TradeStateTypes.HEDGE_SELECT,
             ]
 
-        if any([
+        back_matched = sum([
             o.size_matched > 0 for o in tt.active_trade.orders
             if o.order_type.ORDER_TYPE == OrderTypes.LIMIT and o.side == 'BACK'
-        ]):
-            if tt.back_order and tt.back_order.size_remaining:
-                strategy.cancel_order(market, tt.back_order)
+        ])
+        lay_matched = sum([
+            o.size_matched > 0 for o in tt.active_trade.orders
+            if o.order_type.ORDER_TYPE == OrderTypes.LIMIT and o.side == 'LAY'
+        ])
+
+        if (back_matched/self.stake_size) > 0.9 and (lay_matched/self.stake_size) > 0.9:
             return self.next_state
+        #
+        # if any([
+        #     o.size_matched > 0 for o in tt.active_trade.orders
+        #     if o.order_type.ORDER_TYPE == OrderTypes.LIMIT and o.side == 'BACK'
+        # ]):
+        #     if tt.back_order and tt.back_order.size_remaining:
+        #         strategy.cancel_order(market, tt.back_order)
 
         if not tt.back_order:
             # TODO (temporary fix so that orders are processed)
-            tt.active_trade._update_status(TradeStatus.PENDING)
-            tt.back_order = tt.active_trade.create_order(
-                side='BACK',
-                order_type=LimitOrder(
-                    price=data.lay_delayed,
-                    size=self.stake_size
-                ))
-            strategy.place_order(market, tt.back_order)
+            size = self.stake_size - back_matched
+            if size > 0:
+                tt.active_trade._update_status(TradeStatus.PENDING)
+                tt.back_order = tt.active_trade.create_order(
+                    side='BACK',
+                    order_type=LimitOrder(
+                        price=data.lay_delayed,
+                        size=size
+                    ))
+                strategy.place_order(market, tt.back_order)
 
-        if tt.back_order:
+        if tt.back_order is not None:
             if tt.back_order.order_type.price != data.lay_delayed:
-                strategy.cancel_order(market, tt.back_order)
-                tt.back_order = None
+                if tt.back_order.size_remaining >= 2:
+                    strategy.cancel_order(market, tt.back_order)
+                    tt.back_order = None
+
+        if not tt.lay_order:
+            # TODO (temporary fix so that orders are processed)
+            size = self.stake_size - lay_matched
+            if size > 0:
+                tt.active_trade._update_status(TradeStatus.PENDING)
+                tt.lay_order = tt.active_trade.create_order(
+                    side='LAY',
+                    order_type=LimitOrder(
+                        price=data.back_delayed,
+                        size=size
+                    ))
+                strategy.place_order(market, tt.lay_order)
+
+        if tt.lay_order is not None:
+            if tt.lay_order.order_type.price != data.back_delayed:
+                if tt.lay_order.size_remaining >= 2:
+                    strategy.cancel_order(market, tt.lay_order)
+                    tt.lay_order = None
 
 
 class EarlyScalpTradeStateHedgePlace(tradestates.TradeStateHedgePlaceBase):

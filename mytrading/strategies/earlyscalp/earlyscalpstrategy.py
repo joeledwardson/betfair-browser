@@ -89,9 +89,11 @@ class MyEarlyScalpStrategy(MyFeatureStrategy):
                     ),
                     scalpstates.EarlyScalpTradeStateBack(
                         stake_size=self.stake_size,
-                        spread_cutoff=self.spread_cutoff,
                         name=scalpstates.EScalpStateTypes.ESCALP_STATE_BACK,
-                        next_state=basestates.TradeStateTypes.HEDGE_SELECT,
+                        next_state=[
+                            basestates.TradeStateTypes.BIN,
+                            basestates.TradeStateTypes.HEDGE_TAKE_PLACE
+                        ],
                     ),
                     basestates.TradeStateHedgeSelect(
                         next_state=scalpstates.EScalpStateTypes.ESCALP_STATE_HEDGE_PLACE,
@@ -102,7 +104,6 @@ class MyEarlyScalpStrategy(MyFeatureStrategy):
                         next_state=scalpstates.EScalpStateTypes.ESCALP_STATE_HEDGE_WAIT,
                     ),
                     scalpstates.EarlyScalpTradeStateHedgeWait(
-                        spread_cutoff=self.spread_cutoff,
                         name=scalpstates.EScalpStateTypes.ESCALP_STATE_HEDGE_WAIT,
                         next_state=basestates.TradeStateTypes.CLEANING,
                         hedge_place_state=scalpstates.EScalpStateTypes.ESCALP_STATE_HEDGE_PLACE,
