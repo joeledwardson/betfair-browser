@@ -7,7 +7,7 @@ from enum import Enum
 
 from .messages import MessageTypes, format_message
 from .orderinfo import serializable_order_info, write_order_update
-from .ordertracker import OrderTracker
+from .tradefollower import OrderTracker, TradeFollower
 from typing import List, Dict
 from datetime import datetime
 from dataclasses import dataclass, field
@@ -40,21 +40,23 @@ class TradeTracker:
     _log: List[Dict] = field(default_factory=list)
     file_path: str = field(default=None)
 
-    # indexed by trade ID -> order ID
-    order_tracker: Dict[UUID, Dict[UUID, OrderTracker]] = field(default_factory=dict)
+    # indexed by trade ID
+    _trade_followers: Dict[UUID, TradeFollower] = field(default_factory=dict)
+    # cache of tracked orders
+    _followed_orders: List[UUID] = field(default_factory=list)
 
     def update_order_tracker(self, publish_time: datetime):
         """
         loop orders in each trade instance, and log update message where order amount matched or status has changed
         since last call of function
         """
-        ot = self.order_tracker
+        tfs = self._trade_followers
 
         # loop trades
         for trade in self.trades:
 
             # add untracked trades to tracker
-            if trade.id not in ot:
+            if trade.id not in tfs:
                 self.log_update(
                     msg_type=MessageTypes.MSG_TRACK_TRADE,
                     dt=publish_time,
@@ -62,13 +64,26 @@ class TradeTracker:
                         "trade_id": str(trade.id)
                     },
                 )
-                ot[trade.id] = dict()
+                tfs[trade.id] = TradeFollower()
+
+            # log trade status updates
+            tf = tfs[trade.id]
+            if tf.status != trade.status:
+                self.log_update(
+                    msg_type=MessageTypes.MSG_TRADE_UPDATE,
+                    dt=publish_time,
+                    msg_attrs={
+                        'trade_id': str(trade.id),
+                        'status': trade.status.value
+                    }
+                )
+            tf.status = trade.status
 
             # loop limit orders in trade
             for order in [o for o in trade.orders if type(o.order_type) == LimitOrder]:
 
-                # if order untracked, create ordertracker and track
-                if order.id not in ot[trade.id]:
+                # if order untracked, create order tracker and track
+                if order.id not in self._followed_orders:
                     self.log_update(
                         msg_type=MessageTypes.MSG_TRACK_ORDER,
                         dt=publish_time,
@@ -77,14 +92,15 @@ class TradeTracker:
                         },
                         order=order
                     )
-                    ot[trade.id][order.id] = OrderTracker(
+                    tf.order_trackers[order.id] = OrderTracker(
                         matched=order.size_matched,
                         status=order.status
                     )
+                    self._followed_orders.append(order.id)
                     continue
 
                 # check if size matched change
-                if order.size_matched != ot[trade.id][order.id].matched:
+                if order.size_matched != tf.order_trackers[order.id].matched:
                     self.log_update(
                         msg_type=MessageTypes.MSG_MATCHED_SIZE,
                         dt=publish_time,
@@ -100,7 +116,7 @@ class TradeTracker:
                     )
 
                 # check for status change
-                if order.status != ot[trade.id][order.id].status:
+                if order.status != tf.order_trackers[order.id].status:
 
                     msg = ''
                     if order.status == OrderStatus.VIOLATION:
@@ -120,8 +136,8 @@ class TradeTracker:
                         order=order,
                         display_odds=order.order_type.price,
                     )
-                ot[trade.id][order.id].status = order.status
-                ot[trade.id][order.id].matched = order.size_matched
+                tf.order_trackers[order.id].status = order.status
+                tf.order_trackers[order.id].matched = order.size_matched
 
     def log_update(
             self,
