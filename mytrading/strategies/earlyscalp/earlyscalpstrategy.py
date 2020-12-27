@@ -6,6 +6,7 @@ from typing import Dict
 from flumine.markets.market import Market
 from betfairlightweight.resources.bettingresources import MarketBook, RunnerBook
 import logging
+from datetime import datetime
 
 from myutils.timing import timing_register
 from ...trademachine import tradestates as basestates
@@ -35,6 +36,7 @@ class MyEarlyScalpStrategy(MyFeatureStrategy):
             base_dir: str,
             stake_size: float,
             spread_min: int,
+            spread_cutoff: float,
             scalp_cutoff_s: int,
             min_hedge_price: float,
             trade_transactions_cutoff: int,
@@ -45,6 +47,7 @@ class MyEarlyScalpStrategy(MyFeatureStrategy):
         super().__init__('early_scalp', base_dir, **kwargs)
         self.stake_size = stake_size
         self.spread_min = spread_min
+        self.spread_cutoff = spread_cutoff
         self.scalp_cutoff_s = scalp_cutoff_s
         self.min_hedge_price = min_hedge_price
         self.trade_transactions_cutoff = trade_transactions_cutoff
@@ -86,6 +89,7 @@ class MyEarlyScalpStrategy(MyFeatureStrategy):
                     ),
                     scalpstates.EarlyScalpTradeStateBack(
                         stake_size=self.stake_size,
+                        spread_cutoff=self.spread_cutoff,
                         name=scalpstates.EScalpStateTypes.ESCALP_STATE_BACK,
                         next_state=basestates.TradeStateTypes.HEDGE_SELECT,
                     ),
@@ -98,6 +102,7 @@ class MyEarlyScalpStrategy(MyFeatureStrategy):
                         next_state=scalpstates.EScalpStateTypes.ESCALP_STATE_HEDGE_WAIT,
                     ),
                     scalpstates.EarlyScalpTradeStateHedgeWait(
+                        spread_cutoff=self.spread_cutoff,
                         name=scalpstates.EScalpStateTypes.ESCALP_STATE_HEDGE_WAIT,
                         next_state=basestates.TradeStateTypes.CLEANING,
                         hedge_place_state=scalpstates.EScalpStateTypes.ESCALP_STATE_HEDGE_PLACE,
@@ -135,7 +140,8 @@ class MyEarlyScalpStrategy(MyFeatureStrategy):
             back_delayed=0,
             lay_delayed=0,
             ltp=0,
-            spread=0
+            spread=0,
+            allow=True,
         )
 
     def trade_machine_kwargs(
@@ -154,7 +160,13 @@ class MyEarlyScalpStrategy(MyFeatureStrategy):
         scalp_data.lay_delayed = features['best lay'].sub_features['hold_delay'].last_value()
         scalp_data.spread = features['spread'].last_value()
         scalp_data.ltp = features['ltp'].last_value()
+        if scalp_data.spread <= self.spread_cutoff:
+            scalp_data.allow = False
 
         return {
             'data': scalp_data
         }
+
+    def process_orders(self, market: Market, orders: list) -> None:
+        if market.market_book.publish_time >= datetime(year=2020, month=11, day=16, hour=18, minute=11, second=35):
+            my_debug_point = True

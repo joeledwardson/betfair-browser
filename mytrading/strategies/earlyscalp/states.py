@@ -3,6 +3,7 @@ from flumine import BaseStrategy
 from flumine.markets.market import Market
 from flumine.order.order import OrderStatus, BetfairOrder
 from flumine.order.ordertype import LimitOrder, OrderTypes
+from flumine.order.trade import Trade, TradeStatus
 
 import logging
 from enum import Enum
@@ -41,7 +42,7 @@ class EarlyScalpTradeStateIdle(tradestates.TradeStateIdle):
         super().__init__(**kwargs)
         self.spread_min = spread_min
         self.scalp_cutoff_s = scalp_cutoff_s
-        self.past_cutoff = False
+        self.cutoff_previous_state = False
 
     def trade_criteria(
             self,
@@ -52,10 +53,10 @@ class EarlyScalpTradeStateIdle(tradestates.TradeStateIdle):
             **inputs,
     ) -> bool:
 
-        if not self.past_cutoff:
+        if not self.cutoff_previous_state:
             seconds_to_start = (market_book.market_definition.market_time - market_book.publish_time).total_seconds()
             if seconds_to_start <= self.scalp_cutoff_s:
-                self.past_cutoff = True
+                self.cutoff_previous_state = True
                 trade_tracker.log_update(
                     msg_type=EScalpMessageTypes.ESCALP_MSG_STOP,
                     dt=market_book.publish_time,
@@ -64,10 +65,13 @@ class EarlyScalpTradeStateIdle(tradestates.TradeStateIdle):
                     }
                 )
 
-        if self.past_cutoff:
+        if self.cutoff_previous_state:
             return False
 
         if not data.back_delayed or not data.lay_delayed or not data.spread:
+            return False
+
+        if not data.allow:
             return False
 
         if data.spread >= self.spread_min:
@@ -101,6 +105,13 @@ class EarlyScalpTradeStateBack(tradestates.TradeStateBase):
             data: EScalpData,
             **inputs
     ):
+
+        if not data.allow:
+            return [
+                tradestates.TradeStateTypes.BIN,
+                tradestates.TradeStateTypes.HEDGE_TAKE_PLACE,
+            ]
+
         tt = trade_tracker
 
         if data.lay_delayed not in LTICKS_DECODED:
@@ -125,6 +136,8 @@ class EarlyScalpTradeStateBack(tradestates.TradeStateBase):
             return self.next_state
 
         if not tt.back_order:
+            # TODO (temporary fix so that orders are processed)
+            tt.active_trade._update_status(TradeStatus.PENDING)
             tt.back_order = tt.active_trade.create_order(
                 side='BACK',
                 order_type=LimitOrder(
@@ -148,4 +161,13 @@ class EarlyScalpTradeStateHedgeWait(tradestates.TradeStateHedgeWaitBase):
     def price_moved(self, data: EScalpData, **inputs):
         return data.back_delayed
 
+    def run(self, data: EScalpData, **inputs):
+        return_states = super().run(data=data, **inputs)
+        if not data.allow:
+            return [
+                tradestates.TradeStateTypes.BIN,
+                tradestates.TradeStateTypes.HEDGE_TAKE_PLACE,
+            ]
+        else:
+            return return_states
 

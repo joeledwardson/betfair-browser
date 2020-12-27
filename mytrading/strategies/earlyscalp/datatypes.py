@@ -7,6 +7,8 @@ class EScalpData:
     lay_delayed: float
     ltp: float
     spread: float
+    allow: bool
+
 
 
 
