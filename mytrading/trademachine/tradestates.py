@@ -8,7 +8,7 @@ from flumine import BaseStrategy
 from flumine.markets.market import Market
 from flumine.order.order import BetfairOrder, OrderStatus
 from flumine.order.ordertype import LimitOrder, OrderTypes
-from flumine.order.trade import Trade
+from flumine.order.trade import Trade, TradeStatus
 
 from ..process.matchbet import get_match_bet_sums
 from ..process.profit import order_profit
@@ -540,6 +540,9 @@ class TradeStateHedgePlaceBase(TradeStateBase):
         green_size = abs(outstanding_profit) / green_price
         green_size = round(green_size, 2)
 
+        # TODO (temporary fix so that orders are processed)
+        trade_tracker.active_trade._update_status(TradeStatus.PENDING)
+
         # place order
         green_order = trade_tracker.active_trade.create_order(
             side=close_side,
@@ -547,6 +550,7 @@ class TradeStateHedgePlaceBase(TradeStateBase):
                 price=green_price,
                 size=green_size
             ))
+
         strategy.place_order(market, green_order)
         trade_tracker.log_update(
             msg_type=MessageTypes.MSG_GREEN_PLACE,
