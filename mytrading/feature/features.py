@@ -8,9 +8,12 @@ import operator
 import statistics
 from datetime import datetime, timedelta
 import logging
+from os import path
 from ..process.prices import best_price
 from ..process.tradedvolume import traded_runner_vol
 from ..process.ticks.ticks import tick_spread, LTICKS_DECODED
+from ..utils.storage import construct_hist_dir
+from ..oddschecker import oc_hist_mktbk_processor
 from .window import Windows
 
 
@@ -753,3 +756,43 @@ class RunnerFeatureSubRegression(RunnerFeatureSub):
             return 0
         else:
             return int((self.parent.periodic_ms * self.element_count) / 1000)
+
+
+@register_feature
+class RunnerFeatureHistoricOddscheckerAvg(RunnerFeatureBase):
+    """
+    get oddschecker average value between bookies (not exchanges) for runner
+    oddschecker file and catalogue file is retrieved using recorded directory as historic base, passed on feature
+    constructor
+    """
+    def __init__(
+            self,
+            recorded_dir: str,
+            *args,
+            **kwargs
+    ):
+        super().__init__(*args, **kwargs)
+        self.recorded_dir = recorded_dir
+        self.oc_dict = dict()
+        self.oc_avg = None
+
+    def race_initializer(
+            self,
+            selection_id: int,
+            first_book: MarketBook,
+            windows: Windows):
+        super().race_initializer(selection_id, first_book, windows)
+
+        market_dir = path.join(self.recorded_dir, construct_hist_dir(first_book))
+        self.oc_dict = oc_hist_mktbk_processor(first_book.market_id, market_dir, name_attr='runner_name')
+        if self.oc_dict['ok']:
+            if self.selection_id in self.oc_dict['oc_sorted']:
+                self.oc_avg = self.oc_dict['oc_sorted'][self.selection_id]
+
+    def runner_update(
+            self,
+            market_list: List[MarketBook],
+            new_book: MarketBook,
+            windows: Windows,
+            runner_index):
+        return self.oc_avg

@@ -7,12 +7,13 @@ from datetime import datetime
 import logging
 import os
 from .process.names import names_to_id, name_processor, get_names
-from .utils.storage import SUBDIR_CATALOGUE, get_hist_cat
+from .utils.storage import get_hist_cat, EXT_CATALOGUE
 
 
 oc_logger = logging.getLogger('')
 OC_EXCHANGES = ['BF', 'MK', 'MA', 'BD', 'BQ']
-SUBDIR_OC = 'oddschecker'
+EXT_ODDSCHECKER = '.oddschecker'
+# SUBDIR_OC = 'oddschecker'
 
 
 def tr_odds(tr):
@@ -155,46 +156,46 @@ def process_oc_df(df: pd.DataFrame, name_id_map):
 
 
 def oc_hist_mktbk_processor(
-        market: Market,
-        market_book: MarketBook,
-        dir_path,
+        market_id: str,
+        market_path,
         name_attr='name'):
     """
-    process market book in historical testing, result stored in 'mydat' dict attribute, applied to market object
     function searches for betfair catalogue file and oddschecker dataframe file
-    - if processed successfully, mydat['ok'] is True
+    - if processed successfully, d['ok'] is True
     """
 
     d = {
         'ok': False,
     }
 
-    oc_logger.info('processing new market "{}" {} {}'.format(
-        market_book.market_id,
-        market_book.market_definition.market_time,
-        market_book.market_definition.event_name
-    ))
+    # oc_logger.info('processing new market "{}" {} {}'.format(
+    #     market_book.market_id,
+    #     market_book.market_definition.market_time,
+    #     market_book.market_definition.event_name
+    # ))
 
     # get oddschecker dataframe from file
     oc_df = get_hist_oc_df(os.path.join(
-        dir_path,
-        SUBDIR_OC,
-        market.market_id
+        market_path,
+        market_id + EXT_ODDSCHECKER
     ))
     if oc_df is None:
         return d
 
     # get betfair category from file
     cat = get_hist_cat(os.path.join(
-        dir_path,
-        SUBDIR_CATALOGUE,
-        market.market_id
+        market_path,
+        market_id + EXT_CATALOGUE
     ))
     if cat is None:
         return d
 
     # process oddschecker dataframe to set with selection IDs
-    name_id_map = get_names(cat, name_attr=name_attr, name_key=True)
+    try:
+        name_id_map = get_names(cat, name_attr=name_attr, name_key=True)
+    except Exception as e:
+        oc_logger.warning(f'couldnt get names: {e}')
+        return d
     oc_df = process_oc_df(oc_df, name_id_map)
     if oc_df is None:
         return d
