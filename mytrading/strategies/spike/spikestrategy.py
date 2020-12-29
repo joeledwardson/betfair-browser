@@ -25,7 +25,6 @@ active_logger = logging.getLogger(__name__)
 active_logger.setLevel(logging.INFO)
 
 
-
 class MySpikeStrategy(MyFeatureStrategy):
     """
     Trades spikes above & below LTP window max and minimums
@@ -33,30 +32,34 @@ class MySpikeStrategy(MyFeatureStrategy):
 
     def __init__(
             self,
-            base_dir: str,
             trade_transactions_cutoff: int,
             stake_size: float,
+            max_odds: float,
             min_hedge_price: float,
             window_spread_min: int,
             ladder_spread_max: int,
             tick_offset: int,
-            reduction_hold_ms: int,
+            tick_trigger: int,
+            update_s: float,
             spike_wait_ms: int,
             hedge_tick_offset: int,
             hedge_hold_ms: int,
             features_kwargs: dict,
             enable_lay: bool,
+            *args,
             **kwargs
     ):
 
-        super().__init__('spike', base_dir, **kwargs)
+        super().__init__(*args, **kwargs)
         self.trade_transactions_cutoff = trade_transactions_cutoff
         self.stake_size = stake_size
+        self.max_odds = max_odds
         self.min_hedge_price = min_hedge_price
         self.window_spread_min = window_spread_min
         self.ladder_spread_max = ladder_spread_max
         self.tick_offset = tick_offset
-        self.reduction_hold_ms = reduction_hold_ms
+        self.tick_trigger = tick_trigger
+        self.update_s = update_s
         self.spike_wait_ms = spike_wait_ms
         self.hedge_tick_offset = hedge_tick_offset
         self.hedge_hold_ms = hedge_hold_ms
@@ -93,29 +96,35 @@ class MySpikeStrategy(MyFeatureStrategy):
                     basestates.TradeStateCreateTrade(),
                     spikestates.SpikeTradeStateIdle(
                         trade_transactions_cutoff=self.trade_transactions_cutoff,
+                        max_odds=self.max_odds,
                         window_spread_min=self.window_spread_min,
                         ladder_spread_max=self.ladder_spread_max,
                         next_state=spikestates.SpikeStateTypes.SPIKE_STATE_MONITOR,
                     ),
                     spikestates.SpikeTradeStateMonitorWindows(
                         tick_offset=self.tick_offset,
+                        tick_trigger=self.tick_trigger,
                         stake_size=self.stake_size,
                         window_spread_min=self.window_spread_min,
                         ladder_spread_max=self.ladder_spread_max,
-                        update_hold_ms=self.reduction_hold_ms,
+                        update_s=self.update_s,
                         enable_lay=self.enable_lay,
                         name=spikestates.SpikeStateTypes.SPIKE_STATE_MONITOR,
                         next_state=[
                             basestates.TradeStateTypes.PENDING,
-                            basestates.TradeStateTypes.HEDGE_SELECT
+                            basestates.TradeStateTypes.WAIT
                         ]
                     ),
-                    spikestates.SpikeTradeStateBounce(
-                        name=spikestates.SpikeStateTypes.SPIKE_STATE_BOUNCE,
+                    basestates.TradeStateWait(
                         wait_ms=self.spike_wait_ms,
+                        next_state=basestates.TradeStateTypes.HEDGE_SELECT,
                     ),
+                    # spikestates.SpikeTradeStateBounce(
+                    #     name=spikestates.SpikeStateTypes.SPIKE_STATE_BOUNCE,
+                    #     wait_ms=self.spike_wait_ms,
+                    # ),
                     basestates.TradeStateHedgeSelect(
-                        next_state=spikestates.SpikeStateTypes.SPIKE_STATE_HEDGE,
+                        next_state=basestates.TradeStateTypes.HEDGE_QUEUE_PLACE,
                     ),
                     basestates.TradeStateHedgePlaceQueue(
                         tick_offset=self.hedge_tick_offset,
@@ -123,20 +132,23 @@ class MySpikeStrategy(MyFeatureStrategy):
                     ),
                     basestates.TradeStateHedgeWaitQueue(
                         hold_time_ms=self.hedge_hold_ms,
+                        hedge_place_state=basestates.TradeStateTypes.HEDGE_QUEUE_PLACE,
                     ),
                     basestates.TradeStateHedgePlaceTake(
                         min_hedge_price=self.min_hedge_price,
                     ),
-                    basestates.TradeStateHedgeWaitTake(),
-                    spikestates.SpikeTradeStateHedge(
-                        name=spikestates.SpikeStateTypes.SPIKE_STATE_HEDGE,
-                        next_state=spikestates.SpikeStateTypes.SPIKE_STATE_HEDGE_WAIT,
-                        min_hedge_price=self.min_hedge_price,
+                    basestates.TradeStateHedgeWaitTake(
+                        hedge_place_state=basestates.TradeStateTypes.HEDGE_TAKE_PLACE,
                     ),
-                    spikestates.SpikeTradeStateHedgeWait(
-                        name=spikestates.SpikeStateTypes.SPIKE_STATE_HEDGE_WAIT,
-                        next_state=basestates.TradeStateTypes.CLEANING,
-                    ),
+                    # spikestates.SpikeTradeStateHedge(
+                    #     name=spikestates.SpikeStateTypes.SPIKE_STATE_HEDGE,
+                    #     next_state=spikestates.SpikeStateTypes.SPIKE_STATE_HEDGE_WAIT,
+                    #     min_hedge_price=self.min_hedge_price,
+                    # ),
+                    # spikestates.SpikeTradeStateHedgeWait(
+                    #     name=spikestates.SpikeStateTypes.SPIKE_STATE_HEDGE_WAIT,
+                    #     next_state=basestates.TradeStateTypes.CLEANING,
+                    # ),
                     basestates.TradeStateBin(
                         all_trade_orders=True,
                     ),
