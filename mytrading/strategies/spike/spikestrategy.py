@@ -112,12 +112,12 @@ class MySpikeStrategy(MyFeatureStrategy):
                         name=spikestates.SpikeStateTypes.SPIKE_STATE_MONITOR,
                         next_state=[
                             basestates.TradeStateTypes.PENDING,
-                            basestates.TradeStateTypes.WAIT
+                            basestates.TradeStateTypes.WAIT,
+                            basestates.TradeStateTypes.HEDGE_SELECT,
                         ]
                     ),
                     basestates.TradeStateWait(
                         wait_ms=self.spike_wait_ms,
-                        next_state=basestates.TradeStateTypes.HEDGE_SELECT,
                     ),
                     # spikestates.SpikeTradeStateBounce(
                     #     name=spikestates.SpikeStateTypes.SPIKE_STATE_BOUNCE,
