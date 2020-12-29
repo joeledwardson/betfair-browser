@@ -111,8 +111,17 @@ class TradeStateBase(stm.State):
         return f'Trade state: {self.name}'
 
 
-# intermediary states
-class TradeStatePending(TradeStateBase):
+class TradeStateIntermediary(TradeStateBase):
+    """
+    Intermediary state
+    """
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        if 'next_state' in kwargs:
+            raise Exception(f'next_state kwarg found in intermediary state')
+
+
+class TradeStatePending(TradeStateIntermediary):
     """
     intermediary state for waiting for trade to process
     intermediary state: run() returns True when complete
@@ -162,7 +171,7 @@ class TradeStatePending(TradeStateBase):
         return True
 
 
-class TradeStateBin(TradeStateBase):
+class TradeStateBin(TradeStateIntermediary):
 
     """
     intermediary state waits for active order to finish pending (if exist) and cancel it
@@ -216,9 +225,9 @@ class TradeStateBin(TradeStateBase):
         return done
 
 
-class TradeStateWait(TradeStateBase):
+class TradeStateWait(TradeStateIntermediary):
     """
-    intermediary state that waits for a designates number of milliseconds before continuing
+    Intermediary state that waits for a designates number of milliseconds before continuing
     """
     name = TradeStateTypes.WAIT
 
