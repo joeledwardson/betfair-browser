@@ -369,6 +369,9 @@ class MyFeatureStrategy(MyBaseStrategy):
             self.custom_market_initialisation(market, market_book)
 
         mh = self.market_handlers[market.market_id]
+        if mh.closed:
+            active_logger.warning(f'process_market_book called on market "{market.market_id}" which is closed already')
+            return
 
         # update flags
         mh.update_flag_feature(market_book, self.feature_seconds)
@@ -503,3 +506,9 @@ class MyFeatureStrategy(MyBaseStrategy):
                         dt=market_book.publish_time,
                         order=order,
                     )
+
+        del mh.market_books
+        del mh.windows
+        del mh.runner_handlers
+
+
