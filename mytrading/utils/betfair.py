@@ -14,6 +14,7 @@ def bf_list_market_catalogue(
     market_type_code: str,
     market_betting_type: str,
     market_limit: int,
+    market_countries: Optional[List[str]] = None,
     from_datetime: Optional[datetime] = None,
     to_datetime: Optional[datetime] = None,
     sort='FIRST_TO_START',
@@ -30,6 +31,7 @@ def bf_list_market_catalogue(
         event_type_ids=[event_type_id],
         market_type_codes=[market_type_code],
         market_betting_types=[market_betting_type],
+        market_countries=market_countries,
         market_start_time={
             'from': bf_dt(from_datetime) if from_datetime else None,
             'to': bf_dt(to_datetime) if to_datetime else None,
