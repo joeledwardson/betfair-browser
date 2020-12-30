@@ -7,6 +7,7 @@ from flumine.markets.market import Market
 from betfairlightweight.resources.bettingresources import MarketBook, RunnerBook
 import logging
 
+from myutils.myclass import store_kwargs
 from myutils.timing import timing_register
 from ...trademachine import tradestates as basestates
 from ...trademachine.trademachine import RunnerStateMachine
@@ -30,6 +31,7 @@ class MySpikeStrategy(MyFeatureStrategy):
     Trades spikes above & below LTP window max and minimums
     """
 
+    @store_kwargs(key_args='strategy_args', key_kwargs='strategy_kwargs')
     def __init__(
             self,
             trade_transactions_cutoff: int,
