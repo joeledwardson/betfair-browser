@@ -9,6 +9,7 @@ from flumine.markets.market import Market
 from flumine.order.order import BetfairOrder, OrderStatus
 from flumine.order.ordertype import LimitOrder, OrderTypes
 from flumine.order.trade import Trade, TradeStatus
+from betfairlightweight.resources.bettingresources import MarketCatalogue, MarketBook, RunnerBook
 
 from ..process.matchbet import get_match_bet_sums
 from ..process.profit import order_profit
@@ -602,6 +603,13 @@ class TradeStateHedgeWaitBase(TradeStateBase):
         """
         raise NotImplementedError
 
+    def compare_price(self, new_price, current_price, order_side, runner: RunnerBook) -> bool:
+        """
+        Compare suggested new price for hedging order to current price of hedging order. Return True if current hedge
+        order should be replaced with new price or False to leave as is
+        """
+        return new_price != current_price
+
     def run(
             self,
             market_book: MarketBook,
@@ -650,7 +658,8 @@ class TradeStateHedgeWaitBase(TradeStateBase):
             )
 
             # non-zero value indicates price has moved
-            if new_price and new_price != order.order_type.price:
+            runner = market_book.runners[runner_index]
+            if new_price and self.compare_price(new_price, order.order_type.price, order.side, runner):
 
                 trade_tracker.log_update(
                     msg_type=MessageTypes.MSG_HEDGE_REPLACE,
@@ -830,6 +839,34 @@ class TradeStateHedgeWaitQueue(TradeStateHedgeWaitBase):
         self.reset_time = market_book.publish_time
         self.moving = False
         self.original_price = 0
+
+    def compare_price(self, new_price, current_price, order_side, runner: RunnerBook) -> bool:
+        """
+        when placing queue hedges, in live mode any orders that are offset from queue price on opposite side of the
+        book will become best available price so could cause recursion
+
+        e.g. best back is 2.3 and best lay is 2.6, if back order is queued 2 ticks away at 2.56 then the market will
+        update that best lay is now 2.56 and this state would immediately replace the order with 2.54, so on and so
+        forth..
+
+        Thus, when queing updates and back order shortens or lay order drifts, only update price if the availble
+        price is better than what we are offering.
+        e.g. best back is 2.3 and best lay is 2.6, back order queued 2 ticks away at 2.56 - if best back then updated to
+        2.54, then order would be updated to 2 ticks away at 2.50
+        """
+        if order_side == 'BACK':
+            atl = runner.ex.available_to_lay
+            if atl:
+                best_lay = atl[0]['price']
+                if best_lay < current_price:
+                    return True
+        elif order_side == 'LAY':
+            atb = runner.ex.available_to_back
+            if atb:
+                best_back = atb[0]['price']
+                if best_back > current_price:
+                    return True
+        return False
 
     def price_moved(
             self,
