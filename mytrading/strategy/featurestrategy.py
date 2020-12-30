@@ -160,12 +160,21 @@ class MyFeatureStrategy(MyBaseStrategy):
         # self.max_order_count: MaxOrderCount = [ctrl for ctrl in self.client.trading_controls
         #                                        if ctrl.NAME == "MAX_ORDER_COUNT"][0]
 
-    def write_strategy_kwargs(self, **kwargs):
+    def write_strategy_kwargs(self, indent=4):
+
+        # check no args passed
+        if self.strategy_args:
+            raise Exception('please pass kwargs only to strategy so they can logged in strategy config file')
+
+        # check kwargs passed
+        if not self.strategy_kwargs:
+            raise Exception('if writing strategy kwargs, please ensure "store_kwargs" wraps constructor with '
+                            'key_kwargs="strategy_kwargs" set')
 
         # write to strategy info file
         strategy_file_path = path.join(self.strategy_dir, EXT_STRATEGY_INFO)
         active_logger.info(f'writing strategy info to file: "{strategy_file_path}')
-        add_to_file(strategy_file_path, kwargs)
+        add_to_file(strategy_file_path, self.strategy_kwargs, indent=indent)
 
     def _get_strategy_dir(self, base_dir, name, dt: datetime):
         """
