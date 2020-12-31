@@ -7,6 +7,8 @@ from mytrading.process.times import bf_dt
 import pandas as pd
 from myutils.generic import dgetattr
 
+MAX_CATALOGUES = 1000
+
 
 def bf_list_market_catalogue(
     trading: APIClient,
@@ -42,7 +44,7 @@ def bf_list_market_catalogue(
     return trading.betting.list_market_catalogue(
         filter=race_filter,
         market_projection=market_projection,
-        max_results=market_limit,
+        max_results=market_limit or MAX_CATALOGUES,
         sort=sort
     )
 
