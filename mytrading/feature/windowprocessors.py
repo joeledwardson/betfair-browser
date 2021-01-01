@@ -184,3 +184,4 @@ class WindowProcessorDelayerBase(WindowProcessorBase):
         # check list not empty before assigning
         if len(window[self.hist_key]):
             window[self.delay_key] = window[self.hist_key][0]
+

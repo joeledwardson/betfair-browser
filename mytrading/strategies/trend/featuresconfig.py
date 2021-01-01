@@ -105,7 +105,19 @@ def get_trend_feature_configs(
         },
 
         'ltp': {
-            'name': 'RunnerFeatureLTP',
+            'name': 'RunnerFeatureLTPWindow',
+            'kwargs': {
+                'window_s': 5,
+                'window_function': 'WindowProcessorLTPS',
+                'sub_features_config': {
+                    'biggest_diff': {
+                        'name': 'RunnerFeatureSubBiggestDifference',
+                        'kwargs': {
+                            'window_key': 'runner_ltps',
+                        },
+                    }
+                }
+            }
         },
 
         'tv': {
