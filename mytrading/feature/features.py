@@ -1,7 +1,7 @@
 from __future__ import annotations
 from betfairlightweight.resources.bettingresources import MarketBook
 import numpy as np
-from typing import List, Dict
+from typing import List, Dict, Optional
 import statsmodels.api as sm
 from sklearn.linear_model import LinearRegression
 import operator
@@ -297,6 +297,7 @@ class RunnerFeatureWindowBase(RunnerFeatureBase):
             self,
             window_s,
             window_function: str,
+            window_function_kwargs: Optional[dict] = None,
             **kwargs
     ):
         super().__init__(**kwargs)
@@ -304,6 +305,7 @@ class RunnerFeatureWindowBase(RunnerFeatureBase):
         self.window: dict = None
         self.window_s = window_s
         self.window_function = window_function
+        self.window_function_kwargs = window_function_kwargs or {}
 
     def race_initializer(
             self,
@@ -317,7 +319,7 @@ class RunnerFeatureWindowBase(RunnerFeatureBase):
 
         super().race_initializer(selection_id, first_book, windows)
         self.window = windows.add_window(self.window_s)
-        windows.add_function(self.window_s, self.window_function)
+        windows.add_function(self.window_s, self.window_function, **self.window_function_kwargs)
 
     def computation_buffer_seconds(self) -> int:
         return self.window_s
@@ -796,3 +798,46 @@ class RunnerFeatureHistoricOddscheckerAvg(RunnerFeatureBase):
             windows: Windows,
             runner_index):
         return self.oc_avg
+
+
+@register_feature
+class RunnerFeatureLTPWindow(RunnerFeatureLTP, RunnerFeatureWindowBase):
+    """last traded price of runner, with window processing"""
+    pass
+
+
+@register_feature
+class RunnerFeatureBestBackWindow(RunnerFeatureBestBack, RunnerFeatureWindowBase):
+    """Best available back price of runner, with window processing"""
+
+
+@register_feature
+class RunnerFeatureBestLayWindow(RunnerFeatureBestLay, RunnerFeatureWindowBase):
+    """Best available lay price of runner, with window processing"""
+
+
+@register_feature
+class RunnerFeatureSubBiggestDifference(RunnerFeatureSub):
+    """
+    get biggest difference between sequential window values
+    parent feature must have created a window processor of type `WindowProcessorFeatureBase` so that window data has
+    'values' key
+    """
+    def __init__(self, window_key, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.window_key = window_key
+        if not isinstance(self.parent, RunnerFeatureWindowBase):
+            raise Exception(f'sub feature {self.__name__} expected parent to be of type RunnerFeatureWindowBase')
+
+    def runner_update(
+            self,
+            market_list: List[MarketBook],
+            new_book: MarketBook,
+            windows: Windows,
+            runner_index):
+        vals = self.parent.window[self.window_key][self.selection_id]['values']
+        if len(vals) >= 2:
+            return np.max(abs(np.diff(vals)))
+        return None
+
+
