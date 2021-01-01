@@ -282,7 +282,7 @@ def set_figure_layout(fig: go.Figure, title: str, chart_start: datetime, chart_e
     def trace_verify(trace):
         return (
             'y' in trace and
-            'yaxis' in trace,
+            'yaxis' in trace and
             trace['yaxis'] == 'y' and
             len(trace['y']) and
             generic.constructor_verify(trace['y'][0], float)
