@@ -181,5 +181,5 @@ def constructor_verify(value, object_type) -> bool:
     try:
         object_type(value)
         return True
-    except ValueError:
+    except (ValueError, TypeError) as e:
         return False
