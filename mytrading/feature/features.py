@@ -501,6 +501,14 @@ class RunnerFeatureSub(RunnerFeatureBase):
         if kwargs.get('parent') is None:
             raise BetfairFeatureException(f'sub-feature has not received "parent" argument')
 
+    def runner_update(
+            self,
+            market_list: List[MarketBook],
+            new_book: MarketBook,
+            windows: Windows,
+            runner_index):
+        return self.parent.last_value()
+
 
 @register_feature
 class RunnerFeatureSubDelayer(RunnerFeatureSub):
@@ -527,6 +535,23 @@ class RunnerFeatureSubDelayer(RunnerFeatureSub):
 
         if len(self.parent.processed_vals):
             return self.parent.processed_vals[self.delay_index]
+
+
+@register_feature
+class RunnerFeatureSubDelayComparison(RunnerFeatureSubDelayer):
+    """
+    compare a parent feature current value to delayed value
+    """
+    def runner_update(
+            self,
+            market_list: List[MarketBook],
+            new_book: MarketBook,
+            windows: Windows,
+            runner_index):
+        previous_value = super().runner_update(market_list, new_book, windows, runner_index)
+        current_value = self.parent.last_value()
+        if previous_value is not None and current_value is not None:
+            return current_value - previous_value
 
 
 @register_feature
