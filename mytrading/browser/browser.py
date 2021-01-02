@@ -20,8 +20,8 @@ def run_browser(
         feature_configs_dir: Optional[str] = None,
         plot_configs_dir: Optional[str] = None,
         start_dir: Optional[str] = None,
-        start_feature_conf: Optional[str] = None,
-        start_plot_conf: Optional[str] = None,
+        initial_feature_conf: Optional[str] = None,
+        initial_plot_conf: Optional[str] = None,
 ):
     """
     run dash app browser - input_dir specifies input directory for entry point for browser but also expected root for:
@@ -35,7 +35,13 @@ def run_browser(
 
     app = dash.Dash(__name__)
     logging.basicConfig(level=logging.INFO)
-    app.layout = get_layout(input_dir, gdd, default_chart_offset)
+    app.layout = get_layout(
+        input_dir=input_dir,
+        dash_data=gdd,
+        chart_offset=default_chart_offset,
+        initial_feature_conf=initial_feature_conf,
+        initial_plot_conf=initial_plot_conf,
+    )
 
     file_table_callback(app, gdd, input_dir)
     market_callback(app, gdd, input_dir)

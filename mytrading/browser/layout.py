@@ -1,3 +1,4 @@
+from typing import Optional
 from datetime import timedelta
 import dash_html_components as html
 import dash_core_components as dcc
@@ -22,7 +23,13 @@ def infobox(height=70, **kwargs) -> html.Div:
     )
 
 
-def get_layout(input_dir: str, dash_data: DashData, chart_offset: timedelta):
+def get_layout(
+        input_dir: str,
+        dash_data: DashData,
+        chart_offset: timedelta,
+        initial_feature_conf: Optional[str] = None,
+        initial_plot_conf: Optional[str] = None,
+) -> html.Div:
     return html.Div(
         style={
             'display': 'grid',
@@ -128,14 +135,16 @@ def get_layout(input_dir: str, dash_data: DashData, chart_offset: timedelta):
                                         placeholder='Select feature config',
                                         style={
                                             'margin': '4px 0px'
-                                        }
+                                        },
+                                        value=initial_feature_conf,
                                     ),
                                     dcc.Dropdown(
                                         id='input-plot-config',
                                         placeholder='Select plot config',
                                         style={
                                             'margin': '4px 0px'
-                                        }
+                                        },
+                                        value=initial_plot_conf,
                                     ),
                                 ]
                             )
