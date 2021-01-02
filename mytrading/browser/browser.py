@@ -2,6 +2,7 @@ from __future__ import annotations
 import dash
 import logging
 import argparse
+from typing import Optional
 from .data import DashData
 from .callbacks.figure import figure_callback
 from .callbacks.files import file_table_callback
@@ -16,8 +17,11 @@ def run_browser(
         debug: bool,
         default_chart_offset: timedelta,
         input_dir: str,
-        feature_configs_dir: str = None,
-        plot_configs_dir: str = None,
+        feature_configs_dir: Optional[str] = None,
+        plot_configs_dir: Optional[str] = None,
+        start_dir: Optional[str] = None,
+        start_feature_conf: Optional[str] = None,
+        start_plot_conf: Optional[str] = None,
 ):
     """
     run dash app browser - input_dir specifies input directory for entry point for browser but also expected root for:
@@ -25,6 +29,9 @@ def run_browser(
     - "recorded" dir
     """
     gdd = DashData(input_dir, feature_configs_dir=feature_configs_dir, plot_configs_dir=plot_configs_dir)
+
+    if start_dir:
+        gdd.file_tracker.update(start_dir)
 
     app = dash.Dash(__name__)
     logging.basicConfig(level=logging.INFO)
