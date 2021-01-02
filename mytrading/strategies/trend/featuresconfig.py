@@ -1,12 +1,14 @@
 from typing import Dict
 
 
-# create kwargs for sampling and moving average
 def smoothing_kwargs(
         sampling_ms,
         sampling_count,
         regression_count,
 ):
+    """
+    create feature kwargs for sampling and moving average
+    """
     return {
         'periodic_ms': sampling_ms,
         'periodic_timestamps': True,
@@ -26,6 +28,24 @@ def smoothing_kwargs(
     }
 
 
+def diff_kwargs(diff_s, window_function, window_key):
+    """
+    get feature configuration kwargs for a windowed feature with a sub feature computing biggest difference
+    """
+    return {
+        'window_s': diff_s,
+        'window_function': window_function,
+        'sub_features_config': {
+            'biggest_diff': {
+                'name': 'RunnerFeatureSubBiggestDifference',
+                'kwargs': {
+                    'window_key': window_key,
+                },
+            }
+        }
+    }
+
+
 def get_trend_feature_configs(
         wom_ticks,
         ltp_window_width_s,
@@ -38,6 +58,7 @@ def get_trend_feature_configs(
         ltp_sampling_count,
         ltp_regression_count,
         n_ladder_elements,
+        diff_s,
 ) -> Dict[str, Dict]:
     """
     Get a dict of default runner features, where each entry is a dictionary of:
@@ -50,11 +71,21 @@ def get_trend_feature_configs(
     return {
 
         'best back': {
-            'name': 'RunnerFeatureBestBack',
+            'name': 'RunnerFeatureBestBackWindow',
+            'kwargs': diff_kwargs(
+                diff_s=diff_s,
+                window_function='WindowProcessorBestBack',
+                window_key='best_backs'
+            ),
         },
 
         'best lay': {
-            'name': 'RunnerFeatureBestLay',
+            'name': 'RunnerFeatureBestLayWindow',
+            'kwargs': diff_kwargs(
+                diff_s=diff_s,
+                window_function='WindowProcessorBestLay',
+                window_key='best_lays'
+            ),
         },
 
         'back ladder': {
@@ -106,18 +137,11 @@ def get_trend_feature_configs(
 
         'ltp': {
             'name': 'RunnerFeatureLTPWindow',
-            'kwargs': {
-                'window_s': 5,
-                'window_function': 'WindowProcessorLTPS',
-                'sub_features_config': {
-                    'biggest_diff': {
-                        'name': 'RunnerFeatureSubBiggestDifference',
-                        'kwargs': {
-                            'window_key': 'runner_ltps',
-                        },
-                    }
-                }
-            }
+            'kwargs': diff_kwargs(
+                diff_s=diff_s,
+                window_function='WindowProcessorLTPS',
+                window_key='runner_ltps'
+            ),
         },
 
         'tv': {
