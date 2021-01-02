@@ -70,22 +70,25 @@ def get_trend_feature_configs(
 
     return {
 
-        'best back': {
-            'name': 'RunnerFeatureBestBackWindow',
-            'kwargs': diff_kwargs(
-                diff_s=diff_s,
-                window_function='WindowProcessorBestBack',
-                window_key='best_backs'
-            ),
+        'best back max diff': {
+            'name': 'RunnerFeatureBiggestDifference',
+            'kwargs': {
+                'window_s': diff_s,
+                'window_function': 'WindowProcessorFeatureBase',
+                'window_function_kwargs': {
+                    'window_var': 'window_backs',
+                    'window_func_key': 'window_func_best_back',
+                },
+                'window_var': 'window_backs',
+            }
         },
 
         'best lay': {
-            'name': 'RunnerFeatureBestLayWindow',
-            'kwargs': diff_kwargs(
-                diff_s=diff_s,
-                window_function='WindowProcessorBestLay',
-                window_key='best_lays'
-            ),
+            'name': 'RunnerFeatureBestLay',
+        },
+
+        'best back': {
+            'name': 'RunnerFeatureBestBack',
         },
 
         'back ladder': {
@@ -136,12 +139,7 @@ def get_trend_feature_configs(
         },
 
         'ltp': {
-            'name': 'RunnerFeatureLTPWindow',
-            'kwargs': diff_kwargs(
-                diff_s=diff_s,
-                window_function='WindowProcessorLTPS',
-                window_key='runner_ltps'
-            ),
+            'name': 'RunnerFeatureLTP',
         },
 
         'tv': {
