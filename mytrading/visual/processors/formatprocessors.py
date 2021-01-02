@@ -19,6 +19,14 @@ def register_format_processor(func):
 
 
 @register_format_processor
+def formatter_generic(value, name) -> str:
+    """
+    format value with name
+    """
+    return f'{name}: {value}'
+
+
+@register_format_processor
 def formatter_percent(value, name, n_decimals=0) -> str:
     """
     format value with name to percentage with 'n_decimals' dp
