@@ -5,9 +5,11 @@ def smoothing_kwargs(
         sampling_ms,
         sampling_count,
         regression_count,
+        delay_feature_s,
 ):
     """
     create feature kwargs for sampling and moving average
+    and add delayed smoothed values
     """
     return {
         'periodic_ms': sampling_ms,
@@ -23,25 +25,40 @@ def smoothing_kwargs(
                     'element_count': regression_count,
                     'regression_preprocessor': 'value_processor_invert',
                 },
+            },
+            'ticks': {
+                'name': 'RunnerFeatureSub',
+                'kwargs': {
+                    'value_processor': 'value_processor_to_tick',
+                    'sub_features_config': {
+                        'comparison': {
+                            'name': 'RunnerFeatureSubDelayComparison',
+                            'kwargs': {
+                                'delay_seconds': delay_feature_s,
+                            },
+                        },
+                    },
+                },
             }
         }
     }
 
 
-def diff_kwargs(diff_s, window_function, window_key):
+def biggest_diff_feature(diff_s, window_var, window_func_key):
     """
     get feature configuration kwargs for a windowed feature with a sub feature computing biggest difference
     """
     return {
-        'window_s': diff_s,
-        'window_function': window_function,
-        'sub_features_config': {
-            'biggest_diff': {
-                'name': 'RunnerFeatureSubBiggestDifference',
-                'kwargs': {
-                    'window_key': window_key,
-                },
-            }
+        'name': 'RunnerFeatureBiggestDifference',
+        'kwargs': {
+            'window_s': diff_s,
+            'window_function': 'WindowProcessorFeatureBase',
+            'window_function_kwargs': {
+                'window_var': window_var,
+                'window_func_key': window_func_key,
+                'feature_processor_key': 'value_processor_to_tick',
+            },
+            'window_var': window_var,
         }
     }
 
@@ -59,6 +76,7 @@ def get_trend_feature_configs(
         ltp_regression_count,
         n_ladder_elements,
         diff_s,
+        delay_feature_s,
 ) -> Dict[str, Dict]:
     """
     Get a dict of default runner features, where each entry is a dictionary of:
@@ -70,18 +88,23 @@ def get_trend_feature_configs(
 
     return {
 
-        'best back max diff': {
-            'name': 'RunnerFeatureBiggestDifference',
-            'kwargs': {
-                'window_s': diff_s,
-                'window_function': 'WindowProcessorFeatureBase',
-                'window_function_kwargs': {
-                    'window_var': 'window_backs',
-                    'window_func_key': 'window_func_best_back',
-                },
-                'window_var': 'window_backs',
-            }
-        },
+        'best back max diff': biggest_diff_feature(
+            diff_s=diff_s,
+            window_var='window_backs',
+            window_func_key='window_func_best_back',
+        ),
+
+        'best lay max diff': biggest_diff_feature(
+            diff_s=diff_s,
+            window_var='window_lays',
+            window_func_key='window_func_best_lay'
+        ),
+
+        'ltp max diff': biggest_diff_feature(
+            diff_s=diff_s,
+            window_var='window_ltps',
+            window_func_key='window_func_ltp',
+        ),
 
         'best lay': {
             'name': 'RunnerFeatureBestLay',
@@ -89,6 +112,10 @@ def get_trend_feature_configs(
 
         'best back': {
             'name': 'RunnerFeatureBestBack',
+        },
+
+        'ltp': {
+            'name': 'RunnerFeatureLTP',
         },
 
         'back ladder': {
@@ -138,10 +165,6 @@ def get_trend_feature_configs(
             }
         },
 
-        'ltp': {
-            'name': 'RunnerFeatureLTP',
-        },
-
         'tv': {
             'name': 'RunnerFeatureTVTotal',
         },
@@ -152,6 +175,7 @@ def get_trend_feature_configs(
                 ladder_sampling_ms,
                 ladder_sampling_count,
                 ladder_regression_count,
+                delay_feature_s,
             )
         },
 
@@ -161,6 +185,7 @@ def get_trend_feature_configs(
                 ladder_sampling_ms,
                 ladder_sampling_count,
                 ladder_regression_count,
+                delay_feature_s
             )
         },
 
@@ -170,6 +195,7 @@ def get_trend_feature_configs(
                 ltp_sampling_ms,
                 ltp_sampling_count,
                 ltp_regression_count,
+                delay_feature_s,
             )
         }
 

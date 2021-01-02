@@ -1,5 +1,22 @@
 def get_trend_plot_configs(tv_bar_width_ms, tv_opacity):
     return {
+        # 'best lay smoothed.ticks': {
+        #     'value_processors': [{
+        #         'name': 'plotly_set_attrs',
+        #         'kwargs': {
+        #             'attr_configs': [{
+        #                 'feature_name': 'best lay smoothed.ticks.comparison',
+        #                 'attr_names': ['text', 'marker_color'],
+        #             }],
+        #         }
+        #     }, {
+        #         'name': 'plotly_df_to_data',
+        #     }],
+        # },
+
+        # 'best lay smoothed.ticks.comparison': {
+        #     'ignore': True,
+        # },
 
         'best back': {
             'chart_args': {
@@ -162,14 +179,44 @@ def get_trend_plot_configs(tv_bar_width_ms, tv_opacity):
                 'kwargs': {
                     'attr_configs': [{
                         'feature_name': 'ltp smoothed.regression',
-                        'attr_names': ['text', 'marker_color'],
+                        'attr_names': ['text_regression', 'marker_color'],
+                    }, {
+                        'feature_name': 'ltp smoothed.ticks',
+                        'attr_names': ['text_ticks'],
+                    }, {
+                        'feature_name': 'ltp smoothed.ticks.comparison',
+                        'attr_names': ['text_tick_comparison'],
                     }],
+                },
+            },  {
+                'name': 'plotly_df_formatter',
+                'kwargs': {
+                    'formatter_name': 'formatter_regression',
+                    'df_column': 'text_regression',
                 }
             }, {
                 'name': 'plotly_df_formatter',
                 'kwargs': {
-                    'formatter_name': 'formatter_regression',
-                    'df_column': 'text',
+                    'formatter_name': 'formatter_generic',
+                    'df_column': 'text_ticks',
+                    'formatter_kwargs': {
+                        'name': 'tick index',
+                    }
+                }
+            }, {
+                'name': 'plotly_df_formatter',
+                'kwargs': {
+                    'formatter_name': 'formatter_generic',
+                    'df_column': 'text_tick_comparison',
+                    'formatter_kwargs': {
+                        'name': 'tick difference',
+                    }
+                }
+            }, {
+                'name': 'plotly_df_text_join',
+                'kwargs': {
+                    'dest_col': 'text',
+                    'source_cols': ['text_regression', 'text_ticks', 'text_tick_comparison'],
                 }
             }, {
                 'name': 'plotly_df_formatter',
@@ -260,12 +307,48 @@ def get_trend_plot_configs(tv_bar_width_ms, tv_opacity):
             'ignore': True,
         },
 
+        'ltp smoothed.ticks': {
+            'ignore': True,
+        },
+
+        'ltp smoothed.ticks.comparison': {
+            'ignore': True,
+        },
+
         'best back smoothed.regression': {
+            'ignore': True,
+        },
+
+        'best back smoothed.ticks': {
+            'ignore': True,
+        },
+
+        'best back smoothed.ticks.comparison': {
             'ignore': True,
         },
 
         'best lay smoothed.regression': {
             'ignore': True,
         },
+
+        'best lay smoothed.ticks': {
+            'ignore': True,
+        },
+
+        'best lay smoothed.ticks.comparison': {
+            'ignore': True,
+        },
+
+        'ltp max diff': {
+            'ignore': True,
+        },
+
+        'best back max diff': {
+            'ignore': True,
+        },
+
+        'best lay max diff': {
+            'ignore': True,
+        }
 
     }
