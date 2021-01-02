@@ -5,6 +5,7 @@ from betfairlightweight.resources import MarketBook
 from betfairlightweight.resources.bettingresources import RunnerBook
 
 from myutils.myregistrar import MyRegistrar
+from .featureprocessors import get_feature_processor
 from ..process.prices import best_price
 from ..process.tradedvolume import get_record_tv_diff
 
@@ -85,11 +86,27 @@ class WindowProcessorTradedVolumeLadder(WindowProcessorBase):
 @window_registrar.register_element
 class WindowProcessorFeatureBase(WindowProcessorBase):
     """Store a list of runner attribute values within a runner window"""
-    def get_runner_attr(self, runner: RunnerBook):
+    def get_runner_attr(self, runner: RunnerBook, window):
         """this method gets runner attribute using stored function"""
-        return self.window_func(runner)
+        value = self.window_func(runner)
+        if value is not None:
+            return self.processor_func(
+                value,
+                window[self.window_var][runner.selection_id]['values'],
+                window[self.window_var][runner.selection_id]['dts']
+            )
+        else:
+            return None
 
-    def __init__(self, window: dict, window_var: str, window_func_key: str, inside_window=True):
+    def __init__(
+            self,
+            window: dict,
+            window_var: str,
+            window_func_key: str,
+            inside_window=True,
+            feature_processor_key=None,
+            feature_processor_kwargs=None,
+    ):
         """initialise by creating empty dict in window using attribute key"""
         super().__init__(window)
 
@@ -101,6 +118,11 @@ class WindowProcessorFeatureBase(WindowProcessorBase):
 
         # True only values inside window are stored, false to include value just before window starts
         self.inside_window = inside_window
+
+        self.processor_func = get_feature_processor(
+            feature_processor_key or 'value_processor_identity',
+            feature_processor_kwargs
+        )
 
         window[self.window_var] = {}
 
@@ -132,7 +154,7 @@ class WindowProcessorFeatureBase(WindowProcessorBase):
                     runner_dict[k].pop(0)
 
             # get runner attribute value
-            value = self.get_runner_attr(runner)
+            value = self.get_runner_attr(runner, window)
 
             # add current index, record datetime and value to runners list of elements
             if value:
