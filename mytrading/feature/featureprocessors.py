@@ -14,6 +14,7 @@ from myutils.myregistrar import MyRegistrar
 import statistics
 from datetime import datetime
 from typing import List
+from ..process.ticks.ticks import closest_tick
 
 runner_feature_value_processors = MyRegistrar()
 
@@ -50,4 +51,14 @@ def value_processor_invert():
     """
     def inner(value, values: List, datetimes: List[datetime]):
         return 1 / value if value != 0 else 0
+    return inner
+
+
+@runner_feature_value_processors.register_element
+def value_processor_to_tick():
+    """
+    convert a numeric value to tick
+    """
+    def inner(value, values: List, datetimes: List[datetime]):
+        return closest_tick(value, return_index=True)
     return inner
