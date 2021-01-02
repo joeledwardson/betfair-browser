@@ -7,7 +7,7 @@ from datetime import datetime, timedelta
 import logging
 from os import path
 
-from .featureprocessors import RunnerFeatureValueProcessors
+from .featureprocessors import runner_feature_value_processors
 from ..process.prices import best_price
 from ..process.tradedvolume import traded_runner_vol
 from ..process.ticks.ticks import tick_spread, LTICKS_DECODED
@@ -39,7 +39,7 @@ class RunnerFeatureBase:
     """
     base class for runner features
 
-    - value_processor: process output values by selecting processor from `RunnerFeatureValueProcessors` - processed
+    - value_processor: process output values by selecting processor from `runner_feature_value_processors` - processed
     values will be taken from `.values` into `.processed_values`
     - value_processor_args: kwargs to pass to `value_processor` function creator
     - periodic_ms: specify to only compute and store feature value every 'periodic_ms' milliseconds
@@ -69,7 +69,7 @@ class RunnerFeatureBase:
         self.dts = []
 
         def _get_processor(name, _kwargs):
-            creator = RunnerFeatureValueProcessors.get_processor(name)
+            creator = runner_feature_value_processors[name]
             return creator(**(_kwargs if _kwargs else {}))
 
         self.value_processor = _get_processor(value_processor, value_processor_args)
@@ -275,48 +275,48 @@ class RunnerFeatureWindowBase(RunnerFeatureBase):
         return self.window_s
 
 
+class _RunnerFeatureTradedWindow(RunnerFeatureWindowBase):
+    def __init__(self, window_s, **kwargs):
+        super().__init__(
+            window_s=window_s,
+            window_function='WindowProcessorFeatureBase',
+            window_function_kwargs=dict(
+                window_var='runner_ltps',
+                window_func_key='window_func_ltp',
+            ),
+            **kwargs
+        )
+
+    def tv_process(self, values):
+        raise NotImplementedError
+
+    def runner_update(
+            self,
+            market_list: List[MarketBook],
+            new_book: MarketBook,
+            windows: Windows,
+            runner_index):
+
+        values = self.window['runner_ltps'][self.selection_id]['values']
+
+        if len(values):
+            return self.tv_process(values)
+        else:
+            return None
+
+
 @register_feature
-class RunnerFeatureTradedWindowMin(RunnerFeatureWindowBase):
+class RunnerFeatureTradedWindowMin(_RunnerFeatureTradedWindow):
     """Minimum of recent traded prices in last 'window_s' seconds"""
-
-    def __init__(self, window_s, **kwargs):
-        super().__init__(window_s, window_function='WindowProcessorLTPS', **kwargs)
-
-    def runner_update(
-            self,
-            market_list: List[MarketBook],
-            new_book: MarketBook,
-            windows: Windows,
-            runner_index):
-
-        values = self.window['runner_ltps'][self.selection_id]['values']
-
-        if len(values):
-            return min(values)
-        else:
-            return None
+    def tv_process(self, values):
+        return min(values)
 
 
 @register_feature
-class RunnerFeatureTradedWindowMax(RunnerFeatureWindowBase):
+class RunnerFeatureTradedWindowMax(_RunnerFeatureTradedWindow):
     """Maximum of recent traded prices in last 'window_s' seconds"""
-
-    def __init__(self, window_s, **kwargs):
-        super().__init__(window_s, window_function='WindowProcessorLTPS', **kwargs)
-
-    def runner_update(
-            self,
-            market_list: List[MarketBook],
-            new_book: MarketBook,
-            windows: Windows,
-            runner_index):
-
-        values = self.window['runner_ltps'][self.selection_id]['values']
-
-        if len(values):
-            return max(values)
-        else:
-            return None
+    def tv_process(self, values):
+        return max(values)
 
 
 @register_feature
@@ -668,9 +668,7 @@ class RunnerFeatureSubRegression(RunnerFeatureSub):
         self.element_count = element_count
 
         pre_kwargs = regression_preprocessor_args or {}
-        self.regression_preprocessor = RunnerFeatureValueProcessors.get_processor(regression_preprocessor)(
-            **pre_kwargs
-        )
+        self.regression_preprocessor = runner_feature_value_processors[regression_preprocessor](**pre_kwargs)
 
     def runner_update(
             self,
@@ -767,17 +765,17 @@ class RunnerFeatureBestLayWindow(RunnerFeatureBestLay, RunnerFeatureWindowBase):
 
 
 @register_feature
-class RunnerFeatureSubBiggestDifference(RunnerFeatureSub):
+class RunnerFeatureBiggestDifference(RunnerFeatureWindowBase):
     """
     get biggest difference between sequential window values
     parent feature must have created a window processor of type `WindowProcessorFeatureBase` so that window data has
     'values' key
     """
-    def __init__(self, window_key, *args, **kwargs):
+    def __init__(self, window_var, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.window_key = window_key
-        if not isinstance(self.parent, RunnerFeatureWindowBase):
-            raise Exception(f'sub feature {self.__name__} expected parent to be of type RunnerFeatureWindowBase')
+        self.window_key = window_var
+        # if not isinstance(self.parent, RunnerFeatureWindowBase):
+        #     raise Exception(f'sub feature {self.__name__} expected parent to be of type RunnerFeatureWindowBase')
 
     def runner_update(
             self,
@@ -785,9 +783,9 @@ class RunnerFeatureSubBiggestDifference(RunnerFeatureSub):
             new_book: MarketBook,
             windows: Windows,
             runner_index):
-        vals = self.parent.window[self.window_key][self.selection_id]['values']
-        if len(vals) >= 2:
-            return np.max(abs(np.diff(vals)))
+        values = self.window[self.window_key][self.selection_id]['values']
+        if len(values) >= 2:
+            return np.max(abs(np.diff(values)))
         return None
 
 
