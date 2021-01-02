@@ -279,11 +279,7 @@ class _RunnerFeatureTradedWindow(RunnerFeatureWindowBase):
     def __init__(self, window_s, **kwargs):
         super().__init__(
             window_s=window_s,
-            window_function='WindowProcessorFeatureBase',
-            window_function_kwargs=dict(
-                window_var='runner_ltps',
-                window_func_key='window_func_ltp',
-            ),
+            window_function='WindowProcessorTradedVolumeLadder',
             **kwargs
         )
 
@@ -297,7 +293,7 @@ class _RunnerFeatureTradedWindow(RunnerFeatureWindowBase):
             windows: Windows,
             runner_index):
 
-        values = self.window['runner_ltps'][self.selection_id]['values']
+        values = self.window['tv_diff_ladder'][self.selection_id]
 
         if len(values):
             return self.tv_process(values)
@@ -309,14 +305,14 @@ class _RunnerFeatureTradedWindow(RunnerFeatureWindowBase):
 class RunnerFeatureTradedWindowMin(_RunnerFeatureTradedWindow):
     """Minimum of recent traded prices in last 'window_s' seconds"""
     def tv_process(self, values):
-        return min(values)
+        return min([x['price'] for x in values])
 
 
 @register_feature
 class RunnerFeatureTradedWindowMax(_RunnerFeatureTradedWindow):
     """Maximum of recent traded prices in last 'window_s' seconds"""
     def tv_process(self, values):
-        return max(values)
+        return max([x['price'] for x in values])
 
 
 @register_feature
