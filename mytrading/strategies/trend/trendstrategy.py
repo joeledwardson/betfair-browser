@@ -127,23 +127,28 @@ class MyTrendStrategy(MyFeatureStrategy):
         back_regression = features['best back smoothed'].sub_features['regression'].last_value() or {}
         ltp_regression = features['ltp smoothed'].sub_features['regression'].last_value() or {}
 
-        smoothed_back = features['best back smoothed'].last_value() or 0
-        smoothed_lay = features['best lay smoothed'].last_value() or 0
-        smoothed_ltp = features['ltp smoothed'].last_value() or 0
+        smoothed_back = features['best back smoothed'].last_value()
+        smoothed_lay = features['best lay smoothed'].last_value()
+        smoothed_ltp = features['ltp smoothed'].last_value()
 
-        trend_data.lay_gradient = lay_regression.get('gradient', 0)
-        trend_data.lay_strength = lay_regression.get('rsquared', 0)
-        trend_data.back_gradient = back_regression.get('gradient', 0)
-        trend_data.back_strength = back_regression.get('rsquared', 0)
-        trend_data.ltp_gradient = ltp_regression.get('gradient', 0)
-        trend_data.ltp_strength = ltp_regression.get('rsquared', 0)
+        trend_data.lay_gradient = lay_regression.get('gradient')
+        trend_data.lay_strength = lay_regression.get('rsquared')
+        trend_data.back_gradient = back_regression.get('gradient')
+        trend_data.back_strength = back_regression.get('rsquared')
+        trend_data.ltp_gradient = ltp_regression.get('gradient')
+        trend_data.ltp_strength = ltp_regression.get('rsquared')
+
         trend_data.best_back = best_price(runner.ex.available_to_back)
         trend_data.best_lay = best_price(runner.ex.available_to_lay)
         trend_data.ltp = runner.last_price_traded or 0
+
         trend_data.ladder_spread_ticks = tick_spread(smoothed_back, smoothed_lay, check_values=False)
+
         trend_data.smoothed_back = smoothed_back
         trend_data.smoothed_lay = smoothed_lay
         trend_data.smoothed_ltp = smoothed_ltp
+
+        trend_data.back_tick_movement
 
         return {
             'trend_data': trend_data
