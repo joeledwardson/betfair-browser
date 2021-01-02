@@ -18,6 +18,11 @@ from typing import List
 runner_feature_value_processors = MyRegistrar()
 
 
+def get_feature_processor(name, kwargs):
+    creator = runner_feature_value_processors[name]
+    return creator(**(kwargs or {}))
+
+
 @runner_feature_value_processors.register_element
 def value_processor_identity():
     """

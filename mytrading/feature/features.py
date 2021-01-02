@@ -7,7 +7,7 @@ from datetime import datetime, timedelta
 import logging
 from os import path
 
-from .featureprocessors import runner_feature_value_processors
+from .featureprocessors import get_feature_processor
 from ..process.prices import best_price
 from ..process.tradedvolume import traded_runner_vol
 from ..process.ticks.ticks import tick_spread, LTICKS_DECODED
@@ -68,11 +68,7 @@ class RunnerFeatureBase:
         self.values = []
         self.dts = []
 
-        def _get_processor(name, _kwargs):
-            creator = runner_feature_value_processors[name]
-            return creator(**(_kwargs if _kwargs else {}))
-
-        self.value_processor = _get_processor(value_processor, value_processor_args)
+        self.value_processor = get_feature_processor(value_processor, value_processor_args)
         self.processed_vals = []
 
         self.sub_features: Dict[str, RunnerFeatureBase] = {}
@@ -662,9 +658,7 @@ class RunnerFeatureSubRegression(RunnerFeatureSub):
             **kwargs,
         )
         self.element_count = element_count
-
-        pre_kwargs = regression_preprocessor_args or {}
-        self.regression_preprocessor = runner_feature_value_processors[regression_preprocessor](**pre_kwargs)
+        self.regression_preprocessor = get_feature_processor(regression_preprocessor, regression_preprocessor_args)
 
     def runner_update(
             self,
