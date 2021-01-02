@@ -4,8 +4,28 @@ from typing import List
 from betfairlightweight.resources import MarketBook
 from betfairlightweight.resources.bettingresources import RunnerBook
 
+from myutils.myregistrar import MyRegistrar
 from ..process.prices import best_price
 from ..process.tradedvolume import get_record_tv_diff
+
+
+window_process_registrar = MyRegistrar()
+window_registrar = MyRegistrar()
+
+
+@window_process_registrar.register_element
+def window_func_ltp(runner: RunnerBook):
+    return runner.last_price_traded
+
+
+@window_process_registrar.register_element
+def window_func_best_back(runner: RunnerBook):
+    return best_price(runner.ex.available_to_back)
+
+
+@window_process_registrar.register_element
+def window_func_best_lay(runner: RunnerBook):
+    return best_price(runner.ex.available_to_lay)
 
 
 class WindowProcessorBase:
@@ -16,13 +36,14 @@ class WindowProcessorBase:
     window itself, only exception is constants defined in the class
     """
 
-    def __init__(self, window: dict, **kwargs):
+    def __init__(self, window: dict):
         pass
 
-    def process_window(self, market_list: List[MarketBook], new_book: MarketBook, window: dict, **kwargs):
+    def process_window(self, market_list: List[MarketBook], new_book: MarketBook, window: dict):
         raise NotImplementedError
 
 
+@window_registrar.register_element
 class WindowProcessorTradedVolumeLadder(WindowProcessorBase):
     """
     Traded volume ladder window processor
@@ -30,11 +51,11 @@ class WindowProcessorTradedVolumeLadder(WindowProcessorBase):
     Stores a 'tv_diff_totals' dict attribute in window, key is selection ID, value is sum of 'price' elements in ladder
     """
 
-    def __init__(self, window: dict, **kwargs):
-        super().__init__(window, **kwargs)
+    def __init__(self, window: dict):
+        super().__init__(window)
         window['old_tv_ladders'] = {}
 
-    def process_window(self, market_list: List[MarketBook], new_book: MarketBook, window: dict, **kwargs):
+    def process_window(self, market_list: List[MarketBook], new_book: MarketBook, window: dict):
 
         # check if window start index has changed
         if window['window_index'] != window['window_prev_index']:
@@ -61,25 +82,29 @@ class WindowProcessorTradedVolumeLadder(WindowProcessorBase):
         }
 
 
+@window_registrar.register_element
 class WindowProcessorFeatureBase(WindowProcessorBase):
     """Store a list of runner attribute values within a runner window"""
-
-    # key in window dictionary to store attribute values
-    window_var: str = None
-
-    # True only values inside window are stored, false to include value just before window starts
-    inside_window = True
-
     def get_runner_attr(self, runner: RunnerBook):
-        """define this method to get runner attribute (e.g. best back, last traded price etc.)"""
-        raise NotImplementedError
+        """this method gets runner attribute using stored function"""
+        return self.window_func(runner)
 
-    def __init__(self, window: dict, **kwargs):
+    def __init__(self, window: dict, window_var: str, window_func_key: str, inside_window=True):
         """initialise by creating empty dict in window using attribute key"""
-        super().__init__(window, **kwargs)
+        super().__init__(window)
+
+        # key in window dictionary to store attribute values
+        self.window_var: str = window_var
+
+        # function to retrieve runner data
+        self.window_func = window_process_registrar[window_func_key]
+
+        # True only values inside window are stored, false to include value just before window starts
+        self.inside_window = inside_window
+
         window[self.window_var] = {}
 
-    def process_window(self, market_list: List[MarketBook], new_book: MarketBook, window: dict, **kwargs):
+    def process_window(self, market_list: List[MarketBook], new_book: MarketBook, window: dict):
 
         # get starting index of window, add 1 if only taking values inside window
         start_index = window['window_index'] + self.inside_window
@@ -118,34 +143,35 @@ class WindowProcessorFeatureBase(WindowProcessorBase):
                 }.items():
                     runner_dict[k].append(v)
 
+#
+# class WindowProcessorLTPS(WindowProcessorFeatureBase):
+#     """store list of recent last traded prices"""
+#
+#     window_var = 'runner_ltps'
+#
+#     def get_runner_attr(self, runner: RunnerBook):
+#         return runner.last_price_traded
+#
+#
+# class WindowProcessorBestBack(WindowProcessorFeatureBase):
+#     """store list of recent best back prices"""
+#
+#     windor_var = 'best_backs'
+#
+#     def get_runner_attr(self, runner: RunnerBook):
+#         return best_price(runner.ex.available_to_back)
+#
+#
+# class WindowProcessorBestLay(WindowProcessorFeatureBase):
+#     """store list of recent best lay prices"""
+#
+#     windor_var = 'best_lays'
+#
+#     def get_runner_attr(self, runner: RunnerBook):
+#         return best_price(runner.ex.available_to_lay)
 
-class WindowProcessorLTPS(WindowProcessorFeatureBase):
-    """store list of recent last traded prices"""
 
-    window_var = 'runner_ltps'
-
-    def get_runner_attr(self, runner: RunnerBook):
-        return runner.last_price_traded
-
-
-class WindowProcessorBestBack(WindowProcessorFeatureBase):
-    """store list of recent best back prices"""
-
-    windor_var = 'best_backs'
-
-    def get_runner_attr(self, runner: RunnerBook):
-        return best_price(runner.ex.available_to_back)
-
-
-class WindowProcessorBestLay(WindowProcessorFeatureBase):
-    """store list of recent best lay prices"""
-
-    windor_var = 'best_lays'
-
-    def get_runner_attr(self, runner: RunnerBook):
-        return best_price(runner.ex.available_to_lay)
-
-
+# TODO - depreciated?
 class WindowProcessorDelayerBase(WindowProcessorBase):
     """return a delayed window value"""
 
