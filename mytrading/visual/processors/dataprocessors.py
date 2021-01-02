@@ -240,3 +240,24 @@ def plotly_df_fillna(data: pd.DataFrame, features_data, method='ffill'):
 def plotly_df_diff(data: pd.DataFrame, features_data):
     return data.diff()
 
+
+@register_data_processor
+def plotly_df_text_join(data: pd.DataFrame, features_data, dest_col: str, source_cols: List[str]) -> pd.DataFrame:
+    """
+    join multiple text columns to form a single text column and remove source cols
+    """
+    # check not empty
+    if not data.shape[0]:
+        return data
+
+    # fill blank text entries
+    data[source_cols] = data[source_cols].fillna('')
+
+    # join using HTML newline character text columns into destination column
+    data[dest_col] = data[source_cols].agg('<br>'.join, axis=1)
+
+    # drop source columns
+    return data.drop(source_cols, axis=1)
+
+
+
