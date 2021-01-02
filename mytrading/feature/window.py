@@ -1,7 +1,6 @@
 from betfairlightweight.resources.bettingresources import MarketBook
 
-from .windowprocessors import WindowProcessorTradedVolumeLadder, WindowProcessorLTPS
-from .windowprocessors import WindowProcessorBestBack, WindowProcessorBestLay
+from .windowprocessors import window_registrar
 from typing import List, Dict
 
 
@@ -45,14 +44,6 @@ class Windows:
     def func_publish_time(record, index):
         return record[index].publish_time
 
-    # Map window function names to classes
-    FUNCTIONS = {
-        'WindowProcessorTradedVolumeLadder': WindowProcessorTradedVolumeLadder,
-        'WindowProcessorLTPS': WindowProcessorLTPS,
-        'WindowProcessorBestBack': WindowProcessorBestBack,
-        'WindowProcessorBestLay': WindowProcessorBestLay
-    }
-
     def __init__(self):
         self.windows = {}
 
@@ -81,7 +72,7 @@ class Windows:
             'kwargs': kwargs,
         })
         window['function_instances'].append(
-            self.FUNCTIONS[function_key](window, **kwargs)
+            window_registrar[function_key](window, **kwargs)
         )
 
     # update windows with a new received market book
