@@ -2,9 +2,10 @@ from __future__ import annotations
 from os import path
 from typing import List, Tuple, Dict
 from natsort import natsorted
-from myutils.mypath import walk_first
 from itertools import chain
 import logging
+
+from myutils import mypath
 
 active_logger = logging.getLogger(__name__)
 
@@ -39,7 +40,7 @@ class FileTracker:
             active_logger.warning(f'path: "{top}" does not exist, resetting to "{self.start_dir}"')
             top = self.start_dir
 
-        root, dirs, files = walk_first(top)
+        root, dirs, files = mypath.walk_first(top)
 
         # sort into windows explorer display order
         dirs = natsorted(dirs)

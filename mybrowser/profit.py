@@ -1,18 +1,18 @@
 from os import path, listdir
 from typing import Iterable, List
 
-from ..tradetracker.orderinfo import dict_order_profit
-from ..utils.storage import EXT_ORDER_RESULT
-from myutils.jsonfile import read_file_lines
+from mytrading.tradetracker import orderinfo
+from mytrading.utils import storage
+from myutils import jsonfile
 
 
 def get_profits(element_path):
     """get sum of profits in current directory by recursively adding up profits from .orderresult files"""
 
     if path.isfile(element_path):
-        if path.splitext(element_path)[1] == EXT_ORDER_RESULT:
-            lines = read_file_lines(element_path)
-            return sum(dict_order_profit(o) for o in lines)
+        if path.splitext(element_path)[1] == storage.EXT_ORDER_RESULT:
+            lines = jsonfile.read_file_lines(element_path)
+            return sum(orderinfo.dict_order_profit(o) for o in lines)
         else:
             return None
     elif path.isdir(element_path):

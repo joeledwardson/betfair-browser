@@ -4,15 +4,15 @@ from dash.dependencies import Output, Input, State
 from typing import List
 from betfairlightweight.resources.bettingresources import MarketBook
 from datetime import datetime
-
-from ...process.prices import starting_odds
-from ...utils.storage import EXT_ORDER_RESULT
 from ..data import DashData
 from ..profit import get_display_profits
 from ..tables.market import get_records_market
 from ..text import html_lines
 from ..marketinfo import MarketInfo
-from myutils.generic import dict_sort
+
+from mytrading.process import prices
+from mytrading.utils import storage
+from myutils import generic
 
 
 def add_records_info(info_strings: List[str], record_list: List[List[MarketBook]], market_time: datetime):
@@ -86,7 +86,7 @@ def market_callback(app: dash.Dash, dd: DashData, input_dir: str):
 
             # success, assign active market directory to dash data instance and compute starting odds
             dd.market_dir = dd.file_tracker.root
-            dd.start_odds = dict_sort(starting_odds(dd.record_list))
+            dd.start_odds = generic.dict_sort(prices.starting_odds(dd.record_list))
 
             # update info strings with record timings and market time
             add_records_info(info_strings, record_list, market_info.market_time)
@@ -100,7 +100,7 @@ def market_callback(app: dash.Dash, dd: DashData, input_dir: str):
 
             # create filenames for order results based on selection IDs
             profit_elements = [
-                str(s) + EXT_ORDER_RESULT
+                str(s) + storage.EXT_ORDER_RESULT
                 for s in dd.start_odds.keys()
             ]
 

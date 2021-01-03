@@ -1,14 +1,13 @@
 from os import path
-
 import dash
 from dash.dependencies import Output, Input, State
-
 from ..data import DashData
 from ..tables.runners import get_runner_id
 from ..text import html_lines
-from ...utils.storage import EXT_ORDER_RESULT
-from ...visual.profits import read_profit_table, process_profit_table
-from myutils.mydash.context import triggered_id
+
+from mytrading.utils import storage
+from mytrading.visual import profits
+from myutils.mydash import context as my_context
 
 
 def orders_callback(app: dash.Dash, dd: DashData, input_dir: str):
@@ -30,7 +29,7 @@ def orders_callback(app: dash.Dash, dd: DashData, input_dir: str):
         info_strings = list()
         info_strings.append(f'Active cell: {runners_active_cell}')
 
-        orders_pressed = triggered_id() == 'button-orders'
+        orders_pressed = my_context.triggered_id() == 'button-orders'
 
         # if runners button pressed (new active market), clear table
         if not orders_pressed:
@@ -47,18 +46,18 @@ def orders_callback(app: dash.Dash, dd: DashData, input_dir: str):
             return [], html_lines(info_strings)
 
         # get order results file from selection ID and check exists
-        order_file_path = path.join(dd.market_dir, str(selection_id) + EXT_ORDER_RESULT)
+        order_file_path = path.join(dd.market_dir, str(selection_id) + storage.EXT_ORDER_RESULT)
         if not path.isfile(order_file_path):
             info_strings.append(f'No file "{order_file_path}" found')
             return [], html_lines(info_strings)
 
         # get orders dataframe
-        df = read_profit_table(order_file_path)
+        df = profits.read_profit_table(order_file_path)
         if df.shape[0] == 0:
             info_strings.append(f'File "{order_file_path}" empty')
             return [], html_lines(info_strings)
 
-        df = process_profit_table(df, dd.record_list[0][0].market_definition.market_time)
+        df = profits.process_profit_table(df, dd.record_list[0][0].market_definition.market_time)
         info_strings.append(f'producing orders for {selection_id}, {df.shape[0]} results found')
         info_strings.append(f'data read from "{order_file_path}"')
         return df.to_dict('records'), html_lines(info_strings)

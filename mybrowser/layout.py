@@ -2,12 +2,13 @@ from typing import Optional
 from datetime import timedelta
 import dash_html_components as html
 import dash_core_components as dcc
-from myutils.timing import format_timedelta
 from .tables.runners import get_runners_table, get_runner_id
 from .tables.market import get_market_table
 from .tables.files import get_files_table, FilesTableProperties
 from .tables.orders import get_orders_table
 from .data import DashData
+
+from myutils import timing as mytiming
 
 # set files table height as it is needed when re-created in callbacks
 FilesTableProperties.height = 200
@@ -83,7 +84,7 @@ def get_layout(
                     html.Div(
                         children=[
                             html.Button(children='order profits', id='button-orders', n_clicks=0),
-                            dcc.Input(id='input-chart-offset', type='time', value=format_timedelta(chart_offset)),
+                            dcc.Input(id='input-chart-offset', type='time', value=mytiming.format_timedelta(chart_offset)),
                             html.Button(children='feature figure', id='button-figure', n_clicks=0),
                         ]
                     ),

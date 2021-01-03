@@ -3,11 +3,11 @@ import dash
 from dash.dependencies import Output, Input, State
 from typing import Dict, List
 import logging
-
 from ..data import DashData
 from ..text import html_lines
-from myutils.mypath import walk_first
-from myutils.jsonfile import read_file_data
+
+from myutils import mypath
+from myutils import jsonfile
 
 active_logger = logging.getLogger(__name__)
 
@@ -40,7 +40,7 @@ def get_configs(config_dir: str, info_strings: List[str]) -> Dict:
     configs = dict()
 
     # get files in directory
-    _, _, files = walk_first(config_dir)
+    _, _, files = mypath.walk_first(config_dir)
 
     # loop files
     for file_name in files:
@@ -50,7 +50,7 @@ def get_configs(config_dir: str, info_strings: List[str]) -> Dict:
         name, _ = path.splitext(file_name)
 
         # read configuration from dictionary
-        cfg = read_file_data(file_path)
+        cfg = jsonfile.read_file_data(file_path)
 
         # check config successfully parsed
         if cfg is not None:

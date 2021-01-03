@@ -3,15 +3,13 @@ from os import path
 from typing import List
 import dash_table
 import pandas as pd
-
-from ...utils.storage import RE_EVENT, EXT_ORDER_RESULT, RE_MARKET_ID, EXT_FEATURE
-from ...utils.storage import get_hist_marketdef, get_first_book, search_recorded_cat
-from myutils.mypath import walk_first
-from ...utils.storage import strategy_rel_path, strategy_path_convert, is_orders_dir
 from ..filetracker import FileTracker
 from ..marketinfo import MarketInfo
 from ..profit import get_display_profits
 from .table import create_table
+
+from mytrading.utils import storage
+from myutils import mypath
 
 
 class FilesTableProperties:
@@ -39,10 +37,10 @@ def get_display_info(
     order_market_info: MarketInfo = None
 
     # see if directory has orders
-    if is_orders_dir(elements):
+    if storage.is_orders_dir(elements):
 
         # try to convert directory to recorded/historical directory for relevant market
-        order_market_path = strategy_path_convert(dir_path, base_dir)
+        order_market_path = storage.strategy_path_convert(dir_path, base_dir)
 
         # if successful in getting recorded/historical directory for market, get market information
         if order_market_path:
@@ -61,23 +59,23 @@ def get_display_info(
         file_ext = path.splitext(e)[1]
 
         # check if element is directory and matches betfair event
-        if re.match(RE_EVENT, e) and path.isdir(element_path):
+        if re.match(storage.RE_EVENT, e) and path.isdir(element_path):
             event_path = element_path
 
             # if active directory in strategy, then attempt to convert path to its historical/recorded counterpart
-            if strategy_rel_path(event_path):
-                event_path = strategy_path_convert(event_path, base_dir)
+            if storage.strategy_rel_path(event_path):
+                event_path = storage.strategy_path_convert(event_path, base_dir)
 
             # set information string as event info
             info = get_event_dir_info(event_path)
 
         # check if element is a market ID (can be file in historical or dir in recorded), get market information
-        elif re.match(RE_MARKET_ID, e):
+        elif re.match(storage.RE_MARKET_ID, e):
             market_path = element_path
 
             # if active path in strategy, then attempt to convert path to its historical/recorded counterpart
-            if strategy_rel_path(market_path):
-                market_path = strategy_path_convert(market_path, base_dir)
+            if storage.strategy_rel_path(market_path):
+                market_path = storage.strategy_path_convert(market_path, base_dir)
 
             # set information string as market info
             info = get_market_info(market_path)
@@ -86,7 +84,7 @@ def get_display_info(
             info = str(info) if info else ''
 
         # check if element is strategy order result or feature info
-        elif file_ext in [EXT_ORDER_RESULT, EXT_FEATURE]:
+        elif file_ext in [storage.EXT_ORDER_RESULT, storage.EXT_FEATURE]:
 
             # check that were able to get relevant market information
             if order_market_info is not None:
@@ -181,7 +179,7 @@ def get_hist_cell_path(
 
     file_name = file_tracker.get_file_name(row)
 
-    if not re.match(RE_MARKET_ID, file_name):
+    if not re.match(storage.RE_MARKET_ID, file_name):
         file_info.append(f'active cell file "{file_name}" does not match market ID')
         return ''
 
@@ -203,10 +201,10 @@ def get_market_info(market_path):
     if path.isfile(market_path):
 
         # assume betfair historical and get market definition
-        market_def = get_hist_marketdef(market_path)
+        market_def = storage.get_hist_marketdef(market_path)
 
         # get first market book
-        first_book = get_first_book(market_path)
+        first_book = storage.get_first_book(market_path)
 
         # check if both first book and market definition valid
         if market_def and first_book:
@@ -216,7 +214,7 @@ def get_market_info(market_path):
     elif path.isdir(market_path):
 
         # assume recorded market directory and search for catalogue
-        cat = search_recorded_cat(market_path)
+        cat = storage.search_recorded_cat(market_path)
 
         # check if successful getting catalogue
         if cat:
@@ -236,16 +234,16 @@ def get_event_dir_info(dir_path) -> str:
     """
 
     # get sub directories and files
-    _, dirs, files = walk_first(dir_path)
+    _, dirs, files = mypath.walk_first(dir_path)
 
     # loop files
     for f in files:
 
         # if historical, market ID is name
-        if re.match(RE_MARKET_ID, f):
+        if re.match(storage.RE_MARKET_ID, f):
 
             # get market definition from file
-            market_def = get_hist_marketdef(path.join(dir_path, f))
+            market_def = storage.get_hist_marketdef(path.join(dir_path, f))
 
             # if successful, return event name from market definition
             if market_def:
@@ -255,13 +253,13 @@ def get_event_dir_info(dir_path) -> str:
     for d in dirs:
 
         # if recorded, event dir holds dirs named using market IDs
-        if re.match(RE_MARKET_ID, d):
+        if re.match(storage.RE_MARKET_ID, d):
 
             # form sub-directory path of market
             sub_dir_path = path.join(dir_path, d)
 
             # search for catalogue in market directory
-            cat = search_recorded_cat(sub_dir_path)
+            cat = storage.search_recorded_cat(sub_dir_path)
 
             # if successfully found catalogue, then return event name from it
             if cat:

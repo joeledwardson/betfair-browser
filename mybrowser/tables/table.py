@@ -6,8 +6,9 @@ import dash_html_components as html
 import dash_table
 import pandas as pd
 import logging
-from myutils.mydash.dashtable import datatable_data
-from myutils.deepdict import dict_update
+
+from myutils.mydash import dashtable as mydashtable
+from myutils import deepdict
 
 
 active_logger = logging.getLogger(__name__)
@@ -36,7 +37,7 @@ def create_table(
         return html.Div()
 
     table_dict = dict(
-        **datatable_data(df, table_id),
+        **mydashtable.datatable_data(df, table_id),
         style_cell={
             'width': f'{1 / n_columns:.0%}',
             'textAlign': text_align,
@@ -48,7 +49,7 @@ def create_table(
             'height': height,
         },
     )
-    dict_update(table_kwargs, table_dict)
+    deepdict.dict_update(table_kwargs, table_dict)
 
     table = dash_table.DataTable(**table_dict)
 

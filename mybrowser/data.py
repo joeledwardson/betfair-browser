@@ -1,8 +1,9 @@
 from typing import List, Tuple, Dict
 from betfairlightweight.resources.bettingresources import MarketBook
-from ..utils.security import get_api_client
 from .filetracker import FileTracker
 from .marketinfo import MarketInfo
+
+from mytrading.utils import security as mysecurity
 
 
 class ButtonTracker:
@@ -32,7 +33,7 @@ class DashData:
         self.file_tracker = FileTracker(input_dir)
 
         # API client instance
-        self.trading = get_api_client()
+        self.trading = mysecurity.get_api_client()
 
         # market information of active market
         self.market_info = MarketInfo()

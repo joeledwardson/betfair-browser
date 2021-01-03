@@ -2,16 +2,14 @@ import logging
 import re
 from os import path
 from typing import List, Tuple
-
 import dash_table
 from betfairlightweight import APIClient
-
-from ...utils.storage import is_orders_dir, get_historical, search_recorded_cat, search_recorded_stream
-from ...utils.storage import strategy_path_to_hist
-from ...utils.storage import SUBDIR_HISTORICAL, RE_MARKET_ID, SUBDIR_RECORDED
 from ..filetracker import FileTracker
 from ..marketinfo import MarketInfo
 from ..tables.files import get_hist_cell_path
+
+from mytrading.utils import storage
+
 
 
 
@@ -70,7 +68,7 @@ def get_records_market(
     """
 
     # try to look if there are orders inside directory
-    if is_orders_dir(file_tracker.files):
+    if storage.is_orders_dir(file_tracker.files):
 
         # orders inside directory, get success, records, marketinfo from corresponding historic/recorded
         file_info.append(f'found order result/info files in "{file_tracker.root}"')
@@ -106,7 +104,7 @@ def get_historical_market(
     """
 
     try:
-        records = list(get_historical(trading, historical_path).queue)
+        records = list(storage.get_historical(trading, historical_path).queue)
         file_info.append(f'found {len(records)} historical records in "{historical_path}"')
 
         if len(records):
@@ -133,7 +131,7 @@ def get_recorded_market(
     record list and catalogue object are None on success fail
     """
 
-    cat = search_recorded_cat(market_dir)
+    cat = storage.search_recorded_cat(market_dir)
     if not cat:
         file_info.append(f'did not find catalogue in dir "{market_dir}"')
         return False, None, None
@@ -141,7 +139,7 @@ def get_recorded_market(
     market_info = MarketInfo.from_catalogue(cat)
     file_info.append(f'found catalogue file in dir "{market_dir}"')
 
-    queue = search_recorded_stream(trading, market_dir)
+    queue = storage.search_recorded_stream(trading, market_dir)
     if not queue:
         file_info.append(f'did not find recorded recorded file in "{market_dir}"')
         return False, None, None
@@ -169,13 +167,13 @@ def get_orders_market(
     """
 
     # get historic file path relative to current orders directory
-    hist_path = strategy_path_to_hist(
+    hist_path = storage.strategy_path_to_hist(
         strategy_path=dir_path,
-        historic_base_dir=path.join(base_dir, SUBDIR_HISTORICAL)
+        historic_base_dir=path.join(base_dir, storage.SUBDIR_HISTORICAL)
     )
 
     # check that file name corresponds to market ID
-    name_is_market = re.match(RE_MARKET_ID, path.split(hist_path)[1])
+    name_is_market = re.match(storage.RE_MARKET_ID, path.split(hist_path)[1])
 
     # historic path exists, is a file and name matches market ID
     if hist_path and path.isfile(hist_path) and name_is_market:
@@ -183,12 +181,12 @@ def get_orders_market(
         return get_historical_market(hist_path, trading, file_info)
 
     # get recorded directory path relative to current orders directory
-    rec_path = strategy_path_to_hist(
+    rec_path = storage.strategy_path_to_hist(
         strategy_path=dir_path,
-        historic_base_dir=path.join(base_dir, SUBDIR_RECORDED))
+        historic_base_dir=path.join(base_dir, storage.SUBDIR_RECORDED))
 
     # check that directory corresponds to market ID
-    dir_is_market = re.match(RE_MARKET_ID, path.split(rec_path)[1])
+    dir_is_market = re.match(storage.RE_MARKET_ID, path.split(rec_path)[1])
 
     # recorded path exists, is a directory and matches market ID
     if rec_path and path.isdir(rec_path) and dir_is_market:

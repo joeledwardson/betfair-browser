@@ -1,10 +1,10 @@
 import dash
 from dash.dependencies import Output, Input
-
 from ..data import DashData
 from ..tables.files import get_files_table
 from ..text import html_lines
-from myutils.mydash.context import triggered_id
+
+from myutils.mydash import context as my_context
 
 
 def file_table_callback(app: dash.Dash, dd: DashData, input_dir: str):
@@ -25,8 +25,8 @@ def file_table_callback(app: dash.Dash, dd: DashData, input_dir: str):
     )
     def update_files_table(return_n_clicks, profit_n_clicks, active_cell):
 
-        profit_pressed = triggered_id() == 'button-profit'
-        return_pressed = triggered_id() == 'button-return'
+        profit_pressed = my_context.triggered_id() == 'button-profit'
+        return_pressed = my_context.triggered_id() == 'button-return'
 
         # get active directory
         old_root = dd.file_tracker.root

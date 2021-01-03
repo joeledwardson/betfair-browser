@@ -5,18 +5,16 @@ from typing import List, Dict, Union
 import dash
 from dash.dependencies import Output, Input, State
 from importlib import reload
-
-from ...tradetracker.orderinfo import get_order_updates, filter_market_close
-from ...utils.storage import EXT_ORDER_INFO, EXT_FEATURE
-from ...feature.storage import features_from_file
-
-# import visual libraries not functions so that they can be reloaded
-from ...visual import figure as figurelib
-from ...visual import config as configlib
-
 from ..data import DashData
 from ..tables.runners import get_runner_id
 from ..text import html_lines
+
+from mytrading.tradetracker import orderinfo
+from mytrading.utils import storage as utils_storage
+from mytrading.feature import storage as features_storage
+from mytrading.visual import figure as figurelib
+from mytrading.visual import config as configlib
+
 
 
 def get_chart_offset(chart_offset_str):
@@ -78,7 +76,7 @@ def get_orders_df(market_dir: str, market_id: str, selection_id: int, info_strin
     orders_df = None
 
     # construct orderinfo file path form market ID
-    order_file_name = market_id + EXT_ORDER_INFO
+    order_file_name = market_id + utils_storage.EXT_ORDER_INFO
     order_file_path = path.join(
         market_dir,
         order_file_name
@@ -88,7 +86,7 @@ def get_orders_df(market_dir: str, market_id: str, selection_id: int, info_strin
     if path.isfile(order_file_path):
 
         # get order updates to dataframe
-        orders_df = get_order_updates(order_file_path)
+        orders_df = orderinfo.get_order_updates(order_file_path)
 
         # check if not empty
         if orders_df.shape[0]:
@@ -97,7 +95,7 @@ def get_orders_df(market_dir: str, market_id: str, selection_id: int, info_strin
             orders_df = orders_df[orders_df['selection_id'] == selection_id]
 
             # filter market close orders
-            orders_df = filter_market_close(orders_df)
+            orders_df = orderinfo.filter_market_close(orders_df)
 
         else:
 
@@ -198,14 +196,14 @@ def figure_callback(app: dash.Dash, dd: DashData, input_dir: str):
         # construct feature info
         feature_info_path = path.join(
             dd.market_dir,
-            str(selection_id) + EXT_FEATURE
+            str(selection_id) + utils_storage.EXT_FEATURE
         )
 
         # check if file exists
         if path.isfile(feature_info_path):
 
             # try to read features from file
-            all_features_data = features_from_file(feature_info_path)
+            all_features_data = features_storage.features_from_file(feature_info_path)
 
             # check not empty
             if not len(all_features_data):
