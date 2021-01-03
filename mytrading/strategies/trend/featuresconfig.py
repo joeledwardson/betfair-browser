@@ -14,10 +14,12 @@ def smoothing_kwargs(
     return {
         'periodic_ms': sampling_ms,
         'periodic_timestamps': True,
-        'value_processor': 'value_processor_moving_average',
-        'value_processor_args': {
-            'n_entries': sampling_count
-        },
+        'value_processors_config': [{
+            'name': 'value_processor_moving_average',
+            'kwargs': {
+                'n_entries': sampling_count
+            },
+        }],
         'sub_features_config': {
             'regression': {
                 'name': 'RunnerFeatureSubRegression',
@@ -29,7 +31,9 @@ def smoothing_kwargs(
             'ticks': {
                 'name': 'RunnerFeatureSub',
                 'kwargs': {
-                    'value_processor': 'value_processor_to_tick',
+                    'value_processors_config': [{
+                        'name': 'value_processor_to_tick',
+                    }],
                     'sub_features_config': {
                         'comparison': {
                             'name': 'RunnerFeatureSubDelayComparison',
@@ -95,10 +99,12 @@ def get_trend_feature_configs(
             'kwargs': {
                 'periodic_ms': spread_sampling_ms,
                 'periodic_timestamps': True,
-                'value_processor': 'value_processor_moving_average',
-                'value_processor_args': {
-                    'n_entries': spread_sampling_count
-                },
+                'value_processors_config': [{
+                    'name': 'value_processor_moving_average',
+                    'kwargs': {
+                        'n_entries': spread_sampling_count
+                    }
+                }],
             }
         },
 
@@ -163,10 +169,12 @@ def get_trend_feature_configs(
                 'periodic_ms': ltp_window_sampling_ms,
                 'periodic_timestamps': True,
                 'window_s': ltp_window_width_s,
-                'value_processor': 'value_processor_moving_average',
-                'value_processor_args': {
-                    'n_entries': ltp_window_sampling_count
-                },
+                'value_processors_config': [{
+                    'name': 'value_processor_moving_average',
+                    'kwargs': {
+                        'n_entries': ltp_window_sampling_count
+                    }
+                }],
             }
         },
 
@@ -176,10 +184,12 @@ def get_trend_feature_configs(
                 'periodic_ms': ltp_window_sampling_ms,
                 'periodic_timestamps': True,
                 'window_s': ltp_window_width_s,
-                'value_processor': 'value_processor_moving_average',
-                'value_processor_args': {
-                    'n_entries': ltp_window_sampling_count
-                },
+                'value_processors_config': [{
+                    'name': 'value_processor_moving_average',
+                    'kwargs': {
+                        'n_entries': ltp_window_sampling_count
+                    }
+                }],
             }
         },
 

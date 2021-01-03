@@ -54,12 +54,11 @@ class RunnerFeatureBase:
     """
     def __init__(
             self,
-            value_processor: str = 'value_processor_identity',
-            value_processor_args: dict = None,
-            periodic_ms: int = None,
+            value_processors_config: Optional[List[Dict]] = None,
+            periodic_ms: Optional[int] = None,
             periodic_timestamps: bool = False,
-            sub_features_config: Dict = None,
-            parent: RunnerFeatureBase = None,
+            sub_features_config: Optional[Dict] = None,
+            parent: Optional[RunnerFeatureBase] = None,
     ):
 
         self.parent: RunnerFeatureBase = parent
@@ -69,7 +68,14 @@ class RunnerFeatureBase:
         self.values = []
         self.dts = []
 
-        self.value_processor = get_feature_processor(value_processor, value_processor_args)
+        if value_processors_config is None:
+            self.value_processors = []
+        else:
+            assert(type(value_processors_config) is list)
+            self.value_processors = [
+                get_feature_processor(p['name'], p.get('kwargs', {}))
+                for p in value_processors_config
+            ]
         self.processed_vals = []
 
         self.sub_features: Dict[str, RunnerFeatureBase] = {}
@@ -153,7 +159,9 @@ class RunnerFeatureBase:
             self.values.append(value)
 
             # compute value processor on raw value
-            processed = self.value_processor(value, self.values, self.dts)
+            processed = value
+            for _processor in self.value_processors:
+                processed = _processor(value, self.values, self.dts)
 
             # add processed value
             self.processed_vals.append(processed)
