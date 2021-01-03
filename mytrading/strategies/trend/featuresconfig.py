@@ -1,19 +1,40 @@
 from typing import Dict
 
-
 def smoothing_kwargs(
+        sampling_ms,
+        sampling_count,
+):
+    """
+    create feature kwargs for: sample, perform moving average
+    """
+    return {
+        'periodic_ms': sampling_ms,
+        'periodic_timestamps': True,
+        'value_processors_config': [{
+            'name': 'value_processor_moving_average',
+            'kwargs': {
+                'n_entries': sampling_count
+            },
+        }]
+    }
+
+
+def smoothing_trend_kwargs(
         sampling_ms,
         sampling_count,
         regression_count,
         delay_feature_s,
 ):
     """
-    create feature kwargs for sampling and moving average
-    and add delayed smoothed values
+    create feature kwargs for: sample, convert to ticks and perform moving average
+    add sub feature of regression and delayed value comparison
     """
     return {
         'periodic_ms': sampling_ms,
         'periodic_timestamps': True,
+        'value_preprocessors_config': [{
+            'name': 'value_processor_to_tick',
+        }],
         'value_processors_config': [{
             'name': 'value_processor_moving_average',
             'kwargs': {
@@ -25,23 +46,12 @@ def smoothing_kwargs(
                 'name': 'RunnerFeatureSubRegression',
                 'kwargs': {
                     'element_count': regression_count,
-                    'regression_preprocessor': 'value_processor_invert',
                 },
             },
-            'ticks': {
-                'name': 'RunnerFeatureSub',
+            'comparison': {
+                'name': 'RunnerFeatureSubDelayComparison',
                 'kwargs': {
-                    'value_processors_config': [{
-                        'name': 'value_processor_to_tick',
-                    }],
-                    'sub_features_config': {
-                        'comparison': {
-                            'name': 'RunnerFeatureSubDelayComparison',
-                            'kwargs': {
-                                'delay_seconds': delay_feature_s,
-                            },
-                        },
-                    },
+                    'delay_seconds': delay_feature_s,
                 },
             }
         }
@@ -64,6 +74,20 @@ def biggest_diff_feature(diff_s, window_var, window_func_key):
             },
             'window_var': window_var,
         }
+    }
+
+
+def ltp_window_kwargs(ltp_window_sampling_ms, ltp_window_width_s, ltp_window_sampling_count):
+    return {
+        'periodic_ms': ltp_window_sampling_ms,
+        'periodic_timestamps': True,
+        'window_s': ltp_window_width_s,
+        'value_processors_config': [{
+            'name': 'value_processor_moving_average',
+            'kwargs': {
+                'n_entries': ltp_window_sampling_count
+            }
+        }],
     }
 
 
@@ -165,32 +189,12 @@ def get_trend_feature_configs(
 
         'ltp min': {
             'name': 'RunnerFeatureTradedWindowMin',
-            'kwargs': {
-                'periodic_ms': ltp_window_sampling_ms,
-                'periodic_timestamps': True,
-                'window_s': ltp_window_width_s,
-                'value_processors_config': [{
-                    'name': 'value_processor_moving_average',
-                    'kwargs': {
-                        'n_entries': ltp_window_sampling_count
-                    }
-                }],
-            }
+            'kwargs': ltp_window_kwargs(ltp_window_sampling_ms, ltp_window_width_s, ltp_window_sampling_count),
         },
 
         'ltp max': {
             'name': 'RunnerFeatureTradedWindowMax',
-            'kwargs': {
-                'periodic_ms': ltp_window_sampling_ms,
-                'periodic_timestamps': True,
-                'window_s': ltp_window_width_s,
-                'value_processors_config': [{
-                    'name': 'value_processor_moving_average',
-                    'kwargs': {
-                        'n_entries': ltp_window_sampling_count
-                    }
-                }],
-            }
+            'kwargs': ltp_window_kwargs(ltp_window_sampling_ms, ltp_window_width_s, ltp_window_sampling_count),
         },
 
         'tv': {
@@ -202,8 +206,6 @@ def get_trend_feature_configs(
             'kwargs': smoothing_kwargs(
                 ladder_sampling_ms,
                 ladder_sampling_count,
-                ladder_regression_count,
-                delay_feature_s,
             )
         },
 
@@ -212,8 +214,6 @@ def get_trend_feature_configs(
             'kwargs': smoothing_kwargs(
                 ladder_sampling_ms,
                 ladder_sampling_count,
-                ladder_regression_count,
-                delay_feature_s
             )
         },
 
@@ -222,9 +222,37 @@ def get_trend_feature_configs(
             'kwargs': smoothing_kwargs(
                 ltp_sampling_ms,
                 ltp_sampling_count,
+            )
+        },
+
+        'best back smoothed ticks': {
+            'name': 'RunnerFeatureBestBack',
+            'kwargs': smoothing_trend_kwargs(
+                ladder_sampling_ms,
+                ladder_sampling_count,
+                ladder_regression_count,
+                delay_feature_s,
+            )
+        },
+
+        'best lay smoothed ticks': {
+            'name': 'RunnerFeatureBestLay',
+            'kwargs': smoothing_trend_kwargs(
+                ladder_sampling_ms,
+                ladder_sampling_count,
+                ladder_regression_count,
+                delay_feature_s,
+            )
+        },
+
+        'ltp smoothed ticks': {
+            'name': 'RunnerFeatureLTP',
+            'kwargs': smoothing_trend_kwargs(
+                ltp_sampling_ms,
+                ltp_sampling_count,
                 ltp_regression_count,
                 delay_feature_s,
             )
-        }
+        },
 
     }

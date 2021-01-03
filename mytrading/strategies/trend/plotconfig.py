@@ -82,18 +82,18 @@ def smooth_chart_kwargs(color_0, color_1) -> Dict:
     }
 
 
-def smooth_value_processors(feature_name, max_diff_feature) -> List[Dict]:
+def smooth_value_processors(ticks_feature_name, max_diff_feature) -> List[Dict]:
     return [{
         'name': 'plotly_set_attrs',
         'kwargs': {
             'attr_configs': [{
-                'feature_name': feature_name + '.regression',
+                'feature_name': ticks_feature_name + '.regression',
                 'attr_names': ['text_regression', 'marker_color'],
             }, {
-                'feature_name': feature_name + '.ticks',
+                'feature_name': ticks_feature_name,
                 'attr_names': ['text_ticks'],
             }, {
-                'feature_name': feature_name + '.ticks.comparison',
+                'feature_name': ticks_feature_name + '.comparison',
                 'attr_names': ['text_tick_comparison'],
             }, {
                 'feature_name': max_diff_feature,
@@ -157,12 +157,87 @@ def smooth_value_processors(feature_name, max_diff_feature) -> List[Dict]:
     }]
 
 
-def get_trend_plot_configs(tv_bar_width_ms, tv_opacity):
+def bar_chart_kwargs(color_0, color_1, opacity, width_ms):
     return {
-
-        'spread': {
-            'ignore': True,
+        'marker': {
+            'colorscale': [
+                [0, color_0],
+                [1, color_1]
+            ],
+            'cmid': 0,  # with grey 0 scale
         },
+        'opacity': opacity,
+        'width': width_ms,  # 1 seconds width of bars
+        'offset': 0,  # end of bar to be aligned with timestamp
+    }
+
+
+def tv_bar_value_processors(tv_name, tv_bar_width_ms):
+    return [{
+        'name': 'plotly_set_attrs',
+        'kwargs': {
+            'attr_configs': [{
+                'feature_name': tv_name,
+                'attr_names': ['text', 'marker_color'],
+                'feature_value_processors': [{
+                    'name': 'plotly_data_to_series'
+                }, {
+                    'name': 'plotly_df_diff'
+                }, {
+                    'name': 'plotly_series_to_data'
+                }],
+            }],
+        },
+        }, {
+            'name': 'plotly_values_resampler',
+            'kwargs': {
+                'n_seconds': int(tv_bar_width_ms/1000),
+                'agg_function': {
+                    'y': 'sum',
+                    'text': 'sum',
+                    'marker_color': 'sum',
+                }
+            }
+        }, {
+            'name': 'plotly_df_formatter',
+            'kwargs': {
+                'formatter_name': 'formatter_decimal',
+                'df_column': 'text',
+                'formatter_kwargs': {
+                    'name': tv_name,
+                    'prefix': '£',
+                }
+            },
+        },{
+            'name': 'plotly_df_to_data'
+        }
+    ]
+
+
+IGNORE_LIST = [
+    'back ladder',
+    'lay ladder',
+    'wom',
+    'spread',
+    'tv',
+    'ltp max diff',
+    'best back max diff',
+    'best lay max diff',
+    'ltp smoothed ticks',
+    'ltp smoothed ticks.regression',
+    'ltp smoothed ticks.comparison',
+    'best back smoothed ticks',
+    'best back smoothed ticks.regression',
+    'best back smoothed ticks.comparison',
+    'best lay smoothed ticks',
+    'best lay smoothed ticks.regression',
+    'best lay smoothed ticks.comparison',
+]
+
+
+def get_trend_plot_configs(tv_bar_width_ms, tv_opacity):
+
+    return {
 
         'best back': {
             'chart_args': {
@@ -178,18 +253,6 @@ def get_trend_plot_configs(tv_bar_width_ms, tv_opacity):
             'value_processors': ladder_value_processors('lay ladder'),
         },
 
-        'back ladder': {
-            'ignore': True,
-        },
-
-        'lay ladder': {
-            'ignore': True,
-        },
-
-        'wom': {
-            'ignore': True,
-        },
-
         'ltp': {
             'value_processors': ltp_value_processors(
                 tv_feature='tv',
@@ -203,59 +266,12 @@ def get_trend_plot_configs(tv_bar_width_ms, tv_opacity):
 
         'book split': {
             'chart': 'Bar',
-            'chart_args': {
-                'marker': {
-                    'colorscale': [
-                        [0, 'rgb(250,50,50)'],
-                        [1, 'rgb(50,250,50)']
-                    ],  # default plotly colours go white, so use a green to red scale
-                    'cmid': 0,  # with grey 0 scale
-                },
-                'opacity': tv_opacity,
-                'width': tv_bar_width_ms,  # 1 seconds width of bars
-                'offset': 0,  # end of bar to be aligned with timestamp
-            },
+            # default plotly colours go white, so use a green to red scale
+            'chart_args': bar_chart_kwargs('rgb(250,50,50)', 'rgb(50,250,50)', tv_opacity, tv_bar_width_ms),
             'trace_args': {
                 'secondary_y': True
             },
-            'value_processors': [{
-                'name': 'plotly_set_attrs',
-                'kwargs': {
-                    'attr_configs': [{
-                        'feature_name': 'tv',
-                        'attr_names': ['text', 'marker_color'],
-                        'feature_value_processors': [{
-                            'name': 'plotly_data_to_series'
-                        }, {
-                            'name': 'plotly_df_diff'
-                        }, {
-                            'name': 'plotly_series_to_data'
-                        }],
-                    }],
-                },
-            }, {
-                'name': 'plotly_values_resampler',
-                'kwargs': {
-                    'n_seconds': int(tv_bar_width_ms/1000),
-                    'agg_function': {
-                        'y': 'sum',
-                        'text': 'sum',
-                        'marker_color': 'sum',
-                    }
-                }
-            }, {
-                'name': 'plotly_df_formatter',
-                'kwargs': {
-                    'formatter_name': 'formatter_decimal',
-                    'df_column': 'text',
-                    'formatter_kwargs': {
-                        'name': 'tv',
-                        'prefix': '£',
-                    }
-                },
-            },{
-                'name': 'plotly_df_to_data'
-            }],
+            'value_processors':tv_bar_value_processors('tv', tv_bar_width_ms),
         },
 
         'ltp smoothed': {
@@ -265,21 +281,9 @@ def get_trend_plot_configs(tv_bar_width_ms, tv_opacity):
                 color_1='rgb(0,0,255)',
             ),
             'value_processors': smooth_value_processors(
-                feature_name='ltp smoothed',
+                ticks_feature_name='ltp smoothed ticks',
                 max_diff_feature='ltp max diff',
             ),
-        },
-
-        'best lay smoothed': {
-            # use red to green scale
-            'chart_args': smooth_chart_kwargs(
-                color_0='rgb(255,0,0)',
-                color_1='rgb(0,255,0)',
-            ),
-            'value_processors': smooth_value_processors(
-                feature_name='best lay smoothed',
-                max_diff_feature='best lay max diff',
-            )
         },
 
         'best back smoothed': {
@@ -289,61 +293,22 @@ def get_trend_plot_configs(tv_bar_width_ms, tv_opacity):
                 color_1='rgb(0,255,0)',
             ),
             'value_processors': smooth_value_processors(
-                feature_name='best back smoothed',
+                ticks_feature_name='best back smoothed ticks',
                 max_diff_feature='best back max diff',
+            )
+        },
+
+        'best lay smoothed': {
+            # use red to green scale
+            'chart_args': smooth_chart_kwargs(
+                color_0='rgb(255,0,0)',
+                color_1='rgb(0,255,0)',
             ),
+            'value_processors': smooth_value_processors(
+                ticks_feature_name='best lay smoothed ticks',
+                max_diff_feature='best lay max diff',
+            )
         },
 
-        'tv': {
-            'ignore': True,
-        },
-
-        'ltp smoothed.regression': {
-            'ignore': True,
-        },
-
-        'ltp smoothed.ticks': {
-            'ignore': True,
-        },
-
-        'ltp smoothed.ticks.comparison': {
-            'ignore': True,
-        },
-
-        'best back smoothed.regression': {
-            'ignore': True,
-        },
-
-        'best back smoothed.ticks': {
-            'ignore': True,
-        },
-
-        'best back smoothed.ticks.comparison': {
-            'ignore': True,
-        },
-
-        'best lay smoothed.regression': {
-            'ignore': True,
-        },
-
-        'best lay smoothed.ticks': {
-            'ignore': True,
-        },
-
-        'best lay smoothed.ticks.comparison': {
-            'ignore': True,
-        },
-
-        'ltp max diff': {
-            'ignore': True,
-        },
-
-        'best back max diff': {
-            'ignore': True,
-        },
-
-        'best lay max diff': {
-            'ignore': True,
-        }
-
+        **{f: {'ignore': True} for f in IGNORE_LIST},
     }
