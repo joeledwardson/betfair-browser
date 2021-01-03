@@ -12,6 +12,7 @@ S_DP = 0
 
 class TrendMessageTypes(Enum):
     TREND_MSG_START = 'achieved trend criteria'
+    TREND_MONITOR_FAIL = 'trend data fail'
     TREND_MSG_REVERSE = 'trend reversed'
     TREND_MSG_PRICE_SPIKE = 'price spiked'
     TREND_MSG_PRICE_MOVE = 'price moved'
@@ -24,32 +25,44 @@ def formatter(attrs: Dict) -> str:
     trend_criteria_kwargs = attrs.get('trend_criteria', {})
     direction = 'up' if attrs.get('direction_up') else 'down'
 
-    try:
-        data = TrendData(**trend_data_kwargs)
-        criteria = TrendCriteria(**trend_criteria_kwargs)
+    trend_data_lines = '\n'.join([f'-> {k}: {v}' for k, v in trend_data_kwargs.items()])
+    trend_criteria_lines = '\n'.join([f'-> {k}: {v}' for k, v in trend_criteria_kwargs.items()])
 
-        return '\n'.join([
-            f'back/lay/ltp met regression criteria going {direction}',
-            f'-> lay gradient {data.lay_gradient:.{GR_DP}%} meets requirement >= '
-            f'{criteria.ladder_gradient_min:.{GR_DP}%}',
-            f'-> lay strength {data.lay_strength:.{S_DP}%} meets requirement >= '
-            f'{criteria.ladder_strength_min:.{S_DP}%}',
-            f'-> back gradient {data.back_gradient:.{GR_DP}%} meets requirement >= '
-            f'{criteria.ladder_gradient_min:.{GR_DP}%}',
-            f'-> back strength {data.back_strength:.{S_DP}%} meets requirement >= '
-            f'{criteria.ladder_strength_min:.{S_DP}%}',
-            f'-> ltp gradient {data.ltp_gradient:.{GR_DP}%} meets requirement >= '
-            f'{criteria.ltp_gradient_min:.{GR_DP}%}',
-            f'-> back strength {data.ltp_strength:.{S_DP}%} meets requirement >= '
-            f'{criteria.ladder_strength_min:.{S_DP}%}',
-            f'-> spread between smoothed back {data.smoothed_back:.2f} & smoothed lay {data.smoothed_lay:.2f} is '
-            f'{data.ladder_spread_ticks} ticks, meets requirement <= {criteria.ladder_spread_max}'
-        ])
+    return f'trend data met criteria in {direction} direction\n' \
+           f'data:\n{trend_data_lines}\ncriteria: {trend_criteria_lines}'
 
-    except Exception:
-        return f'sucessful trend: could not process trend/criteria for "TREND_MSG_START" message, attrs passed: ' \
-               f'{list(attrs.keys())}'
+    # try:
+    #     data = TrendData(**trend_data_kwargs)
+    #     criteria = TrendCriteria(**trend_criteria_kwargs)
+    #
+    #     return '\n'.join([
+    #         f'back/lay/ltp met regression criteria going {direction}',
+    #         f'-> lay gradient {data.lay_gradient:.{GR_DP}%} meets requirement >= '
+    #         f'{criteria.ladder_gradient_min:.{GR_DP}%}',
+    #         f'-> lay strength {data.lay_strength:.{S_DP}%} meets requirement >= '
+    #         f'{criteria.ladder_strength_min:.{S_DP}%}',
+    #         f'-> back gradient {data.back_gradient:.{GR_DP}%} meets requirement >= '
+    #         f'{criteria.ladder_gradient_min:.{GR_DP}%}',
+    #         f'-> back strength {data.back_strength:.{S_DP}%} meets requirement >= '
+    #         f'{criteria.ladder_strength_min:.{S_DP}%}',
+    #         f'-> ltp gradient {data.ltp_gradient:.{GR_DP}%} meets requirement >= '
+    #         f'{criteria.ltp_gradient_min:.{GR_DP}%}',
+    #         f'-> back strength {data.ltp_strength:.{S_DP}%} meets requirement >= '
+    #         f'{criteria.ladder_strength_min:.{S_DP}%}',
+    #         f'-> spread between smoothed back {data.smoothed_back:.2f} & smoothed lay {data.smoothed_lay:.2f} is '
+    #         f'{data.ladder_spread_ticks} ticks, meets requirement <= {criteria.ladder_spread_max}'
+    #     ])
+    #
+    # except Exception:
+    #     return f'sucessful trend: could not process trend/criteria for "TREND_MSG_START" message, attrs passed: ' \
+    #            f'{list(attrs.keys())}'
 
+
+@register_formatter(TrendMessageTypes.TREND_MONITOR_FAIL)
+def formatter(attrs: Dict) -> str:
+    trend_data_kwargs = attrs.get('trend_data', {})
+    trend_data_lines = '\n'.join([f'-> {k}: {v}' for k, v in trend_data_kwargs.items()])
+    return f'one of trend data items failed validation of non-None, data:\n{trend_data_lines}'
 
 
 @register_formatter(TrendMessageTypes.TREND_MSG_REVERSE)

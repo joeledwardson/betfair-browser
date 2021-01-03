@@ -64,6 +64,8 @@ def biggest_diff_feature(diff_s, window_var, window_func_key):
 
 
 def get_trend_feature_configs(
+        spread_sampling_ms,
+        spread_sampling_count,
         wom_ticks,
         ltp_window_width_s,
         ltp_window_sampling_ms,
@@ -87,6 +89,18 @@ def get_trend_feature_configs(
     """
 
     return {
+
+        'spread': {
+            'name': 'RunnerFeatureLadderSpread',
+            'kwargs': {
+                'periodic_ms': spread_sampling_ms,
+                'periodic_timestamps': True,
+                'value_processor': 'value_processor_moving_average',
+                'value_processor_args': {
+                    'n_entries': spread_sampling_count
+                },
+            }
+        },
 
         'best back max diff': biggest_diff_feature(
             diff_s=diff_s,

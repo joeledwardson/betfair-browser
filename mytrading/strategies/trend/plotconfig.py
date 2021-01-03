@@ -1,67 +1,181 @@
+from typing import List, Dict
+
+
+def ladder_value_processors(ladder_feature) -> List[Dict]:
+    return [{
+        'name': 'plotly_set_attrs',
+        'kwargs': {
+            'attr_configs': [{
+                'feature_name': ladder_feature,
+                'attr_names': ['text'],
+            }],
+        }
+    }, {
+        'name': 'plotly_df_formatter',
+        'kwargs': {
+            'formatter_name': 'formatter_pricesize',
+            'df_column': 'text',
+        }
+    }, {
+        'name': 'plotly_df_to_data',
+    }]
+
+
+def ltp_value_processors(tv_feature, spread_feature) -> List[Dict]:
+    return [{
+        'name': 'plotly_set_attrs',
+        'kwargs': {
+            'attr_configs': [{
+                'feature_name': tv_feature,
+                'attr_names': ['tv_text'],
+            }, {
+                'feature_name': spread_feature,
+                'attr_names': ['spread_text'],
+            }],
+        }
+    }, {
+        'name': 'plotly_df_fillna',
+    }, {
+        'name': 'plotly_df_formatter',
+        'kwargs': {
+            'formatter_name': 'formatter_generic',
+            'df_column': 'spread_text',
+            'formatter_kwargs': {
+                'name': 'spread',
+            }
+        }
+    }, {
+        'name': 'plotly_df_formatter',
+        'kwargs': {
+            'formatter_name': 'formatter_decimal',
+            'df_column': 'tv_text',
+            'formatter_kwargs': {
+                'name': 'traded vol',
+                'prefix': '£',
+            }
+        }
+    }, {
+        'name': 'plotly_df_text_join',
+        'kwargs': {
+            'dest_col': 'text',
+            'source_cols': [
+                'tv_text',
+                'spread_text',
+            ],
+        }
+    }, {
+        'name': 'plotly_df_to_data',
+    }]
+
+
+def smooth_chart_kwargs(color_0, color_1) -> Dict:
+    return {
+        'mode': 'lines+markers',
+        'line_color': 'black',
+        'marker': {
+            'colorscale': [
+                [0, color_0],
+                [1, color_1]
+            ],
+            'cmid': 0,
+        }
+    }
+
+
+def smooth_value_processors(feature_name, max_diff_feature) -> List[Dict]:
+    return [{
+        'name': 'plotly_set_attrs',
+        'kwargs': {
+            'attr_configs': [{
+                'feature_name': feature_name + '.regression',
+                'attr_names': ['text_regression', 'marker_color'],
+            }, {
+                'feature_name': feature_name + '.ticks',
+                'attr_names': ['text_ticks'],
+            }, {
+                'feature_name': feature_name + '.ticks.comparison',
+                'attr_names': ['text_tick_comparison'],
+            }, {
+                'feature_name': max_diff_feature,
+                'attr_names': ['text_max_diff']
+            }],
+        },
+    },  {
+        'name': 'plotly_df_fillna',
+    }, {
+        'name': 'plotly_df_formatter',
+        'kwargs': {
+            'formatter_name': 'formatter_regression',
+            'df_column': 'text_regression',
+        }
+    }, {
+        'name': 'plotly_df_formatter',
+        'kwargs': {
+            'formatter_name': 'formatter_generic',
+            'df_column': 'text_ticks',
+            'formatter_kwargs': {
+                'name': 'tick index',
+            }
+        }
+    }, {
+        'name': 'plotly_df_formatter',
+        'kwargs': {
+            'formatter_name': 'formatter_generic',
+            'df_column': 'text_tick_comparison',
+            'formatter_kwargs': {
+                'name': 'tick difference',
+            }
+        }
+    }, {
+        'name': 'plotly_df_formatter',
+        'kwargs': {
+            'formatter_name': 'formatter_generic',
+            'df_column': 'text_max_diff',
+            'formatter_kwargs': {
+                'name': 'max tick difference',
+            }
+        }
+    }, {
+        'name': 'plotly_df_text_join',
+        'kwargs': {
+            'dest_col': 'text',
+            'source_cols': [
+                'text_regression',
+                'text_ticks',
+                'text_tick_comparison',
+                'text_max_diff'
+            ],
+        }
+    }, {
+        'name': 'plotly_df_formatter',
+        'kwargs': {
+            'formatter_name': 'formatter_regression_color',
+            'df_column': 'marker_color',
+        }
+    }, {
+        'name': 'plotly_df_to_data',
+    }]
+
+
 def get_trend_plot_configs(tv_bar_width_ms, tv_opacity):
     return {
-        # 'best lay smoothed.ticks': {
-        #     'value_processors': [{
-        #         'name': 'plotly_set_attrs',
-        #         'kwargs': {
-        #             'attr_configs': [{
-        #                 'feature_name': 'best lay smoothed.ticks.comparison',
-        #                 'attr_names': ['text', 'marker_color'],
-        #             }],
-        #         }
-        #     }, {
-        #         'name': 'plotly_df_to_data',
-        #     }],
-        # },
 
-        # 'best lay smoothed.ticks.comparison': {
-        #     'ignore': True,
-        # },
+        'spread': {
+            'ignore': True,
+        },
 
         'best back': {
             'chart_args': {
                 'visible': 'legendonly',
             },
-            'value_processors': [{
-                'name': 'plotly_set_attrs',
-                'kwargs': {
-                    'attr_configs': [{
-                        'feature_name': 'back ladder',
-                        'attr_names': ['text'],
-                    }],
-                }
-            }, {
-                'name': 'plotly_df_formatter',
-                'kwargs': {
-                    'formatter_name': 'formatter_pricesize',
-                    'df_column': 'text',
-                }
-            }, {
-                'name': 'plotly_df_to_data',
-            }],
+            'value_processors': ladder_value_processors('back ladder'),
         },
 
         'best lay': {
             'chart_args': {
                 'visible': 'legendonly',
             },
-            'value_processors': [{
-                'name': 'plotly_set_attrs',
-                'kwargs': {
-                    'attr_configs': [{
-                        'feature_name': 'lay ladder',
-                        'attr_names': ['text'],
-                    }],
-                }
-            }, {
-                'name': 'plotly_df_formatter',
-                'kwargs': {
-                    'formatter_name': 'formatter_pricesize',
-                    'df_column': 'text',
-                }
-            },  {
-                'name': 'plotly_df_to_data',
-            }],
+            'value_processors': ladder_value_processors('lay ladder'),
         },
 
         'back ladder': {
@@ -77,29 +191,10 @@ def get_trend_plot_configs(tv_bar_width_ms, tv_opacity):
         },
 
         'ltp': {
-            'value_processors': [{
-                'name': 'plotly_set_attrs',
-                'kwargs': {
-                    'attr_configs': [{
-                        'feature_name': 'tv',
-                        'attr_names': ['text'],
-                    }],
-                }
-            }, {
-                'name': 'plotly_df_fillna',
-            }, {
-                'name': 'plotly_df_formatter',
-                'kwargs': {
-                    'formatter_name': 'formatter_decimal',
-                    'df_column': 'text',
-                    'formatter_kwargs': {
-                        'name': 'traded vol',
-                        'prefix': '£',
-                    }
-                }
-            }, {
-                'name': 'plotly_df_to_data',
-            }],
+            'value_processors': ltp_value_processors(
+                tv_feature='tv',
+                spread_feature='spread'
+            ),
             'chart_args': {
                 'mode': 'lines+markers',
                 'visible': 'legendonly',
@@ -163,145 +258,42 @@ def get_trend_plot_configs(tv_bar_width_ms, tv_opacity):
         },
 
         'ltp smoothed': {
-            'chart_args': {
-                'mode': 'lines+markers',
-                'line_color': 'black',
-                'marker': {
-                    'colorscale': [
-                        [0, 'rgb(255,255,0)'],
-                        [1, 'rgb(0,0,255)']
-                    ],  # use red to green scale
-                    'cmid': 0,
-                },
-            },
-            'value_processors': [{
-                'name': 'plotly_set_attrs',
-                'kwargs': {
-                    'attr_configs': [{
-                        'feature_name': 'ltp smoothed.regression',
-                        'attr_names': ['text_regression', 'marker_color'],
-                    }, {
-                        'feature_name': 'ltp smoothed.ticks',
-                        'attr_names': ['text_ticks'],
-                    }, {
-                        'feature_name': 'ltp smoothed.ticks.comparison',
-                        'attr_names': ['text_tick_comparison'],
-                    }],
-                },
-            },  {
-                'name': 'plotly_df_formatter',
-                'kwargs': {
-                    'formatter_name': 'formatter_regression',
-                    'df_column': 'text_regression',
-                }
-            }, {
-                'name': 'plotly_df_formatter',
-                'kwargs': {
-                    'formatter_name': 'formatter_generic',
-                    'df_column': 'text_ticks',
-                    'formatter_kwargs': {
-                        'name': 'tick index',
-                    }
-                }
-            }, {
-                'name': 'plotly_df_formatter',
-                'kwargs': {
-                    'formatter_name': 'formatter_generic',
-                    'df_column': 'text_tick_comparison',
-                    'formatter_kwargs': {
-                        'name': 'tick difference',
-                    }
-                }
-            }, {
-                'name': 'plotly_df_text_join',
-                'kwargs': {
-                    'dest_col': 'text',
-                    'source_cols': ['text_regression', 'text_ticks', 'text_tick_comparison'],
-                }
-            }, {
-                'name': 'plotly_df_formatter',
-                'kwargs': {
-                    'formatter_name': 'formatter_regression_color',
-                    'df_column': 'marker_color',
-                }
-            }, {
-                'name': 'plotly_df_to_data',
-            }],
+            # yellow to blue scale
+            'chart_args': smooth_chart_kwargs(
+                color_0='rgb(255,255,0)',
+                color_1='rgb(0,0,255)',
+            ),
+            'value_processors': smooth_value_processors(
+                feature_name='ltp smoothed',
+                max_diff_feature='ltp max diff',
+            ),
         },
 
         'best lay smoothed': {
-            'chart_args': {
-                'mode': 'lines+markers',
-                'line_color': 'black',
-                'marker': {
-                    'colorscale': [
-                        [0, 'rgb(255,0,0)'],
-                        [1, 'rgb(0,255,0)']
-                    ],  # use red to green scale
-                    'cmid': 0,
-                },
-            },
-            'value_processors': [{
-                'name': 'plotly_set_attrs',
-                'kwargs': {
-                    'attr_configs': [{
-                        'feature_name': 'best lay smoothed.regression',
-                        'attr_names': ['text', 'marker_color'],
-                    }],
-                }
-            }, {
-                'name': 'plotly_df_formatter',
-                'kwargs': {
-                    'formatter_name': 'formatter_regression',
-                    'df_column': 'text',
-                }
-            }, {
-                'name': 'plotly_df_formatter',
-                'kwargs': {
-                    'formatter_name': 'formatter_regression_color',
-                    'df_column': 'marker_color',
-                }
-            }, {
-                'name': 'plotly_df_to_data',
-            }],
+            # use red to green scale
+            'chart_args': smooth_chart_kwargs(
+                color_0='rgb(255,0,0)',
+                color_1='rgb(0,255,0)',
+            ),
+            'value_processors': smooth_value_processors(
+                feature_name='best lay smoothed',
+                max_diff_feature='best lay max diff',
+            )
         },
 
         'best back smoothed': {
-            'chart_args': {
-                'mode': 'lines+markers',
-                'line_color': 'black',
-                'marker': {
-                    'colorscale': [
-                        [0, 'rgb(255,0,0)'],
-                        [1, 'rgb(0,255,0)']
-                    ],  # use red to green scale
-                    'cmid': 0,
-                },
-            },
-            'value_processors': [{
-                'name': 'plotly_set_attrs',
-                'kwargs': {
-                    'attr_configs': [{
-                        'feature_name': 'best back smoothed.regression',
-                        'attr_names': ['text', 'marker_color'],
-                    }],
-                }
-            }, {
-                'name': 'plotly_df_formatter',
-                'kwargs': {
-                    'formatter_name': 'formatter_regression',
-                    'df_column': 'text',
-                }
-            },{
-                'name': 'plotly_df_formatter',
-                'kwargs': {
-                    'formatter_name': 'formatter_regression_color',
-                    'df_column': 'marker_color',
-                }
-            },{
-                'name': 'plotly_df_to_data',
-            }],
+            # use red to green scale
+            'chart_args': smooth_chart_kwargs(
+                color_0='rgb(255,0,0)',
+                color_1='rgb(0,255,0)',
+            ),
+            'value_processors': smooth_value_processors(
+                feature_name='best back smoothed',
+                max_diff_feature='best back max diff',
+            ),
         },
+
+
 
         'ltp smoothed.regression': {
             'ignore': True,
