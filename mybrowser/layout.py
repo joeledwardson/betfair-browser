@@ -59,7 +59,14 @@ def get_layout(
                         children=[
                             html.Button(children='↑', id='button-return', n_clicks=0),
                             html.Button(children='get runners', id='button-runners', n_clicks=0),
-                            html.Button(children='profit', id='button-profit', n_clicks=0)
+                            html.Button(children='profit', id='button-profit', n_clicks=0),
+                            html.Button(children='reload libraries', id='button-libs', n_clicks=0),
+                        ],
+                    ),
+
+                    html.Div(
+                        children=[
+                            html.P(children='', id='info-libs')
                         ],
                     ),
 

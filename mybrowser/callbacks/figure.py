@@ -129,10 +129,6 @@ def figure_callback(app: dash.Dash, dd: DashData, input_dir: str):
     )
     def fig_button(btn_clicks, runners_cell, chart_offset_str, feature_config_name, plot_config_name):
 
-        # reload plotting and config lib
-        reload(figurelib)
-        reload(configlib)
-
         # get datetime/None chart offset from time input
         chart_offset = get_chart_offset(chart_offset_str)
 
