@@ -12,7 +12,7 @@ from myutils.timing import timing_register
 from ...trademachine import tradestates as basestates
 from ...trademachine.trademachine import RunnerStateMachine
 from ...strategy.featurestrategy import MyFeatureStrategy
-from ...process.ticks.ticks import LTICKS_DECODED, tick_spread
+from ...process.ticks.ticks import LTICKS_DECODED, tick_spread, closest_tick
 from ...process.tradedvolume import traded_runner_vol
 from ...process.prices import best_price, get_ltps
 from ...feature.featureholder import FeatureHolder
@@ -35,6 +35,9 @@ class MyTrendStrategy(MyFeatureStrategy):
     def __init__(
             self,
             criteria_kwargs: Dict,
+            take_available: bool,
+            tick_window: int,
+            ltp_cutoff: float,
             stake_size: float,
             trade_transactions_cutoff: int,
             hold_ms: int,
@@ -48,6 +51,9 @@ class MyTrendStrategy(MyFeatureStrategy):
         self.criteria_kwargs = criteria_kwargs
         self.trend_criteria = TrendCriteria(**criteria_kwargs)
 
+        self.take_available = take_available
+        self.tick_window = tick_window
+        self.ltp_cutoff = ltp_cutoff
         self.stake_size = stake_size
         self.trade_transactions_cutoff = trade_transactions_cutoff
         self.hold_ms = hold_ms
@@ -76,6 +82,7 @@ class MyTrendStrategy(MyFeatureStrategy):
                     ),
                     trendstates.TrendTradeStateMonitorOpen(
                         stake_size=self.stake_size,
+                        take_available=self.take_available,
                         name=trendstates.TrendStateTypes.TREND_MONITOR_OPEN,
                         next_state=[
                             basestates.TradeStateTypes.BIN,
@@ -83,11 +90,13 @@ class MyTrendStrategy(MyFeatureStrategy):
                         ],
                     ),
                     trendstates.TrendTradeStateHedgePlace(
+                        take_available=self.take_available,
                         min_hedge_price=self.min_hedge_price,
                         name=trendstates.TrendStateTypes.TREND_HEDGE_PLACE,
                         next_state=trendstates.TrendStateTypes.TREND_HEDGE_WAIT,
                     ),
                     trendstates.TrendTradeStateHedgeWait(
+                        take_available=self.take_available,
                         name=trendstates.TrendStateTypes.TREND_HEDGE_WAIT,
                         next_state=basestates.TradeStateTypes.CLEANING,
                         hedge_place_state=trendstates.TrendStateTypes.TREND_HEDGE_PLACE,
@@ -192,10 +201,21 @@ class MyTrendStrategy(MyFeatureStrategy):
         trend_data.ltp_max_diff_ticks = features['ltp max diff'].last_value()
 
         # get ID for shortest runner from LTPs
-        ltps = get_ltps(market_book)
-        first_id = next(iter(ltps.keys()), 0)
+
+        # list of runner ltps
+        runner_ltps = get_ltps(market_book)
+
+        # ltp tick indexes for runner ltps
+        ltp_ticks = {k: closest_tick(v, return_index=True) for k, v in runner_ltps.items()}
+        # shortest tick index of runner ltps
+        shortest_ltp_tick = next(iter(ltp_ticks.values()), 0)
+
+        # selected runner ltp
+        ltp = runner_ltps.get(runner.selection_id, 0)
+        # ltp tick index of selected runner
+        ltp_tick = ltp_ticks.get(runner.selection_id, len(LTICKS_DECODED) - 1)
 
         return {
-            'first_runner': first_id == selection_id,
+            'ltp_valid': abs(shortest_ltp_tick - ltp_tick) <= self.tick_window and ltp <= self.ltp_cutoff,
             'trend_data': trend_data,
         }

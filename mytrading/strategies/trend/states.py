@@ -45,7 +45,7 @@ class TrendTradeStateIdle(tradestates.TradeStateIdle):
             trade_tracker: TrendTradeTracker,
             strategy: BaseStrategy,
             trend_data: TrendData,
-            first_runner: bool,
+            ltp_valid: bool,
             **inputs,
     ) -> bool:
 
@@ -56,7 +56,7 @@ class TrendTradeStateIdle(tradestates.TradeStateIdle):
         proceed = False
 
         if (
-            first_runner and
+            ltp_valid and
 
             abs(trend_data.lay_gradient) >= self.criteria.ladder_gradient_min and
             abs(trend_data.back_gradient) >= self.criteria.ladder_gradient_min and
@@ -111,9 +111,10 @@ class TrendTradeStateIdle(tradestates.TradeStateIdle):
 
 
 class TrendTradeStateMonitorOpen(tradestates.TradeStateBase):
-    def __init__(self, stake_size, *args, **kwargs):
+    def __init__(self, stake_size, take_available: bool, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.stake_size = stake_size
+        self.take_available = take_available
 
     def enter(self, trade_tracker: TrendTradeTracker, market_book: MarketBook, **inputs):
         trade_tracker.active_order = None
@@ -147,7 +148,6 @@ class TrendTradeStateMonitorOpen(tradestates.TradeStateBase):
             market: Market,
             trade_tracker: TrendTradeTracker,
             strategy: BaseStrategy,
-            first_runner: bool,
             trend_data: TrendData,
             **inputs,
     ):
@@ -178,10 +178,16 @@ class TrendTradeStateMonitorOpen(tradestates.TradeStateBase):
 
         if trade_tracker.direction_up:
             side = 'LAY'
-            smooth_val = trend_data.smoothed_back
+            if self.take_available:
+                smooth_val = trend_data.smoothed_lay
+            else:
+                smooth_val = trend_data.smoothed_back
         else:
             side = 'BACK'
-            smooth_val = trend_data.smoothed_lay
+            if self.take_available:
+                smooth_val = trend_data.smoothed_back
+            else:
+                smooth_val = trend_data.smoothed_lay
 
         smooth_price = closest_tick(smooth_val, return_index=False)
         smooth_price = round(smooth_price, 2)
@@ -207,21 +213,37 @@ class TrendTradeStateMonitorOpen(tradestates.TradeStateBase):
             strategy.place_order(market, trade_tracker.active_order)
 
 
-def hedge_price(trade_tracker: TrendTradeTracker, trend_data: TrendData):
+def hedge_price(trade_tracker: TrendTradeTracker, trend_data: TrendData, take_available):
     if trade_tracker.direction_up:
-        return closest_tick(trend_data.smoothed_lay, return_index=False)
+        if take_available:
+            value = trend_data.smoothed_back
+        else:
+            value = trend_data.smoothed_lay
     else:
-        return closest_tick(trend_data.smoothed_back, return_index=False)
+        if take_available:
+            value = trend_data.smoothed_lay
+        else:
+            value = trend_data.smoothed_back
+
+    return closest_tick(value, return_index=False)
 
 
 class TrendTradeStateHedgePlace(tradestates.TradeStateHedgePlaceBase):
+    def __init__(self, take_available: bool, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.take_available = take_available
+
     def get_hedge_price(self, trend_data: TrendData, trade_tracker: TrendTradeTracker, **inputs) -> float:
-        return hedge_price(trade_tracker, trend_data)
+        return hedge_price(trade_tracker, trend_data, self.take_available)
 
 
 class TrendTradeStateHedgeWait(tradestates.TradeStateHedgeWaitBase):
+    def __init__(self, take_available: bool, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.take_available = take_available
+
     def price_moved(self, trend_data: TrendData, trade_tracker: TrendTradeTracker, **inputs) -> float:
-        return hedge_price(trade_tracker, trend_data)
+        return hedge_price(trade_tracker, trend_data, self.take_available)
 
 #
 #
