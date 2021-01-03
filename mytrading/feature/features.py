@@ -7,7 +7,7 @@ from datetime import datetime, timedelta
 import logging
 from os import path
 
-from .featureprocessors import get_feature_processor
+from .featureprocessors import get_feature_processor, get_feature_processors
 from ..process.prices import best_price
 from ..process.tradedvolume import traded_runner_vol
 from ..process.ticks.ticks import tick_spread, LTICKS_DECODED
@@ -55,6 +55,7 @@ class RunnerFeatureBase:
     def __init__(
             self,
             value_processors_config: Optional[List[Dict]] = None,
+            value_preprocessors_config: Optional[List[Dict]] = None,
             periodic_ms: Optional[int] = None,
             periodic_timestamps: bool = False,
             sub_features_config: Optional[Dict] = None,
@@ -68,14 +69,8 @@ class RunnerFeatureBase:
         self.values = []
         self.dts = []
 
-        if value_processors_config is None:
-            self.value_processors = []
-        else:
-            assert(type(value_processors_config) is list)
-            self.value_processors = [
-                get_feature_processor(p['name'], p.get('kwargs', {}))
-                for p in value_processors_config
-            ]
+        self.value_processors = get_feature_processors(value_processors_config or [])
+        self.value_preprocessors = get_feature_processors(value_preprocessors_config or [])
         self.processed_vals = []
 
         self.sub_features: Dict[str, RunnerFeatureBase] = {}
@@ -154,16 +149,16 @@ class RunnerFeatureBase:
             if self.parent is not None and self.parent.dts:
                 _publish_time = self.parent.dts[-1]
 
-            # add raw value and timestamp to lists
+            # add preprocessed value and timestamp to lists
             self.dts.append(_publish_time)
+            for preproc in self.value_preprocessors:
+                value = preproc(value, self.values, self.dts)
             self.values.append(value)
 
-            # compute value processor on raw value
+            # add postprocessed value to list
             processed = value
-            for _processor in self.value_processors:
-                processed = _processor(value, self.values, self.dts)
-
-            # add processed value
+            for postproc in self.value_processors:
+                processed = postproc(processed, self.values, self.dts)
             self.processed_vals.append(processed)
 
             for sub_feature in self.sub_features.values():

@@ -13,7 +13,7 @@ instance, with any kwargs specified in `value_processor_args`
 from myutils.myregistrar import MyRegistrar
 import statistics
 from datetime import datetime
-from typing import List
+from typing import List, Callable, Dict
 from ..process.ticks.ticks import closest_tick
 
 runner_feature_value_processors = MyRegistrar()
@@ -22,6 +22,14 @@ runner_feature_value_processors = MyRegistrar()
 def get_feature_processor(name, kwargs):
     creator = runner_feature_value_processors[name]
     return creator(**(kwargs or {}))
+
+
+def get_feature_processors(config: List[Dict]) -> List[Callable]:
+    assert (type(config) is list)
+    return [
+        get_feature_processor(p['name'], p.get('kwargs', {}))
+        for p in config
+    ]
 
 
 @runner_feature_value_processors.register_element
