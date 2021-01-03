@@ -3,6 +3,8 @@ from dataclasses import dataclass, field
 
 @dataclass
 class TrendData:
+    do_features: bool
+
     lay_gradient: float = field(default=None)
     lay_strength: float = field(default=None)
     back_gradient: float = field(default=None)

@@ -11,7 +11,7 @@ from myutils.myclass import store_kwargs
 from myutils.timing import timing_register
 from ...trademachine import tradestates as basestates
 from ...trademachine.trademachine import RunnerStateMachine
-from ...strategy.featurestrategy import MyFeatureStrategy
+from ...strategy.featurestrategy import MyFeatureStrategy, MarketHandler, RunnerHandler
 from ...process.ticks.ticks import LTICKS_DECODED, tick_spread, closest_tick
 from ...process.tradedvolume import traded_runner_vol
 from ...process.prices import best_price, get_ltps
@@ -37,7 +37,7 @@ class MyTrendStrategy(MyFeatureStrategy):
             criteria_kwargs: Dict,
             take_available: bool,
             tick_window: int,
-            ltp_cutoff: float,
+            price_cutoff: float,
             stake_size: float,
             trade_transactions_cutoff: int,
             hold_ms: int,
@@ -53,7 +53,7 @@ class MyTrendStrategy(MyFeatureStrategy):
 
         self.take_available = take_available
         self.tick_window = tick_window
-        self.ltp_cutoff = ltp_cutoff
+        self.price_cutoff = price_cutoff
         self.stake_size = stake_size
         self.trade_transactions_cutoff = trade_transactions_cutoff
         self.hold_ms = hold_ms
@@ -127,11 +127,32 @@ class MyTrendStrategy(MyFeatureStrategy):
         self.trend_data_dicts[market.market_id] = dict()
 
     def custom_runner_initialisation(self, market: Market, market_book: MarketBook, runner: RunnerBook):
-        self.trend_data_dicts[market_book.market_id][runner.selection_id] = TrendData()
+        best_back = best_price(runner.ex.available_to_back)
+        best_lay = best_price(runner.ex.available_to_lay)
+        do_features = runner.last_price_traded and runner.last_price_traded <= self.price_cutoff and \
+                      best_lay and best_lay <= self.price_cutoff and \
+                      best_back and best_back <= self.price_cutoff
+        self.trend_data_dicts[market_book.market_id][runner.selection_id] = TrendData(
+            do_features=do_features
+        )
 
     @staticmethod
     def tick_comp(feature: RunnerFeatureBase):
         return feature.sub_features['ticks'].sub_features['comparison'].last_value()
+
+    def process_runner_features(self, mb: MarketBook, mh: MarketHandler, selection_id, runner_index):
+        # only process features if allowed
+        if self.trend_data_dicts[mb.market_id][selection_id].do_features:
+            super().process_runner_features(mb, mh, selection_id, runner_index)
+
+    def process_closed_market(self, market: Market, market_book: MarketBook) -> None:
+        # only write feature file and order result if features are allowed
+        if market.market_id in self.market_handlers:
+            mh = self.market_handlers[market.market_id]
+            for selection_id in list(mh.runner_handlers.keys()):
+                if not self.trend_data_dicts[market.market_id][selection_id].do_features:
+                    del mh.runner_handlers[selection_id]
+        super().process_closed_market(market, market_book)
 
     def trade_machine_kwargs(
             self,
@@ -209,13 +230,10 @@ class MyTrendStrategy(MyFeatureStrategy):
         ltp_ticks = {k: closest_tick(v, return_index=True) for k, v in runner_ltps.items()}
         # shortest tick index of runner ltps
         shortest_ltp_tick = next(iter(ltp_ticks.values()), 0)
-
-        # selected runner ltp
-        ltp = runner_ltps.get(runner.selection_id, 0)
         # ltp tick index of selected runner
         ltp_tick = ltp_ticks.get(runner.selection_id, len(LTICKS_DECODED) - 1)
 
         return {
-            'ltp_valid': abs(shortest_ltp_tick - ltp_tick) <= self.tick_window and ltp <= self.ltp_cutoff,
+            'ltp_valid': abs(shortest_ltp_tick - ltp_tick) <= self.tick_window,
             'trend_data': trend_data,
         }

@@ -56,6 +56,7 @@ class TrendTradeStateIdle(tradestates.TradeStateIdle):
         proceed = False
 
         if (
+            trend_data.do_features and
             ltp_valid and
 
             abs(trend_data.lay_gradient) >= self.criteria.ladder_gradient_min and
