@@ -11,6 +11,7 @@ from .featureprocessors import get_feature_processor
 from ..process.prices import best_price
 from ..process.tradedvolume import traded_runner_vol
 from ..process.ticks.ticks import tick_spread, LTICKS_DECODED
+from ..process.tradedvolume import get_record_tv_diff
 from ..utils.storage import construct_hist_dir
 from ..oddschecker import oc_hist_mktbk_processor
 from .window import Windows
@@ -312,13 +313,16 @@ class RunnerFeatureTradedWindowMax(_RunnerFeatureTradedWindow):
 
 
 @register_feature
-class RunnerFeatureBookSplitWindow(RunnerFeatureWindowBase):
+class RunnerFeatureBookSplitWindow(RunnerFeatureBase):
     """
      percentage of recent traded volume in the last 'window_s' seconds that is above current best back price
     """
 
-    def __init__(self, window_s, **kwargs):
-        super().__init__(window_s, window_function='WindowProcessorTradedVolumeLadder', **kwargs)
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.previous_best_back = None
+        self.previous_best_lay = None
+        self.previous_ladder = dict()
 
     def runner_update(
             self,
@@ -327,24 +331,26 @@ class RunnerFeatureBookSplitWindow(RunnerFeatureWindowBase):
             windows: Windows,
             runner_index):
 
-        # best back price on current record
-        best_back = best_price(new_book.runners[runner_index].ex.available_to_back)
+        runner = new_book.runners[runner_index]
+        value = None
 
-        if best_back:
+        if self.previous_best_back and self.previous_best_lay:
+            diff = get_record_tv_diff(
+                runner.ex.traded_volume,
+                self.previous_ladder,
+                is_dict=True
+            )
+            # difference in new back and lay money
+            back_diff = sum([x['size'] for x in diff if x['price'] <= self.previous_best_back])
+            lay_diff = sum([x['size'] for x in diff if x['price'] >= self.previous_best_lay])
+            value = back_diff - lay_diff
 
-            # difference in traded volume ladder and totals for recent records
-            ladder_diffs = self.window['tv_diff_ladder'][self.selection_id]
-            total_diff = self.window['tv_diff_totals'][self.selection_id]
+        # update previous state values
+        self.previous_best_back = best_price(runner.ex.available_to_back)
+        self.previous_best_lay = best_price(runner.ex.available_to_lay)
+        self.previous_ladder = runner.ex.traded_volume
 
-            # sum of money for recent traded volume trying to back
-            back_diff = sum([x['size'] for x in ladder_diffs if x['price'] > best_back])
-
-            # percentage of volume trying to back compared to total (back & lay)
-            if total_diff:
-                return back_diff / total_diff
-
-        return None
-
+        return value
 
 @register_feature
 class RunnerFeatureLTP(RunnerFeatureBase):
