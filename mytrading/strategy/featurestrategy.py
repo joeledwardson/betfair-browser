@@ -359,6 +359,20 @@ class MyFeatureStrategy(MyBaseStrategy):
         """
         raise NotImplementedError
 
+    def process_runner_features(self, mb: MarketBook, mh: MarketHandler, selection_id, runner_index):
+        """
+        process features for a given runner
+        """
+
+        # process each feature for current runner
+        for feature in mh.runner_handlers[selection_id].features.values():
+            feature.process_runner(
+                mh.market_books,
+                mb,
+                mh.windows,
+                runner_index
+            )
+
     @timing_register
     def process_market_book(self, market: Market, market_book: MarketBook):
         """
@@ -423,17 +437,9 @@ class MyFeatureStrategy(MyBaseStrategy):
             # update windows
             mh.windows.update_windows(mh.market_books, market_book)
 
-            # loop runners
+            # process runner features
             for runner_index, runner in enumerate(market_book.runners):
-
-                # process each feature for current runner
-                for feature in mh.runner_handlers[runner.selection_id].features.values():
-                    feature.process_runner(
-                        mh.market_books,
-                        market_book,
-                        mh.windows,
-                        runner_index
-                    )
+                self.process_runner_features(market_book, mh, runner.selection_id, runner_index)
 
         # check if trading is to be performed (features flag *should* always be true if allow flag is)
         if mh.flag_allow.current_value and mh.flag_feature.current_value:
