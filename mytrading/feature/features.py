@@ -800,7 +800,7 @@ class RunnerFeatureBiggestDifference(RunnerFeatureWindowBase):
             runner_index):
         values = self.window[self.window_key][self.selection_id]['values']
         if len(values) >= 2:
-            return np.max(abs(np.diff(values)))
+            return max(abs(np.diff(values)).tolist())
         return None
 
 
