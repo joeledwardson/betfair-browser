@@ -149,9 +149,10 @@ class MyTrendStrategy(MyFeatureStrategy):
         # only write feature file and order result if features are allowed
         if market.market_id in self.market_handlers:
             mh = self.market_handlers[market.market_id]
-            for selection_id in list(mh.runner_handlers.keys()):
-                if not self.trend_data_dicts[market.market_id][selection_id].do_features:
-                    del mh.runner_handlers[selection_id]
+            if not mh.closed:
+                for selection_id in list(mh.runner_handlers.keys()):
+                    if not self.trend_data_dicts[market.market_id][selection_id].do_features:
+                        del mh.runner_handlers[selection_id]
         super().process_closed_market(market, market_book)
 
     def trade_machine_kwargs(

@@ -201,7 +201,7 @@ def get_trend_plot_configs(tv_bar_width_ms, tv_opacity):
             },
         },
 
-        'tv': {
+        'book split': {
             'chart': 'Bar',
             'chart_args': {
                 'marker': {
@@ -219,17 +219,18 @@ def get_trend_plot_configs(tv_bar_width_ms, tv_opacity):
                 'secondary_y': True
             },
             'value_processors': [{
-                'name': 'plotly_data_to_series'
-            }, {
-                'name': 'plotly_df_diff'
-            }, {
-                'name': 'plotly_series_to_data'
-            }, {
                 'name': 'plotly_set_attrs',
                 'kwargs': {
                     'attr_configs': [{
-                        'feature_name': 'wom',
+                        'feature_name': 'tv',
                         'attr_names': ['text', 'marker_color'],
+                        'feature_value_processors': [{
+                            'name': 'plotly_data_to_series'
+                        }, {
+                            'name': 'plotly_df_diff'
+                        }, {
+                            'name': 'plotly_series_to_data'
+                        }],
                     }],
                 },
             }, {
@@ -238,8 +239,8 @@ def get_trend_plot_configs(tv_bar_width_ms, tv_opacity):
                     'n_seconds': int(tv_bar_width_ms/1000),
                     'agg_function': {
                         'y': 'sum',
-                        'text': 'mean',
-                        'marker_color': 'mean',
+                        'text': 'sum',
+                        'marker_color': 'sum',
                     }
                 }
             }, {
@@ -248,7 +249,7 @@ def get_trend_plot_configs(tv_bar_width_ms, tv_opacity):
                     'formatter_name': 'formatter_decimal',
                     'df_column': 'text',
                     'formatter_kwargs': {
-                        'name': 'weight of money',
+                        'name': 'tv',
                         'prefix': '£',
                     }
                 },
@@ -293,7 +294,9 @@ def get_trend_plot_configs(tv_bar_width_ms, tv_opacity):
             ),
         },
 
-
+        'tv': {
+            'ignore': True,
+        },
 
         'ltp smoothed.regression': {
             'ignore': True,

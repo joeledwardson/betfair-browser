@@ -21,3 +21,4 @@ import flumine
 #         )
 # flumine.controls.BaseControl = MyBaseControl
 # my_debug=1
+from . import testfile

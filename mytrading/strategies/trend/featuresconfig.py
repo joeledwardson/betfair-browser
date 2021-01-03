@@ -153,6 +153,10 @@ def get_trend_feature_configs(
             },
         },
 
+        'book split': {
+            'name': 'RunnerFeatureBookSplitWindow',
+        },
+
         'ltp min': {
             'name': 'RunnerFeatureTradedWindowMin',
             'kwargs': {
