@@ -24,7 +24,7 @@ def run_browser(
         initial_plot_conf: Optional[str] = None,
 ):
     """
-    run dash app browser - input_dir specifies input directory for entry point for browser but also expected root for:
+    run dash app mybrowser - input_dir specifies input directory for entry point for mybrowser but also expected root for:
     - "historical" dir
     - "recorded" dir
     """

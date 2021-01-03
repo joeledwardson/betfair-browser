@@ -28,7 +28,7 @@ class DashData:
         # hold list of records from active historical file
         self.record_list: List[List[MarketBook]] = []
 
-        # track files browser
+        # track files mybrowser
         self.file_tracker = FileTracker(input_dir)
 
         # API client instance
