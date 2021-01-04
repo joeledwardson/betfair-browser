@@ -66,7 +66,7 @@ def get_layout(
 
                     html.Div(
                         children=[
-                            html.P(children='', id='info-libs')
+                            html.P(children='', id='info-libs', style={'margin': 0})
                         ],
                     ),
 
