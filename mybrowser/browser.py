@@ -1,15 +1,9 @@
 from __future__ import annotations
 import dash
 import logging
-import argparse
 from typing import Optional
 from .data import DashData
-from .callbacks.figure import figure_callback
-from .callbacks.files import file_table_callback
-from .callbacks.orders import orders_callback
-from .callbacks.market import market_callback
-from .callbacks.featureconfigs import feature_configs_callback
-from .callbacks.libs import libs_callback
+from . import callbacks
 from .layout import get_layout
 from datetime import timedelta
 
@@ -35,7 +29,6 @@ def run_browser(
         gdd.file_tracker.update(start_dir)
 
     app = dash.Dash(__name__)
-    logging.basicConfig(level=logging.INFO)
     app.layout = get_layout(
         input_dir=input_dir,
         dash_data=gdd,
@@ -44,12 +37,15 @@ def run_browser(
         initial_plot_conf=initial_plot_conf,
     )
 
-    file_table_callback(app, gdd, input_dir)
-    market_callback(app, gdd, input_dir)
-    figure_callback(app, gdd, input_dir)
-    orders_callback(app, gdd, input_dir)
-    feature_configs_callback(app, gdd, input_dir)
-    libs_callback(app)
+    callbacks.files.file_table_callback(app, gdd, input_dir)
+    callbacks.market.market_callback(app, gdd, input_dir)
+    callbacks.figure.figure_callback(app, gdd, input_dir)
+    callbacks.orders.orders_callback(app, gdd, input_dir)
+    callbacks.featureconfigs.feature_configs_callback(app, gdd, input_dir)
+    callbacks.libs.libs_callback(app)
+    callbacks.log.log_callback(app)
+
+    logging.root.setLevel(logging.INFO)
 
     # turn of dev tools prop check to disable time input error
     app.run_server(debug=debug, dev_tools_props_check=False)

@@ -3,6 +3,7 @@ from os import path
 from typing import List
 import dash_table
 import pandas as pd
+from ..logger import cb_logger
 from ..filetracker import FileTracker
 from ..marketinfo import MarketInfo
 from ..profit import get_display_profits
@@ -158,29 +159,28 @@ def get_files_table(
 def get_hist_cell_path(
         file_tracker: FileTracker,
         active_cell,
-        file_info: List[str]
 ) -> str:
     """
     get path of betfair historic file based on row of active cell in table, return blank string on fail
     """
 
     if not active_cell:
-        file_info.append('no active cell in files table')
+        cb_logger.info('no active cell in files table')
         return ''
 
     if 'row' not in active_cell:
-        file_info.append(f'No "row" attribute in active cell: {active_cell}')
+        cb_logger.info(f'No "row" attribute in active cell: {active_cell}')
         return ''
 
     row = active_cell['row']
     if not len(file_tracker.dirs) <= row < len(file_tracker.display_list):
-        file_info.append(f'Row {row}, is not a valid file selection')
+        cb_logger.info(f'Row {row}, is not a valid file selection')
         return ''
 
     file_name = file_tracker.get_file_name(row)
 
     if not re.match(storage.RE_MARKET_ID, file_name):
-        file_info.append(f'active cell file "{file_name}" does not match market ID')
+        cb_logger.info(f'active cell file "{file_name}" does not match market ID')
         return ''
 
     return path.join(file_tracker.root, file_name)

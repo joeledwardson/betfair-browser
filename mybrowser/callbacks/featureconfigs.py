@@ -5,14 +5,16 @@ from typing import Dict, List
 import logging
 from ..data import DashData
 from ..text import html_lines
+from ..logger import cb_logger
+from ..intermediary import Intermediary
 
 from myutils import mypath
 from myutils import jsonfile
 
-active_logger = logging.getLogger(__name__)
+counter = Intermediary()
 
 
-def get_configs(config_dir: str, info_strings: List[str]) -> Dict:
+def get_configs(config_dir: str, config_type: str) -> Dict:
     """
     get dictionary of configuration file name (without ext) to dict from dir
 
@@ -26,14 +28,16 @@ def get_configs(config_dir: str, info_strings: List[str]) -> Dict:
 
     """
 
+    cb_logger.info(f'getting {config_type} configurations from "{config_dir}"')
+
     # check directory is set
     if type(config_dir) is not str:
-        info_strings.append('directory not set')
+        cb_logger.warning('directory not set')
         return dict()
 
     # check actually exists
     if not path.exists(config_dir):
-        info_strings.append('directory does not exist!')
+        cb_logger.warning(f'directory does not exist!')
         return dict()
 
     # dict of configs to return
@@ -56,7 +60,8 @@ def get_configs(config_dir: str, info_strings: List[str]) -> Dict:
         if cfg is not None:
             configs[name] = cfg
 
-    info_strings.append(f'{len(configs)} valid feature configuration files found from {len(files)} files')
+    cb_logger.info(f'{len(configs)} valid configuration files found from {len(files)} files')
+    cb_logger.info(f'feature configs: {list(configs.keys())}')
     return configs
 
 
@@ -65,7 +70,7 @@ def feature_configs_callback(app: dash.Dash, dd: DashData, input_dir: str):
         output=[
             Output('input-feature-config', 'options'),
             Output('input-plot-config', 'options'),
-            Output('infobox-feature-config', 'children')
+            Output('intermediary-featureconfigs', 'children')
         ],
         inputs=[
             Input('button-feature-config', 'n_clicks'),
@@ -74,18 +79,8 @@ def feature_configs_callback(app: dash.Dash, dd: DashData, input_dir: str):
     def update_files_table(n_clicks):
 
         # get feature configs directory from data object
-        feature_dir = dd.feature_configs_dir
-        plot_dir = dd.plot_configs_dir
-
-        info_strings = list()
-        info_strings.append(f'Feature configurations dir: "{feature_dir}"')
-        info_strings.append(f'Plot configurations dir: "{plot_dir}"')
-
-        dd.feature_configs = get_configs(feature_dir, info_strings)
-        dd.plot_configs = get_configs(plot_dir, info_strings)
-
-        active_logger.info(f'feature configs: {list(dd.feature_configs.keys())}')
-        active_logger.info(f'plot configs: {list(dd.plot_configs.keys())}')
+        dd.feature_configs = get_configs(dd.feature_configs_dir, 'features')
+        dd.plot_configs = get_configs(dd.plot_configs_dir, 'plot')
 
         feature_options = [{
             'label': v,
@@ -99,5 +94,5 @@ def feature_configs_callback(app: dash.Dash, dd: DashData, input_dir: str):
         return [
             feature_options,
             plot_options,
-            html_lines(info_strings),
+            counter.next(),
         ]

@@ -2,7 +2,6 @@ import dash
 from dash.dependencies import Output, Input
 from ..data import DashData
 from ..tables.files import get_files_table
-from ..text import html_lines
 
 from myutils.mydash import context as my_context
 
@@ -46,13 +45,8 @@ def file_table_callback(app: dash.Dash, dd: DashData, input_dir: str):
         if dd.file_tracker.root != old_root:
             active_cell = None
 
-        info_box = html_lines([
-            f'Files active cell: {active_cell}',
-            f'Path: {dd.file_tracker.root}'
-        ])
-
         return [
-            info_box,
+            f'Path: {dd.file_tracker.root}',
             get_files_table(
                 ft=dd.file_tracker,
                 base_dir=input_dir,

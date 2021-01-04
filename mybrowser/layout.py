@@ -24,6 +24,14 @@ def infobox(height=70, **kwargs) -> html.Div:
     )
 
 
+def hidden_div(div_id) -> html.Div:
+    return html.Div(
+        children='',
+        style={'display': 'none'},
+        id=div_id,
+    )
+
+
 def get_layout(
         input_dir: str,
         dash_data: DashData,
@@ -34,9 +42,14 @@ def get_layout(
     return html.Div(
         style={
             'display': 'grid',
-            'grid-template-columns': '50% 50%'
+            'grid-template-columns': '50% 50%',
         },
         children=[
+            hidden_div('intermediary-market'),
+            hidden_div('intermediary-featureconfigs'),
+            hidden_div('intermediary-figure'),
+            hidden_div('intermediary-libs'),
+            hidden_div('intermediary-orders'),
             html.Div(
                 style={
                     'margin': 10,
@@ -50,21 +63,6 @@ def get_layout(
                         children='File Selection'
                     ),
 
-
-                    dcc.Markdown(
-                        children='hello\n  there',
-                        id='example-md',
-                        style={
-                            'white-space': 'pre',
-                        }
-                    ),
-
-                    infobox(
-                        id='infobox-files',
-                        children='',
-                    ),
-
-
                     html.Div(
                         children=[
                             html.Button(children='↑', id='button-return', n_clicks=0),
@@ -73,6 +71,8 @@ def get_layout(
                             html.Button(children='reload libraries', id='button-libs', n_clicks=0),
                         ],
                     ),
+
+                    html.P(id='infobox-files', children='', style={'margin': 0}),
 
                     html.Div(
                         children=[
@@ -193,5 +193,21 @@ def get_layout(
 
                 ]
             ),
+
+            html.Div(
+                id='logger-box',
+                # use display flex and reverse div row order so first in list appears at bottom, so that scroll bar
+                # stays at bottom
+                style={
+                    'display': 'flex',
+                    'flex-direction': 'column-reverse',
+                    'overflow-y': 'scroll',
+                    'grid-column-start': '1',
+                    'grid-column-end': '3',
+                    'background-color': 'lightgrey',
+                    'height': 130,
+                },
+                children=[],
+            )
         ],
     )

@@ -4,33 +4,33 @@ from dash.dependencies import Output, Input, State
 from typing import List
 from betfairlightweight.resources.bettingresources import MarketBook
 from datetime import datetime
+from ..logger import cb_logger
+from ..intermediary import Intermediary
 from ..data import DashData
 from ..profit import get_display_profits
 from ..tables.market import get_records_market
-from ..text import html_lines
 from ..marketinfo import MarketInfo
 
 from mytrading.process import prices
 from mytrading.utils import storage
 from myutils import generic
 
+counter = Intermediary()
 
-def add_records_info(info_strings: List[str], record_list: List[List[MarketBook]], market_time: datetime):
+
+def log_records_info(record_list: List[List[MarketBook]], market_time: datetime):
     """
     add information about records to info strings
     """
-
-    # TODO - fix width on record display, not working in HTML
-    w = 25
-    info_strings.append(f'{"first record timestamp":{w}}: {record_list[0][0].publish_time}')
-    info_strings.append(f'{"final record timestamp":{w}}: {record_list[-1][0].publish_time}')
+    cb_logger.info(f'{market_time}, market time')
+    cb_logger.info(f'{record_list[0][0].publish_time}, first record timestamp')
+    cb_logger.info(f'{record_list[-1][0].publish_time}, final record timestamp')
     for r in record_list:
         if r[0].market_definition.in_play:
-            info_strings.append(f'{"first inplay":{w}}: {r[0].publish_time}')
+            cb_logger.info(f'{r[0].publish_time}, first inplay')
             break
     else:
-        info_strings.append(f'no inplay elements found')
-    info_strings.append(f'{"market time":{w}}: {market_time}')
+        cb_logger.info(f'no inplay elements found')
 
 
 def market_callback(app: dash.Dash, dd: DashData, input_dir: str):
@@ -41,7 +41,7 @@ def market_callback(app: dash.Dash, dd: DashData, input_dir: str):
         output=[
             Output('table-runners', 'data'),
             Output('table-market', 'data'),
-            Output('infobox-runners', 'children')
+            Output('intermediary-market', 'children')
         ],
         inputs=[
             Input('button-runners', 'n_clicks')
@@ -58,8 +58,6 @@ def market_callback(app: dash.Dash, dd: DashData, input_dir: str):
         :param active_cell:
         :return:
         """
-
-        info_strings = []
         df_runners = pd.DataFrame()
         tbl_market = []
 
@@ -68,7 +66,6 @@ def market_callback(app: dash.Dash, dd: DashData, input_dir: str):
             file_tracker=dd.file_tracker,
             trading=dd.trading,
             base_dir=input_dir,
-            file_info=info_strings,
             active_cell=active_cell
         )
 
@@ -89,7 +86,7 @@ def market_callback(app: dash.Dash, dd: DashData, input_dir: str):
             dd.start_odds = generic.dict_sort(prices.starting_odds(dd.record_list))
 
             # update info strings with record timings and market time
-            add_records_info(info_strings, record_list, market_info.market_time)
+            log_records_info(record_list, market_info.market_time)
 
             # construct table records with selection ID, names and starting odds
             df_runners = pd.DataFrame([{
@@ -122,5 +119,5 @@ def market_callback(app: dash.Dash, dd: DashData, input_dir: str):
         return [
             df_runners.to_dict('records'),
             tbl_market,
-            html_lines(info_strings)
+            counter.next(),
         ]
