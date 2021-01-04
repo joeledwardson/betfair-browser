@@ -5,6 +5,7 @@ from typing import Optional
 from .data import DashData
 from . import callbacks
 from .layout import get_layout
+from .logger import cb_logger
 from datetime import timedelta
 
 
@@ -23,7 +24,12 @@ def run_browser(
     - "historical" dir
     - "recorded" dir
     """
-    gdd = DashData(input_dir, feature_configs_dir=feature_configs_dir, plot_configs_dir=plot_configs_dir)
+    gdd = DashData(
+        input_dir=input_dir,
+        feature_configs_dir=feature_configs_dir,
+        plot_configs_dir=plot_configs_dir,
+        logger=cb_logger,
+    )
 
     if start_dir:
         gdd.file_tracker.update(start_dir)

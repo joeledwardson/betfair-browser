@@ -50,6 +50,7 @@ def get_layout(
             hidden_div('intermediary-figure'),
             hidden_div('intermediary-libs'),
             hidden_div('intermediary-orders'),
+            hidden_div('intermediary-files'),
             html.Div(
                 style={
                     'margin': 10,

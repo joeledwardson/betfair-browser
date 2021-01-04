@@ -2,19 +2,25 @@ import dash
 from dash.dependencies import Output, Input
 from ..data import DashData
 from ..tables.files import get_files_table
+from ..intermediary import Intermediary
 
 from myutils.mydash import context as my_context
+
+counter = Intermediary()
 
 
 def file_table_callback(app: dash.Dash, dd: DashData, input_dir: str):
     """
-    update active cell indicator, active path indicator, and table for files display based on active cell and if
-    return button is pressed
+    update
+    1. active path indicator,
+    2. table for dirs & files display
+    3. intermediary output read by logger (only used if warning from dir deleted at present by FileTracker)
     """
     @app.callback(
         output=[
             Output('infobox-files', 'children'),
-            Output('table-files-container', 'children')
+            Output('table-files-container', 'children'),
+            Output('intermediary-files', 'children'),
         ],
         inputs=[
             Input('button-return', 'n_clicks'),
@@ -52,5 +58,6 @@ def file_table_callback(app: dash.Dash, dd: DashData, input_dir: str):
                 base_dir=input_dir,
                 do_profits=profit_pressed,
                 active_cell=active_cell
-            )
+            ),
+            counter.next(),
         ]

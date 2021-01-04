@@ -1,17 +1,15 @@
 from __future__ import annotations
 from os import path
-from typing import List, Tuple, Dict
+from typing import List, Tuple, Dict, Optional
 from natsort import natsorted
 from itertools import chain
 import logging
 
 from myutils import mypath
 
-active_logger = logging.getLogger(__name__)
-
 
 class FileTracker:
-    def __init__(self, start_dir: str):
+    def __init__(self, start_dir: str, logger: Optional[logging.Logger]=None):
         self.start_dir = start_dir
 
         self.root: str = ''
@@ -23,6 +21,11 @@ class FileTracker:
 
         self.display_list = []
         self.update(start_dir)
+
+        if logger is not None:
+            self.logger = logger
+        else:
+            self.logger = logging.getLogger(__name__)
 
     def _get_update(self, top) -> Tuple[str, List, List, List]:
         """
@@ -37,7 +40,7 @@ class FileTracker:
         if not path.exists(top):
 
             # reset to original
-            active_logger.warning(f'path: "{top}" does not exist, resetting to "{self.start_dir}"')
+            self.logger.warning(f'path: "{top}" does not exist, resetting to "{self.start_dir}"')
             top = self.start_dir
 
         root, dirs, files = mypath.walk_first(top)

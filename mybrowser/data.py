@@ -24,13 +24,13 @@ class ButtonTracker:
 
 class DashData:
 
-    def __init__(self, input_dir: str, feature_configs_dir=None, plot_configs_dir=None):
+    def __init__(self, input_dir: str, feature_configs_dir=None, plot_configs_dir=None, logger=None):
 
         # hold list of records from active historical file
         self.record_list: List[List[MarketBook]] = []
 
         # track files mybrowser
-        self.file_tracker = FileTracker(input_dir)
+        self.file_tracker = FileTracker(input_dir, logger=logger)
 
         # API client instance
         self.trading = mysecurity.get_api_client()

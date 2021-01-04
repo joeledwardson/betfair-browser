@@ -15,10 +15,11 @@ def log_callback(app: dash.Dash):
             Input('intermediary-featureconfigs', 'children'),
             Input('intermediary-figure', 'children'),
             Input('intermediary-libs', 'children'),
-            Input('intermediary-orders', 'children')
+            Input('intermediary-orders', 'children'),
+            Input('intermediary-files', 'children')
         ],
     )
-    def log_update(i1, i2, i3, i4, i5):
+    def log_update(*args, **kwargs):
         # update log list, add to bottom of list as display is reversed
         while not log_q.empty():
             log_elements.insert(0, html.P(
