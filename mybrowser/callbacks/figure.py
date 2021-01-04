@@ -4,7 +4,7 @@ from os import path
 from typing import List, Dict, Union
 import dash
 from dash.dependencies import Output, Input, State
-from importlib import reload
+from plotly.graph_objects import Figure
 from ..data import DashData
 from ..tables.runners import get_runner_id
 from ..text import html_lines
@@ -14,7 +14,6 @@ from mytrading.utils import storage as utils_storage
 from mytrading.feature import storage as features_storage
 from mytrading.visual import figure as figurelib
 from mytrading.visual import config as configlib
-
 
 
 def get_chart_offset(chart_offset_str):
@@ -111,6 +110,62 @@ def get_orders_df(market_dir: str, market_id: str, info_strings: List[str]):
             return None
 
 
+# def create_figure(selection_id, dd: DashData, info_strings, orders_df, all_features_data, chart_start, chart_end) -> \
+#         go.Figure:
+#
+#     # get selection ID name from market info
+#     name = dd.market_info.names.get(selection_id, 'name not found')
+#     info_strings.append(f'producing figure for runner {selection_id}, "{name}"')
+#
+#     # make chart title
+#     title = '{}, name: "{}", ID: "{}"'.format(
+#         dd.market_info,
+#         dd.market_info.names.get(selection_id, ""),
+#         selection_id,
+#     )
+#
+#     # check if orders dataframe exist
+#     if orders_df is not None:
+#
+#         # filter to selection ID
+#         orders_df = orders_df[orders_df['selection_id'] == selection_id]
+#
+#         # modify chart start/end based on orders dataframe
+#         chart_start = figurelib.modify_start(chart_start, orders_df, figurelib.ORDER_OFFSET_SECONDS)
+#         chart_end = figurelib.modify_end(chart_end, orders_df, figurelib.ORDER_OFFSET_SECONDS)
+#
+#     # construct feature info
+#     feature_info_path = path.join(
+#         dd.market_dir,
+#         str(selection_id) + utils_storage.EXT_FEATURE
+#     )
+#
+#     # check if file exists
+#     if path.isfile(feature_info_path):
+#
+#         # try to read features from file
+#         all_features_data = features_storage.features_from_file(feature_info_path)
+#
+#         # check not empty
+#         if not len(all_features_data):
+#
+#             info_strings.append(f'found feature file "{feature_info_path}" but no data')
+#             return html_lines(info_strings)
+#
+#         else:
+#
+#             info_strings.append(f'found {len(all_features_data)} features in "{feature_info_path}", plotting')
+#
+#             fig = figurelib.fig_historical(
+#                 all_features_data=all_features_data,
+#                 feature_plot_configs=feature_plot_configs,
+#                 title=title,
+#                 chart_start=chart_start,
+#                 chart_end=chart_end,
+#                 orders_df=orders_df
+#             )
+
+
 def figure_callback(app: dash.Dash, dd: DashData, input_dir: str):
     """
     create a plotly figure based on selected runner when "figure" button is pressed
@@ -124,10 +179,11 @@ def figure_callback(app: dash.Dash, dd: DashData, input_dir: str):
             State('table-runners', 'active_cell'),
             State('input-chart-offset', 'value'),
             State('input-feature-config', 'value'),
-            State('input-plot-config', 'value')
+            State('input-plot-config', 'value'),
+            State('infobox-figure', 'children')
         ]
     )
-    def fig_button(btn_clicks, runners_cell, chart_offset_str, feature_config_name, plot_config_name):
+    def fig_button(btn_clicks, runners_cell, chart_offset_str, feature_config_name, plot_config_name, chl):
 
         # get datetime/None chart offset from time input
         chart_offset = get_chart_offset(chart_offset_str)

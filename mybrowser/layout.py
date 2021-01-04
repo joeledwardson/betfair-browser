@@ -50,10 +50,20 @@ def get_layout(
                         children='File Selection'
                     ),
 
+
+                    dcc.Markdown(
+                        children='hello\n  there',
+                        id='example-md',
+                        style={
+                            'white-space': 'pre',
+                        }
+                    ),
+
                     infobox(
                         id='infobox-files',
                         children='',
                     ),
+
 
                     html.Div(
                         children=[
