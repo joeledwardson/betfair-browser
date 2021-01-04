@@ -159,6 +159,10 @@ def plotly_set_attrs(
         assert(type(attr_names) == list)
         feature_value_processors = cfg.get('feature_value_processors')
 
+        if feature_name not in features_data:
+            active_logger.warning(f'feature "{feature_name}" not found in feature data')
+            continue
+
         # get data from feature using feature name as key
         attr_data = features_data[feature_name]
 
