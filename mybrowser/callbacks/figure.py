@@ -67,9 +67,9 @@ def get_config(
             return None
 
 
-def get_orders_df(market_dir: str, market_id: str, selection_id: int, info_strings: List[str]):
+def get_orders_df(market_dir: str, market_id: str, info_strings: List[str]):
     """
-    get orders dataframe based off selection ID of runner and market directory
+    get orders dataframe based off market directory
     """
 
     # set orders dataframe as default if not found
@@ -91,9 +91,6 @@ def get_orders_df(market_dir: str, market_id: str, selection_id: int, info_strin
         # check if not empty
         if orders_df.shape[0]:
 
-            # filter to selection ID
-            orders_df = orders_df[orders_df['selection_id'] == selection_id]
-
             # filter market close orders
             orders_df = orderinfo.filter_market_close(orders_df)
 
@@ -103,12 +100,15 @@ def get_orders_df(market_dir: str, market_id: str, selection_id: int, info_strin
             orders_df = None
 
     if orders_df is None:
-        orders_str = f'"{order_file_name}" not found'
+        info_strings.append(f'"{order_file_name}" not found')
+        return None
     else:
-        orders_str = f'found {orders_df.shape[0]} order infos in "{order_file_path}"'
-
-    info_strings.append(orders_str)
-    return orders_df
+        count = orders_df.shape[0]
+        info_strings.append(f'found {count} order infos in "{order_file_path}"')
+        if count:
+            return orders_df
+        else:
+            return None
 
 
 def figure_callback(app: dash.Dash, dd: DashData, input_dir: str):
@@ -148,7 +148,7 @@ def figure_callback(app: dash.Dash, dd: DashData, input_dir: str):
             return html_lines(info_strings)
 
         # get orders dataframe (or None)
-        orders_df = get_orders_df(dd.market_dir, dd.market_info.market_id, selection_id, info_strings)
+        orders_df = get_orders_df(dd.market_dir, dd.market_info.market_id, info_strings)
 
         # get selection ID name from market info
         name = dd.market_info.names.get(selection_id, 'name not found')
@@ -178,6 +178,9 @@ def figure_callback(app: dash.Dash, dd: DashData, input_dir: str):
 
         # check if orders dataframe exist
         if orders_df is not None:
+
+            # filter to selection ID
+            orders_df = orders_df[orders_df['selection_id'] == selection_id]
 
             # modify chart start/end based on orders dataframe
             chart_start = figurelib.modify_start(chart_start, orders_df, figurelib.ORDER_OFFSET_SECONDS)
