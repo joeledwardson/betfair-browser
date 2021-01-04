@@ -4,7 +4,6 @@ from dash.dependencies import Output, Input, State
 from typing import Dict, List
 import logging
 from ..data import DashData
-from ..text import html_lines
 from ..logger import cb_logger
 from ..intermediary import Intermediary
 

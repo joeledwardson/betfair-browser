@@ -75,12 +75,6 @@ def get_layout(
                     html.P(id='infobox-files', children='', style={'margin': 0}),
 
                     html.Div(
-                        children=[
-                            html.P(children='', id='info-libs', style={'margin': 0})
-                        ],
-                    ),
-
-                    html.Div(
                         id='table-files-container',
                         children=get_files_table(dash_data.file_tracker, input_dir),
                         style={
@@ -90,12 +84,6 @@ def get_layout(
 
                     html.H2(
                         children='Runner info'
-                    ),
-
-                    infobox(
-                        id='infobox-runners',
-                        height=90,
-                        children='',
                     ),
 
                     html.Div(
@@ -128,11 +116,6 @@ def get_layout(
 
                     html.H2(
                         children='Feature Config Selection'
-                    ),
-
-                    infobox(
-                        id='infobox-feature-config',
-                        children=''
                     ),
 
                     html.Div(
@@ -170,21 +153,7 @@ def get_layout(
                     ),
 
                     html.H2(
-                        children='Figure information'
-                    ),
-
-                    infobox(
-                        id='infobox-figure',
-                        children='',
-                    ),
-
-                    html.H2(
                         children='Order Profits'
-                    ),
-
-                    infobox(
-                        id='infobox-orders',
-                        children='',
                     ),
 
                     html.Div(
