@@ -1,4 +1,19 @@
 import logging
+from queue import Queue
+from logging import Handler, getLogger, root, StreamHandler
+
+
+class QueueHandler(Handler):
+    def __init__(self, q: Queue, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.handler_queue = q
+
+    def emit(self, record):
+        try:
+            self.handler_queue.put(self.format(record))
+        except Exception:
+            self.handleError(record)
+
 
 
 def create_dual_logger(name, file_name,
