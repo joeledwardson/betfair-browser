@@ -24,7 +24,14 @@ class ButtonTracker:
 
 class DashData:
 
-    def __init__(self, input_dir: str, feature_configs_dir=None, plot_configs_dir=None, logger=None):
+    def __init__(
+            self,
+            input_dir: str,
+            feature_configs_default,
+            feature_configs_dir=None,
+            plot_configs_dir=None,
+            logger=None
+    ):
 
         # hold list of records from active historical file
         self.record_list: List[List[MarketBook]] = []
@@ -50,11 +57,17 @@ class DashData:
         # dictionary holding feature configurations of directory indicated above
         self.feature_configs = dict()
 
+        # default feature configuration name
+        self.feature_config_default = feature_configs_default
+
         # directory that holds feature plot configurations
         self.plot_configs_dir = plot_configs_dir
 
         # dictionary holding feature plot configurations
         self.plot_configs = dict()
+
+        # default plot configuration name
+        self.plot_config_default = None
 
     def clear_market(self):
         self.market_info = None

@@ -13,11 +13,13 @@ def run_browser(
         debug: bool,
         default_chart_offset: timedelta,
         input_dir: str,
+        feature_config_default: str,
+        plot_config_default: Optional[str] = None,
         feature_configs_dir: Optional[str] = None,
         plot_configs_dir: Optional[str] = None,
         start_dir: Optional[str] = None,
-        initial_feature_conf: Optional[str] = None,
-        initial_plot_conf: Optional[str] = None,
+        feature_config_initial: Optional[str] = None,
+        plot_config_initial: Optional[str] = None,
 ):
     """
     run dash app mybrowser - input_dir specifies input directory for entry point for mybrowser but also expected root for:
@@ -29,7 +31,9 @@ def run_browser(
         feature_configs_dir=feature_configs_dir,
         plot_configs_dir=plot_configs_dir,
         logger=cb_logger,
+        feature_configs_default=feature_config_default,
     )
+    gdd.plot_config_default=plot_config_default
 
     if start_dir:
         gdd.file_tracker.update(start_dir)
@@ -39,8 +43,8 @@ def run_browser(
         input_dir=input_dir,
         dash_data=gdd,
         chart_offset=default_chart_offset,
-        initial_feature_conf=initial_feature_conf,
-        initial_plot_conf=initial_plot_conf,
+        feature_config_initial=feature_config_initial,
+        plot_config_initial=plot_config_initial,
     )
 
     callbacks.files.file_table_callback(app, gdd, input_dir)

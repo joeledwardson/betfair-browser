@@ -4,6 +4,7 @@ from os import path
 from typing import List, Dict, Union, Optional
 import dash
 from dash.dependencies import Output, Input, State
+import pandas as pd
 from plotly.graph_objects import Figure
 from ..data import DashData
 from ..tables.runners import get_runner_id
@@ -16,6 +17,8 @@ from mytrading.feature import storage as features_storage
 from mytrading.visual import figure as figurelib
 from mytrading.visual import config as configlib
 
+# override visual logger with custom logger
+figurelib.active_logger = cb_logger
 counter = Intermediary()
 
 
@@ -32,140 +35,153 @@ def get_chart_offset(chart_offset_str):
     return None
 
 
-def get_config(
-        selected_name,
-        config_dict: Dict[str, Dict],
-        config_type: str,
-) -> Optional[Dict]:
-    """
-    get feature/plot configurations seeing if name selected by name in dropdown is valid, otherwise getting default
-    configuration
-
-    Returns
-    -------
-
-    """
-
-    # check if no configuration selected from dropdown
-    if selected_name is None:
-
-        # use default
-        cb_logger.info(f'no {config_type} configuration specified, using default')
-        return None
-
-    else:
-
-        # config name specified in dropdown, check is id dict
-        if selected_name in config_dict:
-
-            cb_logger.info(f'using {config_type} configuration: "{selected_name}"')
-            return config_dict[selected_name]
-
-        else:
-
-            # configuration not found
-            cb_logger.info(f'{config_type} configuration "{selected_name}" not found in list, using default')
-            return None
-
-
-def get_orders_df(market_dir: str, market_id: str):
+def get_orders_df(market_dir: str, market_id: str) -> Optional[pd.DataFrame]:
     """
     get orders dataframe based off market directory
     """
 
     # set orders dataframe as default if not found
-    orders_df = None
+    df = None
 
     # construct orderinfo file path form market ID
-    order_file_name = market_id + utils_storage.EXT_ORDER_INFO
-    order_file_path = path.join(
+    file_name = market_id + utils_storage.EXT_ORDER_INFO
+    file_path = path.join(
         market_dir,
-        order_file_name
+        file_name
     )
 
     # check order info file exists
-    if path.isfile(order_file_path):
+    if path.isfile(file_path):
 
         # get order updates to dataframe
-        orders_df = orderinfo.get_order_updates(order_file_path)
+        df = orderinfo.get_order_updates(file_path)
 
         # check if not empty
-        if orders_df.shape[0]:
+        if df.shape[0]:
 
             # filter market close orders
-            orders_df = orderinfo.filter_market_close(orders_df)
+            df = orderinfo.filter_market_close(df)
 
         else:
 
             # set dataframe to None if empty to indicate fail
-            orders_df = None
+            df = None
 
-    if orders_df is None:
-        cb_logger.info(f'order infos file "{order_file_name}" not found')
+    if df is None:
+        cb_logger.info(f'order infos file "{file_name}" not found')
         return None
     else:
-        count = orders_df.shape[0]
-        cb_logger.info(f'found {count} order infos in file "{order_file_path}"')
+        count = df.shape[0]
+        cb_logger.info(f'found {count} order infos in file "{file_path}"')
         if count:
-            return orders_df
+            return df
         else:
             return None
 
 
-# def create_figure(selection_id, dd: DashData, info_strings, orders_df, all_features_data, chart_start, chart_end) -> \
-#         go.Figure:
-#
-#     # get selection ID name from market info
-#     name = dd.market_info.names.get(selection_id, 'name not found')
-#     info_strings.append(f'producing figure for runner {selection_id}, "{name}"')
-#
-#     # make chart title
-#     title = '{}, name: "{}", ID: "{}"'.format(
-#         dd.market_info,
-#         dd.market_info.names.get(selection_id, ""),
-#         selection_id,
-#     )
-#
-#     # check if orders dataframe exist
-#     if orders_df is not None:
-#
-#         # filter to selection ID
-#         orders_df = orders_df[orders_df['selection_id'] == selection_id]
-#
-#         # modify chart start/end based on orders dataframe
-#         chart_start = figurelib.modify_start(chart_start, orders_df, figurelib.ORDER_OFFSET_SECONDS)
-#         chart_end = figurelib.modify_end(chart_end, orders_df, figurelib.ORDER_OFFSET_SECONDS)
-#
-#     # construct feature info
-#     feature_info_path = path.join(
-#         dd.market_dir,
-#         str(selection_id) + utils_storage.EXT_FEATURE
-#     )
-#
-#     # check if file exists
-#     if path.isfile(feature_info_path):
-#
-#         # try to read features from file
-#         all_features_data = features_storage.features_from_file(feature_info_path)
-#
-#         # check not empty
-#         if not len(all_features_data):
-#
-#             info_strings.append(f'found feature file "{feature_info_path}" but no data')
-#             return html_lines(info_strings)
-#
-#         else:
-#
-#             info_strings.append(f'found {len(all_features_data)} features in "{feature_info_path}", plotting')
-#
-#             fig = figurelib.fig_historical(
-#                 all_features_data=all_features_data,
-#                 feature_plot_configs=feature_plot_configs,
-#                 title=title,
-#                 chart_start=chart_start,
-#                 chart_end=chart_end,
-#                 orders_df=orders_df
-#             )
+def get_features(
+        sel_id: int,
+        ftr_key: Optional[str],
+        dd: DashData,
+        start: datetime,
+        end: datetime
+) -> Optional[Dict]:
+
+    # construct feature info
+    ftr_path = path.join(
+        dd.market_info.market_id,
+        str(sel_id) + utils_storage.EXT_FEATURE
+    )
+
+    # store feature data
+    ftr_data = None
+
+    # check if file exists
+    if path.isfile(ftr_path):
+
+        # try to read features from file
+        ftr_data = features_storage.features_from_file(ftr_path)
+        cb_logger.info(f'found {len(ftr_data)} features in file "{ftr_path}"')
+        if not ftr_data:
+            cb_logger.info('generating features from selected configuration instead')
+
+    # generate features if file doesn't exist or empty/fail
+    if not ftr_data:
+
+        dft = dd.feature_config_default
+        if not ftr_key:
+            cfg_key = dft
+            cb_logger.info(f'no feature config selected, using default "{dft}"')
+        else:
+            if ftr_key not in dd.feature_configs:
+                cb_logger.warning(f'selected feature config "{ftr_key}" not found in list, using default "{dft}"')
+                cfg_key = dft
+            else:
+                cb_logger.info(f'using selected feature config "{ftr_key}"')
+                cfg_key = ftr_key
+
+        cfg = dd.feature_configs.get(cfg_key)
+        if not cfg:
+            cb_logger.warning(f'feature config "{cfg_key}" empty')
+            return None
+
+        # generate plot by simulating features
+        ftr_data = figurelib.generate_feature_data(
+            hist_records=dd.record_list,
+            selection_id=sel_id,
+            chart_start=start,
+            chart_end=end,
+            feature_configs=cfg
+        )
+
+    return ftr_data
+
+
+def plot_runner(
+        sel_id: int,
+        dd: DashData,
+        orders: Optional[pd.DataFrame],
+        start: datetime,
+        end: datetime,
+        ftr_key: Optional[str],
+        plt_cfg: Dict
+):
+
+    # get name from market info
+    name = dd.market_info.names.get(sel_id, 'name not found')
+    cb_logger.info(f'producing figure for runner {sel_id}, "{name}"')
+
+    # make chart title
+    title = '{}, name: "{}", ID: "{}"'.format(dd.market_info, name, sel_id)
+
+    # check if orders dataframe exist
+    if orders is not None:
+
+        # filter to selection ID
+        orders = orders[orders['selection_id'] == sel_id]
+
+        # modify chart start/end based on orders dataframe
+        start = figurelib.modify_start(start, orders, figurelib.ORDER_OFFSET_SECONDS)
+        end = figurelib.modify_end(end, orders, figurelib.ORDER_OFFSET_SECONDS)
+
+    # get feature data from either features file or try to generate, check not empty
+    ftr_data = get_features(sel_id, ftr_key, dd, start, end)
+    if not ftr_data:
+        cb_logger.warning('feature data empty')
+        return counter.next()
+
+    # generate figure
+    fig = figurelib.fig_historical(
+        all_features_data=ftr_data,
+        feature_plot_configs=plt_cfg,
+        title=title,
+        chart_start=start,
+        chart_end=end,
+        orders_df=orders
+    )
+
+    # display figure
+    fig.show()
 
 
 def figure_callback(app: dash.Dash, dd: DashData, input_dir: str):
@@ -196,27 +212,11 @@ def figure_callback(app: dash.Dash, dd: DashData, input_dir: str):
 
         # if no active market selected then abort
         if not dd.record_list or not dd.market_info:
-            cb_logger.info('fail: no market information/records')
-            return counter.next()
-
-        # get selection ID of runner from active runner cell, or abort on fail
-        selection_id = get_runner_id(cell, dd.start_odds)
-        if not selection_id:
+            cb_logger.warning('fail: no market information/records')
             return counter.next()
 
         # get orders dataframe (or None)
         orders = get_orders_df(dd.market_dir, dd.market_info.market_id)
-
-        # get selection ID name from market info
-        name = dd.market_info.names.get(selection_id, 'name not found')
-        cb_logger.info(f'producing figure for runner {selection_id}, "{name}"')
-
-        # make chart title
-        title = '{}, name: "{}", ID: "{}"'.format(
-            dd.market_info,
-            dd.market_info.names.get(selection_id, ""),
-            selection_id,
-        )
 
         # if chart offset specified then use as display offset, otherwise ignore
         secs = offset.total_seconds() if offset else 0
@@ -227,77 +227,36 @@ def figure_callback(app: dash.Dash, dd: DashData, input_dir: str):
         # get market time from market info
         dt_mkt = dd.market_info.market_time
 
-        # get start of chart datetime
-        start = figurelib.get_chart_start(display_seconds=secs, market_time=dt_mkt, first=dt0)
-
         # use market start as end
         end = dt_mkt
 
-        # check if orders dataframe exist
-        if orders is not None:
-
-            # filter to selection ID
-            orders = orders[orders['selection_id'] == selection_id]
-
-            # modify chart start/end based on orders dataframe
-            start = figurelib.modify_start(start, orders, figurelib.ORDER_OFFSET_SECONDS)
-            end = figurelib.modify_end(end, orders, figurelib.ORDER_OFFSET_SECONDS)
+        # get start of chart datetime
+        start = figurelib.get_chart_start(display_seconds=secs, market_time=dt_mkt, first=dt0)
 
         # get plot configuration
-        plt_conf = get_config(plt_key, dd.plot_configs, config_type='plot')
-
-        # use default plot configuration if none selected
-        plt_conf = plt_conf or configlib.get_plot_feature_default_configs()
-
-        # construct feature info
-        ftr_path = path.join(
-            dd.market_dir,
-            str(selection_id) + utils_storage.EXT_FEATURE
-        )
-
-        # check if file exists
-        if path.isfile(ftr_path):
-
-            # try to read features from file
-            ftr_data = features_storage.features_from_file(ftr_path)
-
-            # check not empty
-            if not len(ftr_data):
-
-                cb_logger.warning(f'found feature file "{ftr_path}" but no data')
-                return counter.next()
-
+        plt_cfg = {}
+        if plt_key:
+            if plt_key in dd.plot_configs:
+                cb_logger.info(f'using selected plot configuration "{plt_key}"')
+                plt_cfg = dd.plot_configs[plt_key]
             else:
-
-                cb_logger.info(f'found {len(ftr_data)} features in "{ftr_path}", plotting')
-
-                fig = figurelib.fig_historical(
-                    all_features_data=ftr_data,
-                    feature_plot_configs=plt_conf,
-                    title=title,
-                    chart_start=start,
-                    chart_end=end,
-                    orders_df=orders
-                )
-
+                cb_logger.warning(f'selected plot configuration "{plt_key}" not in plot configurations')
         else:
+            cb_logger.info('no plot configuration selected')
 
-            # get feature configuration dict from selected in dropdown, leaving as None on fail
-            ftr_conf = get_config(ftr_key, dd.feature_configs, config_type='feature')
+        # get selection ID of runner from active runner cell, or abort on fail
+        sel_id = get_runner_id(cell, dd.start_odds)
+        if not sel_id:
+            return counter.next()
 
-            # generate plot by simulating features
-            fig = figurelib.generate_feature_plot(
-                hist_records=dd.record_list,
-                selection_id=selection_id,
-                title=title,
-                chart_start=start,
-                chart_end=end,
-                feature_plot_configs=plt_conf,
-                orders_df=orders,
-                feature_configs=ftr_conf
-            )
-
-        # display figure
-        fig.show()
+        plot_runner(
+            sel_id=sel_id,
+            dd=dd,
+            orders=orders,
+            start=start,
+            end=end,
+            ftr_key=ftr_key,
+            plt_cfg=plt_cfg
+        )
         return counter.next()
 

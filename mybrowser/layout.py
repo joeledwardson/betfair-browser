@@ -36,8 +36,8 @@ def get_layout(
         input_dir: str,
         dash_data: DashData,
         chart_offset: timedelta,
-        initial_feature_conf: Optional[str] = None,
-        initial_plot_conf: Optional[str] = None,
+        feature_config_initial: Optional[str] = None,
+        plot_config_initial: Optional[str] = None,
 ) -> html.Div:
     return html.Div(
         style={
@@ -138,7 +138,7 @@ def get_layout(
                                         style={
                                             'margin': '4px 0px'
                                         },
-                                        value=initial_feature_conf,
+                                        value=feature_config_initial,
                                     ),
                                     dcc.Dropdown(
                                         id='input-plot-config',
@@ -146,7 +146,7 @@ def get_layout(
                                         style={
                                             'margin': '4px 0px'
                                         },
-                                        value=initial_plot_conf,
+                                        value=plot_config_initial,
                                     ),
                                 ]
                             )
