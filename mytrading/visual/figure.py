@@ -178,17 +178,13 @@ def fig_historical(
     return fig
 
 
-def generate_feature_plot(
+def generate_feature_data(
         hist_records: List[List[MarketBook]],
         selection_id: int,
-        title: str,
         chart_start: datetime,
         chart_end: datetime,
-        feature_plot_configs: Dict,
-        feature_configs: Dict = None,
-        orders_df: pd.DataFrame = None,
-        orders_plot_config: Dict = None,
-) -> go.Figure:
+        feature_configs: Dict,
+) -> Dict:
     """
     create historical feature plot for a single runners based on record list, default configs and optional orders
     frame
@@ -196,18 +192,12 @@ def generate_feature_plot(
 
     # check record set empty
     if not hist_records:
-        active_logger.warning(f'error creating figure "{title}", records set empty')
-        return go.Figure()
-    active_logger.info(f'creating figure from {len(hist_records)} records')
-
-    # use default feature configuration if not passed
-    if feature_configs is None:
-        feature_configs = get_features_default_configs()
+        active_logger.warning(f'records set empty')
+        return dict()
+    active_logger.info(f'creating feature data from {len(hist_records)} records')
 
     # create runner feature instances (do not use feature holder as that is for a list of runners, not a single runner)
-    features = generate_features(
-        feature_configs=feature_configs
-    )
+    features = generate_features(feature_configs)
 
     # get computations start buffer seconds
     buffer_s = get_max_buffer_s(features)
@@ -217,12 +207,14 @@ def generate_feature_plot(
     # trim records to within computation windows
     modified_start = chart_start - timedelta(seconds=chart_buffer_s)
     hist_records = [r for r in hist_records if modified_start <= r[0].publish_time <= chart_end]
-    active_logger.info(f'chart start: {chart_start}, computation start time: {modified_start}, end: {chart_end}')
+    active_logger.info(f'{chart_start} is chart start')
+    active_logger.info(f'{modified_start} is computation start time')
+    active_logger.info(f'{chart_end} is chart end')
 
     # check trimmed record set not empty
     if not len(hist_records):
         active_logger.warning('trimmed records empty')
-        return go.Figure()
+        return dict()
     active_logger.info(f'trimmed record set has {len(hist_records)} records')
 
     # initialise features with first of trimmed books and windows
@@ -234,20 +226,7 @@ def generate_feature_plot(
     hist_runner_features(selection_id, hist_records, windows, features)
 
     # get feature data from feature set
-    all_features_data = get_feature_data(features, pre_serialize=False)
-
-    # create runner feature figure and append to html output path
-    fig = fig_historical(
-        all_features_data = all_features_data,
-        feature_plot_configs=feature_plot_configs,
-        title=title,
-        chart_start=chart_start,
-        chart_end=chart_end,
-        orders_df=orders_df,
-        orders_plot_config=orders_plot_config,
-    )
-
-    return fig
+    return get_feature_data(features, pre_serialize=False)
 
 
 def get_yaxes_names(feature_plot_configs: dict, default_yaxis: str) -> List[str]:
