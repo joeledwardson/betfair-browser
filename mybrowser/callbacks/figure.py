@@ -69,7 +69,7 @@ def get_orders_df(market_dir: str, market_id: str) -> Optional[pd.DataFrame]:
             df = None
 
     if df is None:
-        cb_logger.info(f'order infos file "{file_name}" not found')
+        active_logger.info(f'order infos file "{file_name}" not found')
         return None
     else:
         count = df.shape[0]
