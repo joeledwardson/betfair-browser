@@ -4,7 +4,7 @@ from dash.dependencies import Output, Input, State
 from typing import List
 from betfairlightweight.resources.bettingresources import MarketBook
 from datetime import datetime
-from ..logger import cb_logger
+import logging
 from ..intermediary import Intermediary
 from ..data import DashData
 from ..profit import get_display_profits
@@ -15,6 +15,7 @@ from mytrading.process import prices
 from mytrading.utils import storage
 from myutils import generic
 
+active_logger = logging.getLogger(__name__)
 counter = Intermediary()
 
 
@@ -22,15 +23,15 @@ def log_records_info(record_list: List[List[MarketBook]], market_time: datetime)
     """
     add information about records to info strings
     """
-    cb_logger.info(f'{market_time}, market time')
-    cb_logger.info(f'{record_list[0][0].publish_time}, first record timestamp')
-    cb_logger.info(f'{record_list[-1][0].publish_time}, final record timestamp')
+    active_logger.info(f'{market_time}, market time')
+    active_logger.info(f'{record_list[0][0].publish_time}, first record timestamp')
+    active_logger.info(f'{record_list[-1][0].publish_time}, final record timestamp')
     for r in record_list:
         if r[0].market_definition.in_play:
-            cb_logger.info(f'{r[0].publish_time}, first inplay')
+            active_logger.info(f'{r[0].publish_time}, first inplay')
             break
     else:
-        cb_logger.info(f'no inplay elements found')
+        active_logger.info(f'no inplay elements found')
 
 
 def market_callback(app: dash.Dash, dd: DashData, input_dir: str):

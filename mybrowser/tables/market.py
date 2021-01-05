@@ -4,12 +4,15 @@ from os import path
 from typing import List, Tuple
 import dash_table
 from betfairlightweight import APIClient
+import logging
 from ..filetracker import FileTracker
 from ..marketinfo import MarketInfo
 from ..tables.files import get_hist_cell_path
-from ..logger import cb_logger
 
 from mytrading.utils import storage
+
+
+active_logger = logging.getLogger(__name__)
 
 
 def get_market_table(
@@ -69,7 +72,7 @@ def get_records_market(
     if storage.is_orders_dir(file_tracker.files):
 
         # orders inside directory, get success, records, marketinfo from corresponding historic/recorded
-        cb_logger.info(f'found order result/info files in "{file_tracker.root}"')
+        active_logger.info(f'found order result/info files in "{file_tracker.root}"')
         return get_orders_market(
             file_tracker.root,
             base_dir,
@@ -101,17 +104,17 @@ def get_historical_market(
 
     try:
         records = list(storage.get_historical(trading, historical_path).queue)
-        cb_logger.info(f'found {len(records)} historical records in "{historical_path}"')
+        active_logger.info(f'found {len(records)} historical records in "{historical_path}"')
 
         if len(records):
             market_info = MarketInfo.from_historical(records[-1][0].market_definition, records[0][0])
             return True, records, market_info
         else:
-            cb_logger.info(f'historical file empty "{historical_path}"')
+            active_logger.info(f'historical file empty "{historical_path}"')
             return False, None, None
 
     except Exception as exp:
-        cb_logger.warning(f'Error getting records from "{historical_path}", {exp}')
+        active_logger.warning(f'Error getting records from "{historical_path}", {exp}')
         return False, None, None
 
 
@@ -127,23 +130,23 @@ def get_recorded_market(
 
     cat = storage.search_recorded_cat(market_dir)
     if not cat:
-        cb_logger.info(f'did not find catalogue in dir "{market_dir}"')
+        active_logger.info(f'did not find catalogue in dir "{market_dir}"')
         return False, None, None
 
     market_info = MarketInfo.from_catalogue(cat)
-    cb_logger.info(f'found catalogue file in dir "{market_dir}"')
+    active_logger.info(f'found catalogue file in dir "{market_dir}"')
 
     queue = storage.search_recorded_stream(trading, market_dir)
     if not queue:
-        cb_logger.info(f'did not find recorded recorded file in "{market_dir}"')
+        active_logger.info(f'did not find recorded recorded file in "{market_dir}"')
         return False, None, None
 
     records = list(queue.queue)
     n_records = len(records)
-    cb_logger.info(f'found {n_records} recorded records in "{market_dir}"')
+    active_logger.info(f'found {n_records} recorded records in "{market_dir}"')
 
     if n_records == 0:
-        cb_logger.info(f'file empty')
+        active_logger.info(f'file empty')
         return False, None, None
 
     return True, records, market_info
@@ -170,7 +173,7 @@ def get_orders_market(
 
     # historic path exists, is a file and name matches market ID
     if hist_path and path.isfile(hist_path) and name_is_market:
-        cb_logger.info(f'found historical path at "{hist_path}"')
+        active_logger.info(f'found historical path at "{hist_path}"')
         return get_historical_market(hist_path, trading)
 
     # get recorded directory path relative to current orders directory
@@ -184,8 +187,8 @@ def get_orders_market(
 
     # recorded path exists, is a directory and matches market ID
     if rec_path and path.isdir(rec_path) and dir_is_market:
-        cb_logger.info(f'found recorded path at "{rec_path}"')
+        active_logger.info(f'found recorded path at "{rec_path}"')
         return get_recorded_market(rec_path, trading)
 
-    cb_logger.info('failed to find historic or recorded path to match')
+    active_logger.info('failed to find historic or recorded path to match')
     return False, None, None

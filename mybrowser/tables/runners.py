@@ -3,7 +3,6 @@ import logging
 import pandas as pd
 import dash_table
 from ..tables.table import create_table
-from ..logger import cb_logger
 
 active_logger = logging.getLogger(__name__)
 
@@ -33,12 +32,12 @@ def get_runner_id(
         row = runners_active_cell['row']
         id_list = list(start_odds.keys())
         if row >= len(id_list):
-            cb_logger.warning(f'row {row} in runners out of range for starting odds {start_odds}')
+            active_logger.warning(f'row {row} in runners out of range for starting odds {start_odds}')
             return 0
         else:
             return id_list[row]
     else:
-        cb_logger.warning(f'active cell "{runners_active_cell}" invalid')
+        active_logger.warning(f'active cell "{runners_active_cell}" invalid')
         return 0
     
 

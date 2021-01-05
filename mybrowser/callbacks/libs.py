@@ -3,9 +3,11 @@ from dash.dependencies import Output, Input
 from datetime import datetime
 import sys
 import importlib
-from ..logger import cb_logger
+import logging
 from ..intermediary import Intermediary
 
+
+active_logger = logging.getLogger(__name__)
 counter = Intermediary()
 
 
@@ -23,5 +25,5 @@ def libs_callback(app: dash.Dash):
         for k in list(sys.modules.keys()):
             if 'mytrading' in k or 'myutils' in k:
                 importlib.reload(sys.modules[k])
-        cb_logger.info('libraries reloaded')
+        active_logger.info('libraries reloaded')
         return counter.next()

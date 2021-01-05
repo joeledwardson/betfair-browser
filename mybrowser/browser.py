@@ -1,11 +1,9 @@
 from __future__ import annotations
 import dash
-import logging
 from typing import Optional
 from .data import DashData
 from . import callbacks
 from .layout import get_layout
-from .logger import cb_logger
 from datetime import timedelta
 
 
@@ -30,7 +28,6 @@ def run_browser(
         input_dir=input_dir,
         feature_configs_dir=feature_configs_dir,
         plot_configs_dir=plot_configs_dir,
-        logger=cb_logger,
         feature_configs_default=feature_config_default,
     )
     gdd.plot_config_default=plot_config_default
@@ -54,8 +51,6 @@ def run_browser(
     callbacks.featureconfigs.feature_configs_callback(app, gdd, input_dir)
     callbacks.libs.libs_callback(app)
     callbacks.log.log_callback(app)
-
-    logging.root.setLevel(logging.INFO)
 
     # turn of dev tools prop check to disable time input error
     app.run_server(debug=debug, dev_tools_props_check=False)

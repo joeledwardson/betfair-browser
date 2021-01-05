@@ -4,13 +4,13 @@ from dash.dependencies import Output, Input, State
 from typing import Dict, List
 import logging
 from ..data import DashData
-from ..logger import cb_logger
 from ..intermediary import Intermediary
 
 from myutils import mypath
 from myutils import jsonfile
 
 counter = Intermediary()
+active_logger = logging.getLogger(__name__)
 
 
 def get_configs(config_dir: str, config_type: str) -> Dict:
@@ -27,16 +27,16 @@ def get_configs(config_dir: str, config_type: str) -> Dict:
 
     """
 
-    cb_logger.info(f'getting {config_type} configurations from "{config_dir}"')
+    active_logger.info(f'getting {config_type} configurations from "{config_dir}"')
 
     # check directory is set
     if type(config_dir) is not str:
-        cb_logger.warning('directory not set')
+        active_logger.warning('directory not set')
         return dict()
 
     # check actually exists
     if not path.exists(config_dir):
-        cb_logger.warning(f'directory does not exist!')
+        active_logger.warning(f'directory does not exist!')
         return dict()
 
     # dict of configs to return
@@ -59,8 +59,8 @@ def get_configs(config_dir: str, config_type: str) -> Dict:
         if cfg is not None:
             configs[name] = cfg
 
-    cb_logger.info(f'{len(configs)} valid configuration files found from {len(files)} files')
-    cb_logger.info(f'feature configs: {list(configs.keys())}')
+    active_logger.info(f'{len(configs)} valid configuration files found from {len(files)} files')
+    active_logger.info(f'feature configs: {list(configs.keys())}')
     return configs
 
 

@@ -6,9 +6,9 @@ import dash
 from dash.dependencies import Output, Input, State
 import pandas as pd
 from plotly.graph_objects import Figure
+import logging
 from ..data import DashData
 from ..tables.runners import get_runner_id
-from ..logger import cb_logger
 from ..intermediary import Intermediary
 
 from mytrading.tradetracker import orderinfo
@@ -18,7 +18,8 @@ from mytrading.visual import figure as figurelib
 from mytrading.visual import config as configlib
 
 # override visual logger with custom logger
-figurelib.active_logger = cb_logger
+active_logger = logging.getLogger(__name__)
+figurelib.active_logger = active_logger
 counter = Intermediary()
 
 
@@ -72,7 +73,7 @@ def get_orders_df(market_dir: str, market_id: str) -> Optional[pd.DataFrame]:
         return None
     else:
         count = df.shape[0]
-        cb_logger.info(f'found {count} order infos in file "{file_path}"')
+        active_logger.info(f'found {count} order infos in file "{file_path}"')
         if count:
             return df
         else:
@@ -101,9 +102,9 @@ def get_features(
 
         # try to read features from file
         ftr_data = features_storage.features_from_file(ftr_path)
-        cb_logger.info(f'found {len(ftr_data)} features in file "{ftr_path}"')
+        active_logger.info(f'found {len(ftr_data)} features in file "{ftr_path}"')
         if not ftr_data:
-            cb_logger.info('generating features from selected configuration instead')
+            active_logger.info('generating features from selected configuration instead')
 
     # generate features if file doesn't exist or empty/fail
     if not ftr_data:
@@ -111,18 +112,18 @@ def get_features(
         dft = dd.feature_config_default
         if not ftr_key:
             cfg_key = dft
-            cb_logger.info(f'no feature config selected, using default "{dft}"')
+            active_logger.info(f'no feature config selected, using default "{dft}"')
         else:
             if ftr_key not in dd.feature_configs:
-                cb_logger.warning(f'selected feature config "{ftr_key}" not found in list, using default "{dft}"')
+                active_logger.warning(f'selected feature config "{ftr_key}" not found in list, using default "{dft}"')
                 cfg_key = dft
             else:
-                cb_logger.info(f'using selected feature config "{ftr_key}"')
+                active_logger.info(f'using selected feature config "{ftr_key}"')
                 cfg_key = ftr_key
 
         cfg = dd.feature_configs.get(cfg_key)
         if not cfg:
-            cb_logger.warning(f'feature config "{cfg_key}" empty')
+            active_logger.warning(f'feature config "{cfg_key}" empty')
             return None
 
         # generate plot by simulating features
@@ -149,7 +150,7 @@ def plot_runner(
 
     # get name from market info
     name = dd.market_info.names.get(sel_id, 'name not found')
-    cb_logger.info(f'producing figure for runner {sel_id}, "{name}"')
+    active_logger.info(f'producing figure for runner {sel_id}, "{name}"')
 
     # make chart title
     title = '{}, name: "{}", ID: "{}"'.format(dd.market_info, name, sel_id)
@@ -167,7 +168,7 @@ def plot_runner(
     # get feature data from either features file or try to generate, check not empty
     ftr_data = get_features(sel_id, ftr_key, dd, start, end)
     if not ftr_data:
-        cb_logger.warning('feature data empty')
+        active_logger.warning('feature data empty')
         return counter.next()
 
     # generate figure
@@ -206,13 +207,13 @@ def figure_callback(app: dash.Dash, dd: DashData, input_dir: str):
         offset = get_chart_offset(offset_str)
 
         # add runner selected cell and chart offset time to infobox
-        cb_logger.info('attempting to plot')
-        cb_logger.info(f'runners active cell: {cell}')
-        cb_logger.info(f'chart offset: {offset}')
+        active_logger.info('attempting to plot')
+        active_logger.info(f'runners active cell: {cell}')
+        active_logger.info(f'chart offset: {offset}')
 
         # if no active market selected then abort
         if not dd.record_list or not dd.market_info:
-            cb_logger.warning('fail: no market information/records')
+            active_logger.warning('fail: no market information/records')
             return counter.next()
 
         # get orders dataframe (or None)
@@ -237,12 +238,12 @@ def figure_callback(app: dash.Dash, dd: DashData, input_dir: str):
         plt_cfg = {}
         if plt_key:
             if plt_key in dd.plot_configs:
-                cb_logger.info(f'using selected plot configuration "{plt_key}"')
+                active_logger.info(f'using selected plot configuration "{plt_key}"')
                 plt_cfg = dd.plot_configs[plt_key]
             else:
-                cb_logger.warning(f'selected plot configuration "{plt_key}" not in plot configurations')
+                active_logger.warning(f'selected plot configuration "{plt_key}" not in plot configurations')
         else:
-            cb_logger.info('no plot configuration selected')
+            active_logger.info('no plot configuration selected')
 
         # get selection ID of runner from active runner cell, or abort on fail
         sel_id = get_runner_id(cell, dd.start_odds)

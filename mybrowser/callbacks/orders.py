@@ -1,15 +1,17 @@
 from os import path
 import dash
 from dash.dependencies import Output, Input, State
+import logging
 from ..data import DashData
 from ..tables.runners import get_runner_id
-from ..logger import cb_logger
 from ..intermediary import Intermediary
 
 from mytrading.utils import storage
 from mytrading.visual import profits
 from myutils.mydash import context as my_context
 
+
+active_logger = logging.getLogger(__name__)
 counter = Intermediary()
 
 
@@ -29,7 +31,7 @@ def orders_callback(app: dash.Dash, dd: DashData, input_dir: str):
     )
     def update_files_table(orders_clicks, runners_clicks, cell):
 
-        cb_logger.info(f'attempting to get orders, active cell: {cell}')
+        active_logger.info(f'attempting to get orders, active cell: {cell}')
         orders_pressed = my_context.triggered_id() == 'button-orders'
         ret_vals = [list(), counter.next()]
 
@@ -39,7 +41,7 @@ def orders_callback(app: dash.Dash, dd: DashData, input_dir: str):
 
         # if no active market selected then abort
         if not dd.record_list or not dd.market_info:
-            cb_logger.append('no market information/records')
+            active_logger.warning('no market information/records')
             return ret_vals
 
         # get selection ID of runner from active runner cell, on fail clear table
@@ -50,16 +52,16 @@ def orders_callback(app: dash.Dash, dd: DashData, input_dir: str):
         # get order results file from selection ID and check exists
         f_path = path.join(dd.market_dir, str(selection_id) + storage.EXT_ORDER_RESULT)
         if not path.isfile(f_path):
-            cb_logger.warning(f'no file "{f_path}" found')
+            active_logger.warning(f'no file "{f_path}" found')
             return ret_vals
 
         # get orders dataframe
         df = profits.read_profit_table(f_path)
         if df.shape[0] == 0:
-            cb_logger.warning(f'orders file "{f_path}" empty')
+            active_logger.warning(f'orders file "{f_path}" empty')
             return ret_vals
 
         df = profits.process_profit_table(df, dd.record_list[0][0].market_definition.market_time)
-        cb_logger.info(f'producing orders for {selection_id}, {df.shape[0]} results found file "{f_path}"')
+        active_logger.info(f'producing orders for {selection_id}, {df.shape[0]} results found file "{f_path}"')
         ret_vals[0] = df.to_dict('records')
         return ret_vals

@@ -30,14 +30,13 @@ class DashData:
             feature_configs_default,
             feature_configs_dir=None,
             plot_configs_dir=None,
-            logger=None
     ):
 
         # hold list of records from active historical file
         self.record_list: List[List[MarketBook]] = []
 
         # track files mybrowser
-        self.file_tracker = FileTracker(input_dir, logger=logger)
+        self.file_tracker = FileTracker(input_dir)
 
         # API client instance
         self.trading = mysecurity.get_api_client()

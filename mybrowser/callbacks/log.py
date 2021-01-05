@@ -2,7 +2,7 @@ import dash
 from dash.dependencies import Output, Input, State
 import dash_html_components as html
 from ..data import DashData
-from ..logger import log_q
+from .. import log_q
 
 log_elements = []
 
