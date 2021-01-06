@@ -5,10 +5,12 @@ import pytz
 import logging
 import pandas as pd
 from typing import List, Dict
+from functools import partial
+from .myplotly.table import create_plotly_table
 
 
 active_logger = logging.getLogger(__name__)
-function_timings = {}
+_function_timings = {}
 
 
 class EdgeDetector:
@@ -51,14 +53,16 @@ def format_timedelta(td: timedelta, fmt: str = '{h:02}:{m:02}:{s:02}') -> str:
     - m: minutes
     - s: seconds
     - ms: milliseconds
+    - u: microseconds
     """
     s = td.total_seconds()
     formatters = {
-        'ms':   int(s * 1000) % 1000,
-        's':    int(s) % 60,
+        'u':    td.microseconds,
+        'ms':   int(td.microseconds / 1000),
+        's':    td.seconds,
         'm':    int(s / 60) % 60,
         'h':    int(s / (60 * 60)) % 24,
-        'd':    int(s / (60 * 60 * 24))
+        'd':    td.days,
     }
     return fmt.format(**formatters)
 
@@ -196,7 +200,7 @@ def timing_register(func):
     """
 
     # create empty list for runtimes
-    function_timings[func.__name__] = []
+    _function_timings[func.__name__] = []
 
     # preserve function information
     @functools.wraps(func)
@@ -213,7 +217,38 @@ def timing_register(func):
 
         # add execution time to list
         elapsed_time = end_time - start_time
-        function_timings[func.__name__].append(timedelta(seconds=elapsed_time))
+        _function_timings[func.__name__].append(timedelta(seconds=elapsed_time))
+
+        return val
+
+    return wrapper_timer
+
+
+def timing_method_register(func):
+    """
+    register a class method for execution times to be logged
+    """
+
+    # preserve function information
+    @functools.wraps(func)
+    def wrapper_timer(self, *args, **kwargs):
+        name = self.__class__.__name__ + '.' + func.__name__
+        if name not in _function_timings:
+            _function_timings[name] = []
+
+        # gets time in seconds (with decimal places)
+        start_time = time.perf_counter()
+
+        # execute function and store output
+        val = func(self, *args, **kwargs)
+
+        # get time after function complete
+        end_time = time.perf_counter()
+
+        # add execution time to list
+        elapsed_time = end_time - start_time
+
+        _function_timings[name].append(timedelta(seconds=elapsed_time))
 
         return val
 
@@ -221,20 +256,63 @@ def timing_register(func):
 
 
 def get_function_timings(func_name) -> pd.Series:
-    return pd.Series(function_timings[func_name])
+    """
+    get series of timedeltas for execution time each time function was run
+    """
+    return pd.Series(_function_timings[func_name])
 
 
 def get_timed_functions() -> List[str]:
-    return list(function_timings.keys())
+    """
+    get list of function names who are being tracked for timing
+    """
+    return list(_function_timings.keys())
 
 
-def timed_functions_summary():
+def print_timings_summary():
+    """
+    plot timings results for each timed function
+    """
     for f in get_timed_functions():
         print(f'printing function timings for "{f}"')
         d = get_function_timings(f).describe()
         for name, val in d.iteritems():
             print(f'{name:5}: {val}')
         print('\n')
+
+
+def table_timings_summary(td_fmt='{d}d {h:02}:{m:02}:{s:02}.{ms:03}'):
+    """
+    create plotly table of timed function results
+    `td_fmt` specifies timedelta formatting string applied,
+    """
+    results = {
+        k: pd.Series(v).describe()
+        for k, v in _function_timings.items() if v
+    }
+    if not results:
+        active_logger.warning('could not find any function timings to print in table')
+        return
+
+    df = pd.DataFrame.from_dict(results, orient='index')
+    f = partial(format_timedelta, fmt=td_fmt)
+    df.loc[:, df.columns != 'count'] = df.loc[:, df.columns != 'count'].applymap(f)
+    create_plotly_table(df, 'hello', index_name='function').show()
+
+
+def clear_timing_function(func_name: str):
+    """
+    empty specific timed function
+    """
+    _function_timings[func_name].clear()
+
+
+def clear_timing_register():
+    """
+    empty lists of timed functions results
+    """
+    for k in _function_timings.keys():
+        _function_timings[k].clear()
 
 
 class RepeatingTimer:
