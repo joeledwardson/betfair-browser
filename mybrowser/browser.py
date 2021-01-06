@@ -36,8 +36,9 @@ def run_browser(
     if start_dir:
         gdd.file_tracker.update(start_dir)
 
-    if not external_stylesheets:
-        external_stylesheets = ['https://codepen.io/chriddyp/pen/bWLwgP.css']
+    # if not external_stylesheets:
+    #     external_stylesheets = ['https://codepen.io/chriddyp/pen/bWLwgP.css']
+
     app = dash.Dash(__name__, external_stylesheets=external_stylesheets)
     app.layout = get_layout(
         input_dir=input_dir,
