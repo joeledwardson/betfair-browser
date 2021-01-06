@@ -102,7 +102,17 @@ def get_layout(
                                 value=mytiming.format_timedelta(chart_offset),
                                 style=input_styles),
                             html.Button(children='feature figure', id='button-figure', n_clicks=0, style=input_styles),
-                            html.Button(children='all feature figures', id='button-all-figures', n_clicks=0, style=input_styles)
+                            html.Button(children='all feature figures', id='button-all-figures', n_clicks=0,
+                                        style=input_styles),
+                            dcc.Checklist(
+                                id='checklist-timings',
+                                options=[
+                                    {'label': 'timings', 'value': 'timings'},
+                                ],
+                                value=['timings'],
+                                labelStyle={'display': 'inline-block'},
+                                style={'display': 'inline'},
+                            )
                         ]
                     ),
 

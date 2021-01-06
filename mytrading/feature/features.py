@@ -15,6 +15,7 @@ from ..process.tradedvolume import get_record_tv_diff
 from ..utils.storage import construct_hist_dir
 from ..oddschecker import oc_hist_mktbk_processor
 from .window import Windows
+from myutils import mytiming
 
 
 features_dict = {}
@@ -101,6 +102,7 @@ class RunnerFeatureBase:
         for sub_feature in self.sub_features.values():
             sub_feature.race_initializer(selection_id, first_book, windows)
 
+    @mytiming.timing_method_register
     def process_runner(
             self, market_list: List[MarketBook],
             new_book: MarketBook,

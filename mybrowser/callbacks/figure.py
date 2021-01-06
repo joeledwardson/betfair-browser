@@ -17,6 +17,8 @@ from mytrading.feature import storage as features_storage
 from mytrading.visual import figure as figurelib
 from mytrading.visual import config as configlib
 from myutils.mydash import context as my_context
+from myutils import mytiming
+
 
 # override visual logger with custom logger
 active_logger = logging.getLogger(__name__)
@@ -201,9 +203,10 @@ def figure_callback(app: dash.Dash, dd: DashData, input_dir: str):
             State('input-chart-offset', 'value'),
             State('input-feature-config', 'value'),
             State('input-plot-config', 'value'),
+            State('checklist-timings', 'value')
         ]
     )
-    def fig_button(clicks0, clicks1, cell, offset_str, ftr_key, plt_key):
+    def fig_button(clicks0, clicks1, cell, offset_str, ftr_key, plt_key, tmr_vals):
 
         # get datetime/None chart offset from time input
         offset = get_chart_offset(offset_str)
@@ -274,5 +277,9 @@ def figure_callback(app: dash.Dash, dd: DashData, input_dir: str):
                 ftr_key=ftr_key,
                 plt_cfg=plt_cfg
             )
+        if sel_ids and tmr_vals:
+            mytiming.table_timings_summary()
+            mytiming.clear_timing_register()
+
         return counter.next()
 
