@@ -92,6 +92,7 @@ def get_layout(
                             html.Button(children='order profits', id='button-orders', n_clicks=0),
                             dcc.Input(id='input-chart-offset', type='time', value=mytiming.format_timedelta(chart_offset)),
                             html.Button(children='feature figure', id='button-figure', n_clicks=0),
+                            html.Button(children='all feature figures', id='button-all-figures', n_clicks=0)
                         ]
                     ),
 

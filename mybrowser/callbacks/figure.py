@@ -16,6 +16,7 @@ from mytrading.utils import storage as utils_storage
 from mytrading.feature import storage as features_storage
 from mytrading.visual import figure as figurelib
 from mytrading.visual import config as configlib
+from myutils.mydash import context as my_context
 
 # override visual logger with custom logger
 active_logger = logging.getLogger(__name__)
@@ -192,7 +193,8 @@ def figure_callback(app: dash.Dash, dd: DashData, input_dir: str):
     @app.callback(
         output=Output('intermediary-figure', 'children'),
         inputs=[
-            Input('button-figure', 'n_clicks')
+            Input('button-figure', 'n_clicks'),
+            Input('button-all-figures', 'n_clicks'),
         ],
         state=[
             State('table-runners', 'active_cell'),
@@ -201,7 +203,7 @@ def figure_callback(app: dash.Dash, dd: DashData, input_dir: str):
             State('input-plot-config', 'value'),
         ]
     )
-    def fig_button(btn_clicks, cell, offset_str, ftr_key, plt_key):
+    def fig_button(clicks0, clicks1, cell, offset_str, ftr_key, plt_key):
 
         # get datetime/None chart offset from time input
         offset = get_chart_offset(offset_str)
@@ -213,7 +215,7 @@ def figure_callback(app: dash.Dash, dd: DashData, input_dir: str):
 
         # if no active market selected then abort
         if not dd.record_list or not dd.market_info:
-            active_logger.warning('fail: no market information/records')
+            active_logger.warning('no market information/records')
             return counter.next()
 
         # get orders dataframe (or None)
@@ -245,19 +247,32 @@ def figure_callback(app: dash.Dash, dd: DashData, input_dir: str):
         else:
             active_logger.info('no plot configuration selected')
 
-        # get selection ID of runner from active runner cell, or abort on fail
-        sel_id = get_runner_id(cell, dd.start_odds)
-        if not sel_id:
-            return counter.next()
+        # determine if 'all feature plots' clicked as opposed to single plot
+        do_all = my_context.triggered_id() == 'button-all-figures'
 
-        plot_runner(
-            sel_id=sel_id,
-            dd=dd,
-            orders=orders,
-            start=start,
-            end=end,
-            ftr_key=ftr_key,
-            plt_cfg=plt_cfg
-        )
+        sel_ids = []
+        if do_all:
+
+            # do all selection IDs
+            sel_ids = list(dd.start_odds.keys())
+
+        else:
+
+            # get selection ID of runner from active runner cell, or abort on fail
+            sel_id = get_runner_id(cell, dd.start_odds)
+            if not sel_id:
+                return counter.next()
+            sel_ids = [sel_id]
+
+        for sel_id in sel_ids:
+            plot_runner(
+                sel_id=sel_id,
+                dd=dd,
+                orders=orders,
+                start=start,
+                end=end,
+                ftr_key=ftr_key,
+                plt_cfg=plt_cfg
+            )
         return counter.next()
 
