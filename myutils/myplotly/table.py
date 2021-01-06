@@ -2,18 +2,29 @@ import pandas as pd
 import plotly.graph_objs as go
 
 
-def plotly_table_kwargs(df: pd.DataFrame) -> dict:
-    """create 'header' and 'cells' kwargs for constructing a plotly graph_objects.table"""
+def plotly_table_kwargs(df: pd.DataFrame, index_name=None) -> dict:
+    """
+    create 'header' and 'cells' kwargs for constructing a plotly graph_objects.table
+    if `index_name` is passed then is used for column header and dataframe index values for rest of table,
+    otherwise index ignored
+    """
+    headers = list(df.columns)
+    data = [df[c].to_list() for c in df.columns]
+
+    if index_name:
+        headers = [index_name] + headers
+        data = [df.index.to_list()] + data
+
     return dict(
-        header=dict(values=list(df.columns)),
-        cells=dict(values=[df[c].to_list() for c in df.columns])
+        header=dict(values=headers),
+        cells=dict(values=data)
     )
 
 
-def plotly_table(df: pd.DataFrame, title: str) -> go.Figure:
+def plotly_table(df: pd.DataFrame, title: str, index_name=None) -> go.Figure:
     """create plotly.Figure object for table with dataframe data and title"""
     return go.Figure(
-        data=go.Table(**plotly_table_kwargs(df)),
+        data=go.Table(**plotly_table_kwargs(df, index_name=index_name)),
         layout=dict(title=title),
     )
 
