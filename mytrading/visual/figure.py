@@ -11,7 +11,6 @@ from ..tradetracker.messages import MessageTypes
 from ..feature.window import Windows
 from ..feature.utils import generate_features, get_feature_data, get_max_buffer_s
 from ..feature.historic import hist_runner_features
-from ..feature.config import get_features_default_configs
 from .config import get_plot_default_config
 from .feature import add_feature_trace
 from .orderinfo import plot_orders
