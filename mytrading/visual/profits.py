@@ -5,7 +5,7 @@ import pandas as pd
 from ..tradetracker.orderinfo import dict_order_profit
 from myutils.generic import dgetattr, dattr_name
 from myutils.jsonfile import read_file_lines
-from myutils.timing import format_timedelta
+from myutils.mytiming import format_timedelta
 from flumine.markets.market import Market
 import plotly.graph_objects as go
 from myutils.myplotly.table import plotly_table_kwargs

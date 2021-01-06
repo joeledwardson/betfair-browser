@@ -4,7 +4,7 @@ from betfairlightweight.resources import MarketBook
 
 from .features import RunnerFeatureBase
 from .window import Windows
-from myutils.timing import decorator_timer
+from myutils.mytiming import decorator_timer
 
 
 @decorator_timer

@@ -8,7 +8,7 @@ from .tables.files import get_files_table, FilesTableProperties
 from .tables.orders import get_orders_table
 from .data import DashData
 
-from myutils import timing as mytiming
+from myutils import mytiming as mytiming
 
 # set files table height as it is needed when re-created in callbacks
 FilesTableProperties.height = '20vh'

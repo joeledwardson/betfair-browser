@@ -3,7 +3,7 @@ time & date processes and conversion when dealing with betfair data
 """
 
 from datetime import datetime
-from myutils import timing
+from myutils import mytiming
 import logging
 
 active_logger = logging.getLogger(__name__)
@@ -14,7 +14,7 @@ def event_time(dt: datetime, localise=True) -> str:
     Time of event in HH:MM, converted from betfair UTC to local
     """
     if localise:
-        dt = timing.localise(dt)
+        dt = mytiming.localise(dt)
     return dt.strftime("%H:%M")
 
 

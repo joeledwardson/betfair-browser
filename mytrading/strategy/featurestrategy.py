@@ -9,7 +9,7 @@ from typing import Dict, List
 from os import path, makedirs
 from enum import Enum
 
-from myutils.timing import EdgeDetector, timing_register
+from myutils.mytiming import EdgeDetector, timing_register
 from myutils.jsonfile import add_to_file
 from ..process.prices import best_price
 from ..trademachine.tradestates import TradeStateTypes

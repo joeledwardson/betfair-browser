@@ -5,7 +5,7 @@ from flumine.markets.market import Market
 from betfairlightweight.resources.bettingresources import MarketBook, RunnerBook
 import logging
 
-from myutils.timing import timing_register
+from myutils.mytiming import timing_register
 from ...trademachine import tradestates as basestates
 from ...trademachine.trademachine import RunnerStateMachine
 from ...strategy.featurestrategy import MyFeatureStrategy
