@@ -11,7 +11,11 @@ from .data import DashData
 from myutils import timing as mytiming
 
 # set files table height as it is needed when re-created in callbacks
-FilesTableProperties.height = 200
+FilesTableProperties.height = '20vh'
+
+input_styles = {
+    'margin': '3px 2px',
+}
 
 
 def infobox(height=70, **kwargs) -> html.Div:
@@ -43,6 +47,8 @@ def get_layout(
         style={
             'display': 'grid',
             'grid-template-columns': '50% 50%',
+            'height': '100vh',
+            'position': 'relative',
         },
         children=[
             hidden_div('intermediary-market'),
@@ -66,10 +72,10 @@ def get_layout(
 
                     html.Div(
                         children=[
-                            html.Button(children='↑', id='button-return', n_clicks=0),
-                            html.Button(children='get runners', id='button-runners', n_clicks=0),
-                            html.Button(children='profit', id='button-profit', n_clicks=0),
-                            html.Button(children='reload libraries', id='button-libs', n_clicks=0),
+                            html.Button(children='↑', id='button-return', n_clicks=0, style=input_styles),
+                            html.Button(children='get runners', id='button-runners', n_clicks=0, style=input_styles),
+                            html.Button(children='profit', id='button-profit', n_clicks=0, style=input_styles),
+                            html.Button(children='reload libraries', id='button-libs', n_clicks=0, style=input_styles),
                         ],
                     ),
 
@@ -89,10 +95,14 @@ def get_layout(
 
                     html.Div(
                         children=[
-                            html.Button(children='order profits', id='button-orders', n_clicks=0),
-                            dcc.Input(id='input-chart-offset', type='time', value=mytiming.format_timedelta(chart_offset)),
-                            html.Button(children='feature figure', id='button-figure', n_clicks=0),
-                            html.Button(children='all feature figures', id='button-all-figures', n_clicks=0)
+                            html.Button(children='order profits', id='button-orders', n_clicks=0, style=input_styles),
+                            dcc.Input(
+                                id='input-chart-offset',
+                                type='time',
+                                value=mytiming.format_timedelta(chart_offset),
+                                style=input_styles),
+                            html.Button(children='feature figure', id='button-figure', n_clicks=0, style=input_styles),
+                            html.Button(children='all feature figures', id='button-all-figures', n_clicks=0, style=input_styles)
                         ]
                     ),
 
@@ -176,7 +186,9 @@ def get_layout(
                     'grid-column-start': '1',
                     'grid-column-end': '3',
                     'background-color': 'lightgrey',
-                    'height': 130,
+                    'height': 170,
+                    'align-self': 'end',
+                    'margin': 5,
                 },
                 children=[],
             )

@@ -1,6 +1,6 @@
 from __future__ import annotations
 import dash
-from typing import Optional
+from typing import Optional, List
 from .data import DashData
 from . import callbacks
 from .layout import get_layout
@@ -18,6 +18,7 @@ def run_browser(
         start_dir: Optional[str] = None,
         feature_config_initial: Optional[str] = None,
         plot_config_initial: Optional[str] = None,
+        external_stylesheets: Optional[List[str]] = None,
 ):
     """
     run dash app mybrowser - input_dir specifies input directory for entry point for mybrowser but also expected root for:
@@ -35,7 +36,9 @@ def run_browser(
     if start_dir:
         gdd.file_tracker.update(start_dir)
 
-    app = dash.Dash(__name__)
+    if not external_stylesheets:
+        external_stylesheets = ['https://codepen.io/chriddyp/pen/bWLwgP.css']
+    app = dash.Dash(__name__, external_stylesheets=external_stylesheets)
     app.layout = get_layout(
         input_dir=input_dir,
         dash_data=gdd,
