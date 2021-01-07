@@ -1,4 +1,5 @@
 import re
+from functools import partial
 from datetime import datetime, timedelta
 from os import path
 from typing import List, Dict, Union, Optional
@@ -26,7 +27,7 @@ figurelib.active_logger = active_logger
 counter = Intermediary()
 
 
-def get_chart_offset(chart_offset_str):
+def get_chart_offset(chart_offset_str) -> Optional[timedelta]:
     """
     get chart offset based on HH:MM:SS form, return datetime on success, or None on fail
     """
@@ -90,6 +91,10 @@ def get_features(
         start: datetime,
         end: datetime
 ) -> Optional[Dict]:
+    """
+    get dictionary of feature name to RunnerFeatureBase instance from either features file (search for it in directory)
+    or if no feature file, try to generate based on feature configuration `ftr_key`
+    """
 
     # construct feature info
     ftr_path = path.join(
@@ -149,7 +154,10 @@ def plot_runner(
         end: datetime,
         ftr_key: Optional[str],
         plt_cfg: Dict
-):
+) -> None:
+    """
+    plot and show a plotly figure for a runner and a designated feature/plot configuration
+    """
 
     # get name from market info
     name = dd.market_info.names.get(sel_id, 'name not found')
@@ -172,7 +180,7 @@ def plot_runner(
     ftr_data = get_features(sel_id, ftr_key, dd, start, end)
     if not ftr_data:
         active_logger.warning('feature data empty')
-        return counter.next()
+        return
 
     # generate figure
     fig = figurelib.fig_historical(
@@ -193,7 +201,10 @@ def figure_callback(app: dash.Dash, dd: DashData, input_dir: str):
     create a plotly figure based on selected runner when "figure" button is pressed
     """
     @app.callback(
-        output=Output('intermediary-figure', 'children'),
+        output=[
+            Output('intermediary-figure', 'children'),
+            Output('table-timings', 'data')
+        ],
         inputs=[
             Input('button-figure', 'n_clicks'),
             Input('button-all-figures', 'n_clicks'),
@@ -208,6 +219,8 @@ def figure_callback(app: dash.Dash, dd: DashData, input_dir: str):
     )
     def fig_button(clicks0, clicks1, cell, offset_str, ftr_key, plt_key, tmr_vals):
 
+        ret = [counter.next(), list()]
+
         # get datetime/None chart offset from time input
         offset = get_chart_offset(offset_str)
 
@@ -219,7 +232,7 @@ def figure_callback(app: dash.Dash, dd: DashData, input_dir: str):
         # if no active market selected then abort
         if not dd.record_list or not dd.market_info:
             active_logger.warning('no market information/records')
-            return counter.next()
+            return ret
 
         # get orders dataframe (or None)
         orders = get_orders_df(dd.market_dir, dd.market_info.market_id)
@@ -264,7 +277,7 @@ def figure_callback(app: dash.Dash, dd: DashData, input_dir: str):
             # get selection ID of runner from active runner cell, or abort on fail
             sel_id = get_runner_id(cell, dd.start_odds)
             if not sel_id:
-                return counter.next()
+                return ret
             sel_ids = [sel_id]
 
         for sel_id in sel_ids:
@@ -277,9 +290,20 @@ def figure_callback(app: dash.Dash, dd: DashData, input_dir: str):
                 ftr_key=ftr_key,
                 plt_cfg=plt_cfg
             )
-        if sel_ids and tmr_vals:
-            mytiming.table_timings_summary()
-            mytiming.clear_timing_register()
 
-        return counter.next()
+        if sel_ids and tmr_vals:
+            tms = mytiming.timings_summary()
+            mytiming.clear_timing_register()
+            if not tms:
+                active_logger.warning('no timings on which to produce table')
+            td_fmt = '{d}d {h:02}:{m:02}:{s:02}.{u:06}'
+            f = partial(mytiming.format_timedelta, fmt=td_fmt)
+            tms = [{
+                k: f(v) if k in ['Mean', 'Min', 'Max'] else v
+                for k, v in t.items()
+            } for t in tms]
+            ret[1] = tms
+
+        return ret
+
 

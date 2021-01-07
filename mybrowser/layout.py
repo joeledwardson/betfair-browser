@@ -2,10 +2,12 @@ from typing import Optional
 from datetime import timedelta
 import dash_html_components as html
 import dash_core_components as dcc
+import pandas as pd
 from .tables.runners import get_runners_table, get_runner_id
 from .tables.market import get_market_table
 from .tables.files import get_files_table, FilesTableProperties
 from .tables.orders import get_orders_table
+from .tables.table import create_table
 from .data import DashData
 
 from myutils import mytiming as mytiming
@@ -209,6 +211,24 @@ def get_layout(
                     html.Div(
                         children=get_orders_table(height=340),
                     ),
+
+                    html.H2(
+                        children='Function Timings',
+                    ),
+
+                    html.Div(
+                        children=create_table(
+                            table_id='table-timings',
+                            df=pd.DataFrame(columns=[
+                                'Function',
+                                'Count',
+                                'Mean',
+                                'Min',
+                                'Max'
+                            ]),
+                            height=340,
+                        ),
+                    )
 
                 ]
             ),
