@@ -21,10 +21,10 @@ def plotly_table_kwargs(df: pd.DataFrame, index_name=None) -> dict:
     )
 
 
-def create_plotly_table(df: pd.DataFrame, title: str, index_name=None) -> go.Figure:
+def create_plotly_table(df: pd.DataFrame, title: str, index_name=None, table_kwargs=None) -> go.Figure:
     """create plotly.Figure object for table with dataframe data and title"""
     return go.Figure(
-        data=go.Table(**plotly_table_kwargs(df, index_name=index_name)),
+        data=go.Table(**plotly_table_kwargs(df, index_name=index_name), **(table_kwargs or {})),
         layout=dict(title=title),
     )
 
