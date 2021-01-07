@@ -15,7 +15,6 @@ from ...strategy.featurestrategy import MyFeatureStrategy, MarketHandler, Runner
 from ...process.ticks.ticks import LTICKS_DECODED, tick_spread, closest_tick
 from ...process.tradedvolume import traded_runner_vol
 from ...process.prices import best_price, get_ltps
-from ...feature.featureholder import FeatureHolder
 from ...feature.features import RunnerFeatureBase
 from .featuresconfig import get_trend_feature_configs
 from . import states as trendstates

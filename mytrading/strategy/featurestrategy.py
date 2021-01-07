@@ -17,7 +17,6 @@ from ..trademachine.trademachine import RunnerStateMachine
 from ..feature.features import RunnerFeatureBase
 from ..feature.window import Windows
 from ..feature.utils import generate_features, get_max_buffer_s
-from ..feature.featureholder import FeatureHolder
 from ..feature.storage import features_to_file, get_feature_file_name
 from ..tradetracker.tradetracker import TradeTracker
 from ..tradetracker.orderinfo import serializable_order_info

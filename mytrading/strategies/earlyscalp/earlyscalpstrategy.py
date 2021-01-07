@@ -15,7 +15,6 @@ from ...strategy.featurestrategy import MyFeatureStrategy, MarketHandler
 from ...process.ticks.ticks import LTICKS_DECODED, tick_spread
 from ...process.tradedvolume import traded_runner_vol
 from ...process.prices import best_price, get_ltps
-from ...feature.featureholder import FeatureHolder
 from .featuresconfig import get_scalp_feature_configs
 from . import states as scalpstates
 from .datatypes import EScalpData
