@@ -8,16 +8,18 @@ import pandas as pd
 import logging
 from myutils.generic import dgetattr
 import yaml
+from os import path
+import pkgutil
 
 
 MAX_CATALOGUES = 1000
 EVENT_IDS_FILE = 'EventTypeIds.yaml'
-
 active_logger = logging.getLogger(__name__)
+
 event_id_lookup = {}
 try:
-    with open('EventTypeIds.yaml', 'r') as fp:
-        event_id_lookup = yaml.load(fp, Loader=yaml.FullLoader)
+    data = pkgutil.get_data(__name__, 'EventTypeIds.yaml')
+    event_id_lookup = yaml.load(data, Loader=yaml.FullLoader)
 except Exception as e:
     active_logger.warning(f'failed to get event ID lookup: {e}')
 
