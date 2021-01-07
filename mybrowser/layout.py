@@ -75,7 +75,6 @@ def get_layout(
                             html.Button(children='↑', id='button-return', n_clicks=0, style=input_styles),
                             html.Button(children='get runners', id='button-runners', n_clicks=0, style=input_styles),
                             html.Button(children='profit', id='button-profit', n_clicks=0, style=input_styles),
-                            html.Button(children='reload libraries', id='button-libs', n_clicks=0, style=input_styles),
                         ],
                     ),
 
@@ -95,15 +94,30 @@ def get_layout(
 
                     html.Div(
                         children=[
-                            html.Button(children='order profits', id='button-orders', n_clicks=0, style=input_styles),
+                            html.Button(
+                                children='order profits',
+                                id='button-orders',
+                                n_clicks=0,
+                                style=input_styles
+                            ),
                             dcc.Input(
                                 id='input-chart-offset',
                                 type='time',
                                 value=mytiming.format_timedelta(chart_offset),
-                                style=input_styles),
-                            html.Button(children='feature figure', id='button-figure', n_clicks=0, style=input_styles),
-                            html.Button(children='all feature figures', id='button-all-figures', n_clicks=0,
-                                        style=input_styles),
+                                style=input_styles
+                            ),
+                            html.Button(
+                                children='feature figure',
+                                id='button-figure',
+                                n_clicks=0,
+                                style=input_styles
+                            ),
+                            html.Button(
+                                children='all feature figures',
+                                id='button-all-figures',
+                                n_clicks=0,
+                                style=input_styles
+                            ),
                             dcc.Checklist(
                                 id='checklist-timings',
                                 options=[
@@ -111,9 +125,53 @@ def get_layout(
                                 ],
                                 value=['timings'],
                                 labelStyle={'display': 'inline-block'},
-                                style={'display': 'inline'},
-                            )
+                                style={
+                                    'display': 'inline',
+                                    'margin': '3px 0px',
+                                },
+                            ),
+                            html.Button(
+                                children='reload feature configs',
+                                id='button-feature-config',
+                                n_clicks=0,
+                                style=input_styles
+                            ),
+                            html.Button(
+                                children='reload libraries',
+                                id='button-libs',
+                                n_clicks=0,
+                                style=input_styles
+                            ),
                         ]
+                    ),
+
+                    html.Div(
+                        children=[
+                            html.Div(
+                                style={
+                                    'display': 'grid',
+                                    'grid-template-columns': '50% 50%'
+                                },
+                                children=[
+                                    dcc.Dropdown(
+                                        id='input-feature-config',
+                                        placeholder='Select feature config',
+                                        style={
+                                            'margin': '4px 2px'
+                                        },
+                                        value=feature_config_initial,
+                                    ),
+                                    dcc.Dropdown(
+                                        id='input-plot-config',
+                                        placeholder='Select plot config',
+                                        style={
+                                            'margin': '4px 2px'
+                                        },
+                                        value=plot_config_initial,
+                                    ),
+                                ]
+                            )
+                        ],
                     ),
 
                     html.Div(children=[], id='infobox-market'),
@@ -138,43 +196,11 @@ def get_layout(
                     #     children=get_market_table(height=140, width=600)
                     # ),
 
-                    html.H2(
-                        children='Feature Config Selection'
-                    ),
+                    # html.H2(
+                    #     children='Feature Config Selection'
+                    # ),
 
-                    html.Div(
-                        children=[
-                            html.Button(
-                                children='reload feature configs',
-                                id='button-feature-config',
-                                n_clicks=0
-                            ),
-                            html.Div(
-                                style={
-                                    'display': 'grid',
-                                    'grid-template-columns': '50% 50%'
-                                },
-                                children=[
-                                    dcc.Dropdown(
-                                        id='input-feature-config',
-                                        placeholder='Select feature config',
-                                        style={
-                                            'margin': '4px 0px'
-                                        },
-                                        value=feature_config_initial,
-                                    ),
-                                    dcc.Dropdown(
-                                        id='input-plot-config',
-                                        placeholder='Select plot config',
-                                        style={
-                                            'margin': '4px 0px'
-                                        },
-                                        value=plot_config_initial,
-                                    ),
-                                ]
-                            )
-                        ],
-                    ),
+
 
                     html.H2(
                         children='Order Profits'
