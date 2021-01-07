@@ -91,7 +91,8 @@ class RunnerFeatureBase:
                 feature_kwargs = v.get('kwargs', {})
                 self.sub_features[k] = feature_class(
                     parent=self,
-                    **feature_kwargs
+                    **feature_kwargs,
+                    feature_key=k,
                 )
 
         self.periodic_ms = periodic_ms
@@ -367,6 +368,7 @@ class RunnerFeatureBookSplitWindow(RunnerFeatureBase):
 
         return value
 
+
 @register_feature
 class RunnerFeatureLTP(RunnerFeatureBase):
     """Last traded price of runner"""
@@ -531,35 +533,24 @@ class RunnerFeatureSub(RunnerFeatureBase):
         return self.parent.last_value()
 
 
-@register_feature
-class RunnerFeatureSubDelayer(RunnerFeatureSub):
+class _RunnerFeatureSubDelayer(RunnerFeatureSub):
     """
-    delay a parent feature by x number of seconds
+    track a delay by x number of seconds
     """
-
-    def __init__(self, delay_seconds, *args, **kwargs):
+    def __init__(self, delay_seconds, outside_window=True, *args, **kwargs):
         self.delay_seconds = delay_seconds
         self.delay_index = 0
+        self.outside_window = outside_window
         super().__init__(*args, **kwargs)
 
-    def runner_update(
-            self,
-            market_list: List[MarketBook],
-            new_book: MarketBook,
-            windows: Windows,
-            runner_index):
-
-        t = new_book.publish_time
-        while (self.delay_index + 1) < len(self.parent.processed_vals) and \
-                (t - self.parent.dts[self.delay_index + 1]).total_seconds() > self.delay_seconds:
+    def update_delay_index(self, pt):
+        while (self.delay_index + self.outside_window) < len(self.parent.processed_vals) and \
+                (pt - self.parent.dts[self.delay_index + self.outside_window]).total_seconds() > self.delay_seconds:
             self.delay_index += 1
-
-        if len(self.parent.processed_vals):
-            return self.parent.processed_vals[self.delay_index]
 
 
 @register_feature
-class RunnerFeatureSubDelayComparison(RunnerFeatureSubDelayer):
+class RunnerFeatureSubDelayComparison(_RunnerFeatureSubDelayer):
     """
     compare a parent feature current value to delayed value
     """
@@ -568,11 +559,33 @@ class RunnerFeatureSubDelayComparison(RunnerFeatureSubDelayer):
             market_list: List[MarketBook],
             new_book: MarketBook,
             windows: Windows,
-            runner_index):
-        previous_value = super().runner_update(market_list, new_book, windows, runner_index)
-        current_value = self.parent.last_value()
-        if previous_value is not None and current_value is not None:
-            return current_value - previous_value
+            runner_index
+    ):
+        self.update_delay_index(new_book.publish_time)
+        if len(self.parent.processed_vals):
+            previous_value = self.parent.processed_vals[self.delay_index]
+            current_value = self.parent.last_value()
+            if previous_value is not None and current_value is not None:
+                return current_value - previous_value
+
+
+@register_feature
+class RunnerFeatureSubSum(_RunnerFeatureSubDelayer):
+    """
+    sum a parent feature values over x number of seconds
+    """
+    def runner_update(
+            self,
+            market_list: List[MarketBook],
+            new_book: MarketBook,
+            windows: Windows,
+            runner_index
+    ):
+        self.update_delay_index(new_book.publish_time)
+        n = len(self.parent.processed_vals)
+        assert n >= self.delay_index
+        if n:
+            return sum(self.parent.processed_vals[self.delay_index:])
 
 
 @register_feature
@@ -784,6 +797,7 @@ class RunnerFeatureHistoricOddscheckerAvg(RunnerFeatureBase):
         return self.oc_avg
 
 
+# TODO - depreciated?
 @register_feature
 class RunnerFeatureLTPWindow(RunnerFeatureLTP, RunnerFeatureWindowBase):
     """last traded price of runner, with window processing"""

@@ -172,7 +172,7 @@ def bar_chart_kwargs(color_0, color_1, opacity, width_ms):
     }
 
 
-def tv_bar_value_processors(tv_name, tv_bar_width_ms):
+def tv_bar_value_processors(tv_name, bar_width_ms):
     return [{
         'name': 'plotly_set_attrs',
         'kwargs': {
@@ -191,7 +191,7 @@ def tv_bar_value_processors(tv_name, tv_bar_width_ms):
         }, {
             'name': 'plotly_values_resampler',
             'kwargs': {
-                'n_seconds': int(tv_bar_width_ms/1000),
+                'n_seconds': int(bar_width_ms/1000),
                 'agg_function': {
                     'y': 'sum',
                     'text': 'sum',
@@ -235,7 +235,7 @@ IGNORE_LIST = [
 ]
 
 
-def get_trend_plot_configs(tv_bar_width_ms, tv_opacity):
+def get_trend_plot_configs(bar_width_ms, tv_opacity):
 
     return {
 
@@ -271,12 +271,21 @@ def get_trend_plot_configs(tv_bar_width_ms, tv_opacity):
                 'rgb(250,50,50)',
                 'rgb(50,250,50)',
                 tv_opacity,
-                tv_bar_width_ms
+                bar_width_ms
             ),
             'trace_args': {
                 'secondary_y': True
             },
-            'value_processors':tv_bar_value_processors('tv', tv_bar_width_ms),
+            'value_processors':tv_bar_value_processors('tv', bar_width_ms),
+        },
+
+        'split.sum': {
+            'chart_args': {
+                'visible': 'legendonly',
+            },
+            'trace_args': {
+                'secondary_y': True
+            },
         },
 
         'ltpsm': {

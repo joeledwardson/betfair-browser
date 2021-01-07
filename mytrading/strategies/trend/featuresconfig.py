@@ -107,6 +107,7 @@ def get_trend_feature_configs(
         n_ladder_elements,
         diff_s,
         delay_feature_s,
+        split_sum_s,
 ) -> Dict[str, Dict]:
     """
     Get a dict of default runner features, where each entry is a dictionary of:
@@ -185,6 +186,17 @@ def get_trend_feature_configs(
 
         'split': {
             'name': 'RunnerFeatureBookSplitWindow',
+            'kwargs': {
+                'sub_features_config': {
+                    'sum': {
+                        'name': 'RunnerFeatureSubSum',
+                        'kwargs': {
+                            'delay_seconds': split_sum_s,
+                            'outside_window': False,
+                        },
+                    },
+                }
+            }
         },
 
         'ltpmin': {
