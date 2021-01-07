@@ -4,10 +4,10 @@ from betfairlightweight.resources import MarketBook
 
 from .features import RunnerFeatureBase
 from .window import Windows
-from myutils.mytiming import decorator_timer
+from myutils import mytiming
 
 
-@decorator_timer
+@mytiming.timing_register
 def hist_runner_features(
         selection_id: int,
         records: List[List[MarketBook]],
