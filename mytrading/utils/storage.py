@@ -7,11 +7,12 @@ from betfairlightweight.streaming.listener import StreamListener
 from datetime import datetime
 import sys
 from betfairlightweight.resources.bettingresources import MarketBook,  MarketCatalogue
+from betfairlightweight.resources.streamingresources import MarketDefinition
 from betfairlightweight import APIClient
 import json
 from os import path, listdir, walk
 import logging
-from typing import List
+from typing import List, Optional
 from pathlib import PurePath
 import re
 
@@ -35,7 +36,7 @@ RE_MARKET_ID = r'^\d\.\d{9}$'
 active_logger = logging.getLogger(__name__)
 
 
-def get_historical(api_client : APIClient, directory: str) -> Queue:
+def get_historical(api_client: APIClient, directory: str) -> Queue:
     """
     Get Queue object from historical Betfair data fil
     e"""
@@ -57,7 +58,7 @@ def get_historical(api_client : APIClient, directory: str) -> Queue:
     return output_queue
 
 
-def get_first_book(file_path: str) -> MarketBook:
+def get_first_book(file_path: str) -> Optional[MarketBook]:
     """
     read the first line in a historical/streaming file and get the MarketBook parsed object, without reading or
     processing the rest of the file
@@ -117,7 +118,7 @@ def construct_hist_dir(market_book: MarketBook) -> str:
     return _construct_hist_dir(event_type_id, event_dt, event_id, market_id)
 
 
-def construct_file_hist_dir(file_path: str) -> str:
+def construct_file_hist_dir(file_path: str) -> Optional[str]:
     """
     get path conforming to betfair historical data standards for a given historical/streaming file path by using
     first book
@@ -129,7 +130,7 @@ def construct_file_hist_dir(file_path: str) -> str:
         return None
 
 
-def get_hist_cat(catalogue_path) -> MarketCatalogue:
+def get_hist_cat(catalogue_path) -> Optional[MarketCatalogue]:
     """
     Get betfair catalogue file
     """
@@ -143,7 +144,7 @@ def get_hist_cat(catalogue_path) -> MarketCatalogue:
         return None
 
 
-def get_hist_marketdef(market_path):
+def get_hist_marketdef(market_path) -> Optional[MarketDefinition]:
     """
     get market definition from historical market, given its file path
     """
@@ -154,7 +155,7 @@ def get_hist_marketdef(market_path):
         return bk.market_definition
 
 
-def search_recorded_cat(market_path: str):
+def search_recorded_cat(market_path: str) -> Optional[MarketCatalogue]:
     """
     get catalogue from a recorded market, given its directory path
     """
@@ -166,7 +167,7 @@ def search_recorded_cat(market_path: str):
     return None
 
 
-def search_recorded_stream(api_client: APIClient, market_path: str):
+def search_recorded_stream(api_client: APIClient, market_path: str) -> Optional[Queue]:
     """
     get recorded stream market, given its directory path
     """
