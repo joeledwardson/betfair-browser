@@ -157,10 +157,48 @@ def decorator_timer(func):
     return wrapper_timer
 
 
+def timing_register_method(name_attr):
+    """
+    register a function name
+    """
+
+    def outer(method):
+
+        # preserve function information
+        @functools.wraps(method)
+        def inner(self, *args, **kwargs):
+
+            # gets time in seconds (with decimal places)
+            start_time = time.perf_counter()
+
+            # execute function and store output
+            val = method(self, *args, **kwargs)
+
+            # get time after function complete
+            end_time = time.perf_counter()
+
+            # add execution time to list
+            elapsed_time = end_time - start_time
+
+            # use object name with method name for key
+            nm = getattr(self, name_attr) + '.' + method.__name__
+            if nm not in _function_timings:
+                _function_timings[nm] = list()
+            _function_timings[nm].append(timedelta(seconds=elapsed_time))
+
+            return val
+
+        return inner
+
+    return outer
+
+
 def timing_register(func):
     """
     register a function for execution times to be logged
     """
+
+    # return _wrapper_timer(func.__name__)(func)
 
     # create empty list for runtimes
     _function_timings[func.__name__] = []
@@ -187,35 +225,35 @@ def timing_register(func):
     return wrapper_timer
 
 
-def timing_method_register(func):
-    """
-    register a class method for execution times to be logged
-    """
-
-    # preserve function information
-    @functools.wraps(func)
-    def wrapper_timer(self, *args, **kwargs):
-        name = self.__class__.__name__ + '.' + func.__name__
-        if name not in _function_timings:
-            _function_timings[name] = []
-
-        # gets time in seconds (with decimal places)
-        start_time = time.perf_counter()
-
-        # execute function and store output
-        val = func(self, *args, **kwargs)
-
-        # get time after function complete
-        end_time = time.perf_counter()
-
-        # add execution time to list
-        elapsed_time = end_time - start_time
-
-        _function_timings[name].append(timedelta(seconds=elapsed_time))
-
-        return val
-
-    return wrapper_timer
+# def timing_method_register(func):
+#     """
+#     register a class method for execution times to be logged
+#     """
+#
+#     # preserve function information
+#     @functools.wraps(func)
+#     def wrapper_timer(self, *args, **kwargs):
+#         name = self.__class__.__name__ + '.' + func.__name__
+#         if name not in _function_timings:
+#             _function_timings[name] = []
+#
+#         # gets time in seconds (with decimal places)
+#         start_time = time.perf_counter()
+#
+#         # execute function and store output
+#         val = func(self, *args, **kwargs)
+#
+#         # get time after function complete
+#         end_time = time.perf_counter()
+#
+#         # add execution time to list
+#         elapsed_time = end_time - start_time
+#
+#         _function_timings[name].append(timedelta(seconds=elapsed_time))
+#
+#         return val
+#
+#     return wrapper_timer
 
 
 def get_function_timings(func_name) -> pd.Series:
