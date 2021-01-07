@@ -87,13 +87,13 @@ def smooth_value_processors(ticks_feature_name, max_diff_feature) -> List[Dict]:
         'name': 'plotly_set_attrs',
         'kwargs': {
             'attr_configs': [{
-                'feature_name': ticks_feature_name + '.regression',
+                'feature_name': ticks_feature_name + '.reg',
                 'attr_names': ['text_regression', 'marker_color'],
             }, {
                 'feature_name': ticks_feature_name,
                 'attr_names': ['text_ticks'],
             }, {
-                'feature_name': ticks_feature_name + '.comparison',
+                'feature_name': ticks_feature_name + '.cmp',
                 'attr_names': ['text_tick_comparison'],
             }, {
                 'feature_name': max_diff_feature,
@@ -215,23 +215,23 @@ def tv_bar_value_processors(tv_name, tv_bar_width_ms):
 
 
 IGNORE_LIST = [
-    'back ladder',
-    'lay ladder',
+    'bcklad',
+    'laylad',
     'wom',
     'spread',
     'tv',
-    'ltp max diff',
-    'best back max diff',
-    'best lay max diff',
-    'ltp smoothed ticks',
-    'ltp smoothed ticks.regression',
-    'ltp smoothed ticks.comparison',
-    'best back smoothed ticks',
-    'best back smoothed ticks.regression',
-    'best back smoothed ticks.comparison',
-    'best lay smoothed ticks',
-    'best lay smoothed ticks.regression',
-    'best lay smoothed ticks.comparison',
+    'ltpdif',
+    'bckdif',
+    'laydif',
+    'ltpsmt',
+    'ltpsmt.reg',
+    'ltpsmt.cmp',
+    'bcksmt',
+    'bcksmt.reg',
+    'bcksmt.cmp',
+    'laysmt',
+    'laysmt.reg',
+    'laysmt.cmp',
 ]
 
 
@@ -239,18 +239,18 @@ def get_trend_plot_configs(tv_bar_width_ms, tv_opacity):
 
     return {
 
-        'best back': {
+        'bck': {
             'chart_args': {
                 'visible': 'legendonly',
             },
-            'value_processors': ladder_value_processors('back ladder'),
+            'value_processors': ladder_value_processors('bcklad'),
         },
 
-        'best lay': {
+        'lay': {
             'chart_args': {
                 'visible': 'legendonly',
             },
-            'value_processors': ladder_value_processors('lay ladder'),
+            'value_processors': ladder_value_processors('laylad'),
         },
 
         'ltp': {
@@ -264,49 +264,54 @@ def get_trend_plot_configs(tv_bar_width_ms, tv_opacity):
             },
         },
 
-        'book split': {
+        'split': {
             'chart': 'Bar',
             # default plotly colours go white, so use a green to red scale
-            'chart_args': bar_chart_kwargs('rgb(250,50,50)', 'rgb(50,250,50)', tv_opacity, tv_bar_width_ms),
+            'chart_args': bar_chart_kwargs(
+                'rgb(250,50,50)',
+                'rgb(50,250,50)',
+                tv_opacity,
+                tv_bar_width_ms
+            ),
             'trace_args': {
                 'secondary_y': True
             },
             'value_processors':tv_bar_value_processors('tv', tv_bar_width_ms),
         },
 
-        'ltp smoothed': {
+        'ltpsm': {
             # yellow to blue scale
             'chart_args': smooth_chart_kwargs(
                 color_0='rgb(255,255,0)',
                 color_1='rgb(0,0,255)',
             ),
             'value_processors': smooth_value_processors(
-                ticks_feature_name='ltp smoothed ticks',
-                max_diff_feature='ltp max diff',
+                ticks_feature_name='ltpsmt',
+                max_diff_feature='ltpdif',
             ),
         },
 
-        'best back smoothed': {
+        'bcksm': {
             # use red to green scale
             'chart_args': smooth_chart_kwargs(
                 color_0='rgb(255,0,0)',
                 color_1='rgb(0,255,0)',
             ),
             'value_processors': smooth_value_processors(
-                ticks_feature_name='best back smoothed ticks',
-                max_diff_feature='best back max diff',
+                ticks_feature_name='bcksmt',
+                max_diff_feature='bckdif',
             )
         },
 
-        'best lay smoothed': {
+        'laysm': {
             # use red to green scale
             'chart_args': smooth_chart_kwargs(
                 color_0='rgb(255,0,0)',
                 color_1='rgb(0,255,0)',
             ),
             'value_processors': smooth_value_processors(
-                ticks_feature_name='best lay smoothed ticks',
-                max_diff_feature='best lay max diff',
+                ticks_feature_name='laysmt',
+                max_diff_feature='laydif',
             )
         },
 

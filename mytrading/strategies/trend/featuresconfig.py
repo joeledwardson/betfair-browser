@@ -42,13 +42,13 @@ def smoothing_trend_kwargs(
             },
         }],
         'sub_features_config': {
-            'regression': {
+            'reg': {
                 'name': 'RunnerFeatureSubRegression',
                 'kwargs': {
                     'element_count': regression_count,
                 },
             },
-            'comparison': {
+            'cmp': {
                 'name': 'RunnerFeatureSubDelayComparison',
                 'kwargs': {
                     'delay_seconds': delay_feature_s,
@@ -132,29 +132,29 @@ def get_trend_feature_configs(
             }
         },
 
-        'best back max diff': biggest_diff_feature(
+        'bckdif': biggest_diff_feature(
             diff_s=diff_s,
             window_var='window_backs',
             window_func_key='window_func_best_back',
         ),
 
-        'best lay max diff': biggest_diff_feature(
+        'laydif': biggest_diff_feature(
             diff_s=diff_s,
             window_var='window_lays',
             window_func_key='window_func_best_lay'
         ),
 
-        'ltp max diff': biggest_diff_feature(
+        'ltpdif': biggest_diff_feature(
             diff_s=diff_s,
             window_var='window_ltps',
             window_func_key='window_func_ltp',
         ),
 
-        'best lay': {
+        'lay': {
             'name': 'RunnerFeatureBestLay',
         },
 
-        'best back': {
+        'bck': {
             'name': 'RunnerFeatureBestBack',
         },
 
@@ -162,14 +162,14 @@ def get_trend_feature_configs(
             'name': 'RunnerFeatureLTP',
         },
 
-        'back ladder': {
+        'bcklad': {
             'name': 'RunnerFeatureBackLadder',
             'kwargs': {
                 'n_elements': n_ladder_elements,
             }
         },
 
-        'lay ladder': {
+        'laylad': {
             'name': 'RunnerFeatureLayLadder',
             'kwargs': {
                 'n_elements': n_ladder_elements,
@@ -183,16 +183,16 @@ def get_trend_feature_configs(
             },
         },
 
-        'book split': {
+        'split': {
             'name': 'RunnerFeatureBookSplitWindow',
         },
 
-        'ltp min': {
+        'ltpmin': {
             'name': 'RunnerFeatureTradedWindowMin',
             'kwargs': ltp_window_kwargs(ltp_window_sampling_ms, ltp_window_width_s, ltp_window_sampling_count),
         },
 
-        'ltp max': {
+        'ltpmax': {
             'name': 'RunnerFeatureTradedWindowMax',
             'kwargs': ltp_window_kwargs(ltp_window_sampling_ms, ltp_window_width_s, ltp_window_sampling_count),
         },
@@ -201,7 +201,7 @@ def get_trend_feature_configs(
             'name': 'RunnerFeatureTVTotal',
         },
 
-        'best back smoothed': {
+        'bcksm': {
             'name': 'RunnerFeatureBestBack',
             'kwargs': smoothing_kwargs(
                 ladder_sampling_ms,
@@ -209,7 +209,7 @@ def get_trend_feature_configs(
             )
         },
 
-        'best lay smoothed': {
+        'laysm': {
             'name': 'RunnerFeatureBestLay',
             'kwargs': smoothing_kwargs(
                 ladder_sampling_ms,
@@ -217,7 +217,7 @@ def get_trend_feature_configs(
             )
         },
 
-        'ltp smoothed': {
+        'ltpsm': {
             'name': 'RunnerFeatureLTP',
             'kwargs': smoothing_kwargs(
                 ltp_sampling_ms,
@@ -225,7 +225,7 @@ def get_trend_feature_configs(
             )
         },
 
-        'best back smoothed ticks': {
+        'bcksmt': {
             'name': 'RunnerFeatureBestBack',
             'kwargs': smoothing_trend_kwargs(
                 ladder_sampling_ms,
@@ -235,7 +235,7 @@ def get_trend_feature_configs(
             )
         },
 
-        'best lay smoothed ticks': {
+        'laysmt': {
             'name': 'RunnerFeatureBestLay',
             'kwargs': smoothing_trend_kwargs(
                 ladder_sampling_ms,
@@ -245,7 +245,7 @@ def get_trend_feature_configs(
             )
         },
 
-        'ltp smoothed ticks': {
+        'ltpsmt': {
             'name': 'RunnerFeatureLTP',
             'kwargs': smoothing_trend_kwargs(
                 ltp_sampling_ms,

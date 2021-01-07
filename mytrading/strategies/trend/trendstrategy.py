@@ -218,9 +218,9 @@ class MyTrendStrategy(MyFeatureStrategy):
         trend_data.ltp_tick_movement = self.tick_comp(smoothed_ltp)
 
         # set max tick movement values
-        trend_data.back_max_diff_ticks = features['best back max diff'].last_value()
-        trend_data.lay_max_diff_ticks = features['best lay max diff'].last_value()
-        trend_data.ltp_max_diff_ticks = features['ltp max diff'].last_value()
+        trend_data.back_max_diff_ticks = features['bckdif'].last_value()
+        trend_data.lay_max_diff_ticks = features['laydif'].last_value()
+        trend_data.ltp_max_diff_ticks = features['ltpdif'].last_value()
 
         # get ID for shortest runner from LTPs
 
