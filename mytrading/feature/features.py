@@ -112,7 +112,7 @@ class RunnerFeatureBase:
         for sub_feature in self.sub_features.values():
             sub_feature.race_initializer(selection_id, first_book, windows)
 
-    @mytiming.timing_register_method(name_attr='ftr_identifier')
+    @mytiming.timing_register_attr(name_attr='ftr_identifier')
     def process_runner(
             self, market_list: List[MarketBook],
             new_book: MarketBook,

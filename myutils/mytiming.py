@@ -205,11 +205,8 @@ def timing_register_attr(name_attr):
 
 def timing_register(func):
     """
-    register a function for execution times to be logged
+    register a function for execution times to be logged, using function name as key to register
     """
-
-    # return _wrapper_timer(func.__name__)(func)
-
     # create empty list for runtimes
     _function_timings[func.__name__] = []
 
@@ -235,7 +232,7 @@ def timing_register(func):
     return wrapper_timer
 
 
-def timing_method_register(func):
+def timing_register_method(func):
     """
     register a class method for execution times to be logged
     """

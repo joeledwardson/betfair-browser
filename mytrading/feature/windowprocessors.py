@@ -4,6 +4,7 @@ from typing import List
 from betfairlightweight.resources import MarketBook
 from betfairlightweight.resources.bettingresources import RunnerBook
 
+from myutils import mytiming
 from myutils.myregistrar import MyRegistrar
 from .featureprocessors import get_feature_processor
 from ..process.prices import best_price
@@ -37,7 +38,9 @@ class WindowProcessorBase:
     window itself, only exception is constants defined in the class
     """
 
-    def __init__(self, window: dict):
+    def __init__(self, window: dict, window_s):
+        self.window_s = window_s
+        self.wp_identifier = self.__class__.__name__ + str(window_s)
         pass
 
     def process_window(self, market_list: List[MarketBook], new_book: MarketBook, window: dict):
@@ -52,10 +55,11 @@ class WindowProcessorTradedVolumeLadder(WindowProcessorBase):
     Stores a 'tv_diff_totals' dict attribute in window, key is selection ID, value is sum of 'price' elements in ladder
     """
 
-    def __init__(self, window: dict):
-        super().__init__(window)
+    def __init__(self, window: dict, window_s):
+        super().__init__(window, window_s)
         window['old_tv_ladders'] = {}
 
+    @mytiming.timing_register_attr(name_attr='wp_identifier')
     def process_window(self, market_list: List[MarketBook], new_book: MarketBook, window: dict):
 
         # check if window start index has changed
@@ -101,6 +105,7 @@ class WindowProcessorFeatureBase(WindowProcessorBase):
     def __init__(
             self,
             window: dict,
+            window_s,
             window_var: str,
             window_func_key: str,
             inside_window=True,
@@ -108,7 +113,8 @@ class WindowProcessorFeatureBase(WindowProcessorBase):
             feature_processor_kwargs=None,
     ):
         """initialise by creating empty dict in window using attribute key"""
-        super().__init__(window)
+        super().__init__(window, window_s)
+        self.wp_identifier = self.wp_identifier + '.' + window_func_key
 
         # key in window dictionary to store attribute values
         self.window_var: str = window_var
@@ -126,6 +132,7 @@ class WindowProcessorFeatureBase(WindowProcessorBase):
 
         window[self.window_var] = {}
 
+    @mytiming.timing_register_attr(name_attr='wp_identifier')
     def process_window(self, market_list: List[MarketBook], new_book: MarketBook, window: dict):
 
         # get starting index of window, add 1 if only taking values inside window
@@ -194,42 +201,42 @@ class WindowProcessorFeatureBase(WindowProcessorBase):
 
 
 # TODO - depreciated?
-class WindowProcessorDelayerBase(WindowProcessorBase):
-    """return a delayed window value"""
-
-    # key to base value in window of which to be delayed
-    base_key: str = None
-
-    # key to list in window storing base values
-    hist_key: str = None
-
-    # key to value in dictionary storing delayed value
-    delay_key: str = None
-
-    def __init__(self, window: dict, delay_seconds: float, **kwargs):
-        super().__init__(window, **kwargs)
-        self.delay_seconds = delay_seconds
-        window[self.delay_key] = {} # assuming index by runner ID
-        window[self.hist_key] = []
-
-    def process_window(
-            self,
-            market_list: List[MarketBook],
-            new_book: MarketBook,
-            window: dict,
-            **kwargs
-    ):
-        # get new window value and add to historic list of not None
-        new_value = window[self.base_key]
-        if new_value:
-            window[self.hist_key].push({'dt': new_book.publish_time, 'value': new_value})
-
-        # remove all values, prior (getting second from bottom element) to element outside range
-        while len(window[self.hist_key]) >= 2:
-            if window[self.hist_key][1]['dt'] < (new_book.publish_time - timedelta(seconds=self.delay_seconds)):
-                break
-
-        # check list not empty before assigning
-        if len(window[self.hist_key]):
-            window[self.delay_key] = window[self.hist_key][0]
-
+# class WindowProcessorDelayerBase(WindowProcessorBase):
+#     """return a delayed window value"""
+#
+#     # key to base value in window of which to be delayed
+#     base_key: str = None
+#
+#     # key to list in window storing base values
+#     hist_key: str = None
+#
+#     # key to value in dictionary storing delayed value
+#     delay_key: str = None
+#
+#     def __init__(self, window: dict, window_s, delay_seconds: float):
+#         super().__init__(window, window_s)
+#         self.delay_seconds = delay_seconds
+#         window[self.delay_key] = {} # assuming index by runner ID
+#         window[self.hist_key] = []
+#
+#     def process_window(
+#             self,
+#             market_list: List[MarketBook],
+#             new_book: MarketBook,
+#             window: dict,
+#             **kwargs
+#     ):
+#         # get new window value and add to historic list of not None
+#         new_value = window[self.base_key]
+#         if new_value:
+#             window[self.hist_key].push({'dt': new_book.publish_time, 'value': new_value})
+#
+#         # remove all values, prior (getting second from bottom element) to element outside range
+#         while len(window[self.hist_key]) >= 2:
+#             if window[self.hist_key][1]['dt'] < (new_book.publish_time - timedelta(seconds=self.delay_seconds)):
+#                 break
+#
+#         # check list not empty before assigning
+#         if len(window[self.hist_key]):
+#             window[self.delay_key] = window[self.hist_key][0]
+#

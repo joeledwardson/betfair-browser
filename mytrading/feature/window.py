@@ -1,5 +1,5 @@
 from betfairlightweight.resources.bettingresources import MarketBook
-
+from myutils import mytiming
 from .windowprocessors import window_registrar
 from typing import List, Dict
 
@@ -72,10 +72,11 @@ class Windows:
             'kwargs': kwargs,
         })
         window['function_instances'].append(
-            window_registrar[function_key](window, **kwargs)
+            window_registrar[function_key](window, width_seconds, **kwargs)
         )
 
     # update windows with a new received market book
+    @mytiming.timing_register
     def update_windows(self, market_list: List[MarketBook], new_book: MarketBook):
 
         # loop windows

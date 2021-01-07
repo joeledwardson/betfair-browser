@@ -292,7 +292,7 @@ def figure_callback(app: dash.Dash, dd: DashData, input_dir: str):
             )
 
         if sel_ids and tmr_vals:
-            tms = mytiming.timings_summary()
+            tms = mytiming.get_timings_summary()
             mytiming.clear_timing_register()
             if not tms:
                 active_logger.warning('no timings on which to produce table')
