@@ -5,9 +5,21 @@ from betfairlightweight.resources.bettingresources import MarketCatalogue
 from betfairlightweight.filters import market_filter
 from mytrading.process.times import bf_dt
 import pandas as pd
+import logging
 from myutils.generic import dgetattr
+import yaml
+
 
 MAX_CATALOGUES = 1000
+EVENT_IDS_FILE = 'EventTypeIds.yaml'
+
+active_logger = logging.getLogger(__name__)
+event_id_lookup = {}
+try:
+    with open('EventTypeIds.yaml', 'r') as fp:
+        event_id_lookup = yaml.load(fp, Loader=yaml.FullLoader)
+except Exception as e:
+    active_logger.warning(f'failed to get event ID lookup: {e}')
 
 
 def bf_list_market_catalogue(
@@ -73,3 +85,6 @@ def bf_catalogues_to_df(market_catalogues: List[MarketCatalogue], attrs: Optiona
         for cat in market_catalogues
     ]
     return pd.DataFrame(data)
+
+
+
