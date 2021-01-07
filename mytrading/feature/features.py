@@ -61,11 +61,21 @@ class RunnerFeatureBase:
             periodic_timestamps: bool = False,
             sub_features_config: Optional[Dict] = None,
             parent: Optional[RunnerFeatureBase] = None,
+            feature_key=None,
     ):
 
         self.parent: RunnerFeatureBase = parent
         self.windows: Windows = None
         self.selection_id: int = None
+        if feature_key:
+            self.ftr_identifier = feature_key
+        else:
+            self.ftr_identifier = self.__class__.__name__
+        if self.parent:
+            self.ftr_identifier = '.'.join([
+                self.parent.ftr_identifier,
+                self.ftr_identifier
+            ])
 
         self.values = []
         self.dts = []
@@ -102,7 +112,7 @@ class RunnerFeatureBase:
         for sub_feature in self.sub_features.values():
             sub_feature.race_initializer(selection_id, first_book, windows)
 
-    @mytiming.timing_method_register
+    @mytiming.timing_register_method(name_attr='ftr_identifier')
     def process_runner(
             self, market_list: List[MarketBook],
             new_book: MarketBook,

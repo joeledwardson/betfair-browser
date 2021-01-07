@@ -20,7 +20,7 @@ def generate_features(
     features = dict()
     for name, conf in feature_configs.items():
         feature_class = features_dict[conf['name']]
-        features[name] = feature_class(**conf.get('kwargs', {}))
+        features[name] = feature_class(**conf.get('kwargs', {}), feature_key=name)
     return features
 
 
