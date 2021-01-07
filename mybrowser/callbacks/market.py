@@ -42,7 +42,7 @@ def market_callback(app: dash.Dash, dd: DashData, input_dir: str):
     @app.callback(
         output=[
             Output('table-runners', 'data'),
-            Output('table-market', 'data'),
+            # Output('table-market', 'data'),
             Output('intermediary-market', 'children'),
             Output('infobox-market', 'children'),
         ],
@@ -124,14 +124,14 @@ def market_callback(app: dash.Dash, dd: DashData, input_dir: str):
             df_runners['Profit'] = display_profits
 
             # create records to pass in callback for table update
-            tbl_market = [{
-                'Attribute': k,
-                'Value': getattr(dd.market_info, k)
-            } for k in ['event_name', 'market_time', 'market_type']]
+            # tbl_market = [{
+            #     'Attribute': k,
+            #     'Value': getattr(dd.market_info, k)
+            # } for k in ['event_name', 'market_time', 'market_type']]
 
         return [
             df_runners.to_dict('records'),
-            tbl_market,
+            # tbl_market,
             counter.next(),
             html.P(market_description)
         ]

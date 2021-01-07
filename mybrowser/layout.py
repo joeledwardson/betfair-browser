@@ -130,13 +130,13 @@ def get_layout(
                     'margin': 10,
                 },
                 children=[
-                    html.H2(
-                        children='Event Information'
-                    ),
+                    # html.H2(
+                    #     children='Event Information'
+                    # ),
 
-                    html.Div(
-                        children=get_market_table(height=140, width=600)
-                    ),
+                    # html.Div(
+                    #     children=get_market_table(height=140, width=600)
+                    # ),
 
                     html.H2(
                         children='Feature Config Selection'
