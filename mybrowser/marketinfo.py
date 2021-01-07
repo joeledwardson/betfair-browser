@@ -1,7 +1,7 @@
 from __future__ import annotations
 from betfairlightweight.resources.streamingresources import MarketDefinition
 from betfairlightweight.resources.bettingresources import MarketCatalogue, MarketBook
-from typing import Dict
+from typing import Dict, Optional
 
 from mytrading.process import times as processtimes
 from mytrading.process import names as processnames
@@ -9,12 +9,14 @@ from mytrading.process import names as processnames
 
 class MarketInfo:
     def __init__(self):
+        self.betting_type = ''
+        self.event_type_id = 0
         self.event_name = ''
         self.market_time = None
         self.market_type = ''
         self.names = {}
-        self.catalogue: MarketCatalogue = None
-        self.market_def: MarketDefinition = None
+        self.catalogue: Optional[MarketCatalogue] = None
+        self.market_def: Optional[MarketDefinition] = None
 
         # market ID
         self.market_id = ''
@@ -23,6 +25,8 @@ class MarketInfo:
     def from_historical(cls, market_definition: MarketDefinition, first_record: MarketBook) -> MarketInfo:
         instance = cls()
 
+        instance.betting_type = market_definition.betting_type
+        instance.event_type_id = market_definition.event_type_id
         instance.event_name = market_definition.event_name
         instance.market_time = market_definition.market_time
         instance.market_type = market_definition.market_type
@@ -38,6 +42,8 @@ class MarketInfo:
     def from_catalogue(cls, catalogue: MarketCatalogue) -> MarketInfo:
         instance = cls()
 
+        instance.betting_type = catalogue.description.betting_type
+        instance.event_type_id = catalogue.event_type.id
         instance.event_name = catalogue.event.name
         instance.market_time = catalogue.market_start_time
         instance.market_type = catalogue.description.market_type if catalogue.description else ''
@@ -50,12 +56,14 @@ class MarketInfo:
         return instance
 
     def clear(self):
+        self.betting_type = ''
+        self.event_type_id = 0
         self.event_name = ''
         self.market_time = None
         self.market_type = ''
         self.names = {}
-        self.catalogue: MarketCatalogue = None
-        self.market_def: MarketDefinition = None
+        self.catalogue = None
+        self.market_def = None
         self.market_id = ''
 
     def __repr__(self):
