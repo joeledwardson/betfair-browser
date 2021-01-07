@@ -59,7 +59,7 @@ def format_timedelta(td: timedelta, fmt: str = '{h:02}:{m:02}:{s:02}') -> str:
     formatters = {
         'u':    td.microseconds,
         'ms':   int(td.microseconds / 1000),
-        's':    td.seconds,
+        's':    int(s) % 60,
         'm':    int(s / 60) % 60,
         'h':    int(s / (60 * 60)) % 24,
         'd':    td.days,
