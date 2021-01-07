@@ -269,7 +269,7 @@ def get_timed_functions() -> List[str]:
     return list(_function_timings.keys())
 
 
-def print_timings_summary():
+def print_timings_summary() -> None:
     """
     plot timings results for each timed function
     """
@@ -281,33 +281,36 @@ def print_timings_summary():
         print('\n')
 
 
-def table_timings_summary(td_fmt='{d}d {h:02}:{m:02}:{s:02}.{ms:03}'):
+def timings_summary() -> List[Dict]:
     """
-    create plotly table of timed function results
-    `td_fmt` specifies timedelta formatting string applied,
+    get a list of dictionaries with function timings information:
+    'Function' is function name
+    'Count' is number of times function was recorded
+    'Mean' is mean of timings as timedelta object
+    'Min' is minimum time as timedelta object
+    'Max' is maximum time as timedelta object
     """
-    results = {
-        k: pd.Series(v).describe()
-        for k, v in _function_timings.items() if v
-    }
-    if not results:
-        active_logger.warning('could not find any function timings to print in table')
-        return
+    results = []
+    for k, v in _function_timings.items():
+        if v:
+            results.append({
+                'Function': k,
+                'Count': len(v),
+                'Mean': sum(v, timedelta())/len(v),
+                'Min': min(v),
+                'Max': max(v),
+            })
+    return results
 
-    df = pd.DataFrame.from_dict(results, orient='index')
-    f = partial(format_timedelta, fmt=td_fmt)
-    df.loc[:, df.columns != 'count'] = df.loc[:, df.columns != 'count'].applymap(f)
-    create_plotly_table(df, 'hello', index_name='function').show()
 
-
-def clear_timing_function(func_name: str):
+def clear_timing_function(func_name: str) -> None:
     """
     empty specific timed function
     """
     _function_timings[func_name].clear()
 
 
-def clear_timing_register():
+def clear_timing_register() -> None:
     """
     empty lists of timed functions results
     """
