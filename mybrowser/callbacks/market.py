@@ -1,6 +1,7 @@
 import dash
-import pandas as pd
 from dash.dependencies import Output, Input, State
+import dash_html_components as html
+import pandas as pd
 from typing import List
 from betfairlightweight.resources.bettingresources import MarketBook
 from datetime import datetime
@@ -12,7 +13,7 @@ from ..tables.market import get_records_market
 from ..marketinfo import MarketInfo
 
 from mytrading.process import prices
-from mytrading.utils import storage
+from mytrading.utils import storage, betfair
 from myutils import generic
 
 active_logger = logging.getLogger(__name__)
@@ -42,7 +43,8 @@ def market_callback(app: dash.Dash, dd: DashData, input_dir: str):
         output=[
             Output('table-runners', 'data'),
             Output('table-market', 'data'),
-            Output('intermediary-market', 'children')
+            Output('intermediary-market', 'children'),
+            Output('infobox-market', 'children'),
         ],
         inputs=[
             Input('button-runners', 'n_clicks')
@@ -75,8 +77,18 @@ def market_callback(app: dash.Dash, dd: DashData, input_dir: str):
 
             # fail - reset record list and market info
             dd.clear_market()
+            market_description = 'no market loaded'
 
         else:
+
+            market_description = '{sport} - {event} - {time} - {mkt_type} - {bet_type} - {mkt_id}'.format(
+                sport=betfair.event_id_lookup.get(market_info.event_type_id, 'sport unrecognised'),
+                event=market_info.event_name,
+                time=market_info.market_time,
+                mkt_type=market_info.market_type,
+                bet_type=market_info.betting_type,
+                mkt_id=market_info.market_id,
+            )
 
             # set record list and market info
             dd.record_list = record_list
@@ -121,4 +133,5 @@ def market_callback(app: dash.Dash, dd: DashData, input_dir: str):
             df_runners.to_dict('records'),
             tbl_market,
             counter.next(),
+            html.P(market_description)
         ]

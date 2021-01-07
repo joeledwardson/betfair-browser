@@ -116,6 +116,8 @@ def get_layout(
                         ]
                     ),
 
+                    html.Div(children=[], id='infobox-market'),
+
                     html.Div(
                         children=get_runners_table(height=200),
                     ),
