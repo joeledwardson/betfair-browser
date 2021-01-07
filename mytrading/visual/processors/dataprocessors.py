@@ -254,14 +254,25 @@ def plotly_df_text_join(data: pd.DataFrame, features_data, dest_col: str, source
     if not data.shape[0]:
         return data
 
-    # fill blank text entries
-    data[source_cols] = data[source_cols].fillna('')
+    # select non-empty cols
+    cols = []
+    for col in source_cols:
+        if col in data.columns:
+            cols.append(col)
+        else:
+            active_logger.warning(f'column {col} not found in columns')
 
-    # join using HTML newline character text columns into destination column
-    data[dest_col] = data[source_cols].agg('<br>'.join, axis=1)
+    if cols:
 
-    # drop source columns
-    return data.drop(source_cols, axis=1)
+        # fill blank text entries
+        data[cols] = data[cols].fillna('')
 
+        # join using HTML newline character text columns into destination column
+        data[dest_col] = data[cols].agg('<br>'.join, axis=1)
+
+        # drop source columns
+        data = data.drop(cols, axis=1)
+
+    return data
 
 
