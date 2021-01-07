@@ -296,11 +296,12 @@ def figure_callback(app: dash.Dash, dd: DashData, input_dir: str):
             mytiming.clear_timing_register()
             if not tms:
                 active_logger.warning('no timings on which to produce table')
+            tms = sorted(tms, key=lambda v: v['Mean'], reverse=True)
             td_fmt = '{d}d {h:02}:{m:02}:{s:02}.{u:06}'
             f = partial(mytiming.format_timedelta, fmt=td_fmt)
             tms = [{
-                k: f(v) if k in ['Mean', 'Min', 'Max'] else v
-                for k, v in t.items()
+                k: f(v) if k == 'Mean' else v
+                for k, v in t.items() if k in ['Function', 'Count', 'Mean']
             } for t in tms]
             ret[1] = tms
 

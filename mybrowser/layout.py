@@ -223,8 +223,6 @@ def get_layout(
                                 'Function',
                                 'Count',
                                 'Mean',
-                                'Min',
-                                'Max'
                             ]),
                             height=340,
                         ),
