@@ -2,7 +2,8 @@ from typing import Dict
 
 KEY_SMOOTH = 'sm'
 KEY_TICKS = 't'
-KEY_DIFF = 'dif'
+KEY_MAX_DIF = 'mdf'
+KEY_COMPARE = 'cmp'
 
 
 def smoothing_kwargs(
@@ -24,20 +25,7 @@ def smoothing_kwargs(
     }
 
 
-def smoothing_sub(
-        sampling_ms,
-        sampling_count,
-        subf_config
-):
-    return {
-        KEY_SMOOTH: {
-            'name': 'RunnerFeatureSub',
-            'kwargs': {
-                **smoothing_kwargs(sampling_ms, sampling_count),
-                **(subf_config or {}),
-            }
-        }
-    }
+
 
 
 def smoothing_trend_kwargs(
@@ -112,58 +100,73 @@ def ltp_window_kwargs(ltp_window_sampling_ms, ltp_window_width_s, ltp_window_sam
     }
 
 
-def subf_dif(subf_config, delay_s):
+def subf_maxdif(delay_s, subf_config=None):
     return {
-        KEY_DIFF: {
-            'name': 'RunnerFeatureSubWindow',
-            'kwargs': {
-                'window_processors': [{
-                    'name': 'value_processor_max_dif',
-                }],
-                'delay_seconds': delay_s,
-                'outside_window': True,
-                'sub_features_config': subf_config,
-            },
+        'name': 'RunnerFeatureSubWindow',
+        'kwargs': {
+            'window_processors': [{
+                'name': 'value_processor_max_dif',
+            }],
+            'delay_seconds': delay_s,
+            'outside_window': True,
+            'sub_features_config': subf_config,
         },
     }
 
 
-def subf_tick(subf_config):
+def subf_tick(subf_config=None):
     return {
-        KEY_TICKS: {
-            'name': 'RunnerFeatureSub',
-            'kwargs': {
-                'value_processors_config': [{
-                    'name': 'value_processor_to_tick',
-                }],
-                'sub_features_config': subf_config,
-            },
+        'name': 'RunnerFeatureSub',
+        'kwargs': {
+            'value_processors_config': [{
+                'name': 'value_processor_to_tick',
+            }],
+            'sub_features_config': subf_config,
         },
     }
 
 
-def ltp_minmax(width_s):
+def subf_smooth(
+        sampling_ms,
+        sampling_count,
+        subf_config=None
+):
     return {
-        'min': {
-            'name': 'RunnerFeatureSubWindow',
-            'kwargs': {
-                'window_processors': [{
-                    'name': 'value_processor_min',
-                }],
-                'delay_seconds': width_s,
-                'outside_window': True,
-            }
-        },
-        'max': {
-            'name': 'RunnerFeatureSubWindow',
-            'kwargs': {
-                'window_processors': [{
-                    'name': 'value_processor_max',
-                }],
-                'delay_seconds': width_s,
-                'outside_window': True,
-            }
-        },
+        'name': 'RunnerFeatureSub',
+        'kwargs': {
+            'periodic_ms': sampling_ms,
+            'periodic_timestamps': True,
+            'value_processors_config': [{
+                'name': 'value_processor_moving_average',
+                'kwargs': {
+                    'n_entries': sampling_count
+                },
+            }],
+            'sub_features_config': subf_config,
+        }
+    }
+
+
+def subf_window(wproc, nsec, outside_window, subf_config=None):
+    return {
+        'name': 'RunnerFeatureSubWindow',
+        'window_processors': [{
+            'name': wproc,
+        }],
+        'delay_seconds': nsec,
+        'outside_window': outside_window,
+        'sub_features_config': subf_config,
+    }
+
+
+def subf_cmp(nsecs, subf_config=None):
+    return {
+        'name': 'RunnerFeatureSubDelayComparison',
+        'kwargs': {
+            'delay_seconds': nsecs,
+            'outside_window': True,
+            'sub_features_config': subf_config,
+        }
     }
 
 
@@ -231,8 +234,17 @@ def get_trend_feature_configs(
             'name': 'RunnerFeatureBestLay',
             'kwargs': {
                 'sub_features_config': {
-                    **subf_tick(subf_dif(None, diff_s)),
-                    **smoothing_sub(ladder_sampling_ms, ladder_sampling_count, None)
+                    KEY_TICKS: subf_tick(subf_config={
+                        KEY_MAX_DIF: subf_maxdif(diff_s),
+                        KEY_SMOOTH: subf_smooth(
+                            ladder_sampling_ms,
+                            ladder_sampling_count,
+                            subf_config={
+                                KEY_COMPARE: subf_cmp(diff_s)
+                            }
+                        ),
+                    }),
+                    KEY_SMOOTH: subf_smooth(ladder_sampling_ms, ladder_sampling_count)
                 },
             },
         },
@@ -240,14 +252,29 @@ def get_trend_feature_configs(
         'bck': {
             'name': 'RunnerFeatureBestBack',
             'kwargs': {
-                'sub_features_config': subf_tick(subf_dif(None, diff_s))
-            }
+                'sub_features_config': {
+                    KEY_TICKS: subf_tick(subf_config={
+                        KEY_MAX_DIF: subf_maxdif(diff_s),
+                        KEY_SMOOTH: subf_smooth(
+                            ladder_sampling_ms,
+                            ladder_sampling_count,
+                            subf_config={
+                                KEY_COMPARE: subf_cmp(diff_s)
+                            }
+                        ),
+                    }),
+                    KEY_SMOOTH: subf_smooth(ladder_sampling_ms, ladder_sampling_count)
+                },
+            },
         },
 
         'ltp': {
             'name': 'RunnerFeatureLTP',
             'kwargs': {
-                'sub_features_config': ltp_minmax(ltp_window_width_s)
+                'sub_features_config': {
+                    'min': subf_window('value_processor_max', ltp_window_width_s, False),
+                    'max': subf_window('value_processor_min', ltp_window_width_s, False),
+                },
             }
         },
 
@@ -276,13 +303,7 @@ def get_trend_feature_configs(
             'name': 'RunnerFeatureBookSplitWindow',
             'kwargs': {
                 'sub_features_config': {
-                    'sum': {
-                        'name': 'RunnerFeatureSubSum',
-                        'kwargs': {
-                            'delay_seconds': split_sum_s,
-                            'outside_window': False,
-                        },
-                    },
+                    'sum': subf_window('value_processor_sum', split_sum_s, False),
                 }
             }
         },
@@ -301,58 +322,58 @@ def get_trend_feature_configs(
             'name': 'RunnerFeatureTVTotal',
         },
 
-        'bcksm': {
-            'name': 'RunnerFeatureBestBack',
-            'kwargs': smoothing_kwargs(
-                ladder_sampling_ms,
-                ladder_sampling_count,
-            )
-        },
-
-        'laysm': {
-            'name': 'RunnerFeatureBestLay',
-            'kwargs': smoothing_kwargs(
-                ladder_sampling_ms,
-                ladder_sampling_count,
-            )
-        },
-
-        'ltpsm': {
-            'name': 'RunnerFeatureLTP',
-            'kwargs': smoothing_kwargs(
-                ltp_sampling_ms,
-                ltp_sampling_count,
-            )
-        },
-
-        'bcksmt': {
-            'name': 'RunnerFeatureBestBack',
-            'kwargs': smoothing_trend_kwargs(
-                ladder_sampling_ms,
-                ladder_sampling_count,
-                ladder_regression_count,
-                delay_feature_s,
-            )
-        },
-
-        'laysmt': {
-            'name': 'RunnerFeatureBestLay',
-            'kwargs': smoothing_trend_kwargs(
-                ladder_sampling_ms,
-                ladder_sampling_count,
-                ladder_regression_count,
-                delay_feature_s,
-            )
-        },
-
-        'ltpsmt': {
-            'name': 'RunnerFeatureLTP',
-            'kwargs': smoothing_trend_kwargs(
-                ltp_sampling_ms,
-                ltp_sampling_count,
-                ltp_regression_count,
-                delay_feature_s,
-            )
-        },
+        # 'bcksm': {
+        #     'name': 'RunnerFeatureBestBack',
+        #     'kwargs': smoothing_kwargs(
+        #         ladder_sampling_ms,
+        #         ladder_sampling_count,
+        #     )
+        # },
+        #
+        # 'laysm': {
+        #     'name': 'RunnerFeatureBestLay',
+        #     'kwargs': smoothing_kwargs(
+        #         ladder_sampling_ms,
+        #         ladder_sampling_count,
+        #     )
+        # },
+        #
+        # 'ltpsm': {
+        #     'name': 'RunnerFeatureLTP',
+        #     'kwargs': smoothing_kwargs(
+        #         ltp_sampling_ms,
+        #         ltp_sampling_count,
+        #     )
+        # },
+        #
+        # 'bcksmt': {
+        #     'name': 'RunnerFeatureBestBack',
+        #     'kwargs': smoothing_trend_kwargs(
+        #         ladder_sampling_ms,
+        #         ladder_sampling_count,
+        #         ladder_regression_count,
+        #         delay_feature_s,
+        #     )
+        # },
+        #
+        # 'laysmt': {
+        #     'name': 'RunnerFeatureBestLay',
+        #     'kwargs': smoothing_trend_kwargs(
+        #         ladder_sampling_ms,
+        #         ladder_sampling_count,
+        #         ladder_regression_count,
+        #         delay_feature_s,
+        #     )
+        # },
+        #
+        # 'ltpsmt': {
+        #     'name': 'RunnerFeatureLTP',
+        #     'kwargs': smoothing_trend_kwargs(
+        #         ltp_sampling_ms,
+        #         ltp_sampling_count,
+        #         ltp_regression_count,
+        #         delay_feature_s,
+        #     )
+        # },
 
     }

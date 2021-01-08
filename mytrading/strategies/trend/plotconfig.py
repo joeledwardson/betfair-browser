@@ -273,7 +273,7 @@ def get_trend_plot_configs(bar_width_ms, tv_opacity):
             'trace_args': {
                 'secondary_y': True
             },
-            'value_processors':tv_bar_value_processors('tv', bar_width_ms),
+            'value_processors': tv_bar_value_processors('tv', bar_width_ms),
         },
 
         'split.sum': {
@@ -285,7 +285,7 @@ def get_trend_plot_configs(bar_width_ms, tv_opacity):
             },
         },
 
-        'ltpsm': {
+        'ltp.sm': {
             # yellow to blue scale
             'chart_args': smooth_chart_kwargs(
                 color_0='rgb(255,255,0)',
