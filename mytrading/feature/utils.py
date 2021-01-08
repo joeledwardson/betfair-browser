@@ -1,10 +1,12 @@
 from typing import Dict
-
+import logging
 from betfairlightweight.resources import MarketBook
 
 from myutils.jsonfile import add_to_file
 from .features import RunnerFeatureBase, features_dict
 from .window import Windows
+
+active_logger = logging.getLogger(__name__)
 
 
 def generate_features(
@@ -19,8 +21,18 @@ def generate_features(
     """
     features = dict()
     for name, conf in feature_configs.items():
+        if type(conf) is not dict:
+            active_logger.warning(f'feature "{name}" config not dict: {conf}')
+            continue
+        if 'name' not in conf:
+            active_logger.warning(f'feature "{name}" does not have "name" attr')
+            continue
         feature_class = features_dict[conf['name']]
-        features[name] = feature_class(**conf.get('kwargs', {}), feature_key=name)
+        kwargs = conf.get('kwargs', {})
+        if type(kwargs) is not dict:
+            active_logger.warning(f'features "{name}" kwargs not dict: {kwargs}')
+            continue
+        features[name] = feature_class(**kwargs, feature_key=name)
     return features
 
 
