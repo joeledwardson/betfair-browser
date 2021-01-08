@@ -87,9 +87,6 @@ def smooth_value_processors(ticks_feature_name, max_diff_feature) -> List[Dict]:
         'name': 'plotly_set_attrs',
         'kwargs': {
             'attr_configs': [{
-                'feature_name': ticks_feature_name + '.reg',
-                'attr_names': ['text_regression', 'marker_color'],
-            }, {
                 'feature_name': ticks_feature_name,
                 'attr_names': ['text_ticks'],
             }, {
