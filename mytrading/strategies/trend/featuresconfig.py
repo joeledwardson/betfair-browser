@@ -157,6 +157,30 @@ def get_trend_feature_configs(
 
         'bck': {
             'name': 'RunnerFeatureBestBack',
+            'kwargs': {
+                'sub_features_config': {
+                    't': {
+                        'name': 'RunnerFeatureSub',
+                        'kwargs': {
+                            'value_processors_config': [{
+                                'name': 'value_processor_to_tick',
+                            }],
+                            'sub_features_config': {
+                                'dif': {
+                                    'name': 'RunnerFeatureSubWindow',
+                                    'kwargs': {
+                                        'window_processors': [{
+                                            'name': 'value_processor_max_dif',
+                                        }],
+                                        'delay_seconds': diff_s,
+                                        'outside_window': True,
+                                    },
+                                },
+                            },
+                        },
+                    },
+                }
+            }
         },
 
         'ltp': {
