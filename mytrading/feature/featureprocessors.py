@@ -14,6 +14,7 @@ from myutils.myregistrar import MyRegistrar
 import statistics
 from datetime import datetime
 from typing import List, Callable, Dict
+import numpy as np
 from ..process.ticks.ticks import closest_tick
 
 runner_feature_value_processors = MyRegistrar()
@@ -69,4 +70,37 @@ def value_processor_to_tick():
     """
     def inner(value, values: List, datetimes: List[datetime]):
         return closest_tick(value, return_index=True)
+    return inner
+
+
+@runner_feature_value_processors.register_element
+def value_processor_max():
+    """
+    get the max value from the list
+    """
+    def inner(value, values: List, datetimes: List[datetime]):
+        return max(values)
+    return inner
+
+
+@runner_feature_value_processors.register_element
+def value_processor_min():
+    """
+    get the minimum value from the list
+    """
+    def inner(value, values: List, datetimes: List[datetime]):
+        return min(values)
+    return inner
+
+
+@runner_feature_value_processors.register_element
+def value_processor_max_dif():
+    """
+    get the max value from the list
+    """
+    def inner(value, values: List, datetimes: List[datetime]):
+        if len(values) >= 2:
+            return max(abs(np.diff(values)).tolist())
+        else:
+            return 0
     return inner

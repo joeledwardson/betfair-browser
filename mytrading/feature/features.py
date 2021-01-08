@@ -541,12 +541,41 @@ class _RunnerFeatureSubDelayer(RunnerFeatureSub):
         self.delay_seconds = delay_seconds
         self.delay_index = 0
         self.outside_window = outside_window
+        self._td = timedelta(seconds=delay_seconds)
         super().__init__(*args, **kwargs)
 
+    @mytiming.timing_register
     def update_delay_index(self, pt):
-        while (self.delay_index + self.outside_window) < len(self.parent.processed_vals) and \
-                (pt - self.parent.dts[self.delay_index + self.outside_window]).total_seconds() > self.delay_seconds:
+        n = len(self.parent.processed_vals)
+        dt = pt - self._td
+        while (self.delay_index + 1) < n and \
+                self.parent.dts[self.delay_index + self.outside_window] < dt:
             self.delay_index += 1
+
+
+@register_feature
+class RunnerFeatureSubWindow(_RunnerFeatureSubDelayer):
+    """
+    perform a feature processor function on windowed parent values
+    """
+    def __init__(self, window_processors: List[Dict], *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.window_processors = get_feature_processors(window_processors)
+
+    def runner_update(
+            self,
+            market_list: List[MarketBook],
+            new_book: MarketBook,
+            windows: Windows,
+            runner_index
+    ):
+        self.update_delay_index(new_book.publish_time)
+        v = self.parent.processed_vals[self.delay_index:]
+        if v:
+            for postproc in self.window_processors:
+                v = postproc(None, v, None)
+            if v is not None:
+                return v
 
 
 @register_feature
