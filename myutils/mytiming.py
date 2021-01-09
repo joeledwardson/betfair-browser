@@ -346,3 +346,41 @@ class RepeatingTimer:
         else:
             return False
 
+
+class TimeSimulator:
+    """
+    simulate a timer from a specified start date
+    """
+
+    def __init__(self):
+        self._start_date = datetime.now()
+        self._timer = MyTimer()
+
+    def start(self):
+        self._timer.start()
+
+    def stop(self):
+        self._timer.stop()
+
+    def reset_start(self, start_date: datetime):
+
+        # stop timer if running
+        running = self._timer._running
+        if running:
+            self._timer.stop()
+
+        # reset counter
+        self._timer.reset()
+
+        # update start date
+        self._start_date = start_date
+
+        # restart timer if was running
+        if running:
+            self._timer.start()
+
+    def seconds_elapsed(self):
+        return self._timer.elapsed
+
+    def current(self):
+        return self._start_date + timedelta(seconds=self._timer.elapsed)
