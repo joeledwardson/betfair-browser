@@ -104,3 +104,13 @@ def value_processor_max_dif():
         else:
             return 0
     return inner
+
+
+@runner_feature_value_processors.register_element
+def value_processor_sum():
+    """
+    sum values in list
+    """
+    def inner(value, values: List, datetimes: List[datetime]):
+        return sum(values)
+    return inner
