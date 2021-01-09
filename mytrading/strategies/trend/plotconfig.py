@@ -82,30 +82,32 @@ def smooth_chart_kwargs(color_0, color_1) -> Dict:
     }
 
 
-def smooth_value_processors(ticks_feature_name, max_diff_feature) -> List[Dict]:
+def smooth_value_processors(ftr_tks, ftr_cmp, ftr_dif) -> List[Dict]:
     return [{
         'name': 'plotly_set_attrs',
         'kwargs': {
             'attr_configs': [{
-                'feature_name': ticks_feature_name,
+                'feature_name': ftr_tks,
                 'attr_names': ['text_ticks'],
             }, {
-                'feature_name': ticks_feature_name + '.cmp',
-                'attr_names': ['text_tick_comparison'],
+                'feature_name': ftr_cmp,
+                'attr_names': ['text_tick_comparison', 'marker_color'],
             }, {
-                'feature_name': max_diff_feature,
+                'feature_name': ftr_dif,
                 'attr_names': ['text_max_diff']
             }],
         },
     },  {
         'name': 'plotly_df_fillna',
-    }, {
-        'name': 'plotly_df_formatter',
-        'kwargs': {
-            'formatter_name': 'formatter_regression',
-            'df_column': 'text_regression',
-        }
-    }, {
+    },
+    # {
+    #     'name': 'plotly_df_formatter',
+    #     'kwargs': {
+    #         'formatter_name': 'formatter_regression',
+    #         'df_column': 'text_regression',
+    #     }
+    # },
+    {
         'name': 'plotly_df_formatter',
         'kwargs': {
             'formatter_name': 'formatter_generic',
@@ -137,19 +139,21 @@ def smooth_value_processors(ticks_feature_name, max_diff_feature) -> List[Dict]:
         'kwargs': {
             'dest_col': 'text',
             'source_cols': [
-                'text_regression',
+                # 'text_regression',
                 'text_ticks',
                 'text_tick_comparison',
                 'text_max_diff'
             ],
         }
-    }, {
-        'name': 'plotly_df_formatter',
-        'kwargs': {
-            'formatter_name': 'formatter_regression_color',
-            'df_column': 'marker_color',
-        }
-    }, {
+    },
+    # {
+    #     'name': 'plotly_df_formatter',
+    #     'kwargs': {
+    #         'formatter_name': 'formatter_regression_color',
+    #         'df_column': 'marker_color',
+    #     }
+    # },
+    {
         'name': 'plotly_df_to_data',
     }]
 
@@ -217,18 +221,18 @@ IGNORE_LIST = [
     'wom',
     'spread',
     'tv',
-    'ltpdif',
-    'bckdif',
-    'laydif',
-    'ltpsmt',
-    'ltpsmt.reg',
-    'ltpsmt.cmp',
-    'bcksmt',
-    'bcksmt.reg',
-    'bcksmt.cmp',
-    'laysmt',
-    'laysmt.reg',
-    'laysmt.cmp',
+    'ltp.t',
+    'bck.t',
+    'lay.t',
+    'ltp.t.mdf',
+    'bck.t.mdf',
+    'lay.t.mdf',
+    'ltp.t.sm',
+    'bck.t.sm',
+    'lay.t.sm',
+    'ltp.t.sm.cmp',
+    'bck.t.sm.cmp',
+    'lay.t.sm.cmp',
 ]
 
 
@@ -292,32 +296,35 @@ def get_trend_plot_configs(bar_width_ms, tv_opacity):
                 color_1='rgb(0,0,255)',
             ),
             'value_processors': smooth_value_processors(
-                ticks_feature_name='ltpsmt',
-                max_diff_feature='ltpdif',
+                ftr_tks='ltp.t.sm',
+                ftr_cmp='ltp.t.sm.cmp',
+                ftr_dif='ltp.t.mdf',
             ),
         },
 
-        'bcksm': {
+        'bck.sm': {
             # use red to green scale
             'chart_args': smooth_chart_kwargs(
                 color_0='rgb(255,0,0)',
                 color_1='rgb(0,255,0)',
             ),
             'value_processors': smooth_value_processors(
-                ticks_feature_name='bcksmt',
-                max_diff_feature='bckdif',
+                ftr_tks='bck.t.sm',
+                ftr_cmp='bck.t.sm.cmp',
+                ftr_dif='bck.t.mdf',
             )
         },
 
-        'laysm': {
+        'lay.sm': {
             # use red to green scale
             'chart_args': smooth_chart_kwargs(
                 color_0='rgb(255,0,0)',
                 color_1='rgb(0,255,0)',
             ),
             'value_processors': smooth_value_processors(
-                ticks_feature_name='laysmt',
-                max_diff_feature='laydif',
+                ftr_tks='lay.t.sm',
+                ftr_cmp='lay.t.sm.cmp',
+                ftr_dif='lay.t.mdf',
             )
         },
 

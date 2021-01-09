@@ -150,12 +150,14 @@ def subf_smooth(
 def subf_window(wproc, nsec, outside_window, subf_config=None):
     return {
         'name': 'RunnerFeatureSubWindow',
-        'window_processors': [{
-            'name': wproc,
-        }],
-        'delay_seconds': nsec,
-        'outside_window': outside_window,
-        'sub_features_config': subf_config,
+            'kwargs': {
+            'window_processors': [{
+                'name': wproc,
+            }],
+            'delay_seconds': nsec,
+            'outside_window': outside_window,
+            'sub_features_config': subf_config,
+        }
     }
 
 
@@ -235,7 +237,11 @@ def get_trend_feature_configs(
             'kwargs': {
                 'sub_features_config': {
                     KEY_TICKS: subf_tick(subf_config={
-                        KEY_MAX_DIF: subf_maxdif(diff_s),
+                        KEY_MAX_DIF: subf_window(
+                            wproc='value_processor_max_dif',
+                            nsec=diff_s,
+                            outside_window=True,
+                        ),
                         KEY_SMOOTH: subf_smooth(
                             ladder_sampling_ms,
                             ladder_sampling_count,
@@ -254,7 +260,11 @@ def get_trend_feature_configs(
             'kwargs': {
                 'sub_features_config': {
                     KEY_TICKS: subf_tick(subf_config={
-                        KEY_MAX_DIF: subf_maxdif(diff_s),
+                        KEY_MAX_DIF: subf_window(
+                            wproc='value_processor_max_dif',
+                            nsec=diff_s,
+                            outside_window=True,
+                        ),
                         KEY_SMOOTH: subf_smooth(
                             ladder_sampling_ms,
                             ladder_sampling_count,
