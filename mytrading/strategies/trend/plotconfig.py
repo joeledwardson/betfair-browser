@@ -21,7 +21,7 @@ def ladder_value_processors(ladder_feature) -> List[Dict]:
     }]
 
 
-def ltp_value_processors(tv_feature, spread_feature, wom_feature) -> List[Dict]:
+def ltp_value_processors(tv_feature, spread_feature, wom_feature, split_feature) -> List[Dict]:
     return [{
         'name': 'plotly_set_attrs',
         'kwargs': {
@@ -31,6 +31,9 @@ def ltp_value_processors(tv_feature, spread_feature, wom_feature) -> List[Dict]:
             }, {
                 'feature_name': spread_feature,
                 'attr_names': ['spread_text'],
+            }, {
+                'feature_name': split_feature,
+                'attr_names': ['split_text'],
             },
             #     {
             #     'feature_name': wom_feature,
@@ -60,6 +63,17 @@ def ltp_value_processors(tv_feature, spread_feature, wom_feature) -> List[Dict]:
             }
         }
     },
+    {
+        'name': 'plotly_df_formatter',
+        'kwargs': {
+            'formatter_name': 'formatter_decimal',
+            'df_column': 'split_text',
+            'formatter_kwargs': {
+                'name': 'book split',
+                'prefix': '£',
+            }
+        }
+    },
     #     {
     #     'name': 'plotly_df_formatter',
     #     'kwargs': {
@@ -71,7 +85,7 @@ def ltp_value_processors(tv_feature, spread_feature, wom_feature) -> List[Dict]:
     #         }
     #     }
     # },
-        {
+    {
         'name': 'plotly_df_text_join',
         'kwargs': {
             'dest_col': 'text',
@@ -79,6 +93,7 @@ def ltp_value_processors(tv_feature, spread_feature, wom_feature) -> List[Dict]:
                 'tv_text',
                 'spread_text',
                 # 'wom_text',
+                'split_text',
             ],
         }
     }, {
@@ -304,6 +319,7 @@ def get_trend_plot_configs(bar_width_ms, tv_opacity):
                 tv_feature='tv',
                 spread_feature='spread',
                 wom_feature='wom',
+                split_feature='split.sum',
             ),
             'chart_args': {
                 'mode': 'lines+markers',
@@ -336,6 +352,9 @@ def get_trend_plot_configs(bar_width_ms, tv_opacity):
         },
 
         'split.tot': {
+            'chart_args': {
+                'texttemplate': "%{label}: £%{value:.2f}",
+            },
             'trace_args': {
                 'secondary_y': True
             },
@@ -347,11 +366,27 @@ def get_trend_plot_configs(bar_width_ms, tv_opacity):
                 color_0='rgb(255,255,0)',
                 color_1='rgb(0,0,255)',
             ),
-            'value_processors': smooth_value_processors(
-                ftr_tks='ltp.t.sm',
-                ftr_cmp='ltp.t.sm.cmp',
-                ftr_dif='ltp.t.mdf',
-            ),
+            'value_processors': [{
+                'name': 'plotly_set_attrs',
+                'kwargs': {
+                    'attr_configs': [{
+                        'feature_name': 'split.sum',
+                        'attr_names': ['text', 'marker_color'],
+                    }],
+                },
+            }, {
+                'name': 'plotly_df_formatter',
+                'kwargs': {
+                    'formatter_name': 'formatter_decimal',
+                    'df_column': 'text',
+                    'formatter_kwargs': {
+                        'name': 'book split',
+                        'n_decimals': 2,
+                    }
+                },
+            }, {
+                'name': 'plotly_df_to_data',
+            }],
         },
 
         'bck.sm': {

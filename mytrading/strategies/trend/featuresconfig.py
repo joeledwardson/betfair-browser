@@ -284,6 +284,7 @@ def get_trend_feature_configs(
                 'sub_features_config': {
                     'min': subf_window('value_processor_max', ltp_window_width_s, False),
                     'max': subf_window('value_processor_min', ltp_window_width_s, False),
+                    KEY_SMOOTH: subf_smooth(ltp_sampling_ms, ltp_sampling_count)
                 },
             }
         },
