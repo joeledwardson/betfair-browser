@@ -95,6 +95,12 @@ def plotly_values_resampler(data: pd.DataFrame, features_data, n_seconds, agg_fu
 
 
 @register_data_processor
+def plotly_values_rolling(data: pd.DataFrame, features_data, n_seconds, agg_function) -> pd.DataFrame:
+    rule = f'{n_seconds}S'
+    return data.rolling(rule).agg(agg_function) if data.shape[0] else data
+
+
+@register_data_processor
 def plotly_data_to_series(data: Dict, features_data) -> pd.Series:
     """
     convert 'data' x-y plotly values (dict with 'x' and 'y' indexed list values) to pandas series where index is 'x'
