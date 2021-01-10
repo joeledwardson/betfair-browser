@@ -21,7 +21,7 @@ def ladder_value_processors(ladder_feature) -> List[Dict]:
     }]
 
 
-def ltp_value_processors(tv_feature, spread_feature) -> List[Dict]:
+def ltp_value_processors(tv_feature, spread_feature, wom_feature) -> List[Dict]:
     return [{
         'name': 'plotly_set_attrs',
         'kwargs': {
@@ -31,7 +31,12 @@ def ltp_value_processors(tv_feature, spread_feature) -> List[Dict]:
             }, {
                 'feature_name': spread_feature,
                 'attr_names': ['spread_text'],
-            }],
+            },
+            #     {
+            #     'feature_name': wom_feature,
+            #     'attr_names': ['wom_text', 'marker_color']
+            # }
+            ],
         }
     }, {
         'name': 'plotly_df_fillna',
@@ -54,13 +59,26 @@ def ltp_value_processors(tv_feature, spread_feature) -> List[Dict]:
                 'prefix': '£',
             }
         }
-    }, {
+    },
+    #     {
+    #     'name': 'plotly_df_formatter',
+    #     'kwargs': {
+    #         'formatter_name': 'formatter_decimal',
+    #         'df_column': 'wom_text',
+    #         'formatter_kwargs': {
+    #             'name': 'weight of money',
+    #             'prefix': '£',
+    #         }
+    #     }
+    # },
+        {
         'name': 'plotly_df_text_join',
         'kwargs': {
             'dest_col': 'text',
             'source_cols': [
                 'tv_text',
                 'spread_text',
+                # 'wom_text',
             ],
         }
     }, {
@@ -110,19 +128,21 @@ def smooth_value_processors(ftr_tks, ftr_cmp, ftr_dif) -> List[Dict]:
     {
         'name': 'plotly_df_formatter',
         'kwargs': {
-            'formatter_name': 'formatter_generic',
+            'formatter_name': 'formatter_decimal',
             'df_column': 'text_ticks',
             'formatter_kwargs': {
                 'name': 'tick index',
+                'n_decimals': 1,
             }
         }
     }, {
         'name': 'plotly_df_formatter',
         'kwargs': {
-            'formatter_name': 'formatter_generic',
+            'formatter_name': 'formatter_decimal',
             'df_column': 'text_tick_comparison',
             'formatter_kwargs': {
                 'name': 'tick difference',
+                'n_decimals': 2,
             }
         }
     }, {
@@ -215,6 +235,31 @@ def tv_bar_value_processors(tv_name, bar_width_ms):
     ]
 
 
+def ltp_value_procs():
+    return [
+        {
+            'name': 'plotly_data_to_series'
+        },
+        {
+            'name': 'plotly_values_resampler',
+            'kwargs': {
+                'n_seconds': 1,
+                'agg_function': 'mean',
+            }
+        }, {
+            'name': 'plotly_df_fillna'
+        }, {
+            'name': 'plotly_values_rolling',
+            'kwargs': {
+                'n_seconds': 3,
+                'agg_function': 'mean',
+            },
+        }, {
+            'name': 'plotly_series_to_data'
+        }
+    ]
+
+
 IGNORE_LIST = [
     'bcklad',
     'laylad',
@@ -257,7 +302,8 @@ def get_trend_plot_configs(bar_width_ms, tv_opacity):
         'ltp': {
             'value_processors': ltp_value_processors(
                 tv_feature='tv',
-                spread_feature='spread'
+                spread_feature='spread',
+                wom_feature='wom',
             ),
             'chart_args': {
                 'mode': 'lines+markers',
@@ -284,6 +330,12 @@ def get_trend_plot_configs(bar_width_ms, tv_opacity):
             'chart_args': {
                 'visible': 'legendonly',
             },
+            'trace_args': {
+                'secondary_y': True
+            },
+        },
+
+        'split.tot': {
             'trace_args': {
                 'secondary_y': True
             },
@@ -326,6 +378,14 @@ def get_trend_plot_configs(bar_width_ms, tv_opacity):
                 ftr_cmp='lay.t.sm.cmp',
                 ftr_dif='lay.t.mdf',
             )
+        },
+
+        'ltp.min': {
+            'value_processors': ltp_value_procs(),
+        },
+
+        'ltp.max': {
+            'value_processors': ltp_value_procs(),
         },
 
         **{f: {'ignore': True} for f in IGNORE_LIST},

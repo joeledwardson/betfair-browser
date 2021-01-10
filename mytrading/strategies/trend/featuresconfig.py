@@ -314,6 +314,14 @@ def get_trend_feature_configs(
             'kwargs': {
                 'sub_features_config': {
                     'sum': subf_window('value_processor_sum', split_sum_s, False),
+                    'tot': {
+                        'name': 'RunnerFeatureSub',
+                        'kwargs': {
+                            'value_processors_config': [{
+                                'name': 'value_processor_sum',
+                            }]
+                        }
+                    }
                 }
             }
         },
