@@ -6,7 +6,6 @@ from typing import List
 from betfairlightweight.resources.bettingresources import MarketBook
 from datetime import datetime
 import logging
-from ..intermediary import Intermediary
 from ..data import DashData
 from ..profit import get_display_profits
 from ..tables.market import get_records_market
@@ -15,9 +14,11 @@ from ..marketinfo import MarketInfo
 from mytrading.process import prices
 from mytrading.utils import storage, betfair
 from myutils import generic
+from myutils.mydash import intermediate
+
 
 active_logger = logging.getLogger(__name__)
-counter = Intermediary()
+counter = intermediate.Intermediary()
 
 
 def log_records_info(record_list: List[List[MarketBook]], market_time: datetime):

@@ -4,11 +4,10 @@ from datetime import datetime
 import sys
 import importlib
 import logging
-from ..intermediary import Intermediary
-
+from myutils.mydash import intermediate
 
 active_logger = logging.getLogger(__name__)
-counter = Intermediary()
+counter = intermediate.Intermediary()
 
 
 def libs_callback(app: dash.Dash):

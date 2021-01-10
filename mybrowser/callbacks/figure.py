@@ -10,8 +10,6 @@ from plotly.graph_objects import Figure
 import logging
 from ..data import DashData
 from ..tables.runners import get_runner_id
-from ..intermediary import Intermediary
-
 from mytrading.tradetracker import orderinfo
 from mytrading.utils import storage as utils_storage
 from mytrading.feature import storage as features_storage
@@ -19,12 +17,13 @@ from mytrading.visual import figure as figurelib
 from mytrading.visual import config as configlib
 from myutils.mydash import context as my_context
 from myutils import mytiming
+from myutils.mydash import intermediate
 
 
 # override visual logger with custom logger
 active_logger = logging.getLogger(__name__)
 figurelib.active_logger = active_logger
-counter = Intermediary()
+counter = intermediate.Intermediary()
 
 
 def get_chart_offset(chart_offset_str) -> Optional[timedelta]:

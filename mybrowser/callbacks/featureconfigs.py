@@ -4,12 +4,12 @@ from dash.dependencies import Output, Input, State
 from typing import Dict, List
 import logging
 from ..data import DashData
-from ..intermediary import Intermediary
+from myutils.mydash import intermediate
 
 from myutils import mypath
 from myutils import jsonfile
 
-counter = Intermediary()
+counter = intermediate.Intermediary()
 active_logger = logging.getLogger(__name__)
 
 

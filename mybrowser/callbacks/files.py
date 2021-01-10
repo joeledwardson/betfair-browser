@@ -2,11 +2,10 @@ import dash
 from dash.dependencies import Output, Input
 from ..data import DashData
 from ..tables.files import get_files_table
-from ..intermediary import Intermediary
-
+from myutils.mydash import intermediate
 from myutils.mydash import context as my_context
 
-counter = Intermediary()
+counter = intermediate.Intermediary()
 
 
 def file_table_callback(app: dash.Dash, dd: DashData, input_dir: str):

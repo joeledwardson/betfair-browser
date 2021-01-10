@@ -4,7 +4,7 @@ from dash.dependencies import Output, Input, State
 import logging
 from ..data import DashData
 from ..tables.runners import get_runner_id
-from ..intermediary import Intermediary
+from myutils.mydash import intermediate
 
 from mytrading.utils import storage
 from mytrading.visual import profits
@@ -12,7 +12,7 @@ from myutils.mydash import context as my_context
 
 
 active_logger = logging.getLogger(__name__)
-counter = Intermediary()
+counter = intermediate.Intermediary()
 
 
 def orders_callback(app: dash.Dash, dd: DashData, input_dir: str):

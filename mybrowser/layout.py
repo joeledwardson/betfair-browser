@@ -3,14 +3,15 @@ from datetime import timedelta
 import dash_html_components as html
 import dash_core_components as dcc
 import pandas as pd
-from .tables.runners import get_runners_table, get_runner_id
-from .tables.market import get_market_table
+
+from .tables.runners import get_runners_table
 from .tables.files import get_files_table, FilesTableProperties
 from .tables.orders import get_orders_table
 from .tables.table import create_table
 from .data import DashData
+from myutils.mydash import intermediate
+from myutils import mytiming
 
-from myutils import mytiming as mytiming
 
 # set files table height as it is needed when re-created in callbacks
 FilesTableProperties.height = '20vh'
@@ -30,14 +31,6 @@ def infobox(height=70, **kwargs) -> html.Div:
     )
 
 
-def hidden_div(div_id) -> html.Div:
-    return html.Div(
-        children='',
-        style={'display': 'none'},
-        id=div_id,
-    )
-
-
 def get_layout(
         input_dir: str,
         dash_data: DashData,
@@ -53,12 +46,12 @@ def get_layout(
             'position': 'relative',
         },
         children=[
-            hidden_div('intermediary-market'),
-            hidden_div('intermediary-featureconfigs'),
-            hidden_div('intermediary-figure'),
-            hidden_div('intermediary-libs'),
-            hidden_div('intermediary-orders'),
-            hidden_div('intermediary-files'),
+            intermediate.hidden_div('intermediary-market'),
+            intermediate.hidden_div('intermediary-featureconfigs'),
+            intermediate.hidden_div('intermediary-figure'),
+            intermediate.hidden_div('intermediary-libs'),
+            intermediate.hidden_div('intermediary-orders'),
+            intermediate.hidden_div('intermediary-files'),
             html.Div(
                 style={
                     'margin': 10,
