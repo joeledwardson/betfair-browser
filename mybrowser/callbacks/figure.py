@@ -279,16 +279,19 @@ def figure_callback(app: dash.Dash, dd: DashData, input_dir: str):
                 return ret
             sel_ids = [sel_id]
 
-        for sel_id in sel_ids:
-            plot_runner(
-                sel_id=sel_id,
-                dd=dd,
-                orders=orders,
-                start=start,
-                end=end,
-                ftr_key=ftr_key,
-                plt_cfg=plt_cfg
-            )
+        try:
+            for sel_id in sel_ids:
+                plot_runner(
+                    sel_id=sel_id,
+                    dd=dd,
+                    orders=orders,
+                    start=start,
+                    end=end,
+                    ftr_key=ftr_key,
+                    plt_cfg=plt_cfg
+                )
+        except (ValueError, TypeError) as e:
+            active_logger.error('plot error', e, exc_info=True)
 
         if sel_ids and tmr_vals:
             tms = mytiming.get_timings_summary()
