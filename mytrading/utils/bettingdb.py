@@ -1,6 +1,4 @@
 from mytrading.utils.storage import get_historical, get_first_book, get_hist_cat
-from mytrading.utils.security import get_api_client
-from mytrading.process.tradedvolume import total_traded_vol
 from mytrading.utils.storage import RE_MARKET_ID, EXT_CATALOGUE, EXT_RECORDED
 from betfairlightweight.resources.streamingresources import MarketDefinition
 from betfairlightweight.resources.bettingresources import MarketCatalogue, MarketBook

@@ -2,12 +2,14 @@ from typing import Optional
 from datetime import timedelta
 import dash_html_components as html
 import dash_core_components as dcc
+import dash_table
 import pandas as pd
 
 from .tables.runners import get_runners_table
 from .tables.files import get_files_table, FilesTableProperties
 from .tables.orders import get_orders_table
 from .tables.table import create_table
+from .callbacks import db
 from .data import DashData
 from myutils.mydash import intermediate
 from myutils import mytiming
@@ -31,6 +33,9 @@ def infobox(height=70, **kwargs) -> html.Div:
     )
 
 
+multi = False
+
+
 def get_layout(
         input_dir: str,
         dash_data: DashData,
@@ -38,6 +43,7 @@ def get_layout(
         feature_config_initial: Optional[str] = None,
         plot_config_initial: Optional[str] = None,
 ) -> html.Div:
+    # container
     return html.Div(
         style={
             'display': 'grid',
@@ -52,9 +58,12 @@ def get_layout(
             intermediate.hidden_div('intermediary-libs'),
             intermediate.hidden_div('intermediary-orders'),
             intermediate.hidden_div('intermediary-files'),
+            intermediate.hidden_div('intermediary-mkt-type'),
+
+            # left column container
             html.Div(
                 style={
-                    'margin': 10,
+                    'margin': '10px 25px',
                 },
                 children=[
                     html.H1(
@@ -71,6 +80,62 @@ def get_layout(
                             html.Button(children='get runners', id='button-runners', n_clicks=0, style=input_styles),
                             html.Button(children='profit', id='button-profit', n_clicks=0, style=input_styles),
                         ],
+                    ),
+
+                    # market filters
+                    html.Div(
+                        style={
+                            'margin': '10px 0px',
+                            'width': '80%',
+                            'display': 'grid',
+                            'grid-template-columns': '1fr 1fr 1fr 1fr 1fr auto',
+                            'grid-row-gap': '2px',
+                            'grid-column-gap': '8px',
+                        },
+                        children=[
+                            dcc.Dropdown(
+                                id='input-mkt-type',
+                                placeholder='Market type...',
+                                multi=multi,
+                            ),
+                            dcc.Dropdown(
+                                id='input-bet-type',
+                                placeholder='Betting type...',
+                                multi=multi,
+                            ),
+                            dcc.Dropdown(
+                                id='input-country-code',
+                                placeholder='Country code...',
+                                multi=multi
+                            ),
+                            dcc.Dropdown(
+                                id='input-venue',
+                                placeholder='Venue...',
+                                multi=multi,
+                            ),
+                            dcc.Dropdown(
+                                id='input-date',
+                                placeholder='Market date...',
+                                multi=multi,
+                            ),
+                            html.Button(
+                                id='input-mkt-clear',
+                                children='clear',
+                            )
+                    ]),
+
+                    # market browser
+                    dash_table.DataTable(
+                        id='table-market-db',
+                        columns=[{"name": d['name'], "id": d['db_col']} for d in db.TABLE_HEADERS],
+                        style_table={
+                            'height': '300px',
+                        },
+                        style_cell={
+                            'textAlign': 'left'
+                        },
+                        page_size=db.PAGE_SIZE,
+                        sort_action="native",
                     ),
 
                     html.P(id='infobox-files', children='', style={'margin': 0}),
@@ -145,23 +210,25 @@ def get_layout(
                             html.Div(
                                 style={
                                     'display': 'grid',
-                                    'grid-template-columns': '50% 50%'
+                                    'grid-template-columns': 'auto auto',
+                                    'grid-row-gap': '2px',
+                                    'grid-column-gap': '8px',
                                 },
                                 children=[
                                     dcc.Dropdown(
                                         id='input-feature-config',
                                         placeholder='Select feature config',
-                                        style={
-                                            'margin': '4px 2px'
-                                        },
+                                        # style={
+                                        #     'margin': '4px 2px'
+                                        # },
                                         value=feature_config_initial,
                                     ),
                                     dcc.Dropdown(
                                         id='input-plot-config',
                                         placeholder='Select plot config',
-                                        style={
-                                            'margin': '4px 2px'
-                                        },
+                                        # style={
+                                        #     'margin': '4px 2px'
+                                        # },
                                         value=plot_config_initial,
                                     ),
                                 ]
@@ -178,23 +245,12 @@ def get_layout(
                 ]
             ),
 
+            # right column container
             html.Div(
                 style={
-                    'margin': 10,
+                    'margin': '10px 25px',
                 },
                 children=[
-                    # html.H2(
-                    #     children='Event Information'
-                    # ),
-
-                    # html.Div(
-                    #     children=get_market_table(height=140, width=600)
-                    # ),
-
-                    # html.H2(
-                    #     children='Feature Config Selection'
-                    # ),
-
 
 
                     html.H2(
@@ -224,6 +280,7 @@ def get_layout(
                 ]
             ),
 
+            # bottom logging box
             html.Div(
                 id='logger-box',
                 # use display flex and reverse div row order so first in list appears at bottom, so that scroll bar

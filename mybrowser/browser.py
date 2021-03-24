@@ -1,10 +1,15 @@
 from __future__ import annotations
 import dash
+import dash_renderer
 from typing import Optional, List
 from .data import DashData
 from . import callbacks
 from .layout import get_layout
 from datetime import timedelta
+import logging
+
+active_logger = logging.getLogger(__name__)
+active_logger.setLevel(logging.INFO)
 
 
 def run_browser(
@@ -55,6 +60,11 @@ def run_browser(
     callbacks.featureconfigs.feature_configs_callback(app, gdd, input_dir)
     callbacks.libs.libs_callback(app)
     callbacks.log.log_callback(app)
+    callbacks.db.db_callback(app, gdd)
+
+    active_logger.info(f'Dash version: {dash.__version__}')
+    active_logger.info(f'Dash renderer version: {dash_renderer.__version__}')
+    active_logger.info('Starting dash server...')
 
     # turn of dev tools prop check to disable time input error
     app.run_server(debug=debug, dev_tools_props_check=False)

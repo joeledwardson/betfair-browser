@@ -4,6 +4,7 @@ from .filetracker import FileTracker
 from .marketinfo import MarketInfo
 
 from mytrading.utils import security as mysecurity
+from mytrading.utils.bettingdb import BettingDB
 
 
 class ButtonTracker:
@@ -31,6 +32,9 @@ class DashData:
             feature_configs_dir=None,
             plot_configs_dir=None,
     ):
+
+        # betting database instance
+        self.betting_db = BettingDB()
 
         # hold list of records from active historical file
         self.record_list: List[List[MarketBook]] = []
