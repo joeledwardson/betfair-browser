@@ -11,6 +11,7 @@ from .tables.orders import get_orders_table
 from .tables.table import create_table
 from .callbacks import db
 from .data import DashData
+from .config import config
 from myutils.mydash import intermediate
 from myutils import mytiming
 
@@ -86,13 +87,17 @@ def get_layout(
                     html.Div(
                         style={
                             'margin': '10px 0px',
-                            'width': '80%',
+                            'width': '50%',
                             'display': 'grid',
-                            'grid-template-columns': '1fr 1fr 1fr 1fr 1fr auto',
+                            'grid-template-columns': '1fr 1fr 1fr',
                             'grid-row-gap': '2px',
                             'grid-column-gap': '8px',
                         },
                         children=[
+                            dcc.Dropdown(
+                                'input-sport-type',
+                                placeholder='Sport...'
+                            ),
                             dcc.Dropdown(
                                 id='input-mkt-type',
                                 placeholder='Market type...',
@@ -105,8 +110,9 @@ def get_layout(
                             ),
                             dcc.Dropdown(
                                 id='input-country-code',
-                                placeholder='Country code...',
-                                multi=multi
+                                placeholder='Country...',
+                                multi=multi,
+                                optionHeight=60,
                             ),
                             dcc.Dropdown(
                                 id='input-venue',
@@ -127,14 +133,18 @@ def get_layout(
                     # market browser
                     dash_table.DataTable(
                         id='table-market-db',
-                        columns=[{"name": d['name'], "id": d['db_col']} for d in db.TABLE_HEADERS],
+                        columns=[{
+                            "name": v,
+                            "id": k,
+                        } for k, v in config['TABLECOLS'].items()],
                         style_table={
-                            'height': '300px',
+                            # 'height': '300px',
                         },
                         style_cell={
-                            'textAlign': 'left'
+                            'textAlign': 'left',
+                            'maxWidth': 0,
                         },
-                        page_size=db.PAGE_SIZE,
+                        page_size=int(config['TABLE']['page_size']),
                         sort_action="native",
                     ),
 

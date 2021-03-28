@@ -37,9 +37,20 @@ def log_records_info(record_list: List[List[MarketBook]], market_time: datetime)
 
 
 def market_callback(app: dash.Dash, dd: DashData, input_dir: str):
-    """
-    update runners table and market information table, based on when "get runners" button is clicked
-    """
+    @app.callback(
+        output=Output('button-runners', 'disabled'),
+        inputs=[
+            Input('table-market-db', 'active_cell'),
+        ],
+    )
+    def runners_pressed(active_cell):
+        active_logger.info(f'active cell: {active_cell}')
+        if active_cell is not None:
+            if 'row_id' in active_cell:
+                if active_cell['row_id']:
+                    return False
+        return True
+
     @app.callback(
         output=[
             Output('table-runners', 'data'),
@@ -51,11 +62,13 @@ def market_callback(app: dash.Dash, dd: DashData, input_dir: str):
             Input('button-runners', 'n_clicks')
         ],
         state=[
-            State('table-files', 'active_cell')
+            State('table-files', 'active_cell'),
+            State('table-market-db', 'active_cell'),
         ],
     )
-    def runners_pressed(runners_n_clicks, active_cell):
+    def runners_pressed(runners_n_clicks, active_cell, db_active_cell):
         """
+        update runners table and market information table, based on when "get runners" button is clicked
         update data in runners table, and active file indicator when runners button pressed
 
         :param runners_n_clicks:
@@ -64,6 +77,29 @@ def market_callback(app: dash.Dash, dd: DashData, input_dir: str):
         """
         df_runners = pd.DataFrame()
         tbl_market = []
+
+        db = dd.betting_db
+        if db_active_cell:
+            row_id = db_active_cell['row_id']
+            if row_id:
+                try:
+                    names = db.session.query(db.Meta.runner_names).filter(db.Meta.betfair_id == row_id).first()
+                    tbl_data = [{
+                        'Selection ID': k,
+                        'Name': v
+                    } for k, v in names[0].items()]
+                    return (
+                        tbl_data,
+                        counter.next(),
+                        html.P(f'loaded "{row_id}"')
+                    )
+                except Exception as e:
+                    active_logger.warning(f'failed getting runner names: {e}')
+        return (
+            [],
+            counter.next(),
+            html.P('failed to load market')
+        )
 
         # try to get record list and market information from active directory (indicated from file_tracker in dash_data)
         success, record_list, market_info = get_records_market(
@@ -136,3 +172,5 @@ def market_callback(app: dash.Dash, dd: DashData, input_dir: str):
             counter.next(),
             html.P(market_description)
         ]
+
+

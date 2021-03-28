@@ -7,6 +7,7 @@ from typing import Optional, Dict
 from sqlalchemy import create_engine, MetaData
 from sqlalchemy.orm import sessionmaker, Session
 from sqlalchemy import select, distinct
+from sqlalchemy.sql.schema import Table
 from sqlalchemy.ext.automap import automap_base
 import keyring
 import zlib
@@ -52,8 +53,15 @@ class BettingDB:
         self.Base.prepare(self.engine, reflect=True)
         self.session = Session(self.engine)
 
-        self.Meta = self.Base.classes.marketmeta
-        self.Stream = self.Base.classes.marketstream
+        self.tables: Dict[str, Table] = self.Base.metadata.tables
+
+
+    def get_country_codes(self) -> Dict:
+        """
+        get dictionary of {country code: name}
+        """
+        t = self.Base.metadata.tables['countrycodes']
+        self.session.query(t['alpha_2_code'])
 
     @staticmethod
     def get_meta(first_book: MarketBook, cat: MarketCatalogue = None) -> Dict:

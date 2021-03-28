@@ -1,0 +1,19 @@
+[MARKET_FILTER]
+date_format = %%d %%b %%y
+
+[TABLE]
+dt_format = %%Y-%%m-%%d %%H:%%M
+page_size = 8
+
+[TABLECOLS]
+market_id = Market ID
+market_type = Market Type
+market_time = Market Time
+venue = Venue
+
+[TABLEFORMATTERS]
+market_time = format_datetime
+
+[DB]
+max_rows = 100
+

@@ -16,6 +16,7 @@ MAX_CATALOGUES = 1000
 EVENT_IDS_FILE = 'EventTypeIds.yaml'
 active_logger = logging.getLogger(__name__)
 
+# TODO - this can be removed - should be managed by database
 event_id_lookup = {}
 try:
     data = pkgutil.get_data(__name__, 'EventTypeIds.yaml')
