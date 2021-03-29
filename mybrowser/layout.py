@@ -109,6 +109,11 @@ def get_layout(
                                 multi=multi,
                             ),
                             dcc.Dropdown(
+                                id='input-format',
+                                placeholder='Format...',
+                                multi=multi,
+                            ),
+                            dcc.Dropdown(
                                 id='input-country-code',
                                 placeholder='Country...',
                                 multi=multi,
@@ -129,6 +134,8 @@ def get_layout(
                                 children='clear',
                             )
                     ]),
+
+                    html.Div(id='market-query-status'),
 
                     # market browser
                     dash_table.DataTable(

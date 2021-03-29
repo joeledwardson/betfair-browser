@@ -100,25 +100,35 @@ class JoinedFilter(MarketFilter):
         } for row in opts]
 
 
-def table_output(q, db):
-    tbl_cols = [q.c[k] for k in config['TABLECOLS'].keys()]
-    q_final = db.session.query(*tbl_cols).limit(int(config['DB']['max_rows']))
-    q_result = q_final.all()
-    tbl_rows = [dict(r) for r in q_result]
-    for i, row in enumerate(tbl_rows):
+class MarketTable:
 
-        # set 'id' column value to betfair id so that dash will set 'row-id' within 'active_cell' correspondingly
-        row['id'] = row['market_id']
+    def __init__(self):
+        self.max_rows = int(config['DB']['max_rows'])
+        self.col_names = list(config['TABLECOLS'].keys())
+        self.fmt_config = config['TABLEFORMATTERS']
+        self.page_size = int(config['TABLE']['page_size'])
+        self.q_final = None
+        self.q_result = None
 
-        # apply custom formatting to table row values
-        for k, v in row.items():
-            if k in config['TABLEFORMATTERS']:
-                nm = config['TABLEFORMATTERS'][k]
-                f = formatters[nm]
-                row[k] = f(v)
+    def table_output(self, cte, db):
+        tbl_cols = [cte.c[k] for k in self.col_names]
+        self.q_final = db.session.query(*tbl_cols).limit(self.max_rows)
+        self.q_result = self.q_final.all()
+        tbl_rows = [dict(r) for r in self.q_result]
+        for i, row in enumerate(tbl_rows):
 
-    # pad table rows to page size if necessary
-    while len(tbl_rows) % int(config['TABLE']['page_size']) != 0:
-        tbl_rows.append({})
+            # set 'id' column value to betfair id so that dash will set 'row-id' within 'active_cell' correspondingly
+            row['id'] = row['market_id']
 
-    return tbl_rows
+            # apply custom formatting to table row values
+            for k, v in row.items():
+                if k in self.fmt_config:
+                    nm = self.fmt_config[k]
+                    f = formatters[nm]
+                    row[k] = f(v)
+
+        # pad table rows to page size if necessary
+        while len(tbl_rows) % self.page_size != 0:
+            tbl_rows.append({})
+
+        return tbl_rows

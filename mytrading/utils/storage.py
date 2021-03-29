@@ -137,8 +137,17 @@ def get_hist_cat(catalogue_path) -> Optional[MarketCatalogue]:
     try:
         with open(catalogue_path) as f:
             dat = f.read()
+        if not dat:
+            active_logger.warning(f'catalogue file "{catalogue_path}" is empty')
+            return None
+
         cat = json.loads(dat)
+        if not cat:
+            active_logger.warning(f'catalogue file "{catalogue_path}" has empty dict')
+            return None
+
         return MarketCatalogue(**cat)
+
     except Exception as e:
         active_logger.warning(f'error getting catalogue "{e}"', exc_info=True)
         return None
