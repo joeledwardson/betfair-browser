@@ -33,6 +33,9 @@ class DashData:
             plot_configs_dir=None,
     ):
 
+        self.runner_names = {}
+        self.db_mkt_info = {}
+
         # betting database instance
         self.betting_db = BettingDB()
 

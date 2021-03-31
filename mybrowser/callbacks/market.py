@@ -6,6 +6,9 @@ from typing import List
 from betfairlightweight.resources.bettingresources import MarketBook
 from datetime import datetime
 import logging
+import zlib
+from os import path
+import os
 from ..data import DashData
 from ..profit import get_display_profits
 from ..tables.market import get_records_market
@@ -83,11 +86,49 @@ def market_callback(app: dash.Dash, dd: DashData, input_dir: str):
             row_id = db_active_cell['row_id']
             if row_id:
                 try:
-                    names = db.session.query(db.Meta.runner_names).filter(db.Meta.betfair_id == row_id).first()
+                    cache_dir = path.join(dd.file_tracker.root, 'cache')
+                    if not path.isdir(cache_dir):
+                        os.makedirs(cache_dir)
+                    p = path.join(cache_dir, row_id)
+
+                    if not path.exists(p):
+                        r = db.session.query(
+                            db.tables['marketstream'].columns['data']
+                        ).filter(
+                            db.tables['marketstream'].columns['market_id'] == row_id
+                        ).first()
+                        data = zlib.decompress(r[0]).decode()
+                        with open(p, 'w') as f:
+                            f.write(data)
+
+                    q = storage.get_historical(dd.trading, p)
+                    dd.record_list = list(q.queue)
+
+                    rows = db.session.query(
+                        db.tables['runners']
+                    ).filter(
+                        db.tables['runners'].columns['market_id'] == row_id
+                    ).all()
+
+                    meta = db.session.query(
+                        db.tables['marketmeta']
+                    ).filter(
+                        db.tables['marketmeta'].columns['market_id'] == row_id
+                    ).first()
+
+                    dd.db_mkt_info = dict(meta)
+
+                    dd.runner_names = {
+                        dict(r)['runner_id']: dict(r)['runner_name']
+                        for r in rows
+                    }
+
+                    # columns['runner_namesfilter('db.Meta.betfair_id == row_id).first()
                     tbl_data = [{
-                        'Selection ID': k,
-                        'Name': v
-                    } for k, v in names[0].items()]
+                        'Selection ID': dict(r)['runner_id'],
+                        'Name': dict(r)['runner_name']
+                    } for r in rows]
+
                     return (
                         tbl_data,
                         counter.next(),
