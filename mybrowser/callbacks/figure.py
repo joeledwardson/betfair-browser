@@ -159,11 +159,19 @@ def plot_runner(
     """
 
     # get name from market info
-    name = dd.market_info.names.get(sel_id, 'name not found')
+    name = dd.runner_names.get(sel_id, 'name not found')
     active_logger.info(f'producing figure for runner {sel_id}, "{name}"')
 
     # make chart title
-    title = '{}, name: "{}", ID: "{}"'.format(dd.market_info, name, sel_id)
+    title = '{} {} {} "{}", name: "{}", ID: "{}"'.format(
+        dd.db_mkt_info['event_name'],
+        dd.db_mkt_info['market_time'],
+        dd.db_mkt_info['market_type'],
+        dd.db_mkt_info['market_id'],
+        name,
+        sel_id
+    )
+    # f'{self.event_name} {market_time} {self.market_type} "{self.market_id}"'
 
     # check if orders dataframe exist
     if orders is not None:
@@ -229,12 +237,12 @@ def figure_callback(app: dash.Dash, dd: DashData, input_dir: str):
         active_logger.info(f'chart offset: {offset}')
 
         # if no active market selected then abort
-        if not dd.record_list or not dd.market_info:
+        if not dd.record_list or not dd.db_mkt_info:
             active_logger.warning('no market information/records')
             return ret
 
         # get orders dataframe (or None)
-        orders = get_orders_df(dd.market_dir, dd.market_info.market_id)
+        orders = get_orders_df(dd.market_dir, dd.db_mkt_info['market_id'])
 
         # if chart offset specified then use as display offset, otherwise ignore
         secs = offset.total_seconds() if offset else 0
@@ -243,7 +251,7 @@ def figure_callback(app: dash.Dash, dd: DashData, input_dir: str):
         dt0 = dd.record_list[0][0].publish_time
 
         # get market time from market info
-        dt_mkt = dd.market_info.market_time
+        dt_mkt = dd.db_mkt_info['market_time']
 
         # use market start as end
         end = dt_mkt
@@ -274,8 +282,12 @@ def figure_callback(app: dash.Dash, dd: DashData, input_dir: str):
         else:
 
             # get selection ID of runner from active runner cell, or abort on fail
-            sel_id = get_runner_id(cell, dd.start_odds)
+            if 'row_id' not in cell:
+                active_logger.warning(f'row ID not found in active cell info')
+                return ret
+            sel_id = cell['row_id']
             if not sel_id:
+                active_logger.warning(f'selection ID is blank')
                 return ret
             sel_ids = [sel_id]
 
