@@ -10,6 +10,7 @@ from plotly.graph_objects import Figure
 import logging
 from ..data import DashData
 from ..tables.runners import get_runner_id
+from ..app import app, dash_data as dd
 from mytrading.tradetracker import orderinfo
 from mytrading.utils import storage as utils_storage
 from mytrading.feature import storage as features_storage
@@ -203,122 +204,121 @@ def plot_runner(
     fig.show()
 
 
-def figure_callback(app: dash.Dash, dd: DashData, input_dir: str):
+@app.callback(
+    output=[
+        Output('intermediary-figure', 'children'),
+        Output('table-timings', 'data')
+    ],
+    inputs=[
+        Input('button-figure', 'n_clicks'),
+        Input('button-all-figures', 'n_clicks'),
+    ],
+    state=[
+        State('table-runners', 'active_cell'),
+        State('input-chart-offset', 'value'),
+        State('input-feature-config', 'value'),
+        State('input-plot-config', 'value'),
+        State('checklist-timings', 'value')
+    ]
+)
+def fig_button(clicks0, clicks1, cell, offset_str, ftr_key, plt_key, tmr_vals):
     """
     create a plotly figure based on selected runner when "figure" button is pressed
     """
-    @app.callback(
-        output=[
-            Output('intermediary-figure', 'children'),
-            Output('table-timings', 'data')
-        ],
-        inputs=[
-            Input('button-figure', 'n_clicks'),
-            Input('button-all-figures', 'n_clicks'),
-        ],
-        state=[
-            State('table-runners', 'active_cell'),
-            State('input-chart-offset', 'value'),
-            State('input-feature-config', 'value'),
-            State('input-plot-config', 'value'),
-            State('checklist-timings', 'value')
-        ]
-    )
-    def fig_button(clicks0, clicks1, cell, offset_str, ftr_key, plt_key, tmr_vals):
 
-        ret = [counter.next(), list()]
+    ret = [counter.next(), list()]
 
-        # get datetime/None chart offset from time input
-        offset = get_chart_offset(offset_str)
+    # get datetime/None chart offset from time input
+    offset = get_chart_offset(offset_str)
 
-        # add runner selected cell and chart offset time to infobox
-        active_logger.info('attempting to plot')
-        active_logger.info(f'runners active cell: {cell}')
-        active_logger.info(f'chart offset: {offset}')
+    # add runner selected cell and chart offset time to infobox
+    active_logger.info('attempting to plot')
+    active_logger.info(f'runners active cell: {cell}')
+    active_logger.info(f'chart offset: {offset}')
 
-        # if no active market selected then abort
-        if not dd.record_list or not dd.db_mkt_info:
-            active_logger.warning('no market information/records')
-            return ret
-
-        # get orders dataframe (or None)
-        orders = get_orders_df(dd.market_dir, dd.db_mkt_info['market_id'])
-
-        # if chart offset specified then use as display offset, otherwise ignore
-        secs = offset.total_seconds() if offset else 0
-
-        # get first book datetime
-        dt0 = dd.record_list[0][0].publish_time
-
-        # get market time from market info
-        dt_mkt = dd.db_mkt_info['market_time']
-
-        # use market start as end
-        end = dt_mkt
-
-        # get start of chart datetime
-        start = figurelib.get_chart_start(display_seconds=secs, market_time=dt_mkt, first=dt0)
-
-        # get plot configuration
-        plt_cfg = {}
-        if plt_key:
-            if plt_key in dd.plot_configs:
-                active_logger.info(f'using selected plot configuration "{plt_key}"')
-                plt_cfg = dd.plot_configs[plt_key]
-            else:
-                active_logger.warning(f'selected plot configuration "{plt_key}" not in plot configurations')
-        else:
-            active_logger.info('no plot configuration selected')
-
-        # determine if 'all feature plots' clicked as opposed to single plot
-        do_all = my_context.triggered_id() == 'button-all-figures'
-
-        sel_ids = []
-        if do_all:
-
-            # do all selection IDs
-            sel_ids = list(dd.start_odds.keys())
-
-        else:
-
-            # get selection ID of runner from active runner cell, or abort on fail
-            if 'row_id' not in cell:
-                active_logger.warning(f'row ID not found in active cell info')
-                return ret
-            sel_id = cell['row_id']
-            if not sel_id:
-                active_logger.warning(f'selection ID is blank')
-                return ret
-            sel_ids = [sel_id]
-
-        try:
-            for sel_id in sel_ids:
-                plot_runner(
-                    sel_id=sel_id,
-                    dd=dd,
-                    orders=orders,
-                    start=start,
-                    end=end,
-                    ftr_key=ftr_key,
-                    plt_cfg=plt_cfg
-                )
-        except (ValueError, TypeError) as e:
-            active_logger.error('plot error', e, exc_info=True)
-
-        if sel_ids and tmr_vals:
-            tms = mytiming.get_timings_summary()
-            mytiming.clear_timing_register()
-            if not tms:
-                active_logger.warning('no timings on which to produce table')
-            tms = sorted(tms, key=lambda v: v['Mean'], reverse=True)
-            td_fmt = '{d}d {h:02}:{m:02}:{s:02}.{u:06}'
-            f = partial(mytiming.format_timedelta, fmt=td_fmt)
-            tms = [{
-                k: f(v) if k == 'Mean' else v
-                for k, v in t.items() if k in ['Function', 'Count', 'Mean']
-            } for t in tms]
-            ret[1] = tms
-
+    # if no active market selected then abort
+    if not dd.record_list or not dd.db_mkt_info:
+        active_logger.warning('no market information/records')
         return ret
+
+    # get orders dataframe (or None)
+    orders = get_orders_df(dd.market_dir, dd.db_mkt_info['market_id'])
+
+    # if chart offset specified then use as display offset, otherwise ignore
+    secs = offset.total_seconds() if offset else 0
+
+    # get first book datetime
+    dt0 = dd.record_list[0][0].publish_time
+
+    # get market time from market info
+    dt_mkt = dd.db_mkt_info['market_time']
+
+    # use market start as end
+    end = dt_mkt
+
+    # get start of chart datetime
+    start = figurelib.get_chart_start(display_seconds=secs, market_time=dt_mkt, first=dt0)
+
+    # get plot configuration
+    plt_cfg = {}
+    if plt_key:
+        if plt_key in dd.plot_configs:
+            active_logger.info(f'using selected plot configuration "{plt_key}"')
+            plt_cfg = dd.plot_configs[plt_key]
+        else:
+            active_logger.warning(f'selected plot configuration "{plt_key}" not in plot configurations')
+    else:
+        active_logger.info('no plot configuration selected')
+
+    # determine if 'all feature plots' clicked as opposed to single plot
+    do_all = my_context.triggered_id() == 'button-all-figures'
+
+    sel_ids = []
+    if do_all:
+
+        # do all selection IDs
+        sel_ids = list(dd.start_odds.keys())
+
+    else:
+
+        # get selection ID of runner from active runner cell, or abort on fail
+        if 'row_id' not in cell:
+            active_logger.warning(f'row ID not found in active cell info')
+            return ret
+        sel_id = cell['row_id']
+        if not sel_id:
+            active_logger.warning(f'selection ID is blank')
+            return ret
+        sel_ids = [sel_id]
+
+    try:
+        for sel_id in sel_ids:
+            plot_runner(
+                sel_id=sel_id,
+                dd=dd,
+                orders=orders,
+                start=start,
+                end=end,
+                ftr_key=ftr_key,
+                plt_cfg=plt_cfg
+            )
+    except (ValueError, TypeError) as e:
+        active_logger.error('plot error', e, exc_info=True)
+
+    if sel_ids and tmr_vals:
+        tms = mytiming.get_timings_summary()
+        mytiming.clear_timing_register()
+        if not tms:
+            active_logger.warning('no timings on which to produce table')
+        tms = sorted(tms, key=lambda v: v['Mean'], reverse=True)
+        td_fmt = '{d}d {h:02}:{m:02}:{s:02}.{u:06}'
+        f = partial(mytiming.format_timedelta, fmt=td_fmt)
+        tms = [{
+            k: f(v) if k == 'Mean' else v
+            for k, v in t.items() if k in ['Function', 'Count', 'Mean']
+        } for t in tms]
+        ret[1] = tms
+
+    return ret
 
 

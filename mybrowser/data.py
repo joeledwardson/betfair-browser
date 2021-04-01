@@ -25,10 +25,13 @@ class ButtonTracker:
 
 class DashData:
 
+    def init_db(self):
+        self.betting_db = BettingDB()
+
     def __init__(
             self,
-            input_dir: str,
-            feature_configs_default,
+            input_dir: str='',
+            feature_configs_default='',
             feature_configs_dir=None,
             plot_configs_dir=None,
     ):
@@ -37,7 +40,7 @@ class DashData:
         self.db_mkt_info = {}
 
         # betting database instance
-        self.betting_db = BettingDB()
+        self.betting_db: BettingDB = None
 
         # hold list of records from active historical file
         self.record_list: List[List[MarketBook]] = []

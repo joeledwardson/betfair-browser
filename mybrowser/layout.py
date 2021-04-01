@@ -95,7 +95,7 @@ def get_layout(
                         },
                         children=[
                             dcc.Dropdown(
-                                'input-sport-type',
+                                id='input-sport-type',
                                 placeholder='Sport...'
                             ),
                             dcc.Dropdown(
@@ -135,9 +135,32 @@ def get_layout(
                             )
                     ]),
 
+                    # strategy filters
+                    html.Div(
+                        style={
+                            'margin': '10px 0px',
+                            'width': '50%',
+                            'display': 'grid',
+                            'grid-template-columns': '1fr 1fr',
+                            'grid-row-gap': '2px',
+                            'grid-column-gap': '8px',
+                        },
+                        children=[
+                            dcc.Dropdown(
+                                id='input-strategy-select',
+                                placeholder='Strategy...'
+                            ),
+                            html.Button(
+                                id='input-strategy-clear',
+                                children='clear',
+                            ),
+                        ],
+                    ),
+
+                    # query text status
                     html.Div(id='market-query-status'),
 
-                    # market browser
+                    # DB market browser
                     dash_table.DataTable(
                         id='table-market-db',
                         columns=[{
@@ -155,15 +178,15 @@ def get_layout(
                         sort_action="native",
                     ),
 
-                    html.P(id='infobox-files', children='', style={'margin': 0}),
-
-                    html.Div(
-                        id='table-files-container',
-                        children=get_files_table(dash_data.file_tracker, input_dir),
-                        style={
-                            'width': 'fit-content',
-                        },
-                    ),
+                    # html.P(id='infobox-files', children='', style={'margin': 0}),
+                    #
+                    # html.Div(
+                    #     id='table-files-container',
+                    #     children=get_files_table(dash_data.file_tracker, input_dir),
+                    #     style={
+                    #         'width': 'fit-content',
+                    #     },
+                    # ),
 
                     html.H2(
                         children='Runner info'
