@@ -256,6 +256,13 @@ def set_figure_layout(fig: go.Figure, title: str, chart_start: datetime, chart_e
     set plotly figure layout with a title, limit x axis from start time minus display seconds
     """
 
+    # set title
+    fig.update_layout(title=title)
+
+    # dont run if fig data is empty
+    if not fig.data:
+        return
+
     # verify trace
     def trace_verify(trace):
         return (
@@ -285,9 +292,6 @@ def set_figure_layout(fig: go.Figure, title: str, chart_start: datetime, chart_e
     # get index of maximum yaxis value, add 1 for display buffer
     i_max = closest_tick(y_max, return_index=True)
     i_max = min(len(LTICKS_DECODED) - 1, i_max + 1)
-
-    # set title
-    fig.update_layout(title=title)
 
     # remove range slider and set chart xaxis display limits
     fig.update_xaxes({
