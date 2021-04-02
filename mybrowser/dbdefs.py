@@ -14,7 +14,7 @@ import logging
 from datetime import date, datetime
 from functools import partial
 
-filters = []
+reg = {}
 formatters = MyRegistrar()
 
 
@@ -23,11 +23,13 @@ def format_datetime(dt: datetime):
     return dt.strftime(config['TABLE']['dt_format'])
 
 
-class MarketFilter:
-    def __init__(self, db_col):
+class DBFilter:
+    def __init__(self, db_col, group):
         self.db_col = db_col
         self.value = None
-        filters.append(self)
+        if group not in reg:
+            reg[group] = []
+        reg[group].append(self)
 
     def set_value(self, value, clear):
         if clear:
@@ -48,7 +50,7 @@ class MarketFilter:
         } for row in opts]
 
 
-class DateFilter(MarketFilter):
+class DateFilter(DBFilter):
 
     def set_value(self, value, clear):
         if value is not None:
@@ -69,10 +71,10 @@ class DateFilter(MarketFilter):
         } for row in opts]
 
 
-class JoinedFilter(MarketFilter):
+class JoinedFilter(DBFilter):
 
-    def __init__(self, db_col, join_tbl_name, join_id_col, join_name_col):
-        super().__init__(db_col)
+    def __init__(self, db_col, filter_group, join_tbl_name, join_id_col, join_name_col):
+        super().__init__(db_col, filter_group)
         self.join_tbl_name = join_tbl_name
         self.join_id_col = join_id_col
         self.join_name_col = join_name_col
@@ -100,13 +102,14 @@ class JoinedFilter(MarketFilter):
         } for row in opts]
 
 
-class MarketTable:
+class DBTable:
 
-    def __init__(self):
-        self.max_rows = int(config['DB']['max_rows'])
-        self.col_names = list(config['TABLECOLS'].keys())
-        self.fmt_config = config['TABLEFORMATTERS']
-        self.page_size = int(config['TABLE']['page_size'])
+    def __init__(self, id_col, max_rows, col_names, fmt_config, pg_size):
+        self.id_col = id_col
+        self.max_rows = max_rows
+        self.col_names = col_names
+        self.fmt_config = fmt_config
+        self.page_size = pg_size
         self.q_final = None
         self.q_result = None
 
@@ -118,7 +121,7 @@ class MarketTable:
         for i, row in enumerate(tbl_rows):
 
             # set 'id' column value to betfair id so that dash will set 'row-id' within 'active_cell' correspondingly
-            row['id'] = row['market_id']
+            row['id'] = row[self.id_col]
 
             # apply custom formatting to table row values
             for k, v in row.items():

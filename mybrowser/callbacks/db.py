@@ -9,32 +9,89 @@ import logging
 from datetime import date, datetime
 from functools import partial
 from ..app import app, dash_data as dd
-from ..dbdefs import DateFilter, JoinedFilter, MarketFilter, filters, formatters, MarketTable
+from ..dbdefs import DateFilter, JoinedFilter, DBFilter, reg, formatters, DBTable
 
 active_logger = logging.getLogger(__name__)
 active_logger.setLevel(logging.INFO)
 
 filter_sport = JoinedFilter(
     "sport_id",
+    'MARKETFILTERS',
     join_tbl_name='sportids',
     join_id_col='sport_id',
     join_name_col='sport_name'
 )
 filter_country = JoinedFilter(
     "country_code",
+    'MARKETFILTERS',
     join_tbl_name='countrycodes',
     join_id_col='alpha_2_code',
     join_name_col='name'
 )
-filter_format = MarketFilter('format')
-filter_type = MarketFilter("market_type")
-filter_bet = MarketFilter("betting_type")
-filter_venue = MarketFilter("venue")
-filter_date = DateFilter("market_time")
-market_table = MarketTable()
+filter_format = DBFilter(
+    'format',
+    'MARKETFILTERS'
+)
+filter_type = DBFilter(
+    "market_type",
+    'MARKETFILTERS'
+)
+filter_bet = DBFilter(
+    "betting_type",
+    'MARKETFILTERS'
+)
+filter_venue = DBFilter(
+    "venue",
+    'MARKETFILTERS'
+)
+filter_date = DateFilter(
+    "market_time",
+    'MARKETFILTERS'
+)
+market_table = DBTable(
+    id_col='market_id',
+    max_rows=int(config['DB']['max_rows']),
+    col_names=list(config['TABLECOLS'].keys()),
+    fmt_config=config['TABLEFORMATTERS'],
+    pg_size=int(config['TABLE']['page_size']),
+)
+
+
+filter_strat_select = DBFilter(
+    'strategy_id',
+    'STRATEGYFILTERS'
+)
+
 
 # TODO update country codes with country names - see list countries in betfair API https://docs.developer.betfair.com/display/1smk3cen4v3lu3yomq5qye0ni/listCountries
 counter = intermediate.Intermediary()
+
+
+@app.callback(
+    output=[
+        Output('input-strategy-select', 'options'),
+        Output('input-strategy-select', 'value'),
+    ],
+    inputs=[
+        Input('input-strategy-select', 'value'),
+        Input('input-strategy-clear', 'n_clicks'),
+    ],
+)
+def strategy_callback(strat_select, n_clicks):
+    db = dd.betting_db
+    meta = db.tables['strategymeta']
+    clear = triggered_id() == 'input-strategy-clear'
+
+    filter_strat_select.set_value(strat_select, clear)
+
+    conditions = [f.db_filter(meta) for f in reg['STRATEGYFILTERS'] if f.value]
+    q = db.session.query(meta).filter(*conditions)
+    cte = q.cte()
+
+    return (
+        filter_strat_select.get_labels(filter_strat_select.get_options(db, cte)),
+        filter_strat_select.value,
+    )
 
 
 @app.callback(
@@ -99,12 +156,12 @@ def mkt_intermediary(
     filter_venue.set_value(mkt_venue, clear)
     filter_date.set_value(mkt_date, clear)
 
-
     active_logger.info(f'active cell: {active_cell}')
 
     # TODO - split date into year/month/day components
     # TODO - make intermediary for logger in this file
-    conditions = [f.db_filter(meta) for f in filters if f.value]
+    # TODO - query from joined expression filtered to only markets from strategy (if strategy selected)
+    conditions = [f.db_filter(meta) for f in reg['MARKETFILTERS'] if f.value]
     q = db.session.query(meta).filter(*conditions)
     n = q.count()
     cte = q.cte()
