@@ -248,7 +248,23 @@ def fig_button(clicks0, clicks1, cell, offset_str, ftr_key, plt_key, tmr_vals):
         return ret
 
     # get orders dataframe (or None)
-    orders = get_orders_df(dd.market_dir, dd.db_mkt_info['market_id'])
+    if dd.strategy_id:
+        p = path.join(dd.file_tracker.root, 'strategycache', dd.strategy_id, dd.db_mkt_info['market_id'])
+        p = path.abspath(p)
+        if not path.exists(p):
+            active_logger.warning(f'could not find cached strategy market file:\n-> "{p}"')
+            return ret
+
+        orders = orderinfo.get_order_updates(p)
+        if not orders.shape[0]:
+            active_logger.warning(f'could not find any rows in cached strategy market file:\n-> "{p}"')
+            return ret
+
+        active_logger.info(f'loaded {orders.shape[0]} rows from cached strategy market file\n-> "{p}"')
+    else:
+        orders = pd.DataFrame()
+
+    # orders = get_orders_df(dd.market_dir, dd.db_mkt_info['market_id'])
 
     # if chart offset specified then use as display offset, otherwise ignore
     secs = offset.total_seconds() if offset else 0
@@ -322,6 +338,7 @@ def fig_button(clicks0, clicks1, cell, offset_str, ftr_key, plt_key, tmr_vals):
         if not tms:
             active_logger.warning('no timings on which to produce table')
         tms = sorted(tms, key=lambda v: v['Mean'], reverse=True)
+        # TODO add to configuration file
         td_fmt = '{d}d {h:02}:{m:02}:{s:02}.{u:06}'
         f = partial(mytiming.format_timedelta, fmt=td_fmt)
         tms = [{

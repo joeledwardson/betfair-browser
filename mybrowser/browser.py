@@ -7,7 +7,7 @@ from . import callbacks
 from .layout.layout import get_layout
 from datetime import timedelta
 import logging
-import waitress
+import sys
 
 active_logger = logging.getLogger(__name__)
 active_logger.setLevel(logging.INFO)
@@ -31,6 +31,9 @@ def run_browser(
     - "historical" dir
     - "recorded" dir
     """
+    if sys.version_info < (3, 9):
+        raise Exception('Python version needs to be 3.9 or higher!')
+
     dash_data.input_dir=input_dir
     dash_data.feature_configs_dir=feature_configs_dir
     dash_data.plot_configs_dir=plot_configs_dir
