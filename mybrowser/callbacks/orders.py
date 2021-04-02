@@ -15,16 +15,18 @@ from myutils.mydash import context as my_context
 active_logger = logging.getLogger(__name__)
 counter = intermediate.Intermediary()
 
+inputs = [
+    Input('button-orders', 'n_clicks'),
+    Input('button-runners', 'n_clicks'),
+]
+
 
 @app.callback(
     output=[
         Output('table-orders', 'data'),
         Output('intermediary-orders', 'children')
     ],
-    inputs=[
-        Input('button-orders', 'n_clicks'),
-        Input('button-runners', 'n_clicks'),
-    ],
+    inputs=inputs,
     state=[
         State('table-runners', 'active_cell'),
     ]

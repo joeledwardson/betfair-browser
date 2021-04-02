@@ -4,7 +4,7 @@ import dash_renderer
 from typing import Optional, List
 from .app import app, dash_data
 from . import callbacks
-from .layout import get_layout
+from .layout.layout import get_layout
 from datetime import timedelta
 import logging
 

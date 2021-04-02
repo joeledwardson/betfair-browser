@@ -26,6 +26,10 @@ active_logger = logging.getLogger(__name__)
 figurelib.active_logger = active_logger
 counter = intermediate.Intermediary()
 
+inputs = [
+    Input('button-figure', 'n_clicks'),
+    Input('button-all-figures', 'n_clicks'),
+]
 
 def get_chart_offset(chart_offset_str) -> Optional[timedelta]:
     """
@@ -209,10 +213,7 @@ def plot_runner(
         Output('intermediary-figure', 'children'),
         Output('table-timings', 'data')
     ],
-    inputs=[
-        Input('button-figure', 'n_clicks'),
-        Input('button-all-figures', 'n_clicks'),
-    ],
+    inputs=inputs,
     state=[
         State('table-runners', 'active_cell'),
         State('input-chart-offset', 'value'),

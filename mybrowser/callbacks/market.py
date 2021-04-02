@@ -24,6 +24,10 @@ from myutils.mydash import intermediate
 active_logger = logging.getLogger(__name__)
 counter = intermediate.Intermediary()
 
+inputs = [
+    Input('button-runners', 'n_clicks')
+]
+
 
 def log_records_info(record_list: List[List[MarketBook]], market_time: datetime):
     """
@@ -62,9 +66,7 @@ def runners_pressed(active_cell):
         Output('intermediary-market', 'children'),
         Output('infobox-market', 'children'),
     ],
-    inputs=[
-        Input('button-runners', 'n_clicks')
-    ],
+    inputs=inputs,
     state=[
         State('table-market-db', 'active_cell'),
     ],
@@ -98,7 +100,7 @@ def runners_pressed(runners_n_clicks, db_active_cell):
         return ret_fail
 
     try:
-        cache_dir = path.join(dd.file_tracker.root, 'cache')
+        cache_dir = path.join(dd.file_tracker.root, 'marketcache')
         if not path.isdir(cache_dir):
             os.makedirs(cache_dir)
         p = path.join(cache_dir, row_id)

@@ -104,17 +104,15 @@ class JoinedFilter(DBFilter):
 
 class DBTable:
 
-    def __init__(self, id_col, max_rows, col_names, fmt_config, pg_size):
+    def __init__(self, id_col, max_rows, fmt_config, pg_size):
         self.id_col = id_col
         self.max_rows = max_rows
-        self.col_names = col_names
         self.fmt_config = fmt_config
         self.page_size = pg_size
         self.q_final = None
         self.q_result = None
 
-    def table_output(self, cte, db):
-        tbl_cols = [cte.c[k] for k in self.col_names]
+    def table_output(self, tbl_cols, db):
         self.q_final = db.session.query(*tbl_cols).limit(self.max_rows)
         self.q_result = self.q_final.all()
         tbl_rows = [dict(r) for r in self.q_result]
@@ -131,7 +129,7 @@ class DBTable:
                     row[k] = f(v)
 
         # pad table rows to page size if necessary
-        while len(tbl_rows) % self.page_size != 0:
+        while len(tbl_rows) == 0 or len(tbl_rows) % self.page_size != 0:
             tbl_rows.append({})
 
         return tbl_rows

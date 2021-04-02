@@ -10,12 +10,14 @@ from ..app import app
 active_logger = logging.getLogger(__name__)
 counter = intermediate.Intermediary()
 
+inputs = [
+    Input('button-libs', 'n_clicks'),
+]
+
 
 @app.callback(
     output=Output('intermediary-libs', 'children'),
-    inputs=[
-        Input('button-libs', 'n_clicks'),
-    ],
+    inputs=inputs,
 )
 def update_files_table(libs_n_clicks):
     """

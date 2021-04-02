@@ -23,6 +23,7 @@ def get_runners_table(height) -> dash_table.DataTable:
     )
 
 
+
 def get_runner_id(
         runners_active_cell,
         start_odds: Dict[int, float],
