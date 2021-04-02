@@ -36,6 +36,7 @@ class DashData:
             plot_configs_dir=None,
     ):
 
+        self.strategy_id = None
         self.runner_names = {}
         self.db_mkt_info = {}
 
