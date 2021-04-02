@@ -6,17 +6,21 @@ import importlib
 import logging
 from myutils.mydash import intermediate
 from ..app import app
+from .globals import IORegister
 
 active_logger = logging.getLogger(__name__)
 counter = intermediate.Intermediary()
 
+mid = Output('intermediary-libs', 'children')
 inputs = [
     Input('button-libs', 'n_clicks'),
 ]
+IORegister.register_inputs(inputs)
+IORegister.register_mid(mid)
 
 
 @app.callback(
-    output=Output('intermediary-libs', 'children'),
+    output=mid,
     inputs=inputs,
 )
 def update_files_table(libs_n_clicks):

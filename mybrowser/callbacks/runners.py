@@ -13,12 +13,15 @@ from ..data import DashData
 from ..profit import get_display_profits
 from ..tables.market import get_records_market
 from ..marketinfo import MarketInfo
+from ..config import config
 from ..app import app, dash_data as dd
+from .globals import IORegister
 
 from mytrading.process import prices
 from mytrading.utils import storage, betfair
 from myutils import generic
 from myutils.mydash import intermediate
+from myutils.mydash import dashtable
 
 
 active_logger = logging.getLogger(__name__)
@@ -27,6 +30,9 @@ counter = intermediate.Intermediary()
 inputs = [
     Input('button-runners', 'n_clicks')
 ]
+mid = Output('intermediary-runners', 'children')
+IORegister.register_inputs(inputs)
+IORegister.register_mid(mid)
 
 
 def log_records_info(record_list: List[List[MarketBook]], market_time: datetime):
@@ -62,16 +68,16 @@ def runners_pressed(active_cell):
 @app.callback(
     output=[
         Output('table-runners', 'data'),
-        # Output('table-market', 'data'),
-        Output('intermediary-market', 'children'),
         Output('infobox-market', 'children'),
+        mid,
     ],
     inputs=inputs,
     state=[
         State('table-market-db', 'active_cell'),
+        State('input-strategy-select', 'value')
     ],
 )
-def runners_pressed(runners_n_clicks, db_active_cell):
+def runners_pressed(runners_n_clicks, db_active_cell, strategy_id):
     """
     update runners table and market information table, based on when "get runners" button is clicked
     update data in runners table, and active file indicator when runners button pressed
@@ -80,22 +86,23 @@ def runners_pressed(runners_n_clicks, db_active_cell):
     :param active_cell:
     :return:
     """
-    df_runners = pd.DataFrame()
-    tbl_market = []
+    empty_tbl = []
+    page_size = int(config['TABLE']['page_size'])
+    dashtable.pad(empty_tbl, page_size)
 
     db = dd.betting_db
     ret_fail = (
-        [],
+        empty_tbl,
+        html.P('failed to load market'),
         counter.next(),
-        html.P('failed to load market')
     )
 
     if not db_active_cell:
         active_logger.warning(f'no active cell to get market')
         return ret_fail
 
-    row_id = db_active_cell['row_id']
-    if not row_id:
+    market_id = db_active_cell['row_id']
+    if not market_id:
         active_logger.warning(f'row ID is blank')
         return ret_fail
 
@@ -103,13 +110,13 @@ def runners_pressed(runners_n_clicks, db_active_cell):
         cache_dir = path.join(dd.file_tracker.root, 'marketcache')
         if not path.isdir(cache_dir):
             os.makedirs(cache_dir)
-        p = path.join(cache_dir, row_id)
+        p = path.join(cache_dir, market_id)
 
         if not path.exists(p):
             r = db.session.query(
                 db.tables['marketstream'].columns['data']
             ).filter(
-                db.tables['marketstream'].columns['market_id'] == row_id
+                db.tables['marketstream'].columns['market_id'] == market_id
             ).first()
             data = zlib.decompress(r[0]).decode()
             with open(p, 'w') as f:
@@ -118,16 +125,31 @@ def runners_pressed(runners_n_clicks, db_active_cell):
         q = storage.get_historical(dd.trading, p)
         dd.record_list = list(q.queue)
 
-        rows = db.session.query(
-            db.tables['runners']
+        sr = db.tables['strategyrunners']
+        cte_strat = db.session.query(
+            sr.columns['runner_id'],
+            sr.columns['profit'].label('runner_profit')
         ).filter(
-            db.tables['runners'].columns['market_id'] == row_id
+            sr.columns['strategy_id'] == strategy_id,
+            sr.columns['market_id'] == market_id
+        ).cte()
+
+        rn = db.tables['runners']
+        rows = db.session.query(
+            rn,
+            cte_strat.c['runner_profit'],
+        ).join(
+            cte_strat,
+            rn.columns['runner_id'] == cte_strat.c['runner_id'],
+            isouter=True,
+        ).filter(
+            rn.columns['market_id'] == market_id
         ).all()
 
         meta = db.session.query(
             db.tables['marketmeta']
         ).filter(
-            db.tables['marketmeta'].columns['market_id'] == row_id
+            db.tables['marketmeta'].columns['market_id'] == market_id
         ).first()
 
         dd.db_mkt_info = dict(meta)
@@ -138,12 +160,17 @@ def runners_pressed(runners_n_clicks, db_active_cell):
             for r in rows
         }
 
+        runner_infos = [dict(r) for r in rows]
+
         tbl_data = [{
-            'id': selection_id, # set row to ID for easy access in callbacks
-            'Selection ID': selection_id,
-            'Name': dd.runner_names.get(selection_id, str(selection_id)),
-            'Starting Odds': name,
-        } for selection_id, name in dd.start_odds.items()]
+            'id': d['runner_id'], # set row to ID for easy access in callbacks
+            'Selection ID': d['runner_id'],
+            'Name': d['runner_name'] or d['runner_id'],
+            'Starting Odds': dd.start_odds.get(d['runner_id'], 999),
+            'Profit': d['runner_profit']
+        } for d in runner_infos]
+
+        dashtable.pad(tbl_data, page_size)
 
         # columns['runner_namesfilter('db.Meta.betfair_id == row_id).first()
         # tbl_data = [{
@@ -153,8 +180,8 @@ def runners_pressed(runners_n_clicks, db_active_cell):
 
         return (
             tbl_data,
+            html.P(f'loaded "{market_id}"'),
             counter.next(),
-            html.P(f'loaded "{row_id}"')
         )
     except Exception as e:
         active_logger.warning(f'failed getting runner names: {e}', exc_info=True)

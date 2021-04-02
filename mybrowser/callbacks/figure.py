@@ -11,6 +11,7 @@ import logging
 from ..data import DashData
 from ..tables.runners import get_runner_id
 from ..app import app, dash_data as dd
+from .globals import IORegister
 from mytrading.tradetracker import orderinfo
 from mytrading.utils import storage as utils_storage
 from mytrading.feature import storage as features_storage
@@ -26,10 +27,14 @@ active_logger = logging.getLogger(__name__)
 figurelib.active_logger = active_logger
 counter = intermediate.Intermediary()
 
+mid = Output('intermediary-figure', 'children')
 inputs = [
     Input('button-figure', 'n_clicks'),
     Input('button-all-figures', 'n_clicks'),
 ]
+IORegister.register_inputs(inputs)
+IORegister.register_mid(mid)
+
 
 def get_chart_offset(chart_offset_str) -> Optional[timedelta]:
     """
@@ -210,8 +215,8 @@ def plot_runner(
 
 @app.callback(
     output=[
-        Output('intermediary-figure', 'children'),
-        Output('table-timings', 'data')
+        Output('table-timings', 'data'),
+        mid,
     ],
     inputs=inputs,
     state=[
@@ -227,7 +232,7 @@ def fig_button(clicks0, clicks1, cell, offset_str, ftr_key, plt_key, tmr_vals):
     create a plotly figure based on selected runner when "figure" button is pressed
     """
 
-    ret = [counter.next(), list()]
+    ret = [list(), counter.next()]
 
     # get datetime/None chart offset from time input
     offset = get_chart_offset(offset_str)
@@ -283,9 +288,14 @@ def fig_button(clicks0, clicks1, cell, offset_str, ftr_key, plt_key, tmr_vals):
     else:
 
         # get selection ID of runner from active runner cell, or abort on fail
+        if not cell:
+            active_logger.warning('no cell selected')
+            return ret
+
         if 'row_id' not in cell:
             active_logger.warning(f'row ID not found in active cell info')
             return ret
+
         sel_id = cell['row_id']
         if not sel_id:
             active_logger.warning(f'selection ID is blank')

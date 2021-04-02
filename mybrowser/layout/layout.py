@@ -1,8 +1,10 @@
 from typing import Optional
 from datetime import timedelta
 import dash_html_components as html
+import dash_core_components as dcc
 from ..data import DashData
-from . import market, strategy, runners, configs, orders, timings, logging
+from .. import callbacks
+from . import db, strategy, runners, configs, orders, timings, logging
 from myutils.mydash import intermediate
 from myutils import mytiming
 
@@ -51,26 +53,42 @@ def get_layout(
             'position': 'relative',
         },
         children=[
-            intermediate.hidden_div('intermediary-market'),
-            intermediate.hidden_div('intermediary-featureconfigs'),
-            intermediate.hidden_div('intermediary-figure'),
-            intermediate.hidden_div('intermediary-libs'),
-            intermediate.hidden_div('intermediary-orders'),
-            intermediate.hidden_div('intermediary-files'),
-            intermediate.hidden_div('intermediary-mkt-type'),
-            intermediate.hidden_div('intermediary-db-market'),
+
+            # hidden divs for intermediary output components
+            *[
+                intermediate.hidden_div(o.component_id)
+                for o in callbacks.IORegister.outs_reg
+            ],
+
+            # periodic update
+            dcc.Interval(
+                id='interval-component',
+                interval=1 * 1000,  # in milliseconds
+                n_intervals=0
+            ),
 
             # left column container
             html.Div(
                 style=col_style,
                 children=[
-                    html.H1(children='Betfair Browser'),
+                    html.Div(
+                        style={
+                            'display': 'grid',
+                            'position': 'relative',
+                            'grid-template-columns': 'auto auto',
+                        },
+                        children=[
+                            html.H1(children='Betfair Browser'),
+                            html.Div(id='loading-bar'),
+                        ]
+                    ),
 
-                    market.header(),
-                    market.filters(multi=False),
+
+                    db.header(),
+                    db.filters(multi=False),
                     strategy.filters(),
-                    market.query_status(),
-                    market.table(),
+                    db.query_status(),
+                    db.table(),
 
                     html.Br(),
 

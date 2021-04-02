@@ -7,6 +7,7 @@ from . import callbacks
 from .layout.layout import get_layout
 from datetime import timedelta
 import logging
+import waitress
 
 active_logger = logging.getLogger(__name__)
 active_logger.setLevel(logging.INFO)
@@ -68,3 +69,6 @@ def run_browser(
 
     # turn of dev tools prop check to disable time input error
     app.run_server(debug=debug, dev_tools_props_check=False)
+    # waitress.serve(app.server, threads=4)
+
+

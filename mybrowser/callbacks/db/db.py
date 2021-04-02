@@ -1,72 +1,17 @@
-import dash
 from dash.dependencies import Output, Input, State
-from ..data import DashData
-from ..config import config
 from myutils.mydash import intermediate
 from myutils.mydash.context import triggered_id
-from mytrading.utils.bettingdb import BettingDB
-import logging
-from datetime import date, datetime
-from functools import partial
-from ..app import app, dash_data as dd
-from ..dbdefs import DateFilter, JoinedFilter, DBFilter, reg, formatters, DBTable
+from ..globals import IORegister
+from ...app import app, dash_data as dd
 from sqlalchemy.sql.functions import sum as sql_sum
+from .objs import *
 
 active_logger = logging.getLogger(__name__)
 active_logger.setLevel(logging.INFO)
 
-filter_sport = JoinedFilter(
-    "sport_id",
-    'MARKETFILTERS',
-    join_tbl_name='sportids',
-    join_id_col='sport_id',
-    join_name_col='sport_name'
-)
-filter_country = JoinedFilter(
-    "country_code",
-    'MARKETFILTERS',
-    join_tbl_name='countrycodes',
-    join_id_col='alpha_2_code',
-    join_name_col='name'
-)
-filter_format = DBFilter(
-    'format',
-    'MARKETFILTERS'
-)
-filter_type = DBFilter(
-    "market_type",
-    'MARKETFILTERS'
-)
-filter_bet = DBFilter(
-    "betting_type",
-    'MARKETFILTERS'
-)
-filter_venue = DBFilter(
-    "venue",
-    'MARKETFILTERS'
-)
-filter_date = DateFilter(
-    "market_time",
-    'MARKETFILTERS'
-)
-market_table = DBTable(
-    id_col='market_id',
-    max_rows=int(config['DB']['max_rows']),
-    fmt_config=config['TABLEFORMATTERS'],
-    pg_size=int(config['TABLE']['page_size']),
-)
-
-
-filter_strat_select = DBFilter(
-    'strategy_id',
-    'STRATEGYFILTERS'
-)
-
 
 # TODO update country codes with country names - see list countries in betfair API https://docs.developer.betfair.com/display/1smk3cen4v3lu3yomq5qye0ni/listCountries
 counter = intermediate.Intermediary()
-
-
 
 
 def q_strategy(strategy_id, db):
@@ -137,13 +82,20 @@ inputs = [
     Input('input-country-code', 'value'),
     Input('input-venue', 'value'),
     Input('input-date', 'value'),
+
     Input('input-mkt-clear', 'n_clicks'),
     Input('table-market-db', 'sort_mode'),
     Input('input-strategy-select', 'value'),
-    Input('table-market-db', 'page_count'),
+
+    # *[Input(k, 'value') for k in market_filters.keys()]
 ]
 
+mid = Output('intermediary-db-market', 'children')
+
 outputs = [
+    # *[Output(k, 'options') for k in market_filters.keys()],
+    # *[Output(k, 'value') for k in market_filters.keys()]
+
     Output('input-sport-type', 'options'),
     Output('input-sport-type', 'value'),
     Output('input-mkt-type', 'options'),
@@ -163,13 +115,15 @@ outputs = [
     Output('table-market-db', "selected_cells"),
     Output('table-market-db', 'active_cell'),
     Output('table-market-db', 'page_current'),
-    Output('table-market-db', 'page_count'),
-    Output('intermediary-db-market', 'children')
+    mid
 ]
 
 states = [
     State('table-market-db', 'active_cell')
 ]
+
+IORegister.register_inputs(inputs)
+IORegister.register_mid(mid)
 
 
 @app.callback(
@@ -188,7 +142,6 @@ def mkt_intermediary(
         n_clicks,
         sort_mode,
         strategy_id,
-        page_count,
         active_cell
 ):
 
@@ -265,7 +218,6 @@ def mkt_intermediary(
 
         # reset current page back to 0 and set number of pages
         0,
-        page_count or 2,
 
         # intermediary counter value
         counter.next()

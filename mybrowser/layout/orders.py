@@ -9,6 +9,7 @@ from typing import Dict, List
 import logging
 import dash_table
 from mytrading.visual import profits
+from myutils.mydash import intermediate
 from ..tables.table import create_table
 from ..tables.orders import get_orders_table
 

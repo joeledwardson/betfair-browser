@@ -5,6 +5,7 @@ from typing import Dict, List
 import logging
 from ..data import DashData
 from ..app import app, dash_data as dd
+from .globals import IORegister
 from myutils.mydash import intermediate
 
 from myutils import mypath
@@ -65,15 +66,22 @@ def get_configs(config_dir: str, config_type: str) -> Dict:
     return configs
 
 
+inputs = [
+    Input('button-feature-config', 'n_clicks')
+]
+mid = Output('intermediary-featureconfigs', 'children')
+
+IORegister.register_inputs(inputs)
+IORegister.register_mid(mid)
+
+
 @app.callback(
     output=[
         Output('input-feature-config', 'options'),
         Output('input-plot-config', 'options'),
-        Output('intermediary-featureconfigs', 'children')
+        mid,
     ],
-    inputs=[
-        Input('button-feature-config', 'n_clicks'),
-    ],
+    inputs=inputs,
 )
 def update_files_table(n_clicks):
 

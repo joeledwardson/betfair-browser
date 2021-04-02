@@ -4,6 +4,8 @@ import dash_html_components as html
 from ..data import DashData
 from .. import log_q
 from ..app import app
+from .globals import IORegister
+
 
 log_elements = []
 
@@ -11,13 +13,11 @@ log_elements = []
 @app.callback(
     output=Output('logger-box', 'children'),
     inputs=[
-        Input('intermediary-market', 'children'),
-        Input('intermediary-featureconfigs', 'children'),
-        Input('intermediary-figure', 'children'),
-        Input('intermediary-libs', 'children'),
-        Input('intermediary-orders', 'children'),
-        Input('intermediary-files', 'children')
-    ],
+        Input(x.component_id, x.component_property)
+        for x in IORegister.outs_reg
+    ] + [
+        Input('interval-component', 'n_intervals')
+    ]
 )
 def log_update(*args, **kwargs):
     # update log list, add to bottom of list as display is reversed

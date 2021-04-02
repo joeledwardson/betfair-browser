@@ -7,6 +7,7 @@ import pandas as pd
 from myutils import mytiming
 from ..config import config
 from ..tables.runners import get_runners_table, create_table
+from myutils.mydash import intermediate
 
 
 def header():
@@ -87,13 +88,29 @@ def table(height):
     """
     get empty mydash DataTable for runner information
     """
-    return create_table(
-        table_id='table-runners',
-        df=pd.DataFrame({
-            'Selection ID': [],
-            'Name': [],
-            'Starting Odds': [],
-            'Profit': [],
-        }),
-        height=height,
+    return dash_table.DataTable(
+        id='table-runners',
+        columns=[{
+            'name': v, 'id': v
+        } for v in [
+            'Selection ID',
+            'Name',
+            'Starting Odds',
+            'Profit',
+        ]],
+        style_cell={
+            'textAlign': 'left',
+        },
+        page_size=int(config['TABLE']['page_size']),
+        sort_action='native',
     )
+    # create_table(
+    #     table_id='table-runners',
+    #     df=pd.DataFrame({
+    #         'Selection ID': [],
+    #         'Name': [],
+    #         'Starting Odds': [],
+    #         'Profit': [],
+    #     }),
+    #     height=height,
+    # )

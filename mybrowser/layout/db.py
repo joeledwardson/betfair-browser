@@ -5,6 +5,7 @@ import dash_core_components as dcc
 import dash_table
 import pandas as pd
 from ..config import config
+from myutils.mydash import intermediate
 
 
 def header():

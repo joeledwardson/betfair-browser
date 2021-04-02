@@ -5,6 +5,7 @@ import logging
 from ..data import DashData
 from ..tables.runners import get_runner_id
 from ..app import app, dash_data as dd
+from .globals import IORegister
 from myutils.mydash import intermediate
 
 from mytrading.utils import storage
@@ -19,12 +20,15 @@ inputs = [
     Input('button-orders', 'n_clicks'),
     Input('button-runners', 'n_clicks'),
 ]
+mid = Output('intermediary-orders', 'children')
+IORegister.register_inputs(inputs)
+IORegister.register_mid(mid)
 
 
 @app.callback(
     output=[
         Output('table-orders', 'data'),
-        Output('intermediary-orders', 'children')
+        mid,
     ],
     inputs=inputs,
     state=[
@@ -35,7 +39,10 @@ def update_files_table(orders_clicks, runners_clicks, cell):
 
     active_logger.info(f'attempting to get orders, active cell: {cell}')
     orders_pressed = my_context.triggered_id() == 'button-orders'
-    ret_vals = [list(), counter.next()]
+    ret_vals = [
+        list(),
+        counter.next()
+    ]
 
     # if runners button pressed (new active market), clear table
     if not orders_pressed:

@@ -8,6 +8,7 @@ from .config import config
 from myutils.mydash import intermediate
 from myutils.mydash.context import triggered_id
 from myutils.mydash import context as my_context
+from myutils.mydash import dashtable
 from myutils.myregistrar import MyRegistrar
 from mytrading.utils.bettingdb import BettingDB
 import logging
@@ -129,7 +130,6 @@ class DBTable:
                     row[k] = f(v)
 
         # pad table rows to page size if necessary
-        while len(tbl_rows) == 0 or len(tbl_rows) % self.page_size != 0:
-            tbl_rows.append({})
+        dashtable.pad(tbl_rows, self.page_size)
 
         return tbl_rows
