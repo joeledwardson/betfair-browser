@@ -92,7 +92,24 @@ def get_layout(
 
                     html.Br(),
 
-                    runners.header(),
+                    html.Div(
+                        style={
+                            'display': 'grid',
+                            'grid-template-columns': 'auto auto',
+                            'width': '100%',
+                        },
+                        children=[
+                            runners.header(),
+                            dcc.Loading(
+                                id='loading-1',
+                                type='dot',
+                                children=html.Div(id='loading-out-1'),
+                                style={
+                                    'justify-self': 'end',
+                                }
+                            )
+                        ]
+                    ),
                     runners.inputs(input_styles, chart_offset),
                     configs.inputs(feature_config_initial, plot_config_initial),
                     runners.market_info(),

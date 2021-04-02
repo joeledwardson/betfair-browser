@@ -70,6 +70,7 @@ def runners_pressed(active_cell):
         Output('table-runners', 'data'),
         Output('infobox-market', 'children'),
         mid,
+        Output('loading-out-1', 'children')
     ],
     inputs=inputs,
     state=[
@@ -95,6 +96,7 @@ def runners_pressed(runners_n_clicks, db_active_cell, strategy_id):
         empty_tbl,
         html.P('failed to load market'),
         counter.next(),
+        ''
     )
 
     if not db_active_cell:
@@ -204,6 +206,7 @@ def runners_pressed(runners_n_clicks, db_active_cell, strategy_id):
             tbl_data,
             html.P(f'loaded "{market_id}"'),
             counter.next(),
+            ''
         )
     except Exception as e:
         active_logger.warning(f'failed getting runner names: {e}', exc_info=True)
