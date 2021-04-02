@@ -10,6 +10,7 @@ from datetime import date, datetime
 from functools import partial
 from ..app import app, dash_data as dd
 from ..dbdefs import DateFilter, JoinedFilter, DBFilter, reg, formatters, DBTable
+from sqlalchemy.sql.functions import sum as sql_sum
 
 active_logger = logging.getLogger(__name__)
 active_logger.setLevel(logging.INFO)
@@ -126,6 +127,7 @@ def strategy_callback(strat_select, n_clicks):
         Input('input-date', 'value'),
         Input('input-mkt-clear', 'n_clicks'),
         Input('table-market-db', 'sort_mode'),
+        Input('input-strategy-select', 'value'),
     ],
     state=[
         State('table-market-db', 'active_cell')
@@ -141,6 +143,7 @@ def mkt_intermediary(
         mkt_date,
         n_clicks,
         sort_mode,
+        strategy_id,
         active_cell
 ):
 
@@ -161,8 +164,26 @@ def mkt_intermediary(
     # TODO - split date into year/month/day components
     # TODO - make intermediary for logger in this file
     # TODO - query from joined expression filtered to only markets from strategy (if strategy selected)
+    if strategy_id:
+        sr = db.tables['strategyrunners']
+        strat_cte = db.session.query(
+            sr.columns['market_id'],
+            sql_sum(sr.columns['profit']).label('market_profit')
+        ).group_by(
+            sr.columns['market_id']
+        ).cte()
+        q = db.session.query(
+            meta,
+            strat_cte.c['market_profit']
+        ).join(
+            strat_cte,
+            meta.columns['market_id'] == strat_cte.c['market_id']
+        )
+    else:
+        q = db.session.query(meta)
+
     conditions = [f.db_filter(meta) for f in reg['MARKETFILTERS'] if f.value]
-    q = db.session.query(meta).filter(*conditions)
+    q = q.filter(*conditions)
     n = q.count()
     cte = q.cte()
     tbl_rows = market_table.table_output(cte, db)
