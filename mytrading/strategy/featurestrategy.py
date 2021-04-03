@@ -511,6 +511,7 @@ class MyFeatureStrategy(MyBaseStrategy):
                     order_info = serializable_order_info(order)
                     add_to_file(file_path, order_info)
 
+                    # TODO - reset trade ID here to None so market close messages not associated with any trade
                     rh.trade_tracker.log_update(
                         msg_type=MessageTypes.MSG_MARKET_CLOSE,
                         msg_attrs={
