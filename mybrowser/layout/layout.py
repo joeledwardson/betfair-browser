@@ -73,6 +73,8 @@ def get_layout(
                 children=[
                     html.H1(children='Betfair Browser'),
 
+                    # TODO add grid here for percentage based rows for market and runner tables - after that can
+                    #  remove table padding to maintain fixed spage on page
                     db.header(),
                     db.filters(multi=False),
                     strategy.filters(),
