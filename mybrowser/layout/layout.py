@@ -71,18 +71,7 @@ def get_layout(
             html.Div(
                 style=col_style,
                 children=[
-                    html.Div(
-                        style={
-                            'display': 'grid',
-                            'position': 'relative',
-                            'grid-template-columns': 'auto auto',
-                        },
-                        children=[
-                            html.H1(children='Betfair Browser'),
-                            html.Div(id='loading-bar'),
-                        ]
-                    ),
-
+                    html.H1(children='Betfair Browser'),
 
                     db.header(),
                     db.filters(multi=False),
@@ -92,41 +81,35 @@ def get_layout(
 
                     html.Br(),
 
-                    html.Div(
-                        style={
-                            'display': 'grid',
-                            'grid-template-columns': 'auto auto',
-                            'width': '100%',
-                        },
-                        children=[
-                            runners.header(),
-                            dcc.Loading(
-                                id='loading-1',
-                                type='dot',
-                                children=html.Div(id='loading-out-1'),
-                                style={
-                                    'justify-self': 'end',
-                                }
-                            )
-                        ]
-                    ),
+                    runners.header(),
                     runners.inputs(input_styles, chart_offset),
                     configs.inputs(feature_config_initial, plot_config_initial),
                     runners.market_info(),
-                    runners.table(200),
+                    # TODO update page size from config
+                    runners.table(8),
                 ]
             ),
 
             # right column container
             html.Div(
-                style=col_style,
-                children=[
-                    orders.header(),
-                    orders.table(340),
-
-                    timings.header(),
-                    timings.table(),
-                ]
+                style=col_style | {'position': 'relative'},
+                children=html.Div(
+                    style={
+                        'height': '100%',
+                        'display': 'grid',
+                        'grid-template-rows': '50% 50%',
+                    },
+                    children=[
+                        html.Div(children=[
+                            orders.header(),
+                            orders.table(340),
+                        ]),
+                        html.Div(children=[
+                            timings.header(),
+                            timings.table(),
+                        ])
+                    ]
+                )
             ),
 
             # log box

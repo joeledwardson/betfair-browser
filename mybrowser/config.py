@@ -5,6 +5,7 @@ import logging
 active_logger = logging.getLogger(__name__)
 active_logger.setLevel(logging.INFO)
 
+# TODO make config passable as input rather than declared globally
 file_name = 'config.txt'
 active_logger.info(f'reading configuration from "{file_name}"...')
 config = configparser.ConfigParser()

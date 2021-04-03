@@ -11,9 +11,32 @@ from myutils.mydash import intermediate
 
 
 def header():
-    # runner information header
-    return html.H2(
-        children='Runner info'
+    # runner information header and loading bar
+    return html.Div(
+        style={
+            'display': 'grid',
+            'grid-template-columns': 'auto auto',
+            'width': '100%',
+        },
+        children=[
+            html.H2(
+                children='Runner info'
+            ),
+            html.Div(
+                className='loading-container',
+                style={
+                    'justify-self': 'end',
+                    'align-self': 'center'
+                },
+                children=[
+                    dcc.Loading(
+                        id='loading-1',
+                        type='dot',
+                        children=html.Div(id='loading-out-1'),
+                    )
+                ]
+            ),
+        ]
     )
 
 
@@ -101,16 +124,6 @@ def table(height):
         style_cell={
             'textAlign': 'left',
         },
-        page_size=int(config['TABLE']['page_size']),
+        page_size=int(height),
         sort_action='native',
     )
-    # create_table(
-    #     table_id='table-runners',
-    #     df=pd.DataFrame({
-    #         'Selection ID': [],
-    #         'Name': [],
-    #         'Starting Odds': [],
-    #         'Profit': [],
-    #     }),
-    #     height=height,
-    # )

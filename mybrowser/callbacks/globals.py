@@ -1,3 +1,5 @@
+# TODO - each component will have its own loading bar so input registering no longer needed
+# TODO - still could do with intermediary register but this should be done through name and not component
 class IORegister:
     inputs_reg = []
     outs_reg = []

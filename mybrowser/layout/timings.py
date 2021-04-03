@@ -1,6 +1,7 @@
 import dash_html_components as html
 import pandas as pd
 from ..tables.table import create_table
+from dash_table import DataTable
 
 
 def header():
@@ -13,14 +14,23 @@ def header():
 def table():
     # function timings table
     return html.Div(
-        children=create_table(
-            table_id='table-timings',
-            df=pd.DataFrame(columns=[
+        DataTable(
+            id='table-timings',
+            style_cell={
+                'textAlign': 'left',
+            },
+            # fixed_rows={
+            #     'headers': True,
+            # },
+            columns=[{
+                'name': x,
+                'id': x
+            } for x in [
                 'Function',
                 'Count',
                 'Mean',
-            ]),
-            height=340,
+            ]],
+            page_size=8,
         ),
     )
 

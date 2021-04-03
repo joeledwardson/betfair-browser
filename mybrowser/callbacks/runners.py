@@ -15,6 +15,7 @@ from ..tables.market import get_records_market
 from ..marketinfo import MarketInfo
 from ..config import config
 from ..app import app, dash_data as dd
+from ..cache import cache
 from .globals import IORegister
 
 from mytrading.process import prices
@@ -25,6 +26,8 @@ from myutils.mydash import dashtable
 
 
 active_logger = logging.getLogger(__name__)
+active_logger.setLevel(logging.INFO)
+
 counter = intermediate.Intermediary()
 
 inputs = [
@@ -87,6 +90,7 @@ def runners_pressed(runners_n_clicks, db_active_cell, strategy_id):
     :param active_cell:
     :return:
     """
+    # TODO dont fire on startup
     empty_tbl = []
     page_size = int(config['TABLE']['page_size'])
     dashtable.pad(empty_tbl, page_size)
@@ -108,47 +112,21 @@ def runners_pressed(runners_n_clicks, db_active_cell, strategy_id):
         active_logger.warning(f'row ID is blank')
         return ret_fail
 
+    dd.strategy_id = strategy_id
+    if strategy_id:
+        if not cache.write_strategy_cache(strategy_id, market_id, db):
+            return ret_fail
+
+    if not cache.write_market_cache(market_id, db):
+        return ret_fail
+
+    dd.record_list = cache.read_market_cache(market_id, dd.trading)
+    if not dd.record_list:
+        return ret_fail
+
     try:
-        dd.strategy_id = strategy_id
-        if strategy_id:
-            strat_dir = path.join(dd.file_tracker.root, 'strategycache', strategy_id)
-            strat_path = path.join(strat_dir, market_id)
-            strat_path = path.abspath(strat_path)
-            if not path.exists(strat_path):
-                os.makedirs(strat_dir, exist_ok=True)
 
-                su = db.tables['strategyupdates']
-                encoded = db.session.query(
-                    su.columns['updates']
-                ).filter(
-                    su.columns['strategy_id'] == strategy_id,
-                    su.columns['market_id'] == market_id
-                ).first()
-                decoded = encoded[0].decode()
-                active_logger.info(f'writing strategy market updates to cache: "{strat_path}"')
-                with open(strat_path, 'w') as f:
-                    f.write(decoded)
-
-        cache_dir = path.join(dd.file_tracker.root, 'marketcache')
-        if not path.isdir(cache_dir):
-            os.makedirs(cache_dir)
-        p = path.join(cache_dir, market_id)
-
-        if not path.exists(p):
-            active_logger.info(f'writing market to cache file: "{p}"')
-            r = db.session.query(
-                db.tables['marketstream'].columns['data']
-            ).filter(
-                db.tables['marketstream'].columns['market_id'] == market_id
-            ).first()
-            data = zlib.decompress(r[0]).decode()
-            with open(p, 'w') as f:
-                f.write(data)
-
-        active_logger.info(f'reading market from cache file: "{p}"')
-        q = storage.get_historical(dd.trading, p)
-        dd.record_list = list(q.queue)
-
+        # TODO - wrap in function and add SQLAlchemy error exception catchers
         sr = db.tables['strategyrunners']
         cte_strat = db.session.query(
             sr.columns['runner_id'],

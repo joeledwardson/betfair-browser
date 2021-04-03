@@ -2,11 +2,23 @@ html, body {
     margin: 0;
 }
 
+/* dash adds negative margins for cells */
+/*
 .cell {
-    /* dash adds negative margins for cells */
+
     margin-left: 0 !important;
 }
+*/
+
+/* have to do this here as chrome keeps winging about "Maximum call stack exceeded" if defined in dash??? */
 
 h2 {
     margin: 4px 0px;
+}
+
+/* loading icon uses justify-content centre and positioning is absolute, so to make the loading icon appear at the right
+ of a div have to specify 'loading-container' class in dcc.Loading parent then specify child flex-end to override dash's
+  default */
+div.loading-container div div {
+    justify-content: flex-end !important;
 }

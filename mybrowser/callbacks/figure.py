@@ -184,7 +184,7 @@ def plot_runner(
     # f'{self.event_name} {market_time} {self.market_type} "{self.market_id}"'
 
     # check if orders dataframe exist
-    if orders is not None:
+    if orders.shape[0]:
 
         # filter to selection ID
         orders = orders[orders['selection_id'] == sel_id]
@@ -232,7 +232,7 @@ def fig_button(clicks0, clicks1, cell, offset_str, ftr_key, plt_key, tmr_vals):
     create a plotly figure based on selected runner when "figure" button is pressed
     """
 
-    ret = [list(), counter.next()]
+    ret = [[], counter.next()]
 
     # get datetime/None chart offset from time input
     offset = get_chart_offset(offset_str)
@@ -345,7 +345,7 @@ def fig_button(clicks0, clicks1, cell, offset_str, ftr_key, plt_key, tmr_vals):
             k: f(v) if k == 'Mean' else v
             for k, v in t.items() if k in ['Function', 'Count', 'Mean']
         } for t in tms]
-        ret[1] = tms
+        ret[0] = tms
 
     return ret
 
