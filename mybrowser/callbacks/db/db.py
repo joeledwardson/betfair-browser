@@ -226,10 +226,13 @@ def mkt_intermediary(
 
 @app.callback(
     Output("side-bar", "className"),
-    [Input("btn-db-filter", "n_clicks")],
-    [State("side-bar", "className")],
+    [
+        Input("btn-db-filter", "n_clicks"),
+        Input("btn-side-bar", "n_clicks")
+    ],
 )
-def toggle_classname(n, classname):
-    if n and classname == "":
+def toggle_classname(n1, n2):
+    if triggered_id() == 'btn-db-filter':
         return "not-collapsed"
-    return ""
+    else:
+        return ""

@@ -31,10 +31,10 @@ def infobox(height=70, **kwargs) -> html.Div:
 multi = False
 
 
-# TODO make layout into different functions that are called
 
 col_style = {
     'padding': '10px 25px',
+    'position': 'relative',
 }
 
 
@@ -120,26 +120,26 @@ def get_layout(
 
                     # filter bar
                     html.Div(
-                        id='side-bar-container',
-
-                        children=html.Div(
-                            id='side-bar',
-                            children=[
-                                html.H2('filters'),
-                                html.Hr(),
-                            ],
-                            style={
-                                'margin': '0',
-                                'left': '0',
-                                'top': '0',
-                                'height': '100%',
-                                'position': 'absolute',
-                                'width': '30rem',
-                                'margin-left': '-30rem',
-                                'background': 'blue',
-                                'transition': 'width 0.3s ease-in-out',
-                            },
-                        ),
+                        id='side-bar',
+                        children=[
+                            html.H2('filters'),
+                            html.Hr(),
+                            dbc.Button('close', id='btn-side-bar'),
+                        ],
+                        style={
+                            'left': '0',
+                            'top': '0',
+                            'height': '100%',
+                            'position': 'absolute',
+                            'width': '30rem',
+                            'margin-left': '-30rem',
+                            'margin-top': '0',
+                            'margin-bottom': '0',
+                            'background': 'lightblue',
+                            'transition': 'margin-left 0.4s ease-in-out 0.1s',
+                            'z-index': '1',
+                            'padding': '10px',
+                        },
                     ),
 
                     # TODO add grid here for percentage based rows for market and runner tables - after that can
@@ -171,6 +171,7 @@ def get_layout(
                         'grid-template-rows': '50% 50%',
                     },
                     children=[
+                        # TODO move orders and timings into popups
                         html.Div(children=[
                             orders.header(),
                             orders.table(340),

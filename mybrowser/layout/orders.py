@@ -38,5 +38,8 @@ def table(height) -> dash_table.DataTable:
         style_cell={
             'textAlign': 'left',
         },
+        style_table={
+            'overflowX': 'scroll'
+        },
         page_size=8,
     )
