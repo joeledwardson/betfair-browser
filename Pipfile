@@ -4,6 +4,24 @@ verify_ssl = true
 name = "pypi"
 
 [packages]
+sqlalchemy = "*"
+betfairlightweight = "*"
+flumine = "*"
+keyring = "*"
+numpy = "*"
+plotly = "*"
+pandas = "*"
+psycopg2 = "*"
+jupyterlab = "*"
+dash = "*"
+natsort = "*"
+sklearn = "*"
+jsonpickle = "*"
+beautifulsoup4 = "*"
+pyyaml = "*"
+pytimeparse = "*"
+flask-caching = "*"
+dash-bootstrap-components = "*"
 
 [dev-packages]
 
