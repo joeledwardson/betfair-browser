@@ -223,3 +223,13 @@ def mkt_intermediary(
         counter.next()
     )
 
+
+@app.callback(
+    Output("side-bar", "className"),
+    [Input("btn-db-filter", "n_clicks")],
+    [State("side-bar", "className")],
+)
+def toggle_classname(n, classname):
+    if n and classname == "":
+        return "not-collapsed"
+    return ""

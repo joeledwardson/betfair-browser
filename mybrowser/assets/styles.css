@@ -22,3 +22,8 @@ h2 {
 div.loading-container div div {
     justify-content: flex-end !important;
 }
+
+
+.not-collapsed {
+    margin-left: 0;
+}

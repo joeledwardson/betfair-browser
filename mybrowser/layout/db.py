@@ -2,6 +2,7 @@ from typing import Optional
 from datetime import timedelta
 import dash_html_components as html
 import dash_core_components as dcc
+import dash_bootstrap_components as dbc
 import dash_table
 import pandas as pd
 from ..config import config
@@ -9,7 +10,37 @@ from myutils.mydash import intermediate
 
 
 def header():
-    return html.H2(children='Market DB Browser')
+    return html.Div(
+        style={
+            'display': 'grid',
+            'grid-template-columns': 'auto auto auto',
+            'align-items': 'center',
+            'width': '100%',
+        },
+        children=[
+            html.H2(
+                children='Market Browser'
+            ),
+            html.Div(dbc.Button(
+                html.I(className="fas fa-filter"),
+                id="btn-db-filter",
+                n_clicks=0,
+            )),
+            html.Div(
+                className='loading-container',
+                style={
+                    'justify-self': 'end',
+                },
+                children=[
+                    dcc.Loading(
+                        id='loading-db',
+                        type='dot',
+                        children=html.Div(id='loading-out-db'),
+                    )
+                ]
+            ),
+        ]
+    )
 
 
 def filters(multi):

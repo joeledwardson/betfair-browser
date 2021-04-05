@@ -34,10 +34,11 @@ multi = False
 # TODO make layout into different functions that are called
 
 col_style = {
-    'margin': '10px 25px',
+    'padding': '10px 25px',
 }
 
 
+# TODO - put CSS into own file, easier than keeping it here
 def get_layout(
         input_dir: str,
         dash_data: DashData,
@@ -63,8 +64,12 @@ def get_layout(
                             'margin': '2px'
                         }
                     ),
+
                     dbc.Button(
-                        "Open modal",
+                        [
+                            html.I(className="fas fa-envelope-open-text mr-2"),
+                            html.Span("Messages"),
+                        ],
                         id="open",
                         style={
                             'position': 'absolute',
@@ -113,6 +118,29 @@ def get_layout(
                 style=col_style,
                 children=[
 
+                    # filter bar
+                    html.Div(
+                        id='side-bar-container',
+
+                        children=html.Div(
+                            id='side-bar',
+                            children=[
+                                html.H2('filters'),
+                                html.Hr(),
+                            ],
+                            style={
+                                'margin': '0',
+                                'left': '0',
+                                'top': '0',
+                                'height': '100%',
+                                'position': 'absolute',
+                                'width': '30rem',
+                                'margin-left': '-30rem',
+                                'background': 'blue',
+                                'transition': 'width 0.3s ease-in-out',
+                            },
+                        ),
+                    ),
 
                     # TODO add grid here for percentage based rows for market and runner tables - after that can
                     #  remove table padding to maintain fixed spage on page
