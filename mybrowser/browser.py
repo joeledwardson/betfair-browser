@@ -8,6 +8,7 @@ from .layout.layout import get_layout
 from datetime import timedelta
 import logging
 import sys
+import dash_bootstrap_components as dbc
 
 active_logger = logging.getLogger(__name__)
 active_logger.setLevel(logging.INFO)

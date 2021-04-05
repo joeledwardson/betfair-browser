@@ -1,5 +1,6 @@
 from typing import Optional
 from datetime import timedelta
+import dash_bootstrap_components as dbc
 import dash_html_components as html
 import dash_core_components as dcc
 from ..data import DashData
@@ -54,6 +55,46 @@ def get_layout(
         },
         children=[
 
+            html.Div(
+                children=[
+                    html.H1(
+                        children='Betfair Browser',
+                        style={
+                            'margin': '2px'
+                        }
+                    ),
+                    dbc.Button(
+                        "Open modal",
+                        id="open",
+                        style={
+                            'position': 'absolute',
+                            'justify-self': 'end',
+                            'margin': '3px',
+                        }
+                    ),
+                ],
+                style={
+                    'grid-column': 'span 2',
+                    'display': 'grid',
+                    'position': 'relative',
+                    'justify-content': 'center',
+                    'align-items': 'center',
+                    'background-color': '#f5aa5b',
+                }
+            ),
+
+            dbc.Modal(
+                [
+                    dbc.ModalHeader("Log"),
+                    dbc.ModalBody(logging.log_box()),
+                    dbc.ModalFooter(
+                        dbc.Button("Close", id="close", className="ml-auto")
+                    ),
+                ],
+                id="modal",
+                size='xl',
+            ),
+
             # hidden divs for intermediary output components
             *[
                 intermediate.hidden_div(o.component_id)
@@ -71,7 +112,7 @@ def get_layout(
             html.Div(
                 style=col_style,
                 children=[
-                    html.H1(children='Betfair Browser'),
+
 
                     # TODO add grid here for percentage based rows for market and runner tables - after that can
                     #  remove table padding to maintain fixed spage on page
@@ -114,7 +155,8 @@ def get_layout(
                 )
             ),
 
+            # TODO - make logging box popup and have different colours for messages
             # log box
-            logging.log_box(),
+            # logging.log_box(),
         ],
     )

@@ -17,7 +17,7 @@ def filters(multi):
     return html.Div(
         style={
             'margin': '10px 0px',
-            'width': '50%',
+            'width': '100%',
             'display': 'grid',
             'grid-template-columns': '1fr 1fr 1fr',
             'grid-row-gap': '2px',
@@ -88,7 +88,9 @@ def table():
         },
         style_cell={
             'textAlign': 'left',
-            'maxWidth': 0,
+            'whiteSpace': 'normal',
+            'height': 'auto',
+            'textOverflow': 'ellipsis',
         },
         page_size=int(config['TABLE']['page_size']),
         sort_action="native",

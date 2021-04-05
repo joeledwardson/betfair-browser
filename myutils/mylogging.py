@@ -10,7 +10,10 @@ class QueueHandler(Handler):
 
     def emit(self, record):
         try:
-            self.handler_queue.put(self.format(record))
+            self.handler_queue.put({
+                'record': record,
+                'txt': self.format(record)
+            })
         except Exception:
             self.handleError(record)
 
