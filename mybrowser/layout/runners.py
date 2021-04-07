@@ -2,6 +2,7 @@ from typing import Optional
 from datetime import timedelta
 import dash_html_components as html
 import dash_core_components as dcc
+import dash_bootstrap_components as dbc
 import dash_table
 import pandas as pd
 from myutils import mytiming
@@ -12,32 +13,38 @@ from myutils.mydash import intermediate
 
 def header():
     # runner information header and loading bar
-    return html.Div(
-        style={
-            'display': 'grid',
-            'grid-template-columns': 'auto auto',
-            'width': '100%',
-        },
-        children=[
-            html.H2(
-                children='Runner info'
+    return html.Div([
+        html.H2('Runner info'),
+
+        dbc.Button(
+            html.I(className="fas fa-bars"),
+            id="btn-runners-filter",
+            n_clicks=0
+        ),
+        dbc.Button(
+            children=html.I(className="fas fa-download"),
+            id='button-runners',
+            n_clicks=0,
+            # color='primary',
+            # style=input_styles
+        ),
+
+        html.Div(
+            dcc.Loading(
+                html.Div(id='loading-out-runners'),
+                type='dot',
             ),
-            html.Div(
-                className='loading-container',
-                style={
-                    'justify-self': 'end',
-                    'align-self': 'center'
-                },
-                children=[
-                    dcc.Loading(
-                        id='loading-1',
-                        type='dot',
-                        children=html.Div(id='loading-out-1'),
-                    )
-                ]
-            ),
-        ]
+            className='loading-container',
+            id='runners-loading-container',
+        )],
+        className='title-container'
     )
+
+
+def filters():
+    return html.Div([
+
+    ])
 
 
 def inputs(input_styles, chart_offset):
@@ -45,25 +52,13 @@ def inputs(input_styles, chart_offset):
     return html.Div(
         children=[
             html.Button(
-                children='get runners',
-                id='button-runners',
-                n_clicks=0,
-                style=input_styles
-            ),
-            html.Button(
                 children='order profits',
                 id='button-orders',
                 n_clicks=0,
                 style=input_styles
             ),
-            dcc.Input(
-                id='input-chart-offset',
-                type='time',
-                value=mytiming.format_timedelta(chart_offset),
-                style=input_styles
-            ),
-            html.Button(
-                children='feature figure',
+            dbc.Button(
+                children=['feature figure', html.I(className="fas fa-filter")],
                 id='button-figure',
                 n_clicks=0,
                 style=input_styles
@@ -86,18 +81,13 @@ def inputs(input_styles, chart_offset):
                     'margin': '3px 0px',
                 },
             ),
-            html.Button(
-                children='reload feature configs',
-                id='button-feature-config',
-                n_clicks=0,
-                style=input_styles
-            ),
-            html.Button(
-                children='reload libraries',
-                id='button-libs',
-                n_clicks=0,
-                style=input_styles
-            ),
+
+            # html.Button(
+            #     children='reload libraries',
+            #     id='button-libs',
+            #     n_clicks=0,
+            #     style=input_styles
+            # ),
         ]
     )
 

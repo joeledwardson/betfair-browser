@@ -10,50 +10,29 @@ from myutils.mydash import intermediate
 
 
 def header():
-    return html.Div(
-        style={
-            'display': 'grid',
-            'grid-template-columns': 'auto auto auto',
-            'align-items': 'center',
-            'width': '100%',
-        },
-        children=[
-            html.H2(
-                children='Market Browser'
+    return html.Div([
+        html.H2('Market Browser'),
+        html.Div(dbc.Button(
+            html.I(className="fas fa-filter"),
+            id="btn-db-filter",
+            n_clicks=0,
+        )),
+        html.Div(), # pad extra div to match grid title-container 4-column class
+        html.Div(
+            dcc.Loading(
+                html.Div(id='loading-out-db'),
+                type='dot'
             ),
-            html.Div(dbc.Button(
-                html.I(className="fas fa-filter"),
-                id="btn-db-filter",
-                n_clicks=0,
-            )),
-            html.Div(
-                className='loading-container',
-                style={
-                    'justify-self': 'end',
-                },
-                children=[
-                    dcc.Loading(
-                        id='loading-db',
-                        type='dot',
-                        children=html.Div(id='loading-out-db'),
-                    )
-                ]
-            ),
-        ]
+            className='loading-container',
+        )],
+        className='title-container'
     )
 
 
 def filters(multi):
     # market filters
     return html.Div(
-        style={
-            'margin': '10px 0px',
-            'width': '100%',
-            'display': 'grid',
-            'grid-template-columns': '1fr 1fr 1fr',
-            'grid-row-gap': '2px',
-            'grid-column-gap': '8px',
-        },
+        className='filters-container',
         children=[
             dcc.Dropdown(
                 id='input-sport-type',
@@ -90,7 +69,7 @@ def filters(multi):
                 placeholder='Market date...',
                 multi=multi,
             ),
-            html.Button(
+            dbc.Button(
                 id='input-mkt-clear',
                 children='clear',
             )

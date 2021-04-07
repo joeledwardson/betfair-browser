@@ -1,6 +1,6 @@
 from dash.dependencies import Output, Input, State
 from myutils.mydash import intermediate
-from myutils.mydash.context import triggered_id
+from myutils.mydash import context
 from ..globals import IORegister
 from ...app import app, dash_data as dd
 from sqlalchemy.sql.functions import sum as sql_sum
@@ -60,7 +60,7 @@ def q_strategy(strategy_id, db):
 def strategy_callback(strat_select, n_clicks):
     db = dd.betting_db
     meta = db.tables['strategymeta']
-    clear = triggered_id() == 'input-strategy-clear'
+    clear = context.triggered_id() == 'input-strategy-clear'
 
     filter_strat_select.set_value(strat_select, clear)
 
@@ -115,6 +115,7 @@ outputs = [
     Output('table-market-db', "selected_cells"),
     Output('table-market-db', 'active_cell'),
     Output('table-market-db', 'page_current'),
+    Output('loading-out-db', 'children'),
     mid
 ]
 
@@ -148,7 +149,7 @@ def mkt_intermediary(
     db = dd.betting_db
     meta = db.tables['marketmeta']
 
-    clear = triggered_id() == 'input-mkt-clear'
+    clear = context.triggered_id() == 'input-mkt-clear'
     filter_sport.set_value(mkt_sport, clear)
     filter_type.set_value(mkt_type, clear)
     filter_bet.set_value(mkt_bet, clear)
@@ -219,20 +220,23 @@ def mkt_intermediary(
         # reset current page back to 0 and set number of pages
         0,
 
+        # loading output
+        '',
+
         # intermediary counter value
         counter.next()
     )
 
 
 @app.callback(
-    Output("side-bar", "className"),
+    Output("right-side-bar", "className"),
     [
         Input("btn-db-filter", "n_clicks"),
-        Input("btn-side-bar", "n_clicks")
+        Input("btn-right-close", "n_clicks")
     ],
 )
 def toggle_classname(n1, n2):
-    if triggered_id() == 'btn-db-filter':
-        return "not-collapsed"
+    if context.triggered_id() == 'btn-db-filter':
+        return "right-not-collapsed"
     else:
         return ""

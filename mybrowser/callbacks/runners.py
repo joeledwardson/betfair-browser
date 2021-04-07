@@ -23,6 +23,7 @@ from mytrading.utils import storage, betfair
 from myutils import generic
 from myutils.mydash import intermediate
 from myutils.mydash import dashtable
+from myutils.mydash import context
 
 
 active_logger = logging.getLogger(__name__)
@@ -73,7 +74,7 @@ def runners_pressed(active_cell):
         Output('table-runners', 'data'),
         Output('infobox-market', 'children'),
         mid,
-        Output('loading-out-1', 'children')
+        Output('loading-out-runners', 'children')
     ],
     inputs=inputs,
     state=[
@@ -263,3 +264,15 @@ def runners_pressed(runners_n_clicks, db_active_cell, strategy_id):
     # ]
 
 
+@app.callback(
+    Output("left-side-bar", "className"),
+    [
+        Input("btn-runners-filter", "n_clicks"),
+        Input("btn-left-close", "n_clicks")
+    ],
+)
+def toggle_classname(n1, n2):
+    if context.triggered_id() == 'btn-runners-filter':
+        return "left-not-collapsed"
+    else:
+        return ""

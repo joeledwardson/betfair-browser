@@ -30,12 +30,134 @@ def infobox(height=70, **kwargs) -> html.Div:
 
 multi = False
 
+def hidden_elements():
+
+    return [
+
+        dbc.Modal(
+            id="modal",
+            size='xl',
+            children=[
+                dbc.ModalHeader("Log"),
+                dbc.ModalBody(logging.log_box()),
+                dbc.ModalFooter(
+                    dbc.Button("Close", id="close", className="ml-auto")
+                ),
+            ],
+        ),
+
+        dbc.Modal([
+            dbc.ModalHeader('Libraries reloaded'),
+            dbc.ModalFooter(
+                dbc.Button(
+                    "Close",
+                    id="modal-close-libs",
+                    className='ml-auto'
+                )
+            )],
+            id='modal-libs',
+        ),
+
+        # hidden divs for intermediary output components
+        *[
+            intermediate.hidden_div(o.component_id)
+            for o in callbacks.IORegister.outs_reg
+        ],
+
+        # periodic update
+        dcc.Interval(
+            id='interval-component',
+            interval=1 * 1000,  # in milliseconds
+            n_intervals=0
+        )
+    ]
 
 
-col_style = {
-    'padding': '10px 25px',
-    'position': 'relative',
-}
+def header():
+    return html.Div([
+        html.H1('Betfair Browser'),
+        html.Div([
+            html.Div(dcc.Loading(
+                type='dot',
+                children=html.Div(id='loading-out-header'),
+            ),
+                id='header-loading-container',
+                className='loading-container',
+            ),
+            dbc.Button(
+                id='button-libs',
+                children=html.I(className="fas fa-book-open"),
+            ),
+            dbc.Button(
+                id='open',
+                children=html.I(className="fas fa-envelope-open-text"),
+            )],
+            id='header-bar'
+        )],
+        id='header-container'
+    )
+
+
+def left_col(feature_config_initial, plot_config_initial):
+    # left column container
+    return html.Div([
+
+        # filter bar
+        html.Div([
+            html.Div([
+                html.H2('Plot Config'),
+                dbc.Button('close', id='btn-left-close')],
+                className='sidebar-title'
+            ),
+            html.Hr(),
+            configs.inputs(feature_config_initial, plot_config_initial)],
+            id='left-side-bar'
+        ),
+
+        # TODO add grid here for percentage based rows for market and runner tables - after that can
+        #  remove table padding to maintain fixed spage on page
+        db.header(),
+        db.query_status(),
+        db.table()],
+        className='col-container'
+    )
+
+
+def right_col(chart_offset, feature_config_initial, plot_config_initial):
+    # right column container
+    return html.Div([
+        # filter bar
+        html.Div([
+            html.Div([
+                html.H2('Market Filters'),
+                dbc.Button('close', id='btn-right-close')],
+                className='sidebar-title'
+            ),
+            html.Hr(),
+            db.filters(multi=False),
+            html.Hr(),
+            strategy.filters(),
+            html.Hr()],
+            id='right-side-bar',
+        ),
+
+        runners.header(),
+        runners.inputs(input_styles, chart_offset),
+        runners.market_info(),
+        # TODO update page size from config
+        runners.table(8),
+
+        # TODO move orders and timings into popups
+        html.Div(children=[
+            orders.header(),
+            orders.table(340),
+        ]),
+        html.Div(children=[
+            timings.header(),
+            timings.table(),
+        ])],
+        className='col-container'
+    )
 
 
 # TODO - put CSS into own file, easier than keeping it here
@@ -47,145 +169,14 @@ def get_layout(
         plot_config_initial: Optional[str] = None,
 ) -> html.Div:
     # container
-    return html.Div(
-        style={
-            'display': 'grid',
-            'grid-template-columns': '50% 50%',
-            'height': '100vh',
-            'position': 'relative',
-        },
-        children=[
-
-            html.Div(
-                children=[
-                    html.H1(
-                        children='Betfair Browser',
-                        style={
-                            'margin': '2px'
-                        }
-                    ),
-
-                    dbc.Button(
-                        [
-                            html.I(className="fas fa-envelope-open-text mr-2"),
-                            html.Span("Messages"),
-                        ],
-                        id="open",
-                        style={
-                            'position': 'absolute',
-                            'justify-self': 'end',
-                            'margin': '3px',
-                        }
-                    ),
-                ],
-                style={
-                    'grid-column': 'span 2',
-                    'display': 'grid',
-                    'position': 'relative',
-                    'justify-content': 'center',
-                    'align-items': 'center',
-                    'background-color': '#f5aa5b',
-                }
-            ),
-
-            dbc.Modal(
-                [
-                    dbc.ModalHeader("Log"),
-                    dbc.ModalBody(logging.log_box()),
-                    dbc.ModalFooter(
-                        dbc.Button("Close", id="close", className="ml-auto")
-                    ),
-                ],
-                id="modal",
-                size='xl',
-            ),
-
-            # hidden divs for intermediary output components
-            *[
-                intermediate.hidden_div(o.component_id)
-                for o in callbacks.IORegister.outs_reg
-            ],
-
-            # periodic update
-            dcc.Interval(
-                id='interval-component',
-                interval=1 * 1000,  # in milliseconds
-                n_intervals=0
-            ),
-
-            # left column container
-            html.Div(
-                style=col_style,
-                children=[
-
-                    # filter bar
-                    html.Div(
-                        id='side-bar',
-                        children=[
-                            html.H2('filters'),
-                            html.Hr(),
-                            dbc.Button('close', id='btn-side-bar'),
-                        ],
-                        style={
-                            'left': '0',
-                            'top': '0',
-                            'height': '100%',
-                            'position': 'absolute',
-                            'width': '30rem',
-                            'margin-left': '-30rem',
-                            'margin-top': '0',
-                            'margin-bottom': '0',
-                            'background': 'lightblue',
-                            'transition': 'margin-left 0.4s ease-in-out 0.1s',
-                            'z-index': '1',
-                            'padding': '10px',
-                        },
-                    ),
-
-                    # TODO add grid here for percentage based rows for market and runner tables - after that can
-                    #  remove table padding to maintain fixed spage on page
-                    db.header(),
-                    db.filters(multi=False),
-                    strategy.filters(),
-                    db.query_status(),
-                    db.table(),
-
-                    html.Br(),
-
-                    runners.header(),
-                    runners.inputs(input_styles, chart_offset),
-                    configs.inputs(feature_config_initial, plot_config_initial),
-                    runners.market_info(),
-                    # TODO update page size from config
-                    runners.table(8),
-                ]
-            ),
-
-            # right column container
-            html.Div(
-                style=col_style | {'position': 'relative'},
-                children=html.Div(
-                    style={
-                        'height': '100%',
-                        'display': 'grid',
-                        'grid-template-rows': '50% 50%',
-                    },
-                    children=[
-                        # TODO move orders and timings into popups
-                        html.Div(children=[
-                            orders.header(),
-                            orders.table(340),
-                        ]),
-                        html.Div(children=[
-                            timings.header(),
-                            timings.table(),
-                        ])
-                    ]
-                )
-            ),
-
-            # TODO - make logging box popup and have different colours for messages
-            # log box
-            # logging.log_box(),
-        ],
-    )
+    return html.Div([
+        *hidden_elements(),
+        html.Div(
+            id='bf-container',
+            children=[
+                header(),
+                left_col(feature_config_initial, plot_config_initial),
+                right_col(chart_offset, feature_config_initial, plot_config_initial)
+            ]
+        )
+    ])
