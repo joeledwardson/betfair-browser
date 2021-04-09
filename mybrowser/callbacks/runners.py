@@ -6,13 +6,6 @@ from typing import List
 from betfairlightweight.resources.bettingresources import MarketBook
 from datetime import datetime
 import logging
-import zlib
-from os import path
-import os
-from ..data import DashData
-from ..profit import get_display_profits
-from ..tables.market import get_records_market
-from ..marketinfo import MarketInfo
 from ..config import config
 from ..app import app, dash_data as dd
 from ..cache import cache
@@ -91,6 +84,7 @@ def runners_pressed(runners_n_clicks, db_active_cell, strategy_id):
     :param active_cell:
     :return:
     """
+
     # TODO dont fire on startup
     empty_tbl = []
     page_size = int(config['TABLE']['page_size'])

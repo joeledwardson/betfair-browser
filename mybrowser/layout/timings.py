@@ -1,6 +1,4 @@
 import dash_html_components as html
-import pandas as pd
-from ..tables.table import create_table
 from dash_table import DataTable
 
 

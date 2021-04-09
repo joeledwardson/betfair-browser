@@ -6,8 +6,6 @@ import logging
 import pandas as pd
 from datetime import datetime
 
-from ..data import DashData
-from ..tables.runners import get_runner_id
 from ..app import app, dash_data as dd
 from .globals import IORegister
 from ..cache import cache

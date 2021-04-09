@@ -93,7 +93,9 @@ def hidden_elements():
 
 def header():
     return dbc.Row([
-        dbc.Col(width=3),
+        dbc.Col(
+            width=3
+        ),
         dbc.Col(
             dbc.Row(
                 dbc.Col(html.H1('Betfair Browser'), width='auto'),
@@ -104,18 +106,28 @@ def header():
         ),
         dbc.Col(
             dbc.Row([
-                dbc.Col(dcc.Loading(
-                    type='dot',
-                    children=html.Div(id='loading-out-header'),
-                )),
-                dbc.Col(dbc.Button(
-                    id='button-libs',
-                    children=html.I(className="fas fa-book-open"),
-                ), width='auto'),
-                dbc.Col(dbc.Button(
-                    id='open',
-                    children=html.I(className="fas fa-envelope-open-text"),
-                ), width='auto')],
+                dbc.Col(
+                    dcc.Loading(
+                        type='dot',
+                        children=html.Div(id='loading-out-header')
+                    )
+                ),
+                dbc.Col(
+                    dbc.Button(
+                        id='button-libs',
+                        children=html.I(className="fas fa-book-open")
+                    ),
+                    width='auto',
+                    className='p-1'
+                ),
+                dbc.Col(
+                    dbc.Button(
+                        id='button-log',
+                        children=html.I(className="fas fa-envelope-open-text")
+                    ),
+                    width='auto',
+                    className='p-1'
+                )],
                 align='center',
                 no_gutters=True,
             ),
@@ -123,32 +135,7 @@ def header():
         )],
         align='center',
         className='bg-light'
-        # style={
-        #     'grid-column': 'span 2'
-        # }
     )
-    # return html.Div([
-    #     html.H1('Betfair Browser'),
-    #     html.Div([
-    #         html.Div(dcc.Loading(
-    #             type='dot',
-    #             children=html.Div(id='loading-out-header'),
-    #         ),
-    #             id='header-loading-container',
-    #             className='loading-container',
-    #         ),
-    #         dbc.Button(
-    #             id='button-libs',
-    #             children=html.I(className="fas fa-book-open"),
-    #         ),
-    #         dbc.Button(
-    #             id='open',
-    #             children=html.I(className="fas fa-envelope-open-text"),
-    #         )],
-    #         id='header-bar'
-    #     )],
-    #     id='header-container'
-    # )
 
 
 def left_col(feature_config_initial, plot_config_initial):
@@ -164,7 +151,7 @@ def left_col(feature_config_initial, plot_config_initial):
                         dbc.Col(dbc.Button('close', id='btn-left-close'), width='auto')],
                         align='center',
                     ),
-                    html.Hr(),
+                    html.Hr(className='ml-0 mr-0'),
                     configs.inputs(feature_config_initial, plot_config_initial)
                 ],
                 className='d-flex flex-column h-100 p-3'
@@ -174,12 +161,14 @@ def left_col(feature_config_initial, plot_config_initial):
 
         # TODO add grid here for percentage based rows for market and runner tables - after that can
         #  remove table padding to maintain fixed spage on page
-        db.header(),
-        db.query_status(),
-        db.table()],
+
+        html.Div([
+            db.header(),
+            db.query_status(),
+            db.table()
+        ], className='shadow h-100 p-4')],
         width=6,
         className='p-4'
-        # className='col-container'
     )
 
 
@@ -187,28 +176,36 @@ def right_col(chart_offset, feature_config_initial, plot_config_initial):
     # right column container
     return dbc.Col([
         # filter bar
-        html.Div([
+        html.Div(
             html.Div([
-                html.H2('Market Filters'),
-                dbc.Button('close', id='btn-right-close')],
-                className='sidebar-title'
+                dbc.Row([
+                    dbc.Col(html.H2('Market Filters')),
+                    dbc.Col(dbc.Button('close', id='btn-right-close'), width='auto')],
+                    align='center'
+                ),
+                html.Hr(className='ml-0 mr-0'),
+                html.Div(
+                    [
+                        *db.filters(multi=False),
+                        html.Hr(className='ml-0 mr-0'),
+                        *strategy.filters()
+                    ],
+                    className='d-flex flex-column pr-2'
+                )],
+                className='d-flex flex-column h-100 p-3'
             ),
-            html.Hr(),
-            db.filters(multi=False),
-            html.Hr(),
-            strategy.filters(),
-            html.Hr()],
-            id='right-side-bar',
+            id='right-side-bar'
         ),
 
-        runners.header(),
-        runners.inputs(input_styles, chart_offset),
-        runners.market_info(),
-        # TODO update page size from config
-        runners.table(8)],
+        html.Div([
+            runners.header(),
+            runners.inputs(input_styles, chart_offset),
+            runners.market_info(),
+            # TODO update page size from config
+            runners.table(8)
+        ], className='shadow h-100 p-4')],
         width=6,
         className='p-4'
-        # className='col-container'
     )
 
 

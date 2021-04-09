@@ -1,74 +1,85 @@
-from typing import Optional
-from datetime import timedelta
 import dash_html_components as html
 import dash_core_components as dcc
 import dash_bootstrap_components as dbc
 import dash_table
-import pandas as pd
-from myutils import mytiming
-from ..config import config
-from ..tables.runners import get_runners_table, create_table
-from myutils.mydash import intermediate
 
 
 def header():
     # runner information header and loading bar
-    return html.Div([
-        html.H2('Runner info'),
-
-        dbc.Button(
-            html.I(className="fas fa-bars"),
-            id="btn-runners-filter",
-            n_clicks=0
+    return dbc.Row([
+        dbc.Col(
+            html.H2('Runner info'),
+            width='auto',
         ),
-        dbc.Button(
-            children=html.I(className="fas fa-download"),
-            id='button-runners',
-            n_clicks=0,
-            # color='primary',
-            # style=input_styles
+        dbc.Col(
+            dbc.Button(
+                html.I(className="fas fa-bars"),
+                id="btn-runners-filter",
+                n_clicks=0
+            ),
+            width='auto',
+            className='p-1'
         ),
-
-        html.Div(
+        dbc.Col(
+            dbc.Button(
+                children=html.I(className="fas fa-download"),
+                id='button-runners',
+                n_clicks=0,
+                # color='primary',
+                # style=input_styles
+            ),
+            width='auto',
+            className='p-1'
+        ),
+        dbc.Col(),  # pad spacing between titles/buttons and anchored right loading bar
+        dbc.Col(
             dcc.Loading(
                 html.Div(id='loading-out-runners'),
                 type='dot',
-            ),
-            className='loading-container',
+                parent_className='anchor-right'
+            )
         )],
-        className='title-container'
+        align='center'
+        # className='d-flex align-items-center',
     )
-
-
-def filters():
-    return html.Div([
-
-    ])
 
 
 def inputs(input_styles, chart_offset):
     # market/runner buttons
     return html.Div([
         dbc.Row([
-            dbc.Col(dbc.Button(
-                ['Orders', html.I(className='fas fa-file-invoice-dollar ml-2')],
-                id='button-orders',
-                className='mr-1',
-            ), width='auto'),
-            dbc.Col(dbc.Button(
-                ['Figure', html.I(className="fas fa-chart-line ml-2")],
-                id='button-figure',
-                className='mr-1',
-            ), width='auto'),
-            dbc.Col(dbc.Button(
-                ['Timings', html.I(className='fas fa-hourglass ml-2')],
-                id='button-timings',
-                className='mr-1',
-            ), width='auto'),
-            dbc.Col(dcc.Loading(
-                html.Div(id='loading-out-figure'),
-                type='dot',
-            )),
+            dbc.Col(
+                dbc.Button(
+                    ['Orders', html.I(className='fas fa-file-invoice-dollar ml-2')],
+                    id='button-orders'
+                ),
+                width='auto',
+                className='pr-1'
+            ),
+            dbc.Col(
+                dbc.Button(
+                    ['Figure', html.I(className="fas fa-chart-line ml-2")],
+                    id='button-figure'
+                ),
+                width='auto',
+                className='p-1'
+            ),
+            dbc.Col(
+                dbc.Button(
+                    ['Timings', html.I(className='fas fa-hourglass ml-2')],
+                    id='button-timings'
+                ),
+                width='auto',
+                className='p-1'
+            ),
+            dbc.Col(),
+            dbc.Col(
+                dcc.Loading(
+                    html.Div(id='loading-out-figure'),
+                    type='dot',
+                    parent_className='anchor-right'
+                )
+            ),
         ], no_gutters=True, align='center'),
         html.Div([
             html.Button(

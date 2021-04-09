@@ -7,6 +7,7 @@ import dash_table
 import pandas as pd
 from ..config import config
 from myutils.mydash import intermediate
+from .defs import FILTER_MARGINS
 
 
 def header():
@@ -21,66 +22,80 @@ def header():
                 id="btn-db-filter",
                 n_clicks=0
             ),
-            width='auto'
+            width='auto',
+            className='p-0'
         ),
-        # html.Div(), # pad extra div to match grid title-container 4-column class
+        dbc.Col(),
         dbc.Col(
             dcc.Loading(
                 html.Div(id='loading-out-db'),
                 type='dot'
             ),
-            # className='loading-container',
+            className='anchor-right',
         )],
         align='center'
-        # className='title-container'
     )
 
 
 def filters(multi):
     # market filters
+    return [
+        dcc.Dropdown(
+            id='input-sport-type',
+            placeholder='Sport...',
+            className=FILTER_MARGINS
+        ),
+        dcc.Dropdown(
+            id='input-mkt-type',
+            placeholder='Market type...',
+            multi=multi,
+            className=FILTER_MARGINS
+        ),
+        dcc.Dropdown(
+            id='input-bet-type',
+            placeholder='Betting type...',
+            multi=multi,
+            className=FILTER_MARGINS
+        ),
+        dcc.Dropdown(
+            id='input-format',
+            placeholder='Format...',
+            multi=multi,
+            className=FILTER_MARGINS
+        ),
+        dcc.Dropdown(
+            id='input-country-code',
+            placeholder='Country...',
+            multi=multi,
+            optionHeight=60,
+            className=FILTER_MARGINS
+        ),
+        dcc.Dropdown(
+            id='input-venue',
+            placeholder='Venue...',
+            multi=multi,
+            className=FILTER_MARGINS
+        ),
+        dcc.Dropdown(
+            id='input-date',
+            placeholder='Market date...',
+            multi=multi,
+            className=FILTER_MARGINS
+        ),
+        dbc.Button(
+            id='input-mkt-clear',
+            children='clear',
+            className=FILTER_MARGINS
+        )
+    ]
+
     return html.Div(
-        className='filters-container',
-        children=[
-            dcc.Dropdown(
-                id='input-sport-type',
-                placeholder='Sport...'
-            ),
-            dcc.Dropdown(
-                id='input-mkt-type',
-                placeholder='Market type...',
-                multi=multi,
-            ),
-            dcc.Dropdown(
-                id='input-bet-type',
-                placeholder='Betting type...',
-                multi=multi,
-            ),
-            dcc.Dropdown(
-                id='input-format',
-                placeholder='Format...',
-                multi=multi,
-            ),
-            dcc.Dropdown(
-                id='input-country-code',
-                placeholder='Country...',
-                multi=multi,
-                optionHeight=60,
-            ),
-            dcc.Dropdown(
-                id='input-venue',
-                placeholder='Venue...',
-                multi=multi,
-            ),
-            dcc.Dropdown(
-                id='input-date',
-                placeholder='Market date...',
-                multi=multi,
-            ),
-            dbc.Button(
-                id='input-mkt-clear',
-                children='clear',
-            )
-        ])
+        html.Div(
+            opts,
+            className='d-flex flex-column pr-2'
+        ),
+        className='flex-row flex-grow-1 y-scroll'
+    )
 
 
 def query_status():

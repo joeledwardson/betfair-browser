@@ -3,7 +3,6 @@ from dash.dependencies import Output, Input, State
 from sqlalchemy import func, cast, Date, desc
 from sqlalchemy.sql.functions import coalesce
 from .data import DashData
-from .tables.files import get_files_table
 from .config import config
 from myutils.mydash import intermediate
 from myutils.mydash.context import triggered_id

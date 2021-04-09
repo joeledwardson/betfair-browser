@@ -5,28 +5,20 @@ import dash_core_components as dcc
 import dash_bootstrap_components as dbc
 import dash_table
 import pandas as pd
+from .defs import FILTER_MARGINS
 
 
 def filters():
     # strategy filters
-    return html.Div(
-        # style={
-        #     'margin': '10px 0px',
-        #     'width': '50%',
-        #     'display': 'grid',
-        #     'grid-template-columns': '1fr 1fr',
-        #     'grid-row-gap': '2px',
-        #     'grid-column-gap': '8px',
-        # },
-        className='filters-container',
-        children=[
-            dcc.Dropdown(
-                id='input-strategy-select',
-                placeholder='Strategy...'
-            ),
-            dbc.Button(
-                id='input-strategy-clear',
-                children='clear',
-            ),
-        ],
-    )
+    return [
+        dcc.Dropdown(
+            id='input-strategy-select',
+            placeholder='Strategy...',
+            className=FILTER_MARGINS
+        ),
+        dbc.Button(
+            id='input-strategy-clear',
+            children='clear',
+            className=FILTER_MARGINS
+        )
+    ]

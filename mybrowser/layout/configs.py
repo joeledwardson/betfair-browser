@@ -8,41 +8,36 @@ import pandas as pd
 from myutils import mytiming
 from ..config import config
 from myutils.mydash import intermediate
+from .defs import FILTER_MARGINS
 
 
 def inputs(feature_config_initial, plot_config_initial):
     # feature/plot configuration selections
     opts = [
-        html.Div(
-            dcc.Dropdown(
-                id='input-feature-config',
-                placeholder='Select feature config',
-                value=feature_config_initial
-            ),
-            className='mb-2'
+        dcc.Dropdown(
+            id='input-feature-config',
+            placeholder='Select feature config',
+            value=feature_config_initial,
+            className=FILTER_MARGINS
         ),
-        html.Div(
-            dcc.Dropdown(
-                id='input-plot-config',
-                placeholder='Select plot config',
-                value=plot_config_initial
-            ),
-            className='mb-2'
+        dcc.Dropdown(
+            id='input-plot-config',
+            placeholder='Select plot config',
+            value=plot_config_initial,
+            className=FILTER_MARGINS
         ),
-        html.Div(
-            dbc.Button(
-                'reload feature configs',
-                id='button-feature-config',
-                n_clicks=0,
-                color='info',
-                block=True
-            ),
-            className='mb-2'
+        dbc.Button(
+            'reload feature configs',
+            id='button-feature-config',
+            n_clicks=0,
+            color='info',
+            block=True,
+            className=FILTER_MARGINS
         ),
         dbc.Row([
             dbc.Col(
                 html.Div('Input offset: '),
-                className='mr-1',
+                # className='mr-1',
                 width='auto'
             ),
             dbc.Col(
@@ -52,12 +47,12 @@ def inputs(feature_config_initial, plot_config_initial):
                     value="01:02:03",  # mytiming.format_timedelta(chart_offset),
                     # style=input_styles,
                     step="1",
+                    className='pl-0'
                 )
             )],
             align='center',
-            className='mb-2'
-        ),
-        *[html.P(str(i)) for i in range(20)]
+            className=FILTER_MARGINS
+        )
     ]
 
     return html.Div(

@@ -1,7 +1,3 @@
-from .globals import IORegister
-
-from os import path
-import dash
 from dash.dependencies import Output, Input, State
 from typing import Dict, List
 import logging

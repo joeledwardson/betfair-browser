@@ -9,49 +9,6 @@ html, body {
     height: 100vh;
     position: relative;
     overflow-x: hidden; /* stop right sidebar from scrolling page */
-
-    /*
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    grid-template-rows: min-content auto;
-    */
-}
-
-h2 {
-    margin: 4px 0px;
-    /* white-space needs to be set to pre so that text doesn't collapse when grid column set to min-content */
-    white-space: pre;
-}
-
-/* top header bar container, span entire width and centre header */
-#header-container {
-    grid-column: span 2;
-    display: grid;
-    position: relative;
-    justify-content: center;
-    align-items: center;
-    background-color: #F7f7f7;
-}
-
-/* right-hand side container in header */
-#header-bar {
-    position: absolute;
-    justify-self: end;
-}
-
-/* align loading block with buttons in header bar */
-#header-loading-container {
-    display: inline-block;
-}
-
-#open {
-    margin: 3px;
-}
-
-/* padding of grid columns on page */
-.col-container {
-    padding: 10px 25px;
-    position: relative;
 }
 
 .y-scroll {
@@ -73,7 +30,6 @@ h2 {
     margin-bottom: 0;
     background: #e0e0e0;
     z-index: 1;
-    padding: 10px;
 }
 
 /* class used to bring right sidebar into view */
@@ -102,75 +58,11 @@ h2 {
     margin-left: 0 !important;
 }
 
-/* title at left of sidebar, close button at right */
-.sidebar-title {
-    display: grid;
-    grid-template-columns: auto min-content;
-}
-
-/*
-grid container for 4-elements (title, filter button 1, filter button 2, loading bar)
-filter button should be adjacent to title so both these grid elements must be min-content
-loading bar should be to the far right of the containing element so width needs to be 100%
-items vertically centered
-*/
-.title-container {
-    display: grid;
-    grid-template-columns: min-content min-content min-content auto;
-    align-items: center;
-    width: 100%;
-}
-
-/* add margin between title and buttons */
-.title-container h2 {
-    margin-right: 20px;
-}
-
-/* small margin between title buttons */
-.title-container button {
-    margin: 0px 2px
-}
-
-/* loading bar should be at far right of div */
-.title-container div.loading-container {
-    justify-self: end;
-}
-
-/* dash loading icon uses justify-content center and positioning is absolute, so to make the loading icon appear at the
-right of a div have to specify 'loading-container' class in dcc.Loading parent then specify child flex-end to override
-dash's default */
-.title-container div.loading-container div div {
-    justify-content: flex-end !important;
-}
-
-/* rows of filters */
-.filters-container {
-    margin: 10px 0px;
-    width: 100%;
-    display: grid;
-    grid-template-columns: auto;
-    grid-row-gap: 2px;
-    grid-column-gap: 8px;
-    overflow-y: auto;
-}
-
-
-
-
-/* container for a text prompt and input to put items side by side and aligned horizontally */
-.annotated-input {
-    display: grid;
-    grid-template-columns: min-content auto;
-    align-items: center;
-}
-
-/* add spacing between text prompt and input */
-.annotated-input div:first-of-type {
-    margin-right: 1rem;
-    white-space: pre; /* stop text from wrapping */
-}
-
 /* decrease opacity for disabled buttons so obvious cannot click them */
 .disabled {
     opacity: 0.2 !important;
+}
+
+div.anchor-right div {
+    justify-content: flex-end !important;
 }
