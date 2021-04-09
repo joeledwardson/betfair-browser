@@ -28,6 +28,7 @@ counter = intermediate.Intermediary()
 inputs = [
     Input('button-orders', 'n_clicks'),
     Input('button-runners', 'n_clicks'),
+    Input('modal-close-orders', 'n_clicks')
 ]
 mid = Output('intermediary-orders', 'children')
 IORegister.register_inputs(inputs)
@@ -78,6 +79,7 @@ def get_profits(p, selection_id) -> Optional[pd.DataFrame]:
 @app.callback(
     output=[
         Output('table-orders', 'data'),
+        Output('modal-orders', 'is_open'),
         mid,
     ],
     inputs=inputs,
@@ -85,13 +87,17 @@ def get_profits(p, selection_id) -> Optional[pd.DataFrame]:
         State('table-runners', 'active_cell'),
     ]
 )
-def update_orders_table(orders_clicks, runners_clicks, cell):
+def update_orders_table(n1, n2, n3, cell):
 
     orders_pressed = my_context.triggered_id() == 'button-orders'
     r = [
         [],
+        False,
         counter.next()
     ]
+    if my_context.triggered_id() == 'modal-close-orders':
+        return r
+
     active_logger.info(f'attempting to get orders, active cell: {cell}')
 
     # if runners button pressed (new active market), clear table
@@ -147,4 +153,5 @@ def update_orders_table(orders_clicks, runners_clicks, cell):
     df = profits.process_profit_table(df, dd.db_mkt_info['market_time'])
     active_logger.info(f'producing orders for {selection_id}, {df.shape[0]} results found"')
     r[0] = df.to_dict('records')
+    r[1] = True
     return r

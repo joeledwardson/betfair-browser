@@ -216,6 +216,7 @@ def plot_runner(
 @app.callback(
     output=[
         Output('table-timings', 'data'),
+        Output('loading-out-figure', 'children'),
         mid,
     ],
     inputs=inputs,
@@ -232,7 +233,7 @@ def fig_button(clicks0, clicks1, cell, offset_str, ftr_key, plt_key, tmr_vals):
     create a plotly figure based on selected runner when "figure" button is pressed
     """
 
-    ret = [[], counter.next()]
+    ret = [[], '', counter.next()]
 
     # get datetime/None chart offset from time input
     offset = get_chart_offset(offset_str)
@@ -349,4 +350,11 @@ def fig_button(clicks0, clicks1, cell, offset_str, ftr_key, plt_key, tmr_vals):
 
     return ret
 
+
+@app.callback(
+    Output('modal-timings', 'is_open'),
+    [Input('button-timings', 'n_clicks'), Input('modal-close-timings', 'n_clicks')]
+)
+def modal_timings(n1, n2):
+    return my_context.triggered_id() == 'button-timings'
 

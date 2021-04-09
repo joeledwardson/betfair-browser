@@ -130,6 +130,6 @@ class DBTable:
                     row[k] = f(v)
 
         # pad table rows to page size if necessary
-        dashtable.pad(tbl_rows, self.page_size)
+        # dashtable.pad(tbl_rows, self.page_size)
 
         return tbl_rows

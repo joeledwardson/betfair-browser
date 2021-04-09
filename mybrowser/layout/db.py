@@ -10,22 +10,29 @@ from myutils.mydash import intermediate
 
 
 def header():
-    return html.Div([
-        html.H2('Market Browser'),
-        html.Div(dbc.Button(
-            html.I(className="fas fa-filter"),
-            id="btn-db-filter",
-            n_clicks=0,
-        )),
-        html.Div(), # pad extra div to match grid title-container 4-column class
-        html.Div(
+    return dbc.Row([
+        dbc.Col(
+            html.H2('Market Browser'),
+            width='auto'
+        ),
+        dbc.Col(
+            dbc.Button(
+                html.I(className="fas fa-filter"),
+                id="btn-db-filter",
+                n_clicks=0
+            ),
+            width='auto'
+        ),
+        # html.Div(), # pad extra div to match grid title-container 4-column class
+        dbc.Col(
             dcc.Loading(
                 html.Div(id='loading-out-db'),
                 type='dot'
             ),
-            className='loading-container',
+            # className='loading-container',
         )],
-        className='title-container'
+        align='center'
+        # className='title-container'
     )
 
 
@@ -78,30 +85,34 @@ def filters(multi):
 
 def query_status():
     # query text status
-    return html.Div(id='market-query-status')
+    return dbc.Row(dbc.Col(
+        html.Div(id='market-query-status')
+    ))
 
 
 def table():
     # DB market browser
-    return dash_table.DataTable(
-        id='table-market-db',
-        columns=[
-            {
-                "name": v,
-                "id": k,
-            } for k, v in (
-                    dict(config['TABLECOLS']) | {'market_profit': 'Profit'}
-            ).items()
-        ],
-        style_table={
-            # 'height': '300px',
-        },
-        style_cell={
-            'textAlign': 'left',
-            'whiteSpace': 'normal',
-            'height': 'auto',
-            'textOverflow': 'ellipsis',
-        },
-        page_size=int(config['TABLE']['page_size']),
-        sort_action="native",
-    )
+    return dbc.Row(dbc.Col(
+        dash_table.DataTable(
+            id='table-market-db',
+            columns=[
+                {
+                    "name": v,
+                    "id": k,
+                } for k, v in (
+                        dict(config['TABLECOLS']) | {'market_profit': 'Profit'}
+                ).items()
+            ],
+            style_table={
+                # 'height': '300px',
+            },
+            style_cell={
+                'textAlign': 'left',
+                'whiteSpace': 'normal',
+                'height': 'auto',
+                'textOverflow': 'ellipsis',
+            },
+            page_size=int(config['TABLE']['page_size']),
+            sort_action="native"
+        )
+    ))

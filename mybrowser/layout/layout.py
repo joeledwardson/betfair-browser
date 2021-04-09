@@ -34,16 +34,34 @@ def hidden_elements():
 
     return [
 
-        dbc.Modal(
-            id="modal",
+        dbc.Modal([
+            dbc.ModalHeader("Orders"),
+            dbc.ModalBody(orders.table(340)),
+            dbc.ModalFooter(
+                dbc.Button("Close", id="modal-close-orders", className="ml-auto")
+            )],
+            id="modal-orders",
+            size="xl"
+        ),
+
+        dbc.Modal([
+            dbc.ModalHeader('Timings'),
+            dbc.ModalBody(timings.table()),
+            dbc.ModalFooter(
+                dbc.Button('Close', id='modal-close-timings', className='ml-auto')
+            )],
+            id='modal-timings',
+            size='xl'
+        ),
+
+        dbc.Modal([
+            dbc.ModalHeader("Log"),
+            dbc.ModalBody(logging.log_box()),
+            dbc.ModalFooter(
+                dbc.Button("Close", id="modal-close-log", className="ml-auto")
+            )],
+            id="modal-logs",
             size='xl',
-            children=[
-                dbc.ModalHeader("Log"),
-                dbc.ModalBody(logging.log_box()),
-                dbc.ModalFooter(
-                    dbc.Button("Close", id="close", className="ml-auto")
-                ),
-            ],
         ),
 
         dbc.Modal([
@@ -74,43 +92,83 @@ def hidden_elements():
 
 
 def header():
-    return html.Div([
-        html.H1('Betfair Browser'),
-        html.Div([
-            html.Div(dcc.Loading(
-                type='dot',
-                children=html.Div(id='loading-out-header'),
+    return dbc.Row([
+        dbc.Col(width=3),
+        dbc.Col(
+            dbc.Row(
+                dbc.Col(html.H1('Betfair Browser'), width='auto'),
+                justify='center',
+                align='center'
             ),
-                id='header-loading-container',
-                className='loading-container',
+            width=6,
+        ),
+        dbc.Col(
+            dbc.Row([
+                dbc.Col(dcc.Loading(
+                    type='dot',
+                    children=html.Div(id='loading-out-header'),
+                )),
+                dbc.Col(dbc.Button(
+                    id='button-libs',
+                    children=html.I(className="fas fa-book-open"),
+                ), width='auto'),
+                dbc.Col(dbc.Button(
+                    id='open',
+                    children=html.I(className="fas fa-envelope-open-text"),
+                ), width='auto')],
+                align='center',
+                no_gutters=True,
             ),
-            dbc.Button(
-                id='button-libs',
-                children=html.I(className="fas fa-book-open"),
-            ),
-            dbc.Button(
-                id='open',
-                children=html.I(className="fas fa-envelope-open-text"),
-            )],
-            id='header-bar'
+            width=3
         )],
-        id='header-container'
+        align='center',
+        className='bg-light'
+        # style={
+        #     'grid-column': 'span 2'
+        # }
     )
+    # return html.Div([
+    #     html.H1('Betfair Browser'),
+    #     html.Div([
+    #         html.Div(dcc.Loading(
+    #             type='dot',
+    #             children=html.Div(id='loading-out-header'),
+    #         ),
+    #             id='header-loading-container',
+    #             className='loading-container',
+    #         ),
+    #         dbc.Button(
+    #             id='button-libs',
+    #             children=html.I(className="fas fa-book-open"),
+    #         ),
+    #         dbc.Button(
+    #             id='open',
+    #             children=html.I(className="fas fa-envelope-open-text"),
+    #         )],
+    #         id='header-bar'
+    #     )],
+    #     id='header-container'
+    # )
 
 
 def left_col(feature_config_initial, plot_config_initial):
     # left column container
-    return html.Div([
+    return dbc.Col([
 
         # filter bar
-        html.Div([
-            html.Div([
-                html.H2('Plot Config'),
-                dbc.Button('close', id='btn-left-close')],
-                className='sidebar-title'
+        html.Div(
+            html.Div(
+                [
+                    dbc.Row([
+                        dbc.Col(html.H2('Plot Config')),
+                        dbc.Col(dbc.Button('close', id='btn-left-close'), width='auto')],
+                        align='center',
+                    ),
+                    html.Hr(),
+                    configs.inputs(feature_config_initial, plot_config_initial)
+                ],
+                className='d-flex flex-column h-100 p-3'
             ),
-            html.Hr(),
-            configs.inputs(feature_config_initial, plot_config_initial)],
             id='left-side-bar'
         ),
 
@@ -119,13 +177,15 @@ def left_col(feature_config_initial, plot_config_initial):
         db.header(),
         db.query_status(),
         db.table()],
-        className='col-container'
+        width=6,
+        className='p-4'
+        # className='col-container'
     )
 
 
 def right_col(chart_offset, feature_config_initial, plot_config_initial):
     # right column container
-    return html.Div([
+    return dbc.Col([
         # filter bar
         html.Div([
             html.Div([
@@ -145,18 +205,10 @@ def right_col(chart_offset, feature_config_initial, plot_config_initial):
         runners.inputs(input_styles, chart_offset),
         runners.market_info(),
         # TODO update page size from config
-        runners.table(8),
-
-        # TODO move orders and timings into popups
-        html.Div(children=[
-            orders.header(),
-            orders.table(340),
-        ]),
-        html.Div(children=[
-            timings.header(),
-            timings.table(),
-        ])],
-        className='col-container'
+        runners.table(8)],
+        width=6,
+        className='p-4'
+        # className='col-container'
     )
 
 
@@ -171,12 +223,11 @@ def get_layout(
     # container
     return html.Div([
         *hidden_elements(),
-        html.Div(
-            id='bf-container',
-            children=[
-                header(),
-                left_col(feature_config_initial, plot_config_initial),
-                right_col(chart_offset, feature_config_initial, plot_config_initial)
-            ]
-        )
-    ])
+        header(),
+        dbc.Row([
+            left_col(feature_config_initial, plot_config_initial),
+            right_col(chart_offset, feature_config_initial, plot_config_initial)
+        ], no_gutters=True, className='flex-row flex-grow-1')],
+        id='bf-container',
+        className='d-flex flex-column'
+    )

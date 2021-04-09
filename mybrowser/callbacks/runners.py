@@ -94,7 +94,7 @@ def runners_pressed(runners_n_clicks, db_active_cell, strategy_id):
     # TODO dont fire on startup
     empty_tbl = []
     page_size = int(config['TABLE']['page_size'])
-    dashtable.pad(empty_tbl, page_size)
+    # dashtable.pad(empty_tbl, page_size)
 
     db = dd.betting_db
     ret_fail = (
@@ -173,7 +173,7 @@ def runners_pressed(runners_n_clicks, db_active_cell, strategy_id):
             'Profit': d['runner_profit']
         } for d in runner_infos]
 
-        dashtable.pad(tbl_data, page_size)
+        # dashtable.pad(tbl_data, page_size)
 
         # columns['runner_namesfilter('db.Meta.betfair_id == row_id).first()
         # tbl_data = [{
@@ -276,3 +276,15 @@ def toggle_classname(n1, n2):
         return "left-not-collapsed"
     else:
         return ""
+
+
+@app.callback(
+    [Output('button-figure', 'disabled'), Output('button-orders', 'disabled')],
+    Input('table-runners', 'active_cell')
+)
+def fig_btn_disable(active_cell):
+    if active_cell is not None and 'row_id' in active_cell:
+        return False, False
+    else:
+        return True, True
+

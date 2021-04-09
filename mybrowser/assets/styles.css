@@ -1,19 +1,20 @@
 html, body {
     /* set margins of containing html and body so dash div can fill full screen */
     margin: 0;
+    padding: 0;
 }
 
 /* root container of content, 2 columns */
 #bf-container {
-    display: grid;
-    grid-template-columns: 50% 50%;
     height: 100vh;
     position: relative;
     overflow-x: hidden; /* stop right sidebar from scrolling page */
-}
 
-h1 {
-    margin: 2px;
+    /*
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    grid-template-rows: min-content auto;
+    */
 }
 
 h2 {
@@ -53,6 +54,11 @@ h2 {
     position: relative;
 }
 
+.y-scroll {
+    overflow-y: auto;
+    overflow-x: hidden;
+}
+
 /* collapsible right hand bar overlay screen that transitions onto page when margin-right set to 0 */
 #right-side-bar {
     right: 0;
@@ -89,7 +95,6 @@ h2 {
     margin-bottom: 0;
     background: #e0e0e0;
     z-index: 1;
-    padding: 10px;
 }
 
 /* class used to bring left sidebar into view */
@@ -126,6 +131,18 @@ items vertically centered
     margin: 0px 2px
 }
 
+/* loading bar should be at far right of div */
+.title-container div.loading-container {
+    justify-self: end;
+}
+
+/* dash loading icon uses justify-content center and positioning is absolute, so to make the loading icon appear at the
+right of a div have to specify 'loading-container' class in dcc.Loading parent then specify child flex-end to override
+dash's default */
+.title-container div.loading-container div div {
+    justify-content: flex-end !important;
+}
+
 /* rows of filters */
 .filters-container {
     margin: 10px 0px;
@@ -137,17 +154,8 @@ items vertically centered
     overflow-y: auto;
 }
 
-#runners-loading-container {
-    justify-self: end;
-    align-self: center;
-}
 
-/* dash loading icon uses justify-content center and positioning is absolute, so to make the loading icon appear at the
-right of a div have to specify 'loading-container' class in dcc.Loading parent then specify child flex-end to override
-dash's default */
-div.loading-container div div {
-    justify-content: flex-end !important;
-}
+
 
 /* container for a text prompt and input to put items side by side and aligned horizontally */
 .annotated-input {

@@ -35,7 +35,6 @@ def header():
                 type='dot',
             ),
             className='loading-container',
-            id='runners-loading-container',
         )],
         className='title-container'
     )
@@ -49,26 +48,36 @@ def filters():
 
 def inputs(input_styles, chart_offset):
     # market/runner buttons
-    return html.Div(
-        children=[
-            html.Button(
-                children='order profits',
+    return html.Div([
+        dbc.Row([
+            dbc.Col(dbc.Button(
+                ['Orders', html.I(className='fas fa-file-invoice-dollar ml-2')],
                 id='button-orders',
-                n_clicks=0,
-                style=input_styles
-            ),
-            dbc.Button(
-                children=['feature figure', html.I(className="fas fa-filter")],
+                className='mr-1',
+            ), width='auto'),
+            dbc.Col(dbc.Button(
+                ['Figure', html.I(className="fas fa-chart-line ml-2")],
                 id='button-figure',
-                n_clicks=0,
-                style=input_styles
-            ),
+                className='mr-1',
+            ), width='auto'),
+            dbc.Col(dbc.Button(
+                ['Timings', html.I(className='fas fa-hourglass ml-2')],
+                id='button-timings',
+                className='mr-1',
+            ), width='auto'),
+            dbc.Col(dcc.Loading(
+                html.Div(id='loading-out-figure'),
+                type='dot',
+            )),
+        ], no_gutters=True, align='center'),
+        html.Div([
             html.Button(
                 children='all feature figures',
                 id='button-all-figures',
                 n_clicks=0,
                 style=input_styles
             ),
+
             dcc.Checklist(
                 id='checklist-timings',
                 options=[
@@ -80,16 +89,16 @@ def inputs(input_styles, chart_offset):
                     'display': 'inline',
                     'margin': '3px 0px',
                 },
-            ),
+            )
+        ])
 
-            # html.Button(
-            #     children='reload libraries',
-            #     id='button-libs',
-            #     n_clicks=0,
-            #     style=input_styles
-            # ),
-        ]
-    )
+        # html.Button(
+        #     children='reload libraries',
+        #     id='button-libs',
+        #     n_clicks=0,
+        #     style=input_styles
+        # ),
+    ])
 
 
 def market_info():

@@ -12,35 +12,59 @@ from myutils.mydash import intermediate
 
 def inputs(feature_config_initial, plot_config_initial):
     # feature/plot configuration selections
-    return html.Div([
-        dcc.Dropdown(
-            id='input-feature-config',
-            placeholder='Select feature config',
-            value=feature_config_initial,
+    opts = [
+        html.Div(
+            dcc.Dropdown(
+                id='input-feature-config',
+                placeholder='Select feature config',
+                value=feature_config_initial
+            ),
+            className='mb-2'
         ),
-        dcc.Dropdown(
-            id='input-plot-config',
-            placeholder='Select plot config',
-            value=plot_config_initial,
+        html.Div(
+            dcc.Dropdown(
+                id='input-plot-config',
+                placeholder='Select plot config',
+                value=plot_config_initial
+            ),
+            className='mb-2'
         ),
-        dbc.Button(
-            children='reload feature configs',
-            id='button-feature-config',
-            n_clicks=0,
-            color='info',
-            # style=input_styles
+        html.Div(
+            dbc.Button(
+                'reload feature configs',
+                id='button-feature-config',
+                n_clicks=0,
+                color='info',
+                block=True
+            ),
+            className='mb-2'
         ),
-        html.Div([
-            html.Div('Input offset: '),
-            dbc.Input(
-                id='input-chart-offset',
-                type='time',
-                value="01:02:03",  # mytiming.format_timedelta(chart_offset),
-                # style=input_styles,
-                step="1",
+        dbc.Row([
+            dbc.Col(
+                html.Div('Input offset: '),
+                className='mr-1',
+                width='auto'
+            ),
+            dbc.Col(
+                dbc.Input(
+                    id='input-chart-offset',
+                    type='time',
+                    value="01:02:03",  # mytiming.format_timedelta(chart_offset),
+                    # style=input_styles,
+                    step="1",
+                )
             )],
-            className='annotated-input'
-        )],
-        className='filters-container',
+            align='center',
+            className='mb-2'
+        ),
+        *[html.P(str(i)) for i in range(20)]
+    ]
+
+    return html.Div(
+        html.Div(
+            opts,
+            className='d-flex flex-column pr-2'
+        ),
+        className='flex-row flex-grow-1 y-scroll',
     )
 
