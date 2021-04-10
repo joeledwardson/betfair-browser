@@ -1,18 +1,8 @@
-import dash
-from dash.dependencies import Output, Input, State
 from sqlalchemy import func, cast, Date, desc
 from sqlalchemy.sql.functions import coalesce
-from .data import DashData
 from .config import config
-from myutils.mydash import intermediate
-from myutils.mydash.context import triggered_id
-from myutils.mydash import context as my_context
-from myutils.mydash import dashtable
 from myutils.myregistrar import MyRegistrar
-from mytrading.utils.bettingdb import BettingDB
-import logging
 from datetime import date, datetime
-from functools import partial
 
 reg = {}
 formatters = MyRegistrar()
@@ -104,11 +94,10 @@ class JoinedFilter(DBFilter):
 
 class DBTable:
 
-    def __init__(self, id_col, max_rows, fmt_config, pg_size):
+    def __init__(self, id_col, max_rows, fmt_config):
         self.id_col = id_col
         self.max_rows = max_rows
         self.fmt_config = fmt_config
-        self.page_size = pg_size
         self.q_final = None
         self.q_result = None
 
@@ -127,8 +116,5 @@ class DBTable:
                     nm = self.fmt_config[k]
                     f = formatters[nm]
                     row[k] = f(v)
-
-        # pad table rows to page size if necessary
-        # dashtable.pad(tbl_rows, self.page_size)
 
         return tbl_rows

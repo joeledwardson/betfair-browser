@@ -20,7 +20,8 @@ def header():
             dbc.Button(
                 html.I(className="fas fa-filter"),
                 id="btn-db-filter",
-                n_clicks=0
+                n_clicks=0,
+                color='primary'
             ),
             width='auto',
             className='p-0'
@@ -89,14 +90,6 @@ def filters(multi):
         )
     ]
 
-    return html.Div(
-        html.Div(
-            opts,
-            className='d-flex flex-column pr-2'
-        ),
-        className='flex-row flex-grow-1 y-scroll'
-    )
-
 
 def query_status():
     # query text status
@@ -115,7 +108,7 @@ def table():
                     "name": v,
                     "id": k,
                 } for k, v in (
-                        dict(config['TABLECOLS']) | {'market_profit': 'Profit'}
+                        dict(config['TABLE_COLS']) | {'market_profit': 'Profit'}
                 ).items()
             ],
             style_table={
@@ -127,7 +120,7 @@ def table():
                 'height': 'auto',
                 'textOverflow': 'ellipsis',
             },
-            page_size=int(config['TABLE']['page_size']),
+            page_size=int(config['TABLE']['market_rows']),
             sort_action="native"
         )
     ))

@@ -1,7 +1,6 @@
 from dash.dependencies import Output, Input, State
 from myutils.mydash import intermediate
 from myutils.mydash import context
-from ..globals import IORegister
 from ...app import app, dash_data as dd
 from sqlalchemy.sql.functions import sum as sql_sum
 from .objs import *
@@ -9,8 +8,6 @@ from .objs import *
 active_logger = logging.getLogger(__name__)
 active_logger.setLevel(logging.INFO)
 
-
-# TODO update country codes with country names - see list countries in betfair API https://docs.developer.betfair.com/display/1smk3cen4v3lu3yomq5qye0ni/listCountries
 counter = intermediate.Intermediary()
 
 
@@ -90,8 +87,6 @@ inputs = [
     # *[Input(k, 'value') for k in market_filters.keys()]
 ]
 
-mid = Output('intermediary-db-market', 'children')
-
 outputs = [
     # *[Output(k, 'options') for k in market_filters.keys()],
     # *[Output(k, 'value') for k in market_filters.keys()]
@@ -116,15 +111,12 @@ outputs = [
     Output('table-market-db', 'active_cell'),
     Output('table-market-db', 'page_current'),
     Output('loading-out-db', 'children'),
-    mid
+    Output('intermediary-db-market', 'children')
 ]
 
 states = [
     State('table-market-db', 'active_cell')
 ]
-
-IORegister.register_inputs(inputs)
-IORegister.register_mid(mid)
 
 
 @app.callback(
@@ -161,9 +153,7 @@ def mkt_intermediary(
     active_logger.info(f'active cell: {active_cell}')
 
     # TODO - split date into year/month/day components
-    # TODO - make intermediary for logger in this file
-    # TODO - query from joined expression filtered to only markets from strategy (if strategy selected)
-    col_names = list(config['TABLECOLS'].keys())
+    col_names = list(config['TABLE_COLS'].keys())
 
     if strategy_id:
         q = q_strategy(strategy_id, db)

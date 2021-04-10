@@ -7,30 +7,19 @@ import pandas as pd
 from datetime import datetime
 
 from ..app import app, dash_data as dd
-from .globals import IORegister
-from ..cache import cache
+from .. import bfcache
 
 from mytrading.tradetracker import orderinfo
 from mytrading.tradetracker.messages import MessageTypes
 from myutils import generic
 from myutils.mydash import intermediate
 from myutils import jsonfile
-from mytrading.utils import storage
 from mytrading.visual import profits
 from myutils.mydash import context as my_context
 
 
 active_logger = logging.getLogger(__name__)
 counter = intermediate.Intermediary()
-
-inputs = [
-    Input('button-orders', 'n_clicks'),
-    Input('button-runners', 'n_clicks'),
-    Input('modal-close-orders', 'n_clicks')
-]
-mid = Output('intermediary-orders', 'children')
-IORegister.register_inputs(inputs)
-IORegister.register_mid(mid)
 
 
 def get_profits(p, selection_id) -> Optional[pd.DataFrame]:
@@ -72,15 +61,18 @@ def get_profits(p, selection_id) -> Optional[pd.DataFrame]:
     return df
 
 
-
-
 @app.callback(
     output=[
         Output('table-orders', 'data'),
         Output('modal-orders', 'is_open'),
-        mid,
+        Output('table-orders', 'page_current'),
+        Output('intermediary-orders', 'children'),
     ],
-    inputs=inputs,
+    inputs=[
+        Input('button-orders', 'n_clicks'),
+        Input('button-runners', 'n_clicks'),
+        Input('modal-close-orders', 'n_clicks')
+    ],
     state=[
         State('table-runners', 'active_cell'),
     ]
@@ -89,8 +81,10 @@ def update_orders_table(n1, n2, n3, cell):
 
     orders_pressed = my_context.triggered_id() == 'button-orders'
     r = [
-        [],
+        list(),
         False,
+        0,  # reset selected page on open/close modal - if last page selected was page 2 and new table loaded is only
+        # 1 page then table breaks
         counter.next()
     ]
     if my_context.triggered_id() == 'modal-close-orders':
@@ -125,7 +119,7 @@ def update_orders_table(n1, n2, n3, cell):
         active_logger.warning(f'no strategy selected')
         return r
 
-    p = cache.path_strategy_cache(dd.strategy_id, dd.db_mkt_info['market_id'])
+    p = bfcache.p_strat(dd.strategy_id, dd.db_mkt_info['market_id'])
     active_logger.info(f'reading strategy market cache file:\n-> {p}')
     if not path.isfile(p):
         active_logger.warning(f'file does not exist')
@@ -135,18 +129,6 @@ def update_orders_table(n1, n2, n3, cell):
     if not df.shape[0]:
         active_logger.warning(f'Retrieved profits dataframe is empty')
         return r
-
-    # # get order results file from selection ID and check exists
-    # f_path = path.join(dd.market_dir, str(selection_id) + storage.EXT_ORDER_RESULT)
-    # if not path.isfile(f_path):
-    #     active_logger.warning(f'no file "{f_path}" found')
-    #     return r
-    #
-    # # get orders dataframe
-    # df = profits.read_profit_table(f_path)
-    # if df.shape[0] == 0:
-    #     active_logger.warning(f'orders file "{f_path}" empty')
-    #     return r
 
     df = profits.process_profit_table(df, dd.db_mkt_info['market_time'])
     active_logger.info(f'producing orders for {selection_id}, {df.shape[0]} results found"')

@@ -1,5 +1,6 @@
 import dash_html_components as html
 from dash_table import DataTable
+from .configs import config
 
 
 def header():
@@ -17,9 +18,6 @@ def table():
             style_cell={
                 'textAlign': 'left',
             },
-            # fixed_rows={
-            #     'headers': True,
-            # },
             columns=[{
                 'name': x,
                 'id': x
@@ -28,7 +26,7 @@ def table():
                 'Count',
                 'Mean',
             ]],
-            page_size=8,
+            page_size=int(config['TABLE']['timings_rows']),
         ),
     )
 

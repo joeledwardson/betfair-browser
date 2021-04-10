@@ -16,15 +16,3 @@ for section in config.sections():
     for k, v in config[section].items():
         active_logger.info(f'{k}: {v}')
 active_logger.info(f'configuration reading done')
-
-# for k in config['DEFAULT']:
-#     print(f'{k}: "{config["DEFAULT"][k]}"')
-# config['DEFAULT'] = {'ServerAliveInterval': '45',
-#                      'Compression': 'yes',
-#                      'CompressionLevel': '9'}
-# with open('config.txt', 'w') as c:
-#     config.write(c)
-# print(__file__)
-# config.read('config.txt')
-# for k in config['DEFAULT']:
-#     print(k)

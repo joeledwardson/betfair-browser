@@ -1,35 +1,50 @@
 import dash
 from dash.dependencies import Output, Input, State
 import dash_html_components as html
-import pandas as pd
-from typing import List
 from betfairlightweight.resources.bettingresources import MarketBook
 from datetime import datetime
 import logging
-from ..config import config
+from typing import Optional, List, Dict
+from os import path
+from betfairlightweight.exceptions import BetfairError
+from flumine.exceptions import FlumineException
+from sqlalchemy.exc import SQLAlchemyError
+
 from ..app import app, dash_data as dd
-from ..cache import cache
-from .globals import IORegister
+from .. import bfcache
 
 from mytrading.process import prices
 from mytrading.utils import storage, betfair
 from myutils import generic
 from myutils.mydash import intermediate
-from myutils.mydash import dashtable
 from myutils.mydash import context
-
 
 active_logger = logging.getLogger(__name__)
 active_logger.setLevel(logging.INFO)
 
 counter = intermediate.Intermediary()
 
-inputs = [
-    Input('button-runners', 'n_clicks')
-]
-mid = Output('intermediary-runners', 'children')
-IORegister.register_inputs(inputs)
-IORegister.register_mid(mid)
+
+def read_market_cache(p, trading) -> Optional[List]:
+
+    active_logger.info(f'reading market cache file:\n-> {p}')
+
+    if not path.isfile(p):
+        active_logger.warning(f'file does not exist')
+        return None
+
+    try:
+        q = storage.get_historical(trading, p)
+    except (FlumineException, BetfairError) as e:
+        active_logger.warning(f'failed to read market file\n{e}', exc_info=True)
+        return None
+
+    l = list(q.queue)
+    if not len(l):
+        active_logger.warning(f'market cache file is empty')
+        return None
+
+    return l
 
 
 def log_records_info(record_list: List[List[MarketBook]], market_time: datetime):
@@ -66,10 +81,12 @@ def runners_pressed(active_cell):
     output=[
         Output('table-runners', 'data'),
         Output('infobox-market', 'children'),
-        mid,
+        Output('intermediary-runners', 'children'),
         Output('loading-out-runners', 'children')
     ],
-    inputs=inputs,
+    inputs=[
+        Input('button-runners', 'n_clicks')
+    ],
     state=[
         State('table-market-db', 'active_cell'),
         State('input-strategy-select', 'value')
@@ -85,43 +102,42 @@ def runners_pressed(runners_n_clicks, db_active_cell, strategy_id):
     :return:
     """
 
-    # TODO dont fire on startup
-    empty_tbl = []
-    page_size = int(config['TABLE']['page_size'])
-    # dashtable.pad(empty_tbl, page_size)
-
     db = dd.betting_db
-    ret_fail = (
-        empty_tbl,
+    ret = [
+        [],  # empty table
         html.P('failed to load market'),
         counter.next(),
         ''
-    )
+    ]
+
+    # first callback call
+    if not runners_n_clicks:
+        ret[1] = 'no market selected'
+        return ret
 
     if not db_active_cell:
         active_logger.warning(f'no active cell to get market')
-        return ret_fail
+        return ret
 
     market_id = db_active_cell['row_id']
     if not market_id:
         active_logger.warning(f'row ID is blank')
-        return ret_fail
+        return ret
 
     dd.strategy_id = strategy_id
     if strategy_id:
-        if not cache.write_strategy_cache(strategy_id, market_id, db):
-            return ret_fail
+        if not bfcache.w_strat(strategy_id, market_id, db):
+            return ret
 
-    if not cache.write_market_cache(market_id, db):
-        return ret_fail
+    if not bfcache.w_mkt(market_id, db):
+        return ret
 
-    dd.record_list = cache.read_market_cache(market_id, dd.trading)
+    p = bfcache.p_mkt(market_id)
+    dd.record_list = read_market_cache(p, dd.trading)
     if not dd.record_list:
-        return ret_fail
+        return ret
 
     try:
-
-        # TODO - wrap in function and add SQLAlchemy error exception catchers
         sr = db.tables['strategyrunners']
         cte_strat = db.session.query(
             sr.columns['runner_id'],
@@ -149,113 +165,30 @@ def runners_pressed(runners_n_clicks, db_active_cell, strategy_id):
             db.tables['marketmeta'].columns['market_id'] == market_id
         ).first()
 
-        dd.db_mkt_info = dict(meta)
-        dd.start_odds = generic.dict_sort(prices.starting_odds(dd.record_list))
-
-        dd.runner_names = {
-            dict(r)['runner_id']: dict(r)['runner_name']
-            for r in rows
-        }
-
-        runner_infos = [dict(r) for r in rows]
-
-        tbl_data = [{
-            'id': d['runner_id'], # set row to ID for easy access in callbacks
-            'Selection ID': d['runner_id'],
-            'Name': d['runner_name'] or d['runner_id'],
-            'Starting Odds': dd.start_odds.get(d['runner_id'], 999),
-            'Profit': d['runner_profit']
-        } for d in runner_infos]
-
-        # dashtable.pad(tbl_data, page_size)
-
-        # columns['runner_namesfilter('db.Meta.betfair_id == row_id).first()
-        # tbl_data = [{
-        #     'Selection ID': dict(r)['runner_id'],
-        #     'Name': dict(r)['runner_name']
-        # } for r in rows]
-
-        return (
-            tbl_data,
-            html.P(f'loaded "{market_id}"'),
-            counter.next(),
-            ''
-        )
-    except Exception as e:
+    except SQLAlchemyError as e:
         active_logger.warning(f'failed getting runner names: {e}', exc_info=True)
-        return ret_fail
+        return ret
 
-    # # try to get record list and market information from active directory (indicated from file_tracker in dash_data)
-    # success, record_list, market_info = get_records_market(
-    #     file_tracker=dd.file_tracker,
-    #     trading=dd.trading,
-    #     base_dir=input_dir,
-    #     active_cell=active_cell
-    # )
-    #
-    # # on fail, success is False and record_list and market_info should be set to none
-    # if not success:
-    #
-    #     # fail - reset record list and market info
-    #     dd.clear_market()
-    #     market_description = 'no market loaded'
-    #
-    # else:
-    #
-    #     market_description = '{sport} - {event} - {time} - {mkt_type} - {bet_type} - {mkt_id}'.format(
-    #         sport=betfair.event_id_lookup.get(market_info.event_type_id, 'sport unrecognised'),
-    #         event=market_info.event_name,
-    #         time=market_info.market_time,
-    #         mkt_type=market_info.market_type,
-    #         bet_type=market_info.betting_type,
-    #         mkt_id=market_info.market_id,
-    #     )
-    #
-    #     # set record list and market info
-    #     dd.record_list = record_list
-    #     dd.market_info = market_info
-    #
-    #     # success, assign active market directory to dash data instance and compute starting odds
-    #     dd.market_dir = dd.file_tracker.root
-    #     dd.start_odds = generic.dict_sort(prices.starting_odds(dd.record_list))
-    #
-    #     # update info strings with record timings and market time
-    #     log_records_info(record_list, market_info.market_time)
-    #
-    #     # construct table records with selection ID, names and starting odds
-    #     df_runners = pd.DataFrame([{
-    #         'Selection ID': k,
-    #         'Name': market_info.names.get(k, ''),
-    #         'Starting Odds': v,
-    #     } for k, v in dd.start_odds.items()])
-    #
-    #     # create filenames for order results based on selection IDs
-    #     profit_elements = [
-    #         str(s) + storage.EXT_ORDER_RESULT
-    #         for s in dd.start_odds.keys()
-    #     ]
-    #
-    #     # get order result profits (if exist)
-    #     display_profits = get_display_profits(
-    #         dd.file_tracker.root,
-    #         profit_elements
-    #     )
-    #
-    #     # add to data frame
-    #     df_runners['Profit'] = display_profits
-    #
-    #     # create records to pass in callback for table update
-    #     # tbl_market = [{
-    #     #     'Attribute': k,
-    #     #     'Value': getattr(dd.market_info, k)
-    #     # } for k in ['event_name', 'market_time', 'market_type']]
-    #
-    # return [
-    #     df_runners.to_dict('records'),
-    #     # tbl_market,
-    #     counter.next(),
-    #     html.P(market_description)
-    # ]
+    dd.db_mkt_info = dict(meta)
+    dd.start_odds = generic.dict_sort(prices.starting_odds(dd.record_list))
+
+    dd.runner_names = {
+        dict(r)['runner_id']: dict(r)['runner_name']
+        for r in rows
+    }
+
+    runner_infos = [dict(r) for r in rows]
+
+    ret[0] = [{
+        'id': d['runner_id'], # set row to ID for easy access in callbacks
+        'Selection ID': d['runner_id'],
+        'Name': d['runner_name'] or d['runner_id'],
+        'Starting Odds': dd.start_odds.get(d['runner_id'], 999),
+        'Profit': d['runner_profit']
+    } for d in runner_infos]
+
+    ret[1] = f'loaded "{market_id}"'
+    return ret
 
 
 @app.callback(

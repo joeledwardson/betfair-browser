@@ -1,35 +1,29 @@
-import dash
 from dash.dependencies import Output, Input, State
-from datetime import datetime
 import sys
 import importlib
 import logging
 from myutils.mydash import intermediate, context
 from ..app import app
-from .globals import IORegister
 
 active_logger = logging.getLogger(__name__)
 counter = intermediate.Intermediary()
 
-mid = Output('intermediary-libs', 'children')
-inputs = [
-    Input('button-libs', 'n_clicks'),
-    Input('modal-close-libs', 'n_clicks')
-]
-IORegister.register_inputs(inputs)
-IORegister.register_mid(mid)
-
 
 @app.callback(
     output=[
-        mid,
+        Output('intermediary-libs', 'children'),
         Output('modal-libs', 'is_open'),
         Output('loading-out-header', 'children')
     ],
-    inputs=inputs,
-    state=[State('modal-libs', 'is_open')]
+    inputs=[
+        Input('button-libs', 'n_clicks'),
+        Input('modal-close-libs', 'n_clicks')
+    ],
+    state=[
+        State('modal-libs', 'is_open')
+    ]
 )
-def callack_libs(n1, n2, is_open):
+def callback_libs(n1, n2, is_open):
     """
     when reload libraries button pressed, dynamically update references to `mytrading` and `myutils`
     """

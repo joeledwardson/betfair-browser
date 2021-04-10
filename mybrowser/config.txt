@@ -3,17 +3,33 @@ date_format = %%d %%b %%y
 
 [TABLE]
 dt_format = %%Y-%%m-%%d %%H:%%M
-page_size = 8
+market_rows = 12
+runner_rows = 10
+orders_rows = 15
+timings_rows = 15
 
-[TABLECOLS]
+
+[TABLE_COLS]
 market_id = Market ID
 market_type = Market Type
 market_time = Market Time
 venue = Venue
 
-[TABLEFORMATTERS]
+[TABLE_FORMATTERS]
 market_time = format_datetime
 
 [DB]
 max_rows = 100
 
+[CONFIG_PATHS]
+; can use relative paths here
+feature = ../plot_configs/feature
+plot = ../plot_configs/plot
+cache = C:/Users/joele/Documents/_bf_cache
+
+[PLOT_CONFIG]
+default_offset = 00:03:00
+
+
+[TIMING_CONFIG]
+str_format = {d}d {h:02}:{m:02}:{s:02}.{u:06}

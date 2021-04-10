@@ -1,13 +1,7 @@
-from typing import Optional
-from datetime import timedelta
 import dash_html_components as html
 import dash_core_components as dcc
 import dash_bootstrap_components as dbc
-import dash_table
-import pandas as pd
-from myutils import mytiming
 from ..config import config
-from myutils.mydash import intermediate
 from .defs import FILTER_MARGINS
 
 
@@ -37,17 +31,14 @@ def inputs(feature_config_initial, plot_config_initial):
         dbc.Row([
             dbc.Col(
                 html.Div('Input offset: '),
-                # className='mr-1',
                 width='auto'
             ),
             dbc.Col(
                 dbc.Input(
                     id='input-chart-offset',
                     type='time',
-                    value="01:02:03",  # mytiming.format_timedelta(chart_offset),
-                    # style=input_styles,
-                    step="1",
-                    className='pl-0'
+                    value=config['PLOT_CONFIG']['default_offset'],
+                    step="1"  # forces HTML to use hours, minutes and seconds format
                 )
             )],
             align='center',

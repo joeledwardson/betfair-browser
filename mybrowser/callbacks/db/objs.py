@@ -47,11 +47,11 @@ filter_strat_select = DBFilter(
     'STRATEGYFILTERS'
 )
 
+# TODO - config should not bed used in import statement until it has had a chance to be initialised
 market_table = DBTable(
     id_col='market_id',
     max_rows=int(config['DB']['max_rows']),
-    fmt_config=config['TABLEFORMATTERS'],
-    pg_size=int(config['TABLE']['page_size']),
+    fmt_config=config['TABLE_FORMATTERS']
 )
 
 

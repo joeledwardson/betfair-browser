@@ -4,7 +4,7 @@ import dash_renderer
 from typing import Optional, List
 from .app import app, dash_data
 from . import callbacks
-from .layout.layout import get_layout
+from .layout import get_layout
 from datetime import timedelta
 import logging
 import sys
@@ -35,16 +35,16 @@ def run_browser(
     if sys.version_info < (3, 9):
         raise Exception('Python version needs to be 3.9 or higher!')
 
-    dash_data.input_dir=input_dir
-    dash_data.feature_configs_dir=feature_configs_dir
-    dash_data.plot_configs_dir=plot_configs_dir
+    # dash_data.input_dir=input_dir
+    # dash_data.feature_configs_dir=feature_configs_dir
+    # dash_data.plot_configs_dir=plot_configs_dir
     dash_data.feature_config_default=feature_config_default
     dash_data.plot_config_default=plot_config_default
 
     dash_data.init_db()
 
-    if start_dir:
-        dash_data.file_tracker.update(start_dir)
+    # if start_dir:
+    #     dash_data.file_tracker.update(start_dir)
 
     # if not external_stylesheets:
     #     external_stylesheets = ['https://codepen.io/chriddyp/pen/bWLwgP.css']

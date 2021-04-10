@@ -1,13 +1,12 @@
 from os import path
-import dash
 from dash.dependencies import Output, Input, State
 from typing import Dict, List
 import logging
-from ..data import DashData
-from ..app import app, dash_data as dd
-from .globals import IORegister
-from myutils.mydash import intermediate
 
+from ..app import app, dash_data as dd
+from ..config import config
+
+from myutils.mydash import intermediate
 from myutils import mypath
 from myutils import jsonfile
 
@@ -15,7 +14,7 @@ counter = intermediate.Intermediary()
 active_logger = logging.getLogger(__name__)
 
 
-def get_configs(config_dir: str, config_type: str) -> Dict:
+def get_configs(config_dir: str) -> Dict:
     """
     get dictionary of configuration file name (without ext) to dict from dir
 
@@ -29,16 +28,14 @@ def get_configs(config_dir: str, config_type: str) -> Dict:
 
     """
 
-    active_logger.info(f'getting {config_type} configurations from "{config_dir}"')
-
     # check directory is set
     if type(config_dir) is not str:
-        active_logger.warning('directory not set')
+        active_logger.error('directory not set')
         return dict()
 
     # check actually exists
     if not path.exists(config_dir):
-        active_logger.warning(f'directory does not exist!')
+        active_logger.error(f'directory does not exist!')
         return dict()
 
     # dict of configs to return
@@ -66,28 +63,25 @@ def get_configs(config_dir: str, config_type: str) -> Dict:
     return configs
 
 
-inputs = [
-    Input('button-feature-config', 'n_clicks')
-]
-mid = Output('intermediary-featureconfigs', 'children')
-
-IORegister.register_inputs(inputs)
-IORegister.register_mid(mid)
-
-
 @app.callback(
     output=[
         Output('input-feature-config', 'options'),
         Output('input-plot-config', 'options'),
-        mid,
+        Output('intermediary-featureconfigs', 'children'),
     ],
-    inputs=inputs,
+    inputs=Input('button-feature-config', 'n_clicks'),
 )
 def update_files_table(n_clicks):
 
-    # get feature configs directory from data object
-    dd.feature_configs = get_configs(dd.feature_configs_dir, 'features')
-    dd.plot_configs = get_configs(dd.plot_configs_dir, 'plot')
+    # get feature configs
+    feature_dir = path.abspath(config['CONFIG_PATHS']['feature'])
+    active_logger.info(f'getting feature configurations from:\n-> {feature_dir}"')
+    dd.feature_configs = get_configs(feature_dir)
+
+    # get plot configurations
+    plot_dir = path.abspath(config['CONFIG_PATHS']['feature'])
+    active_logger.info(f'getting plot configurations from:\n-> {plot_dir}"')
+    dd.plot_configs = get_configs(plot_dir)
 
     feature_options = [{
         'label': v,

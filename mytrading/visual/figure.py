@@ -172,7 +172,7 @@ def fig_historical(
         ]
         plot_orders(fig, orders_df.copy(), orders_plot_config)
 
-    # set figure layout and return
+    # set figure layouts and return
     set_figure_layout(fig, title, chart_start, chart_end)
     return fig
 
@@ -253,7 +253,7 @@ def create_figure(y_axes_names: List[str], vertical_spacing=0.05) -> go.Figure:
 
 def set_figure_layout(fig: go.Figure, title: str, chart_start: datetime, chart_end: datetime):
     """
-    set plotly figure layout with a title, limit x axis from start time minus display seconds
+    set plotly figure layouts with a title, limit x axis from start time minus display seconds
     """
 
     # set title

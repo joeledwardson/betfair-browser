@@ -2,6 +2,7 @@ import dash_html_components as html
 import dash_core_components as dcc
 import dash_bootstrap_components as dbc
 import dash_table
+from ..config import config
 
 
 def header():
@@ -44,7 +45,7 @@ def header():
     )
 
 
-def inputs(input_styles, chart_offset):
+def inputs():
     # market/runner buttons
     return html.Div([
         dbc.Row([
@@ -85,8 +86,7 @@ def inputs(input_styles, chart_offset):
             html.Button(
                 children='all feature figures',
                 id='button-all-figures',
-                n_clicks=0,
-                style=input_styles
+                n_clicks=0
             ),
 
             dcc.Checklist(
@@ -102,13 +102,6 @@ def inputs(input_styles, chart_offset):
                 },
             )
         ])
-
-        # html.Button(
-        #     children='reload libraries',
-        #     id='button-libs',
-        #     n_clicks=0,
-        #     style=input_styles
-        # ),
     ])
 
 
@@ -117,7 +110,7 @@ def market_info():
     return html.Div(children=[], id='infobox-market')
 
 
-def table(height):
+def table():
     """
     get empty mydash DataTable for runner information
     """
@@ -134,6 +127,6 @@ def table(height):
         style_cell={
             'textAlign': 'left',
         },
-        page_size=int(height),
+        page_size=int(config['TABLE']['runner_rows']),
         sort_action='native',
     )

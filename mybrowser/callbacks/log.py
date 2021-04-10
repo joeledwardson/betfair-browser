@@ -1,25 +1,22 @@
-import dash
 from dash.dependencies import Output, Input, State
 import dash_html_components as html
-from ..data import DashData
+
 from .. import log_q
 from ..app import app
-from .globals import IORegister
+from ..intermeds import INTERMEDIARIES
 
 
 log_elements = []
 
+inputs = [Input(x, 'children') for x in INTERMEDIARIES]
+inputs += [Input('interval-component', 'n_intervals')]
+
 
 @app.callback(
     output=Output('logger-box', 'children'),
-    inputs=[
-        Input(x.component_id, x.component_property)
-        for x in IORegister.outs_reg
-    ] + [
-        Input('interval-component', 'n_intervals')
-    ]
+    inputs=inputs
 )
-def log_update(*args, **kwargs):
+def log_update(*args):
     # update log list, add to bottom of list as display is reversed
     while not log_q.empty():
         log_item = log_q.get()

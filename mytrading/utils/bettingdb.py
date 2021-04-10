@@ -79,7 +79,7 @@ class BettingDB:
             active_logger.warning(f'betfair id {market_id} already exist in meta/stream/runners')
             return False
 
-        compressed = zlib.compress(data.encode())
+        compressed = zlib.compress(data.cache_compress())
         stream_row = cls_stream(
             market_id=market_id,
             data=compressed,

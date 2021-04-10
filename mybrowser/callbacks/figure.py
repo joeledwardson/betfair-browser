@@ -3,19 +3,18 @@ from functools import partial
 from datetime import datetime, timedelta
 from os import path
 from typing import List, Dict, Union, Optional
-import dash
 from dash.dependencies import Output, Input, State
 import pandas as pd
-from plotly.graph_objects import Figure
 import logging
+
 from ..data import DashData
 from ..app import app, dash_data as dd
-from .globals import IORegister
+from .. import bfcache
+from ..config import config
+
 from mytrading.tradetracker import orderinfo
 from mytrading.utils import storage as utils_storage
-from mytrading.feature import storage as features_storage
 from mytrading.visual import figure as figurelib
-from mytrading.visual import config as configlib
 from myutils.mydash import context as my_context
 from myutils import mytiming
 from myutils.mydash import intermediate
@@ -25,14 +24,6 @@ from myutils.mydash import intermediate
 active_logger = logging.getLogger(__name__)
 figurelib.active_logger = active_logger
 counter = intermediate.Intermediary()
-
-mid = Output('intermediary-figure', 'children')
-inputs = [
-    Input('button-figure', 'n_clicks'),
-    Input('button-all-figures', 'n_clicks'),
-]
-IORegister.register_inputs(inputs)
-IORegister.register_mid(mid)
 
 
 def get_chart_offset(chart_offset_str) -> Optional[timedelta]:
@@ -104,23 +95,23 @@ def get_features(
     or if no feature file, try to generate based on feature configuration `ftr_key`
     """
 
-    # construct feature info
-    ftr_path = path.join(
-        dd.market_info.market_id,
-        str(sel_id) + utils_storage.EXT_FEATURE
-    )
+    # # construct feature info
+    # ftr_path = path.join(
+    #     dd.market_info.market_id,
+    #     str(sel_id) + utils_storage.EXT_FEATURE
+    # )
 
     # store feature data
     ftr_data = None
 
-    # check if file exists
-    if path.isfile(ftr_path):
-
-        # try to read features from file
-        ftr_data = features_storage.features_from_file(ftr_path)
-        active_logger.info(f'found {len(ftr_data)} features in file "{ftr_path}"')
-        if not ftr_data:
-            active_logger.info('generating features from selected configuration instead')
+    # # check if file exists
+    # if path.isfile(ftr_path):
+    #
+    #     # try to read features from file
+    #     ftr_data = features_storage.features_from_file(ftr_path)
+    #     active_logger.info(f'found {len(ftr_data)} features in file "{ftr_path}"')
+    #     if not ftr_data:
+    #         active_logger.info('generating features from selected configuration instead')
 
     # generate features if file doesn't exist or empty/fail
     if not ftr_data:
@@ -192,7 +183,7 @@ def plot_runner(
         start = figurelib.modify_start(start, orders, figurelib.ORDER_OFFSET_SECONDS)
         end = figurelib.modify_end(end, orders, figurelib.ORDER_OFFSET_SECONDS)
 
-    # get feature data from either features file or try to generate, check not empty
+    # get feature data from either features file or try to generate, check not emp
     ftr_data = get_features(sel_id, ftr_key, dd, start, end)
     if not ftr_data:
         active_logger.warning('feature data empty')
@@ -216,9 +207,12 @@ def plot_runner(
     output=[
         Output('table-timings', 'data'),
         Output('loading-out-figure', 'children'),
-        mid,
+        Output('intermediary-figure', 'children'),
     ],
-    inputs=inputs,
+    inputs=[
+        Input('button-figure', 'n_clicks'),
+        Input('button-all-figures', 'n_clicks'),
+    ],
     state=[
         State('table-runners', 'active_cell'),
         State('input-chart-offset', 'value'),
@@ -249,8 +243,7 @@ def fig_button(clicks0, clicks1, cell, offset_str, ftr_key, plt_key, tmr_vals):
 
     # get orders dataframe (or None)
     if dd.strategy_id:
-        p = path.join(dd.file_tracker.root, 'strategycache', dd.strategy_id, dd.db_mkt_info['market_id'])
-        p = path.abspath(p)
+        p = bfcache.p_strat(dd.strategy_id, dd.db_mkt_info['market_id'])
         if not path.exists(p):
             active_logger.warning(f'could not find cached strategy market file:\n-> "{p}"')
             return ret
@@ -338,8 +331,7 @@ def fig_button(clicks0, clicks1, cell, offset_str, ftr_key, plt_key, tmr_vals):
         if not tms:
             active_logger.warning('no timings on which to produce table')
         tms = sorted(tms, key=lambda v: v['Mean'], reverse=True)
-        # TODO add to configuration file
-        td_fmt = '{d}d {h:02}:{m:02}:{s:02}.{u:06}'
+        td_fmt = config['TIMING_CONFIG']['str_format']
         f = partial(mytiming.format_timedelta, fmt=td_fmt)
         tms = [{
             k: f(v) if k == 'Mean' else v
