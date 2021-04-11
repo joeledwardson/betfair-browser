@@ -5,6 +5,8 @@ from mytrading.utils import security as mysecurity
 from mytrading.utils.bettingdb import BettingDB
 
 
+# TODO - how to remove globals to make this multiprocess valid? strategy id, runner names, market info, start odds
+#  could all be cached or stored in hidden divs.
 class DashData:
 
     def init_db(self, **db_kwargs):
