@@ -16,7 +16,8 @@ def header():
             dbc.Button(
                 html.I(className="fas fa-bars"),
                 id="btn-runners-filter",
-                n_clicks=0
+                n_clicks=0,
+                color='primary'
             ),
             width='auto',
             className='p-1'
@@ -26,8 +27,7 @@ def header():
                 children=html.I(className="fas fa-download"),
                 id='button-runners',
                 n_clicks=0,
-                # color='primary',
-                # style=input_styles
+                color='primary'
             ),
             width='auto',
             className='p-1'
@@ -87,19 +87,6 @@ def inputs():
                 children='all feature figures',
                 id='button-all-figures',
                 n_clicks=0
-            ),
-
-            dcc.Checklist(
-                id='checklist-timings',
-                options=[
-                    {'label': 'timings', 'value': 'timings'},
-                ],
-                value=['timings'],
-                labelStyle={'display': 'inline-block'},
-                style={
-                    'display': 'inline',
-                    'margin': '3px 0px',
-                },
             )
         ])
     ])

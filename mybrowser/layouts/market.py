@@ -7,7 +7,7 @@ import dash_table
 import pandas as pd
 from ..config import config
 from myutils.mydash import intermediate
-from .defs import FILTER_MARGINS
+from ._defs import filter_margins
 
 
 def header():
@@ -44,49 +44,49 @@ def filters(multi):
         dcc.Dropdown(
             id='input-sport-type',
             placeholder='Sport...',
-            className=FILTER_MARGINS
+            className=filter_margins()
         ),
         dcc.Dropdown(
             id='input-mkt-type',
             placeholder='Market type...',
             multi=multi,
-            className=FILTER_MARGINS
+            className=filter_margins()
         ),
         dcc.Dropdown(
             id='input-bet-type',
             placeholder='Betting type...',
             multi=multi,
-            className=FILTER_MARGINS
+            className=filter_margins()
         ),
         dcc.Dropdown(
             id='input-format',
             placeholder='Format...',
             multi=multi,
-            className=FILTER_MARGINS
+            className=filter_margins()
         ),
         dcc.Dropdown(
             id='input-country-code',
             placeholder='Country...',
             multi=multi,
             optionHeight=60,
-            className=FILTER_MARGINS
+            className=filter_margins()
         ),
         dcc.Dropdown(
             id='input-venue',
             placeholder='Venue...',
             multi=multi,
-            className=FILTER_MARGINS
+            className=filter_margins()
         ),
         dcc.Dropdown(
             id='input-date',
             placeholder='Market date...',
             multi=multi,
-            className=FILTER_MARGINS
+            className=filter_margins()
         ),
         dbc.Button(
             id='input-mkt-clear',
             children='clear',
-            className=FILTER_MARGINS
+            className=filter_margins()
         )
     ]
 

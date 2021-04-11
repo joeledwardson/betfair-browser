@@ -1,25 +1,19 @@
 from sqlalchemy import func, cast, Date, desc
 from sqlalchemy.sql.functions import coalesce
-from .config import config
-from myutils.myregistrar import MyRegistrar
+from ..config import config
 from datetime import date, datetime
-
-reg = {}
-formatters = MyRegistrar()
-
-
-@formatters.register_element
-def format_datetime(dt: datetime):
-    return dt.strftime(config['TABLE']['dt_format'])
 
 
 class DBFilter:
+
+    reg = {}
+
     def __init__(self, db_col, group):
         self.db_col = db_col
         self.value = None
-        if group not in reg:
-            reg[group] = []
-        reg[group].append(self)
+        if group not in DBFilter.reg:
+            DBFilter.reg[group] = []
+        DBFilter.reg[group].append(self)
 
     def set_value(self, value, clear):
         if clear:
@@ -91,30 +85,3 @@ class JoinedFilter(DBFilter):
             'value': dict(row)[self.db_col]
         } for row in opts]
 
-
-class DBTable:
-
-    def __init__(self, id_col, max_rows, fmt_config):
-        self.id_col = id_col
-        self.max_rows = max_rows
-        self.fmt_config = fmt_config
-        self.q_final = None
-        self.q_result = None
-
-    def table_output(self, tbl_cols, db):
-        self.q_final = db.session.query(*tbl_cols).limit(self.max_rows)
-        self.q_result = self.q_final.all()
-        tbl_rows = [dict(r) for r in self.q_result]
-        for i, row in enumerate(tbl_rows):
-
-            # set 'id' column value to betfair id so that dash will set 'row-id' within 'active_cell' correspondingly
-            row['id'] = row[self.id_col]
-
-            # apply custom formatting to table row values
-            for k, v in row.items():
-                if k in self.fmt_config:
-                    nm = self.fmt_config[k]
-                    f = formatters[nm]
-                    row[k] = f(v)
-
-        return tbl_rows

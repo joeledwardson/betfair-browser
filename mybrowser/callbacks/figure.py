@@ -26,6 +26,107 @@ figurelib.active_logger = active_logger
 counter = intermediate.Intermediary()
 
 
+def get_timings() -> List[Dict]:
+    tms = mytiming.get_timings_summary()
+    if not tms:
+        active_logger.warning('no timings on which to produce table')
+        return list()
+    tms = sorted(tms, key=lambda v: v['Mean'], reverse=True)
+    td_fmt = config['TIMING_CONFIG']['str_format']
+    f = partial(mytiming.format_timedelta, fmt=td_fmt)
+    tms = [{
+        k: f(v) if k == 'Mean' else v
+        for k, v in t.items() if k in ['Function', 'Count', 'Mean']
+    } for t in tms]
+    return tms
+
+
+def get_ids(cell, id_list) -> Optional[List[int]]:
+    """
+    get a list of selection IDs for runners on which to plot charts
+    if `do_all` is True, then simply return complete `id_list` - if not, take row ID from cell as single selection ID
+    for list and validate
+    """
+
+    # determine if 'all feature plots' clicked as opposed to single plot
+    do_all = my_context.triggered_id() == 'button-all-figures'
+
+    if do_all:
+
+        # do all selection IDs
+        return id_list
+
+    else:
+
+        # get selection ID of runner from active runner cell, or abort on fail
+        if not cell:
+            active_logger.warning('no cell selected')
+            return None
+
+        if 'row_id' not in cell:
+            active_logger.warning(f'row ID not found in active cell info')
+            return None
+
+        sel_id = cell['row_id']
+        if not sel_id:
+            active_logger.warning(f'selection ID is blank')
+            return None
+        return [sel_id]
+
+
+def get_plot_config(plt_key: str, plot_configs: Dict[str, Dict]) -> Dict:
+    """
+    get plot configuration or empty dictionary
+    """
+    plt_cfg = {}
+    if plt_key:
+        if plt_key in plot_configs:
+            active_logger.info(f'using selected plot configuration "{plt_key}"')
+            plt_cfg = plot_configs[plt_key]
+        else:
+            active_logger.warning(f'selected plot configuration "{plt_key}" not in plot configurations')
+    else:
+        active_logger.info('no plot configuration selected')
+    return plt_cfg
+
+
+def get_orders(strategy_id, mkt_info) -> Union[pd.DataFrame, None]:
+    """
+    get dataframe of order updates (datetime set as index), empty dataframe if strategy not specified,
+    None if strategy specified by fail
+    """
+
+    if strategy_id:
+        p = bfcache.p_strat(strategy_id, mkt_info['market_id'])
+        if not path.exists(p):
+            active_logger.warning(f'could not find cached strategy market file:\n-> "{p}"')
+            return None
+
+        orders = orderinfo.get_order_updates(p)
+        if not orders.shape[0]:
+            active_logger.warning(f'could not find any rows in cached strategy market file:\n-> "{p}"')
+            return None
+
+        active_logger.info(f'loaded {orders.shape[0]} rows from cached strategy market file\n-> "{p}"')
+        return orders
+    else:
+        return pd.DataFrame()
+
+
+def fig_title(mkt_info: Dict, name: str, selection_id: int) -> str:
+    """
+    generate figure title from database market meta-information, runner name and runner selection ID
+    """
+    return '{} {} {} "{}", name: "{}", ID: "{}"'.format(
+        mkt_info['event_name'],
+        mkt_info['market_time'],
+        mkt_info['market_type'],
+        mkt_info['market_id'],
+        name,
+        selection_id
+    )
+
+
 def get_chart_offset(chart_offset_str) -> Optional[timedelta]:
     """
     get chart offset based on HH:MM:SS form, return datetime on success, or None on fail
@@ -37,50 +138,6 @@ def get_chart_offset(chart_offset_str) -> Optional[timedelta]:
         except ValueError:
             pass
     return None
-
-
-def get_orders_df(market_dir: str, market_id: str) -> Optional[pd.DataFrame]:
-    """
-    get orders dataframe based off market directory
-    """
-
-    # set orders dataframe as default if not found
-    df = None
-
-    # construct orderinfo file path form market ID
-    file_name = market_id + utils_storage.EXT_ORDER_INFO
-    file_path = path.join(
-        market_dir,
-        file_name
-    )
-
-    # check order info file exists
-    if path.isfile(file_path):
-
-        # get order updates to dataframe
-        df = orderinfo.get_order_updates(file_path)
-
-        # check if not empty
-        if df.shape[0]:
-
-            # filter market close orders
-            df = orderinfo.filter_market_close(df)
-
-        else:
-
-            # set dataframe to None if empty to indicate fail
-            df = None
-
-    if df is None:
-        active_logger.info(f'order infos file "{file_name}" not found')
-        return None
-    else:
-        count = df.shape[0]
-        active_logger.info(f'found {count} order infos in file "{file_path}"')
-        if count:
-            return df
-        else:
-            return None
 
 
 def get_features(
@@ -116,7 +173,7 @@ def get_features(
     # generate features if file doesn't exist or empty/fail
     if not ftr_data:
 
-        dft = dd.feature_config_default
+        dft = config['PLOT_CONFIG']['default_features']
         if not ftr_key:
             cfg_key = dft
             active_logger.info(f'no feature config selected, using default "{dft}"')
@@ -130,7 +187,7 @@ def get_features(
 
         cfg = dd.feature_configs.get(cfg_key)
         if not cfg:
-            active_logger.warning(f'feature config "{cfg_key}" empty')
+            active_logger.error(f'feature config "{cfg_key}" empty')
             return None
 
         # generate plot by simulating features
@@ -143,64 +200,6 @@ def get_features(
         )
 
     return ftr_data
-
-
-def plot_runner(
-        sel_id: int,
-        dd: DashData,
-        orders: Optional[pd.DataFrame],
-        start: datetime,
-        end: datetime,
-        ftr_key: Optional[str],
-        plt_cfg: Dict
-) -> None:
-    """
-    plot and show a plotly figure for a runner and a designated feature/plot configuration
-    """
-
-    # get name from market info
-    name = dd.runner_names.get(sel_id, 'name not found')
-    active_logger.info(f'producing figure for runner {sel_id}, "{name}"')
-
-    # make chart title
-    title = '{} {} {} "{}", name: "{}", ID: "{}"'.format(
-        dd.db_mkt_info['event_name'],
-        dd.db_mkt_info['market_time'],
-        dd.db_mkt_info['market_type'],
-        dd.db_mkt_info['market_id'],
-        name,
-        sel_id
-    )
-    # f'{self.event_name} {market_time} {self.market_type} "{self.market_id}"'
-
-    # check if orders dataframe exist
-    if orders.shape[0]:
-
-        # filter to selection ID
-        orders = orders[orders['selection_id'] == sel_id]
-
-        # modify chart start/end based on orders dataframe
-        start = figurelib.modify_start(start, orders, figurelib.ORDER_OFFSET_SECONDS)
-        end = figurelib.modify_end(end, orders, figurelib.ORDER_OFFSET_SECONDS)
-
-    # get feature data from either features file or try to generate, check not emp
-    ftr_data = get_features(sel_id, ftr_key, dd, start, end)
-    if not ftr_data:
-        active_logger.warning('feature data empty')
-        return
-
-    # generate figure
-    fig = figurelib.fig_historical(
-        all_features_data=ftr_data,
-        feature_plot_configs=plt_cfg,
-        title=title,
-        chart_start=start,
-        chart_end=end,
-        orders_df=orders
-    )
-
-    # display figure
-    fig.show()
 
 
 @app.callback(
@@ -217,24 +216,28 @@ def plot_runner(
         State('table-runners', 'active_cell'),
         State('input-chart-offset', 'value'),
         State('input-feature-config', 'value'),
-        State('input-plot-config', 'value'),
-        State('checklist-timings', 'value')
+        State('input-plot-config', 'value')
     ]
 )
-def fig_button(clicks0, clicks1, cell, offset_str, ftr_key, plt_key, tmr_vals):
+def fig_button(clicks0, clicks1, cell, offset_str, ftr_key, plt_key):
     """
     create a plotly figure based on selected runner when "figure" button is pressed
     """
 
-    ret = [[], '', counter.next()]
+    ret = [
+        list(),
+        '',
+        counter.next()
+    ]
 
     # get datetime/None chart offset from time input
-    offset = get_chart_offset(offset_str)
+    offset_dt = get_chart_offset(offset_str)
+    secs = offset_dt.total_seconds() if offset_dt else 0
 
     # add runner selected cell and chart offset time to infobox
     active_logger.info('attempting to plot')
     active_logger.info(f'runners active cell: {cell}')
-    active_logger.info(f'chart offset: {offset}')
+    active_logger.info(f'chart offset: {offset_dt}')
 
     # if no active market selected then abort
     if not dd.record_list or not dd.db_mkt_info:
@@ -242,102 +245,66 @@ def fig_button(clicks0, clicks1, cell, offset_str, ftr_key, plt_key, tmr_vals):
         return ret
 
     # get orders dataframe (or None)
-    if dd.strategy_id:
-        p = bfcache.p_strat(dd.strategy_id, dd.db_mkt_info['market_id'])
-        if not path.exists(p):
-            active_logger.warning(f'could not find cached strategy market file:\n-> "{p}"')
-            return ret
+    orders = get_orders(dd.strategy_id, dd.db_mkt_info)
+    if orders is None:
+        return ret
 
-        orders = orderinfo.get_order_updates(p)
-        if not orders.shape[0]:
-            active_logger.warning(f'could not find any rows in cached strategy market file:\n-> "{p}"')
-            return ret
-
-        active_logger.info(f'loaded {orders.shape[0]} rows from cached strategy market file\n-> "{p}"')
-    else:
-        orders = pd.DataFrame()
-
-    # orders = get_orders_df(dd.market_dir, dd.db_mkt_info['market_id'])
-
-    # if chart offset specified then use as display offset, otherwise ignore
-    secs = offset.total_seconds() if offset else 0
-
-    # get first book datetime
+    # get start/end of chart datetimes
     dt0 = dd.record_list[0][0].publish_time
-
-    # get market time from market info
-    dt_mkt = dd.db_mkt_info['market_time']
-
-    # use market start as end
-    end = dt_mkt
-
-    # get start of chart datetime
-    start = figurelib.get_chart_start(display_seconds=secs, market_time=dt_mkt, first=dt0)
+    mkt_dt = dd.db_mkt_info['market_time']
+    start = figurelib.get_chart_start(display_seconds=secs, market_time=mkt_dt, first=dt0)
 
     # get plot configuration
-    plt_cfg = {}
-    if plt_key:
-        if plt_key in dd.plot_configs:
-            active_logger.info(f'using selected plot configuration "{plt_key}"')
-            plt_cfg = dd.plot_configs[plt_key]
-        else:
-            active_logger.warning(f'selected plot configuration "{plt_key}" not in plot configurations')
-    else:
-        active_logger.info('no plot configuration selected')
+    plt_cfg = get_plot_config(plt_key, dd.plot_configs)
 
-    # determine if 'all feature plots' clicked as opposed to single plot
-    do_all = my_context.triggered_id() == 'button-all-figures'
-
-    sel_ids = []
-    if do_all:
-
-        # do all selection IDs
-        sel_ids = list(dd.start_odds.keys())
-
-    else:
-
-        # get selection ID of runner from active runner cell, or abort on fail
-        if not cell:
-            active_logger.warning('no cell selected')
-            return ret
-
-        if 'row_id' not in cell:
-            active_logger.warning(f'row ID not found in active cell info')
-            return ret
-
-        sel_id = cell['row_id']
-        if not sel_id:
-            active_logger.warning(f'selection ID is blank')
-            return ret
-        sel_ids = [sel_id]
+    # get selected IDs
+    sel_ids = get_ids(cell, list(dd.start_odds.keys()))
+    if not sel_ids:
+        return ret
 
     try:
         for sel_id in sel_ids:
-            plot_runner(
-                sel_id=sel_id,
-                dd=dd,
-                orders=orders,
-                start=start,
-                end=end,
-                ftr_key=ftr_key,
-                plt_cfg=plt_cfg
+            # get name and title
+            name = dd.runner_names.get(sel_id, 'name not found')
+            title = fig_title(dd.db_mkt_info, name, sel_id)
+            active_logger.info(f'producing figure for runner {sel_id}, "{name}"')
+
+            # chart specific vars
+            chart_orders = orders
+            chart_start = start
+            chart_end = mkt_dt
+
+            # check if orders dataframe exist
+            if orders.shape[0]:
+                # filter to selection ID, modify chart start/end based on orders dataframe
+                chart_orders = orders[orders['selection_id'] == sel_id]
+                chart_start = figurelib.modify_start(start, orders, figurelib.ORDER_OFFSET_SECONDS)
+                chart_end = figurelib.modify_end(mkt_dt, orders, figurelib.ORDER_OFFSET_SECONDS)
+
+            # get feature data from either features file or try to generate, check not emp
+            ftr_data = get_features(sel_id, ftr_key, dd, chart_start, chart_end)
+            if not ftr_data:
+                active_logger.error('feature data empty')
+                continue
+
+            # generate figure
+            fig = figurelib.fig_historical(
+                all_features_data=ftr_data,
+                feature_plot_configs=plt_cfg,
+                title=title,
+                chart_start=chart_start,
+                chart_end=chart_end,
+                orders_df=chart_orders
             )
+
+            # display figure
+            fig.show()
+
     except (ValueError, TypeError) as e:
         active_logger.error('plot error', e, exc_info=True)
 
-    if sel_ids and tmr_vals:
-        tms = mytiming.get_timings_summary()
-        mytiming.clear_timing_register()
-        if not tms:
-            active_logger.warning('no timings on which to produce table')
-        tms = sorted(tms, key=lambda v: v['Mean'], reverse=True)
-        td_fmt = config['TIMING_CONFIG']['str_format']
-        f = partial(mytiming.format_timedelta, fmt=td_fmt)
-        tms = [{
-            k: f(v) if k == 'Mean' else v
-            for k, v in t.items() if k in ['Function', 'Count', 'Mean']
-        } for t in tms]
-        ret[0] = tms
+    ret[0] = get_timings()
+    mytiming.clear_timing_register()
 
     return ret
 

@@ -8,7 +8,7 @@ from myutils.mydash import intermediate
 
 from .data import DashData
 from . import callbacks
-from .layouts import db, strategy, runners, configs, orders, timings, logging
+from .layouts import market, strategy, runners, configs, orders, timings, logger
 from .intermeds import INTERMEDIARIES
 
 
@@ -37,7 +37,7 @@ def hidden_elements():
 
         dbc.Modal([
             dbc.ModalHeader("Log"),
-            dbc.ModalBody(logging.log_box()),
+            dbc.ModalBody(logger.log_box()),
             dbc.ModalFooter(
                 dbc.Button("Close", id="modal-close-log", className="ml-auto")
             )],
@@ -74,22 +74,25 @@ def header():
     end = dbc.Row([
         dbc.Col(
             dcc.Loading(
-                type='dot',
-                children=html.Div(id='loading-out-header')
+                html.Div(id='loading-out-header'),
+                type='dot'
             )
         ),
         dbc.Col(
             dbc.Button(
+                html.I(className="fas fa-book-open"),
                 id='button-libs',
-                children=html.I(className="fas fa-book-open")
+                color='info'
             ),
             width='auto',
             className='p-1'
         ),
         dbc.Col(
+            # TODO - add labels for errors/warnings
             dbc.Button(
+                html.I(className="fas fa-envelope-open-text"),
                 id='button-log',
-                children=html.I(className="fas fa-envelope-open-text")
+                color='info'
             ),
             width='auto',
             className='p-1'
@@ -119,7 +122,7 @@ def header():
     )
 
 
-def left_col(feature_config_initial, plot_config_initial):
+def left_col():
 
     filter_bar = html.Div(
         html.Div(
@@ -130,7 +133,7 @@ def left_col(feature_config_initial, plot_config_initial):
                     align='center',
                 ),
                 html.Hr(className='ml-0 mr-0'),
-                configs.inputs(feature_config_initial, plot_config_initial)
+                configs.inputs()
             ],
             className='d-flex flex-column h-100 p-3'
         ),
@@ -143,13 +146,10 @@ def left_col(feature_config_initial, plot_config_initial):
         # filter bar
         filter_bar,
 
-        # TODO add grid here for percentage based rows for market and runner tables - after that can
-        #  remove table padding to maintain fixed spage on page
-
         html.Div([
-            db.header(),
-            db.query_status(),
-            db.table()
+            market.header(),
+            market.query_status(),
+            market.table()
         ], className='shadow h-100 p-4')],
         width=6,
         className='p-4'
@@ -168,7 +168,7 @@ def right_col():
             html.Hr(className='ml-0 mr-0'),
             html.Div(
                 [
-                    *db.filters(multi=False),
+                    *market.filters(multi=False),
                     html.Hr(className='ml-0 mr-0'),
                     *strategy.filters()
                 ],
@@ -195,20 +195,13 @@ def right_col():
     )
 
 
-# TODO - put CSS into own file, easier than keeping it here
-def get_layout(
-        input_dir: str,
-        dash_data: DashData,
-        chart_offset: timedelta,
-        feature_config_initial: Optional[str] = None,
-        plot_config_initial: Optional[str] = None,
-) -> html.Div:
+def get_layout() -> html.Div:
     # container
     return html.Div([
         *hidden_elements(),
         header(),
         dbc.Row([
-            left_col(feature_config_initial, plot_config_initial),
+            left_col(),
             right_col()
         ], no_gutters=True, className='flex-row flex-grow-1')],
         id='bf-container',

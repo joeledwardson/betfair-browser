@@ -1,9 +1,15 @@
 from dash.dependencies import Output, Input, State
 from myutils.mydash import intermediate
 from myutils.mydash import context
-from ...app import app, dash_data as dd
 from sqlalchemy.sql.functions import sum as sql_sum
-from .objs import *
+import logging
+
+from ..app import app, dash_data as dd
+from ..config import config
+from ..db import filterobjs as flt
+from ..db.filtertypes import DBFilter
+from ..db.table import table_out
+
 
 active_logger = logging.getLogger(__name__)
 active_logger.setLevel(logging.INFO)
@@ -59,18 +65,19 @@ def strategy_callback(strat_select, n_clicks):
     meta = db.tables['strategymeta']
     clear = context.triggered_id() == 'input-strategy-clear'
 
-    filter_strat_select.set_value(strat_select, clear)
+    flt.strat_id.set_value(strat_select, clear)
 
-    conditions = [f.db_filter(meta) for f in reg['STRATEGYFILTERS'] if f.value]
+    conditions = [f.db_filter(meta) for f in DBFilter.reg['STRATEGYFILTERS'] if f.value]
     q = db.session.query(meta).filter(*conditions)
     cte = q.cte()
 
     return (
-        filter_strat_select.get_labels(filter_strat_select.get_options(db, cte)),
-        filter_strat_select.value,
+        flt.strat_id.get_labels(flt.strat_id.get_options(db, cte)),
+        flt.strat_id.value,
     )
 
 
+# TODO - expand strategy select inputs
 inputs = [
     Input('input-sport-type', 'value'),
     Input('input-mkt-type', 'value'),
@@ -119,6 +126,7 @@ states = [
 ]
 
 
+# TODO - put filters into generic list whose inputs/outputs are automatically expanded and generated
 @app.callback(
     output=outputs,
     inputs=inputs,
@@ -142,13 +150,13 @@ def mkt_intermediary(
     meta = db.tables['marketmeta']
 
     clear = context.triggered_id() == 'input-mkt-clear'
-    filter_sport.set_value(mkt_sport, clear)
-    filter_type.set_value(mkt_type, clear)
-    filter_bet.set_value(mkt_bet, clear)
-    filter_format.set_value(mkt_format, clear)
-    filter_country.set_value(mkt_country, clear)
-    filter_venue.set_value(mkt_venue, clear)
-    filter_date.set_value(mkt_date, clear)
+    flt.mkt_sport.set_value(mkt_sport, clear)
+    flt.mkt_type.set_value(mkt_type, clear)
+    flt.mkt_bet.set_value(mkt_bet, clear)
+    flt.mkt_format.set_value(mkt_format, clear)
+    flt.mkt_country.set_value(mkt_country, clear)
+    flt.mkt_venue.set_value(mkt_venue, clear)
+    flt.mkt_date.set_value(mkt_date, clear)
 
     active_logger.info(f'active cell: {active_cell}')
 
@@ -161,44 +169,52 @@ def mkt_intermediary(
     else:
         q = db.session.query(meta)
 
-    conditions = [f.db_filter(meta) for f in reg['MARKETFILTERS'] if f.value]
+    conditions = [f.db_filter(meta) for f in DBFilter.reg['MARKETFILTERS'] if f.value]
     q = q.filter(*conditions)
     n = q.count()
     cte = q.cte()
     cols = [cte.c[nm] for nm in col_names]
-    tbl_rows = market_table.table_output(cols, db)
+
+    tbl_rows = table_out(
+        tbl_cols=cols,
+        db=db,
+        max_rows=int(config['DB']['max_rows']),
+        id_col='market_id',
+        fmt_config=config['TABLE_FORMATTERS']
+    )
+    # tbl_rows = market_table.table_output(cols, db)
 
     return (
         # sport type input choices and selected value
-        filter_sport.get_labels(filter_sport.get_options(db, cte)),
-        filter_sport.value,
+        flt.mkt_sport.get_labels(flt.mkt_sport.get_options(db, cte)),
+        flt.mkt_sport.value,
 
         # market type input choices and selected value
-        filter_type.get_labels(filter_type.get_options(db, cte)),
-        filter_type.value,
+        flt.mkt_type.get_labels(flt.mkt_type.get_options(db, cte)),
+        flt.mkt_type.value,
 
         # betting type input choices and selected value
-        filter_bet.get_labels(filter_bet.get_options(db, cte)),
-        filter_bet.value,
+        flt.mkt_bet.get_labels(flt.mkt_bet.get_options(db, cte)),
+        flt.mkt_bet.value,
 
         # market format input choices and selected value
-        filter_format.get_labels(filter_format.get_options(db, cte)),
-        filter_format.value,
+        flt.mkt_format.get_labels(flt.mkt_format.get_options(db, cte)),
+        flt.mkt_format.value,
 
         # country input choices and selected value
-        filter_country.get_labels(filter_country.get_options(db, cte)),
-        filter_country.value,
+        flt.mkt_country.get_labels(flt.mkt_country.get_options(db, cte)),
+        flt.mkt_country.value,
 
         # venue input choices and selected value
-        filter_venue.get_labels(filter_venue.get_options(db, cte)),
-        filter_venue.value,
+        flt.mkt_venue.get_labels(flt.mkt_venue.get_options(db, cte)),
+        flt.mkt_venue.value,
 
         # date input choices and selected value
-        filter_date.get_labels(filter_date.get_options(db, cte)),
-        filter_date.value,
+        flt.mkt_date.get_labels(flt.mkt_date.get_options(db, cte)),
+        flt.mkt_date.value,
 
         # table query status
-        f'Showing {len(market_table.q_result)} of {n} available',
+        f'Showing {len(tbl_rows)} of {n} available',
 
         # set market table row data
         tbl_rows,

@@ -28,7 +28,7 @@ def cache_decode(data):
     return data.decode()
 
 
-def cache_path(root, tbl, filters, col):
+def cache_path(root, tbl, filters, col) -> str:
     return path.abspath(path.join(
         root,
         tbl,
@@ -37,7 +37,7 @@ def cache_path(root, tbl, filters, col):
     ))
 
 
-def write_cache_path(root, tbl, filters, col, db, pre_processor=None):
+def write_cache_path(root, tbl, filters, col, db, pre_processor=None) -> bool:
     p = cache_path(root, tbl, filters, col)
     d, _ = path.split(p)
     if not path.isdir(d):

@@ -7,16 +7,10 @@ from mytrading.utils.bettingdb import BettingDB
 
 class DashData:
 
-    def init_db(self):
-        self.betting_db = BettingDB()
+    def init_db(self, **db_kwargs):
+        self.betting_db = BettingDB(**db_kwargs)
 
-    def __init__(
-            self,
-            input_dir: str='',
-            feature_configs_default='',
-            feature_configs_dir=None,
-            plot_configs_dir=None,
-    ):
+    def __init__(self):
 
         self.strategy_id = None
         self.runner_names = {}
@@ -37,10 +31,6 @@ class DashData:
         # dictionary holding of {file name: config} for feature/plot configurations
         self.feature_configs = dict()
         self.plot_configs = dict()
-
-        # default feature/plot configuration name
-        self.plot_config_default = None
-        self.feature_config_default = None
 
     def clear_market(self):
         self.runner_names = {}

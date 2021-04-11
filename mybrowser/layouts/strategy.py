@@ -5,7 +5,7 @@ import dash_core_components as dcc
 import dash_bootstrap_components as dbc
 import dash_table
 import pandas as pd
-from .defs import FILTER_MARGINS
+from ._defs import filter_margins
 
 
 def filters():
@@ -14,11 +14,11 @@ def filters():
         dcc.Dropdown(
             id='input-strategy-select',
             placeholder='Strategy...',
-            className=FILTER_MARGINS
+            className=filter_margins()
         ),
         dbc.Button(
             id='input-strategy-clear',
             children='clear',
-            className=FILTER_MARGINS
+            className=filter_margins()
         )
     ]

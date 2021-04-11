@@ -2,23 +2,21 @@ import dash_html_components as html
 import dash_core_components as dcc
 import dash_bootstrap_components as dbc
 from ..config import config
-from .defs import FILTER_MARGINS
+from ._defs import filter_margins
 
 
-def inputs(feature_config_initial, plot_config_initial):
+def inputs():
     # feature/plot configuration selections
     opts = [
         dcc.Dropdown(
             id='input-feature-config',
             placeholder='Select feature config',
-            value=feature_config_initial,
-            className=FILTER_MARGINS
+            className=filter_margins()
         ),
         dcc.Dropdown(
             id='input-plot-config',
             placeholder='Select plot config',
-            value=plot_config_initial,
-            className=FILTER_MARGINS
+            className=filter_margins()
         ),
         dbc.Button(
             'reload feature configs',
@@ -26,7 +24,7 @@ def inputs(feature_config_initial, plot_config_initial):
             n_clicks=0,
             color='info',
             block=True,
-            className=FILTER_MARGINS
+            className=filter_margins()
         ),
         dbc.Row([
             dbc.Col(
@@ -42,7 +40,7 @@ def inputs(feature_config_initial, plot_config_initial):
                 )
             )],
             align='center',
-            className=FILTER_MARGINS
+            className=filter_margins()
         )
     ]
 

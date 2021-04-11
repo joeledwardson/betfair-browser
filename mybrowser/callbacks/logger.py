@@ -24,7 +24,7 @@ def log_update(*args):
             log_item['txt'],
             style={
                 'margin': 0,
-                # 'white-space': 'pre',
+                # TODO - add colours for error/critical as well
                 'background-color': 'yellow' if log_item['record'].levelname == 'WARNING' else None,
             }
         ))
