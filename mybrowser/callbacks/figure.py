@@ -27,6 +27,9 @@ counter = intermediate.Intermediary()
 
 
 def get_timings() -> List[Dict]:
+    """
+    get list of dict values for Function, Count and Mean table values for function timings
+    """
     tms = mytiming.get_timings_summary()
     if not tms:
         active_logger.warning('no timings on which to produce table')
@@ -51,27 +54,24 @@ def get_ids(cell, id_list) -> Optional[List[int]]:
     # determine if 'all feature plots' clicked as opposed to single plot
     do_all = my_context.triggered_id() == 'button-all-figures'
 
+    # do all selection IDs if requested
     if do_all:
-
-        # do all selection IDs
         return id_list
 
-    else:
+    # get selection ID of runner from active runner cell, or abort on fail
+    if not cell:
+        active_logger.warning('no cell selected')
+        return None
 
-        # get selection ID of runner from active runner cell, or abort on fail
-        if not cell:
-            active_logger.warning('no cell selected')
-            return None
+    if 'row_id' not in cell:
+        active_logger.warning(f'row ID not found in active cell info')
+        return None
 
-        if 'row_id' not in cell:
-            active_logger.warning(f'row ID not found in active cell info')
-            return None
-
-        sel_id = cell['row_id']
-        if not sel_id:
-            active_logger.warning(f'selection ID is blank')
-            return None
-        return [sel_id]
+    sel_id = cell['row_id']
+    if not sel_id:
+        active_logger.warning(f'selection ID is blank')
+        return None
+    return [sel_id]
 
 
 def get_plot_config(plt_key: str, plot_configs: Dict[str, Dict]) -> Dict:

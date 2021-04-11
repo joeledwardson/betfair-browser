@@ -21,7 +21,7 @@ active_logger.setLevel(logging.INFO)
 
 class BettingDB:
     """
-    Vetting database handler
+    Betting database handler
     Manages session that connects to remote SQL database for querying
 
     "Historic" markets to are files downlaoded directly from betfair's historical data website

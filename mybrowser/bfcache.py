@@ -5,7 +5,7 @@ from myutils import dbcache as cache
 def _root():
     return config['CONFIG_PATHS']['cache']
 
-
+# TODO - add read market cache etc here too, would seem the sensible place?
 def w_mkt(market_id, db):
     return cache.write_cache_path(
         root=_root(),
