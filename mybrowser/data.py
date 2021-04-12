@@ -16,6 +16,7 @@ from mytrading.utils import security as mysecurity
 from mytrading.utils.bettingdb import BettingDB
 from mytrading.tradetracker import orderinfo
 from mytrading.process import prices
+from mytrading.visual import figure as figurelib
 from myutils import mypath, mytiming, jsonfile, generic
 
 
@@ -25,6 +26,20 @@ from .db import table as dbtable
 
 active_logger = logging.getLogger(__name__)
 active_logger.setLevel(logging.INFO)
+
+
+def fig_title(mkt_info: Dict, name: str, selection_id: int) -> str:
+    """
+    generate figure title from database market meta-information, runner name and runner selection ID
+    """
+    return '{} {} {} "{}", name: "{}", ID: "{}"'.format(
+        mkt_info['event_name'],
+        mkt_info['market_time'],
+        mkt_info['market_type'],
+        mkt_info['market_id'],
+        name,
+        selection_id
+    )
 
 
 def get_ftr_configs(config_dir: str) -> Dict:
@@ -76,6 +91,7 @@ def get_ftr_configs(config_dir: str) -> Dict:
     return configs
 
 
+# TODO - don't hardcode functions that require market/strategy ID
 # TODO - how to remove globals to make this multiprocess valid? strategy id, runner names, market info, start odds
 #  could all be cached or stored in hidden divs.
 # TODO - logger for each session?
@@ -93,11 +109,9 @@ class Session:
 
         # market info - selected strategy, runner names, market meta dict, and streaming update list
         self.strategy_id = None
-        self.runner_names = {}
         self.db_mkt_info = {}
-        self.start_odds: Dict[int, float] = {} # dict of {selection ID: starting odds} of runners in active market
         self.record_list: List[List[MarketBook]] = []
-        self.runner_infos = []  # TODO - factor names, start odds and runner infos into single dict
+        self.runners_info: Dict[int, Dict] = {}  # TODO - factor names, start odds and runner infos into single dict
 
         # betting database instance
         self.betting_db: Optional[BettingDB] = None
@@ -134,26 +148,28 @@ class Session:
             active_logger.warning(f'failed getting runners rows/market meta from DB: {e}', exc_info=True)
             return False
 
+        start_odds = prices.starting_odds(record_list)
+        drows = [dict(r) for r in rows]
+        rinf = {
+            r['runner_id']: r | {
+                'start_odds': start_odds.get(r['runner_id'], 999)
+            }
+            for r in drows
+        }
+
         # put market information into self
         self.strategy_id = strategy_id
         self.record_list = record_list
         self.db_mkt_info = dict(meta)
-        self.start_odds = generic.dict_sort(prices.starting_odds(record_list))
-        self.runner_names = {
-            dict(r)['runner_id']: dict(r)['runner_name']
-            for r in rows
-        }
-        self.runner_infos = [dict(r) for r in rows]
+        self.runners_info = generic.dict_sort(rinf, key=lambda item:item[1]['start_odds'])
 
         return True
 
     def clear_market(self):
-        self.runner_names = {}
         self.db_mkt_info = {}
-        self.start_odds = {}
         self.record_list = []
         self.strategy_id = None
-        self.runner_infos = []
+        self.runners_info = {}
 
     def load_ftr_configs(self):
 
@@ -182,6 +198,25 @@ class Session:
             active_logger.info('no plot configuration selected')
         return plt_cfg
 
+    def get_ftr_config(self, ftr_key: str) -> Optional[Dict]:
+        """
+        get feature configuration dictionary - if no selection passed use default from configs
+        return None on failure to retrieve configuration
+        """
+
+        dft = self.config['PLOT_CONFIG']['default_features']
+        if not ftr_key:
+            cfg_key = dft
+            active_logger.info(f'no feature config selected, using default "{dft}"')
+        else:
+            if ftr_key not in self.feature_configs:
+                active_logger.warning(f'selected feature config "{ftr_key}" not found in list, using default "{dft}"')
+                return None
+            else:
+                active_logger.info(f'using selected feature config "{ftr_key}"')
+                cfg_key = ftr_key
+        return self.feature_configs.get(cfg_key)
+
     def get_timings(self) -> List[Dict]:
         """
         get list of dict values for Function, Count and Mean table values for function timings
@@ -199,14 +234,14 @@ class Session:
         } for t in tms]
         return tms
 
-    def get_orders(self) -> Union[pd.DataFrame, None]:
+    def get_order_updates(self, strat_id, mkt_id) -> Union[pd.DataFrame, None]:
         """
         get dataframe of order updates (datetime set as index), empty dataframe if strategy not specified,
         None if strategy specified by fail
         """
 
-        if self.strategy_id:
-            p = bfcache.p_strat(self.strategy_id, self.db_mkt_info['market_id'])
+        if strat_id:
+            p = bfcache.p_strat(strat_id, mkt_id)
             if not path.exists(p):
                 active_logger.warning(f'could not find cached strategy market file:\n-> "{p}"')
                 return None
@@ -233,7 +268,7 @@ class Session:
         active_logger.info('libraries reloaded')
 
     @staticmethod
-    def _read_profits(p, selection_id) -> Optional[pd.DataFrame]:
+    def _read_order_profits(p, selection_id) -> Optional[pd.DataFrame]:
         """
         get profit for each order from order updates file
         """
@@ -275,7 +310,7 @@ class Session:
         return df
 
     # TODO - strategy updates read at market load so dont have to do it for every call?
-    def get_profits(self, selection_id) -> Optional[pd.DataFrame]:
+    def get_order_profits(self, selection_id) -> Optional[pd.DataFrame]:
 
         p = bfcache.p_strat(self.strategy_id, self.db_mkt_info['market_id'])
         active_logger.info(f'reading strategy market cache file:\n-> {p}')
@@ -283,7 +318,7 @@ class Session:
             active_logger.warning(f'file does not exist')
             return None
 
-        df = self._read_profits(p, selection_id)
+        df = self._read_order_profits(p, selection_id)
         if not df.shape[0]:
             active_logger.warning(f'Retrieved profits dataframe is empty')
             return None
@@ -306,3 +341,71 @@ class Session:
                 break
         else:
             active_logger.info(f'no inplay elements found')
+
+    def plot_chart(self, selection_id, secs, ftr_key, plt_key):
+
+        # if no active market selected then abort
+        if not self.record_list or not self.db_mkt_info:
+            active_logger.warning('no market information/records')
+            return
+
+        try:
+            # TODO - exit if selection iD not in runners info
+            # get name and title
+            name = self.runners_info[selection_id]['runner_name'] or 'N/A'
+            title = fig_title(self.db_mkt_info, name, selection_id)
+            active_logger.info(f'producing figure for runner {selection_id}, name: "{name}"')
+
+            # TODO - orders stored?
+            # get orders dataframe (or None)
+            orders = self.get_order_updates(self.strategy_id, self.db_mkt_info['market_id'])
+            if orders is None:
+                return
+
+            # get start/end of chart datetimes
+            dt0 = self.record_list[0][0].publish_time
+            mkt_dt = self.db_mkt_info['market_time']
+            start = figurelib.get_chart_start(
+                display_seconds=secs, market_time=mkt_dt, first=dt0)
+            end = mkt_dt
+
+            # if orders exist, filter to runner and modify chart start/end
+            if orders.shape[0]:
+                orders = orders[orders['selection_id'] == selection_id]
+                start = figurelib.modify_start(start, orders, figurelib.ORDER_OFFSET_SECONDS)
+                end = figurelib.modify_end(end, orders, figurelib.ORDER_OFFSET_SECONDS)
+
+            # feature and plot configurations
+            plt_cfg = self.get_plot_config(plt_key)
+            ftr_cfg = self.get_ftr_config(ftr_key)
+            if not ftr_cfg:
+                active_logger.error(f'feature config "{ftr_key}" empty')
+                return None
+
+            # generate plot by simulating features
+            ftr_data = figurelib.generate_feature_data(
+                hist_records=self.record_list,
+                selection_id=selection_id,
+                chart_start=start,
+                chart_end=end,
+                feature_configs=ftr_cfg
+            )
+            if not ftr_data:
+                active_logger.error('feature data empty')
+                return
+
+            # generate figure
+            fig = figurelib.fig_historical(
+                all_features_data=ftr_data,
+                feature_plot_configs=plt_cfg,
+                title=title,
+                chart_start=start,
+                chart_end=end,
+                orders_df=orders
+            )
+
+            # display figure
+            fig.show()
+
+        except (ValueError, TypeError) as e:
+            active_logger.error('plot error', e, exc_info=True)

@@ -55,7 +55,6 @@ def runners_pressed(runners_n_clicks, db_active_cell, strategy_id):
     :return:
     """
 
-    db = dd.betting_db
     ret = [
         [],  # empty table
         html.P('failed to load market'),
@@ -83,10 +82,10 @@ def runners_pressed(runners_n_clicks, db_active_cell, strategy_id):
     tbl = [{
         'id': d['runner_id'],  # set row to ID for easy access in callbacks
         'Selection ID': d['runner_id'],
-        'Name': d['runner_name'] or d['runner_id'],
-        'Starting Odds': dd.start_odds.get(d['runner_id'], 999),
+        'Name': d['runner_name'],
+        'Starting Odds':  d['start_odds'],
         'Profit': d['runner_profit']
-    } for d in dd.runner_infos]
+    } for d in dd.runners_info.values()]
 
     ret[0] = sorted(tbl, key=lambda d: d['Starting Odds'])
     ret[1] = f'loaded "{market_id}"'

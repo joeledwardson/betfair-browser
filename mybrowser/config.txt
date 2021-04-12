@@ -25,7 +25,7 @@ max_rows = 100
 ; can use relative paths here
 feature = ../plot_configs/feature
 plot = ../plot_configs/plot
-cache = C:/Users/joele/Documents/_bf_cache
+cache = %%USERPROFILE%%/Documents/_bf_cache
 
 [PLOT_CONFIG]
 default_offset = 00:03:00

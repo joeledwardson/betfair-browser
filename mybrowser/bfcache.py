@@ -14,6 +14,7 @@ active_logger = logging.getLogger(__name__)
 active_logger.setLevel(logging.INFO)
 
 
+# TODO - this should not be read globally
 def _root():
     return config['CONFIG_PATHS']['cache']
 

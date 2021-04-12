@@ -59,7 +59,7 @@ def update_orders_table(n1, n2, n3, cell):
         return r
 
     selection_id = cell['row_id']
-    if selection_id not in dd.start_odds:
+    if selection_id not in dd.runners_info:
         active_logger.warning(f'row ID "{selection_id}" not found in starting odds')
         return r
 
@@ -67,7 +67,7 @@ def update_orders_table(n1, n2, n3, cell):
         active_logger.warning(f'no strategy selected')
         return r
 
-    df = dd.get_profits(selection_id)
+    df = dd.get_order_profits(selection_id)
     if df is None or not df.shape[0]:
         return r
 
