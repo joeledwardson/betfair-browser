@@ -19,9 +19,9 @@ from mytrading.process import prices
 from mytrading.visual import figure as figurelib
 from myutils import mypath, mytiming, jsonfile, generic
 
-
-from . import bfcache
-from .db import table as dbtable
+from mybrowser.session import dbutils as dbtable, bfcache
+from mybrowser.session.dbfilters import DBFilters, DBFilter
+from mybrowser.session.tblformatters import get_formatters
 
 
 active_logger = logging.getLogger(__name__)
@@ -102,10 +102,13 @@ class Session:
 
     def init_config(self, config):
         self.config = config
+        self.tbl_formatters = get_formatters(config)
 
     def __init__(self):
 
+        self.db_filters = DBFilters()
         self.config: Optional[Dict] = None
+        self.tbl_formatters = None
 
         # market info - selected strategy, runner names, market meta dict, and streaming update list
         self.strategy_id = None
@@ -140,7 +143,7 @@ class Session:
         if not record_list:
             return False
 
-        # get runner name/profit and market metadata from db
+        # get runner name/profit and market metadata from session
         try:
             rows = dbtable.runner_rows(self.betting_db, market_id, strategy_id)
             meta = dbtable.market_meta(self.betting_db, market_id)
@@ -409,3 +412,73 @@ class Session:
 
         except (ValueError, TypeError) as e:
             active_logger.error('plot error', e, exc_info=True)
+
+    def market_mfup(self, clear, *flt_args):
+        self.db_filters.update_filters('MARKETFILTERS', clear, *flt_args)
+
+    def market_sfup(self, clear, *flt_args):
+        self.db_filters.update_filters('STRATEGYFILTERS', clear, *flt_args)
+
+    def market_mfv(self):
+        return self.db_filters.filters_values('MARKETFILTERS')
+
+    def market_mfo(self, cte):
+        return self.db_filters.filters_labels('MARKETFILTERS', self.betting_db, cte)
+
+    def market_sfv(self):
+        return self.db_filters.filters_values('STRATEGYFILTERS')
+
+    def market_sfo(self, cte):
+        return self.db_filters.filters_labels('STRATEGYFILTERS', self.betting_db, cte)
+
+    def market_scte(self):
+        db = self.betting_db
+        meta = db.tables['strategymeta']
+        conditions = [
+            f.db_filter(meta)
+            for f in DBFilter.reg['STRATEGYFILTERS'] if f.value
+        ]
+        q = db.session.query(meta).filter(*conditions)
+        return q.cte()
+
+    def market_mcte(self, strategy_id):
+
+        # TODO - split date into year/month/day components
+        col_names = list(self.config['TABLE_COLS'].keys())
+        meta = self.betting_db.tables['marketmeta']
+
+        # TODO - add error checking for sqlalchemy
+        if strategy_id:
+            q = dbtable.q_strategy(strategy_id, self.betting_db)
+            col_names.append('market_profit')
+        else:
+            q = self.betting_db.session.query(meta)
+
+        conditions = [
+            f.db_filter(meta)
+            for f in DBFilter.reg['MARKETFILTERS'] if f.value
+        ]
+        q = q.filter(*conditions)
+        return q.cte()
+
+    def market_table(self, cte):
+
+        # TODO - split date into year/month/day components
+        col_names = list(self.config['TABLE_COLS'].keys())
+        cols = [cte.c[nm] for nm in col_names]
+
+        fmt_config=self.config['TABLE_FORMATTERS']
+        max_rows = int(self.config['DB']['max_rows'])
+        q_final = self.betting_db.session.query(*cols).limit(max_rows)
+        q_result = q_final.all()
+        tbl_rows = [dict(r) for r in q_result]
+        for i, row in enumerate(tbl_rows):
+
+            # apply custom formatting to table row values
+            for k, v in row.items():
+                if k in fmt_config:
+                    nm = fmt_config[k]
+                    f = self.tbl_formatters[nm]
+                    row[k] = f(v)
+        return tbl_rows
+

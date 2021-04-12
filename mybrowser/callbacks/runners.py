@@ -17,7 +17,7 @@ counter = intermediate.Intermediary()
 @app.callback(
     output=Output('button-runners', 'disabled'),
     inputs=[
-        Input('table-market-db', 'active_cell'),
+        Input('table-market-session', 'active_cell'),
     ],
 )
 def btn_disable(active_cell):
@@ -41,7 +41,7 @@ def btn_disable(active_cell):
         Input('button-runners', 'n_clicks')
     ],
     state=[
-        State('table-market-db', 'active_cell'),
+        State('table-market-session', 'active_cell'),
         State('input-strategy-select', 'value')
     ],
 )

@@ -3,7 +3,7 @@ import dash_html_components as html
 
 from .. import log_q
 from ..app import app
-from ..intermeds import INTERMEDIARIES
+from mybrowser.layouts import INTERMEDIARIES
 
 
 log_elements = []

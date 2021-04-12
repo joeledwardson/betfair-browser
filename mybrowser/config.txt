@@ -2,7 +2,6 @@
 date_format = %%d %%b %%y
 
 [TABLE]
-dt_format = %%Y-%%m-%%d %%H:%%M
 market_rows = 12
 runner_rows = 10
 orders_rows = 15
@@ -14,6 +13,9 @@ market_id = Market ID
 market_type = Market Type
 market_time = Market Time
 venue = Venue
+
+[FORMATTERS_CONFIG]
+dt_format = %%Y-%%m-%%d %%H:%%M
 
 [TABLE_FORMATTERS]
 market_time = format_datetime
@@ -36,3 +38,6 @@ str_format = {d}d {h:02}:{m:02}:{s:02}.{u:06}
 
 [LAYOUT]
 filter_margins = mb-1
+
+[DB_CONFIG]
+db_host = 192.168.0.8

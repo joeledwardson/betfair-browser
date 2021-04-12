@@ -7,7 +7,7 @@ from flumine import FlumineException
 
 from mytrading.utils import storage
 from myutils import dbcache as cache
-from .config import config
+from mybrowser.config import config
 
 
 active_logger = logging.getLogger(__name__)

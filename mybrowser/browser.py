@@ -10,14 +10,14 @@ import logging
 import sys
 import dash_bootstrap_components as dbc
 from . import config
-# from .db.conn import Conn
+# from .session.conn import Conn
 from mytrading.utils import bettingdb
 
 active_logger = logging.getLogger(__name__)
 active_logger.setLevel(logging.INFO)
 
 
-def run_browser(debug: bool, config_path=None, db_kwargs=None):
+def run_browser(debug: bool, config_path=None):
     """
     run dash app mybrowser - input_dir specifies input directory for entry point for mybrowser but also expected root for:
     - "historical" dir
@@ -26,9 +26,13 @@ def run_browser(debug: bool, config_path=None, db_kwargs=None):
     if sys.version_info < (3, 9):
         raise Exception('Python version needs to be 3.9 or higher!')
 
-    # Conn.db = bettingdb.BettingDB(**(db_kwargs or {}))
-    dash_data.init_db(**(db_kwargs or {}))
+    # Conn.session = bettingdb.BettingDB(**(db_kwargs or {}))
+
     config.init(config_path)
+    db_kwargs = {}
+    if config.config.has_section('DB_CONFIG'):
+        db_kwargs = config.config['DB_CONFIG']
+    dash_data.init_db(**db_kwargs)
 
     dash_data.init_config(config.config)
     app.layout = get_layout()

@@ -1,17 +1,18 @@
+from typing import Dict, List
 from sqlalchemy import func, cast, Date, desc
 from sqlalchemy.sql.functions import coalesce
 from ..config import config
-# from ..db.conn import Conn
 from datetime import date, datetime
 
 
 class DBFilter:
 
-    reg = {}
+    reg: Dict[str, List] = {}
 
     def __init__(self, db_col, group):
         self.db_col = db_col
         self.value = None
+        self.group = group
         if group not in DBFilter.reg:
             DBFilter.reg[group] = []
         DBFilter.reg[group].append(self)
@@ -28,6 +29,7 @@ class DBFilter:
     def get_options(self, db, cte):
         return db.session.query(cte.c[self.db_col]).distinct().all()
 
+    # TODO - remove dash specific 'label' and 'value'
     def get_labels(self, opts):
         return [{
             'label': row[0],

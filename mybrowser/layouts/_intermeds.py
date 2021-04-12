@@ -1,5 +1,5 @@
 INTERMEDIARIES = [
-    'intermediary-db-market',
+    'intermediary-session-market',
     'intermediary-featureconfigs',
     'intermediary-figure',
     'intermediary-libs',

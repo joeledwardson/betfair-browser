@@ -19,7 +19,7 @@ def header():
         dbc.Col(
             dbc.Button(
                 html.I(className="fas fa-filter"),
-                id="btn-db-filter",
+                id="btn-session-filter",
                 n_clicks=0,
                 color='primary'
             ),
@@ -29,7 +29,7 @@ def header():
         dbc.Col(),
         dbc.Col(
             dcc.Loading(
-                html.Div(id='loading-out-db'),
+                html.Div(id='loading-out-session'),
                 type='dot'
             ),
             className='anchor-right',
@@ -102,7 +102,7 @@ def table():
     # DB market browser
     return dbc.Row(dbc.Col(
         dash_table.DataTable(
-            id='table-market-db',
+            id='table-market-session',
             columns=[
                 {
                     "name": v,
