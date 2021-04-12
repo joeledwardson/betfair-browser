@@ -1,53 +1,18 @@
 from dash.dependencies import Output, Input, State
 from myutils.mydash import intermediate
 from myutils.mydash import context
-from sqlalchemy.sql.functions import sum as sql_sum
 import logging
 
 from ..app import app, dash_data as dd
 from ..config import config
 from ..db import filterobjs as flt
 from ..db.filtertypes import DBFilter
-from ..db.table import table_out
-
+from ..db.table import table_out, q_strategy
 
 active_logger = logging.getLogger(__name__)
 active_logger.setLevel(logging.INFO)
 
 counter = intermediate.Intermediary()
-
-
-def q_strategy(strategy_id, db):
-    """
-    get query for marketmeta , filtered to markets for strategy specified with additional "market_profit" column for
-    total profit for strategy for given market, grouped over runner profits per market
-
-    Parameters
-    ----------
-    strategy_id :
-
-    Returns
-    -------
-    """
-    sr = db.tables['strategyrunners']
-    meta = db.tables['marketmeta']
-
-    strat_cte = db.session.query(
-        sr.columns['market_id'],
-        sql_sum(sr.columns['profit']).label('market_profit')
-    ).filter(
-        sr.columns['strategy_id'] == strategy_id
-    ).group_by(
-        sr.columns['market_id']
-    ).cte()
-
-    return db.session.query(
-        meta,
-        strat_cte.c['market_profit']
-    ).join(
-        strat_cte,
-        meta.columns['market_id'] == strat_cte.c['market_id']
-    )
 
 
 @app.callback(

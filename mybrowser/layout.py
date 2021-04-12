@@ -6,7 +6,7 @@ import dash_core_components as dcc
 
 from myutils.mydash import intermediate
 
-from .data import DashData
+from .data import Session
 from . import callbacks
 from .layouts import market, strategy, runners, configs, orders, timings, logger
 from .intermeds import INTERMEDIARIES

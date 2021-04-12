@@ -10,6 +10,8 @@ import logging
 import sys
 import dash_bootstrap_components as dbc
 from . import config
+# from .db.conn import Conn
+from mytrading.utils import bettingdb
 
 active_logger = logging.getLogger(__name__)
 active_logger.setLevel(logging.INFO)
@@ -24,8 +26,11 @@ def run_browser(debug: bool, config_path=None, db_kwargs=None):
     if sys.version_info < (3, 9):
         raise Exception('Python version needs to be 3.9 or higher!')
 
+    # Conn.db = bettingdb.BettingDB(**(db_kwargs or {}))
     dash_data.init_db(**(db_kwargs or {}))
     config.init(config_path)
+
+    dash_data.init_config(config.config)
     app.layout = get_layout()
 
     active_logger.info(f'Dash version: {dash.__version__}')

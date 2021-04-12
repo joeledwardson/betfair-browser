@@ -1,5 +1,4 @@
 import re
-from functools import partial
 from datetime import datetime, timedelta
 from os import path
 from typing import List, Dict, Union, Optional
@@ -7,13 +6,12 @@ from dash.dependencies import Output, Input, State
 import pandas as pd
 import logging
 
-from ..data import DashData
+from ..data import Session
 from ..app import app, dash_data as dd
 from .. import bfcache
 from ..config import config
 
 from mytrading.tradetracker import orderinfo
-from mytrading.utils import storage as utils_storage
 from mytrading.visual import figure as figurelib
 from myutils.mydash import context as my_context
 from myutils import mytiming
@@ -24,24 +22,6 @@ from myutils.mydash import intermediate
 active_logger = logging.getLogger(__name__)
 figurelib.active_logger = active_logger
 counter = intermediate.Intermediary()
-
-
-def get_timings() -> List[Dict]:
-    """
-    get list of dict values for Function, Count and Mean table values for function timings
-    """
-    tms = mytiming.get_timings_summary()
-    if not tms:
-        active_logger.warning('no timings on which to produce table')
-        return list()
-    tms = sorted(tms, key=lambda v: v['Mean'], reverse=True)
-    td_fmt = config['TIMING_CONFIG']['str_format']
-    f = partial(mytiming.format_timedelta, fmt=td_fmt)
-    tms = [{
-        k: f(v) if k == 'Mean' else v
-        for k, v in t.items() if k in ['Function', 'Count', 'Mean']
-    } for t in tms]
-    return tms
 
 
 def get_ids(cell, id_list) -> Optional[List[int]]:
@@ -74,45 +54,6 @@ def get_ids(cell, id_list) -> Optional[List[int]]:
     return [sel_id]
 
 
-def get_plot_config(plt_key: str, plot_configs: Dict[str, Dict]) -> Dict:
-    """
-    get plot configuration or empty dictionary
-    """
-    plt_cfg = {}
-    if plt_key:
-        if plt_key in plot_configs:
-            active_logger.info(f'using selected plot configuration "{plt_key}"')
-            plt_cfg = plot_configs[plt_key]
-        else:
-            active_logger.warning(f'selected plot configuration "{plt_key}" not in plot configurations')
-    else:
-        active_logger.info('no plot configuration selected')
-    return plt_cfg
-
-
-def get_orders(strategy_id, mkt_info) -> Union[pd.DataFrame, None]:
-    """
-    get dataframe of order updates (datetime set as index), empty dataframe if strategy not specified,
-    None if strategy specified by fail
-    """
-
-    if strategy_id:
-        p = bfcache.p_strat(strategy_id, mkt_info['market_id'])
-        if not path.exists(p):
-            active_logger.warning(f'could not find cached strategy market file:\n-> "{p}"')
-            return None
-
-        orders = orderinfo.get_order_updates(p)
-        if not orders.shape[0]:
-            active_logger.warning(f'could not find any rows in cached strategy market file:\n-> "{p}"')
-            return None
-
-        active_logger.info(f'loaded {orders.shape[0]} rows from cached strategy market file\n-> "{p}"')
-        return orders
-    else:
-        return pd.DataFrame()
-
-
 def fig_title(mkt_info: Dict, name: str, selection_id: int) -> str:
     """
     generate figure title from database market meta-information, runner name and runner selection ID
@@ -143,7 +84,7 @@ def get_chart_offset(chart_offset_str) -> Optional[timedelta]:
 def get_features(
         sel_id: int,
         ftr_key: Optional[str],
-        dd: DashData,
+        dd: Session,
         start: datetime,
         end: datetime
 ) -> Optional[Dict]:
@@ -245,7 +186,7 @@ def fig_button(clicks0, clicks1, cell, offset_str, ftr_key, plt_key):
         return ret
 
     # get orders dataframe (or None)
-    orders = get_orders(dd.strategy_id, dd.db_mkt_info)
+    orders = dd.get_orders()
     if orders is None:
         return ret
 
@@ -255,7 +196,7 @@ def fig_button(clicks0, clicks1, cell, offset_str, ftr_key, plt_key):
     start = figurelib.get_chart_start(display_seconds=secs, market_time=mkt_dt, first=dt0)
 
     # get plot configuration
-    plt_cfg = get_plot_config(plt_key, dd.plot_configs)
+    plt_cfg = dd.get_plot_config(plt_key, dd.plot_configs)
 
     # get selected IDs
     sel_ids = get_ids(cell, list(dd.start_odds.keys()))
@@ -303,7 +244,7 @@ def fig_button(clicks0, clicks1, cell, offset_str, ftr_key, plt_key):
     except (ValueError, TypeError) as e:
         active_logger.error('plot error', e, exc_info=True)
 
-    ret[0] = get_timings()
+    ret[0] = dd.get_timings()
     mytiming.clear_timing_register()
 
     return ret

@@ -8,6 +8,7 @@ active_logger.setLevel(logging.INFO)
 config = configparser.ConfigParser()
 
 
+# TODO - all configs should be handles from user session, not globally
 def init(config_path=None):
     """
     load configuration file by passing path, or do not pass an arg to use default configuration file
