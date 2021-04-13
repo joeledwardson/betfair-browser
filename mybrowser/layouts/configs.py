@@ -1,22 +1,20 @@
 import dash_html_components as html
 import dash_core_components as dcc
 import dash_bootstrap_components as dbc
-from ..config import config
-from ._defs import filter_margins
 
 
-def inputs():
+def inputs(filter_margins, dflt_offset):
     # feature/plot configuration selections
     opts = [
         dcc.Dropdown(
             id='input-feature-config',
             placeholder='Select feature config',
-            className=filter_margins()
+            className=filter_margins
         ),
         dcc.Dropdown(
             id='input-plot-config',
             placeholder='Select plot config',
-            className=filter_margins()
+            className=filter_margins
         ),
         dbc.Button(
             'reload feature configs',
@@ -24,7 +22,7 @@ def inputs():
             n_clicks=0,
             color='info',
             block=True,
-            className=filter_margins()
+            className=filter_margins
         ),
         dbc.Row([
             dbc.Col(
@@ -35,12 +33,12 @@ def inputs():
                 dbc.Input(
                     id='input-chart-offset',
                     type='time',
-                    value=config['PLOT_CONFIG']['default_offset'],
+                    value=dflt_offset,
                     step="1"  # forces HTML to use hours, minutes and seconds format
                 )
             )],
             align='center',
-            className=filter_margins()
+            className=filter_margins
         )
     ]
 

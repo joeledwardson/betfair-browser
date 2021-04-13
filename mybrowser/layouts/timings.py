@@ -1,6 +1,5 @@
 import dash_html_components as html
 from dash_table import DataTable
-from .configs import config
 
 
 def header():
@@ -10,7 +9,7 @@ def header():
     )
 
 
-def table():
+def table(n_rows):
     # function timings table
     return html.Div(
         DataTable(
@@ -26,7 +25,7 @@ def table():
                 'Count',
                 'Mean',
             ]],
-            page_size=int(config['TABLE']['timings_rows']),
+            page_size=n_rows,
         ),
     )
 

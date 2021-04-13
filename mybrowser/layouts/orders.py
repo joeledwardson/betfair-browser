@@ -1,7 +1,6 @@
 import dash_html_components as html
 import dash_table
 from mytrading.visual import profits
-from ..config import config
 
 
 def header():
@@ -13,7 +12,7 @@ def header():
 
 # TODO - tables cannot use 'fixed_headers=True' with % height parent or else chrome winges about "Maximum call stack
 #  exceeded" - however it works fine with paginated tables - probably worth posting about on forum
-def table() -> dash_table.DataTable:
+def table(n_rows) -> dash_table.DataTable:
     """
     get empty DataTable for order profits
     """
@@ -29,5 +28,5 @@ def table() -> dash_table.DataTable:
         style_table={
             'overflowX': 'scroll'
         },
-        page_size=int(config['TABLE']['orders_rows'])
+        page_size=n_rows
     )

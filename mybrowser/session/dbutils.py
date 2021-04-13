@@ -1,13 +1,6 @@
 from sqlalchemy.sql.functions import sum as sql_sum
 
-from ..config import config
-from myutils.myregistrar import MyRegistrar
-from datetime import date, datetime
 
-
-# TODO - move all database specific functions into own module? Make database BettingDB object global in database
-#  interface file (and private) so that all database access should be through functions without direct access - also
-#  move cache to database package
 def runner_rows(db, market_id, strategy_id):
     """
     get filters rows of runners, joined with profit column from strategy

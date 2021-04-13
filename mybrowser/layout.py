@@ -4,15 +4,15 @@ import dash_core_components as dcc
 
 from myutils.mydash import intermediate
 
-from .layouts import market, strategy, runners, configs, orders, timings, logger, INTERMEDIARIES
+from .layouts import market, runners, configs, orders, timings, logger, INTERMEDIARIES
 
 
-def hidden_elements():
+def hidden_elements(n_odr_rows, n_tmr_rows):
     return [
 
         dbc.Modal([
             dbc.ModalHeader("Orders"),
-            dbc.ModalBody(orders.table()),
+            dbc.ModalBody(orders.table(n_odr_rows)),
             dbc.ModalFooter(
                 dbc.Button("Close", id="modal-close-orders", className="ml-auto")
             )],
@@ -22,7 +22,7 @@ def hidden_elements():
 
         dbc.Modal([
             dbc.ModalHeader('Timings'),
-            dbc.ModalBody(timings.table()),
+            dbc.ModalBody(timings.table(n_tmr_rows)),
             dbc.ModalFooter(
                 dbc.Button('Close', id='modal-close-timings', className='ml-auto')
             )],
@@ -117,7 +117,7 @@ def header():
     )
 
 
-def left_col():
+def left_col(filter_margins, dflt_offset, mkt_tbl_cols, n_mkt_rows):
 
     filter_bar = html.Div(
         html.Div(
@@ -128,7 +128,7 @@ def left_col():
                     align='center',
                 ),
                 html.Hr(className='ml-0 mr-0'),
-                configs.inputs()
+                configs.inputs(filter_margins, dflt_offset)
             ],
             className='d-flex flex-column h-100 p-3'
         ),
@@ -144,14 +144,14 @@ def left_col():
         html.Div([
             market.header(),
             market.query_status(),
-            market.table()
+            market.mkt_table(mkt_tbl_cols, n_mkt_rows)
         ], className='shadow h-100 p-4')],
         width=6,
         className='p-4'
     )
 
 
-def right_col():
+def right_col(filter_margins, n_run_rows):
 
     filter_bar = html.Div(
         html.Div([
@@ -163,9 +163,9 @@ def right_col():
             html.Hr(className='ml-0 mr-0'),
             html.Div(
                 [
-                    *market.filters(multi=False),
+                    *market.mkt_filters(multi=False, filter_margins=filter_margins),
                     html.Hr(className='ml-0 mr-0'),
-                    *strategy.filters()
+                    *market.strat_filters(filter_margins)
                 ],
                 className='d-flex flex-column pr-2'
             )],
@@ -183,21 +183,29 @@ def right_col():
             runners.header(),
             runners.inputs(),
             runners.market_info(),
-            runners.table()
+            runners.table(n_run_rows)
         ], className='shadow h-100 p-4')],
         width=6,
         className='p-4'
     )
 
 
-def get_layout() -> html.Div:
+def get_layout(
+        n_odr_rows,
+        n_tmr_rows,
+        filter_margins,
+        dflt_offset,
+        mkt_tbl_cols,
+        n_mkt_rows,
+        n_run_rows
+) -> html.Div:
     # container
     return html.Div([
-        *hidden_elements(),
+        *hidden_elements(n_odr_rows, n_tmr_rows),
         header(),
         dbc.Row([
-            left_col(),
-            right_col()
+            left_col(filter_margins, dflt_offset, mkt_tbl_cols, n_mkt_rows),
+            right_col(filter_margins, n_run_rows)
         ], no_gutters=True, className='flex-row flex-grow-1')],
         id='bf-container',
         className='d-flex flex-column'

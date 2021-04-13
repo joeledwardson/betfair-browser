@@ -1,7 +1,6 @@
 from typing import Dict, List
 from sqlalchemy import func, cast, Date, desc
 from sqlalchemy.sql.functions import coalesce
-from ..config import config
 from datetime import date, datetime
 
 
@@ -39,6 +38,10 @@ class DBFilter:
 
 class DateFilter(DBFilter):
 
+    def __init__(self, db_col, group, dt_fmt):
+        super().__init__(db_col, group)
+        self.dt_fmt = dt_fmt
+
     def set_value(self, value, clear):
         if value is not None:
             value = date.fromisoformat(value)
@@ -53,7 +56,7 @@ class DateFilter(DBFilter):
 
     def get_labels(self, opts):
         return [{
-            'label': row[0].strftime(config['MARKET_FILTER']['date_format']),
+            'label': row[0].strftime(self.dt_fmt),
             'value': row[0],
         } for row in opts]
 

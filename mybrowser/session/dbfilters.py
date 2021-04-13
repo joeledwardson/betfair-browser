@@ -4,7 +4,7 @@ from .dbfilter import DateFilter, JoinedFilter, DBFilter
 active_logger = logging.getLogger(__name__)
 active_logger.setLevel(logging.INFO)
 
-
+# TODO - remove reg and just have a dict here indexed by 'strategy' or 'market'?
 class DBFilters:
 
     def filters_values(self, group):
@@ -22,7 +22,7 @@ class DBFilters:
         for val, flt in zip(args, DBFilter.reg[group]):
             flt.set_value(val, clear)
 
-    def __init__(self):
+    def __init__(self, dt_fmt):
         self.filters = [
             JoinedFilter(
                 "sport_id",
@@ -56,7 +56,8 @@ class DBFilters:
             ),
             DateFilter(
                 "market_time",
-                'MARKETFILTERS'
+                'MARKETFILTERS',
+                dt_fmt
             ),
             DBFilter(
                 'strategy_id',

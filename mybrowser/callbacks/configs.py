@@ -3,36 +3,36 @@ import logging
 
 
 from myutils.mydash import intermediate
-from ..app import app, dash_data as dd
-
+from ..session import Session
 
 counter = intermediate.Intermediary()
 active_logger = logging.getLogger(__name__)
 
 
-@app.callback(
-    output=[
-        Output('input-feature-config', 'options'),
-        Output('input-plot-config', 'options'),
-        Output('intermediary-featureconfigs', 'children'),
-    ],
-    inputs=Input('button-feature-config', 'n_clicks'),
-)
-def update_files_table(n_clicks):
+def cb_configs(app, shn: Session):
+    @app.callback(
+        output=[
+            Output('input-feature-config', 'options'),
+            Output('input-plot-config', 'options'),
+            Output('intermediary-featureconfigs', 'children'),
+        ],
+        inputs=Input('button-feature-config', 'n_clicks'),
+    )
+    def update_files_table(n_clicks):
 
-    dd.load_ftr_configs()
+        shn.ftr_load()
 
-    feature_options = [{
-        'label': v,
-        'value': v,
-    } for v in dd.feature_configs.keys()]
-    plot_options = [{
-        'label': v,
-        'value': v,
-    } for v in dd.plot_configs.keys()]
+        feature_options = [{
+            'label': v,
+            'value': v,
+        } for v in shn.feature_configs.keys()]
+        plot_options = [{
+            'label': v,
+            'value': v,
+        } for v in shn.plot_configs.keys()]
 
-    return [
-        feature_options,
-        plot_options,
-        counter.next(),
-    ]
+        return [
+            feature_options,
+            plot_options,
+            counter.next(),
+        ]

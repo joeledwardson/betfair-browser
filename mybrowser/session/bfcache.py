@@ -7,25 +7,18 @@ from flumine import FlumineException
 
 from mytrading.utils import storage
 from myutils import dbcache as cache
-from mybrowser.config import config
 
 
 active_logger = logging.getLogger(__name__)
 active_logger.setLevel(logging.INFO)
 
 
-# TODO - this should not be read globally
-def _root():
-    return config['CONFIG_PATHS']['cache']
-
-
-# TODO - add read market cache etc here too, would seem the sensible place?
-def w_mkt(market_id, db):
+def w_mkt(market_id, db, root):
     """
     write market stream cache
     """
     return cache.write_cache_path(
-        root=_root(),
+        root=root(),
         tbl='marketstream',
         filters={
             'market_id': market_id
@@ -36,12 +29,12 @@ def w_mkt(market_id, db):
     )
 
 
-def p_mkt(market_id):
+def p_mkt(market_id, root):
     """
     market stream cache path
     """
     return cache.cache_path(
-        root=_root(),
+        root=root(),
         tbl='marketstream',
         filters={
             'market_id': market_id
@@ -50,12 +43,12 @@ def p_mkt(market_id):
     )
 
 
-def w_strat(strategy_id, market_id, db):
+def w_strat(strategy_id, market_id, db, root):
     """
     write strategy updates cache
     """
     return cache.write_cache_path(
-        root=_root(),
+        root=root(),
         tbl='strategyupdates',
         filters={
             'strategy_id': strategy_id,
@@ -67,12 +60,12 @@ def w_strat(strategy_id, market_id, db):
     )
 
 
-def p_strat(strategy_id, market_id):
+def p_strat(strategy_id, market_id, root):
     """
     strategy updates cache path
     """
     return cache.cache_path(
-        root=_root(),
+        root=root(),
         tbl='strategyupdates',
         filters={
             'strategy_id': strategy_id,

@@ -2,7 +2,6 @@ import dash_html_components as html
 import dash_core_components as dcc
 import dash_bootstrap_components as dbc
 import dash_table
-from ..config import config
 
 
 def header():
@@ -97,7 +96,7 @@ def market_info():
     return html.Div(children=[], id='infobox-market')
 
 
-def table():
+def table(n_rows):
     """
     get empty mydash DataTable for runner information
     """
@@ -115,6 +114,6 @@ def table():
         style_cell={
             'textAlign': 'left',
         },
-        page_size=int(config['TABLE']['runner_rows']),
+        page_size=n_rows,
         sort_action='native',
     )
