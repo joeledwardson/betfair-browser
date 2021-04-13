@@ -97,6 +97,7 @@ def get_ftr_configs(config_dir: str) -> Dict:
 # TODO - logger for each session?
 class Session:
 
+    # TODO - put these in with init function
     def init_db(self, **db_kwargs):
         self.betting_db = BettingDB(**db_kwargs)
 
@@ -109,6 +110,9 @@ class Session:
     def __init__(self):
 
         # TODO - more standardized names
+        self.log_nwarn = 0
+        self.log_elements = list()
+
         self.db_filters = None
         self.config: Optional[Dict] = None
         self.tbl_formatters = None
@@ -279,8 +283,11 @@ class Session:
 
     def odr_upd(self, strat_id, mkt_id) -> Union[pd.DataFrame, None]:
         """
-        get dataframe of order updates (datetime set as index), empty dataframe if strategy not specified,
-        None if strategy specified by fail
+        get dataframe of order updates (datetime set as index)
+
+        return filled dataframe on success
+        return empty dataframe if strategy not specified
+        return None if strategy selected but fail
         """
 
         if strat_id:
@@ -467,13 +474,11 @@ class Session:
         """
 
         # TODO - split date into year/month/day components
-        col_names = list(self.config['TABLE_COLS'].keys())
         meta = self.betting_db.tables['marketmeta']
 
         # TODO - add error checking for sqlalchemy
         if strategy_id:
             q = dbtable.q_strategy(strategy_id, self.betting_db)
-            col_names.append('market_profit')
         else:
             q = self.betting_db.session.query(meta)
 
@@ -501,6 +506,9 @@ class Session:
 
         # TODO - split date into year/month/day components
         col_names = list(self.config['TABLE_COLS'].keys())
+        if 'market_profit' in cte.c:
+            col_names.append('market_profit')
+
         cols = [cte.c[nm] for nm in col_names]
 
         fmt_config=self.config['TABLE_FORMATTERS']

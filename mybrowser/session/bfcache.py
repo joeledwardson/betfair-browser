@@ -18,7 +18,7 @@ def w_mkt(market_id, db, root):
     write market stream cache
     """
     return cache.write_cache_path(
-        root=root(),
+        root=root,
         tbl='marketstream',
         filters={
             'market_id': market_id
@@ -34,7 +34,7 @@ def p_mkt(market_id, root):
     market stream cache path
     """
     return cache.cache_path(
-        root=root(),
+        root=root,
         tbl='marketstream',
         filters={
             'market_id': market_id
@@ -48,7 +48,7 @@ def w_strat(strategy_id, market_id, db, root):
     write strategy updates cache
     """
     return cache.write_cache_path(
-        root=root(),
+        root=root,
         tbl='strategyupdates',
         filters={
             'strategy_id': strategy_id,
@@ -65,7 +65,7 @@ def p_strat(strategy_id, market_id, root):
     strategy updates cache path
     """
     return cache.cache_path(
-        root=root(),
+        root=root,
         tbl='strategyupdates',
         filters={
             'strategy_id': strategy_id,

@@ -32,48 +32,63 @@ def cb_runners(app, shn: Session):
             Output('table-runners', 'data'),
             Output('infobox-market', 'children'),
             Output('intermediary-runners', 'children'),
-            Output('loading-out-runners', 'children')
+            Output('button-mkt-bin', 'disabled'),
+            Output('table-runners', 'active_cell'),
+            Output('table-runners', 'selected_cells'),
+            Output('loading-out-runners', 'children'),
         ],
         inputs=[
-            Input('button-runners', 'n_clicks')
+            Input('button-runners', 'n_clicks'),
+            Input('button-mkt-bin', 'n_clicks')
         ],
         state=[
             State('table-market-session', 'active_cell'),
             State('input-strategy-select', 'value')
         ],
     )
-    def runners_pressed(runners_n_clicks, db_active_cell, strategy_id):
+    def runners_pressed(btn_rn, btn_clr, cell, strategy_id):
         """
         update runners table and market information table, based on when "get runners" button is clicked
         update data in runners table, and active file indicator when runners button pressed
 
-        :param runners_n_clicks:
+        :param btn_rn:
         :param active_cell:
         :return:
         """
 
         ret = [
             [],  # empty table
-            html.P('failed to load market'),
-            counter.next(),
-            ''
+            html.P('no market selected'),  # market status
+            counter.next(),  # intermediary value increment
+            True,  # by default assume market not loaded, bin market button disabled
+            None,  # reset active cell
+            [],  # reset selected cells
+            ''  # blank loading output
         ]
 
+        # assume market not loaded, clear
+        shn.mkt_clr()
+
         # first callback call
-        if not runners_n_clicks:
-            ret[1] = 'no market selected'
+        if not btn_rn:
             return ret
 
-        if not db_active_cell:
+        # market clear
+        if context.triggered_id() == 'button-mkt-bin':
+            active_logger.info(f'clearing market')
+            return ret
+
+        if not cell:
             active_logger.warning(f'no active cell to get market')
             return ret
 
-        market_id = db_active_cell['row_id']
+        market_id = cell['row_id']
         if not market_id:
             active_logger.warning(f'row ID is blank')
             return ret
 
         if not shn.mkt_load(market_id, strategy_id):
+            shn.mkt_clr()
             return ret
 
         tbl = [{
@@ -86,6 +101,7 @@ def cb_runners(app, shn: Session):
 
         ret[0] = sorted(tbl, key=lambda d: d['Starting Odds'])
         ret[1] = f'loaded "{market_id}"'
+        ret[3] = False
         return ret
 
     @app.callback(
@@ -103,11 +119,17 @@ def cb_runners(app, shn: Session):
 
     @app.callback(
         [Output('button-figure', 'disabled'), Output('button-orders', 'disabled')],
-        Input('table-runners', 'active_cell')
+        [Input('table-runners', 'active_cell')]
     )
     def fig_btn_disable(active_cell):
+        active_logger.info(f'runners button callback, runners cell: {active_cell}')
+        dsbl_fig = True
+        dsbl_odr = True
+
         if active_cell is not None and 'row_id' in active_cell:
-            return False, False
-        else:
-            return True, True
+            dsbl_fig = False
+            if shn.strategy_id is not None:
+                dsbl_odr = False
+
+        return dsbl_fig, dsbl_odr
 

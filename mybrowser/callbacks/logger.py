@@ -3,39 +3,67 @@ import dash_html_components as html
 
 from .. import log_q
 from ..session import Session
-from mybrowser.layouts import INTERMEDIARIES
+from ..layouts import INTERMEDIARIES
+from myutils.mydash import context
 
-
-log_elements = []
-inputs = [Input(x, 'children') for x in INTERMEDIARIES]
-inputs += [Input('interval-component', 'n_intervals')]
+# mapping of log levels to bootstrap background colors
+LEVEL_COLORS = {
+    'DEBUG': 'bg-white',
+    'INFO': 'bg-light',
+    'WARNING': 'bg-warning',
+    'ERROR': 'bg-danger',
+    'CRITICAL': 'bg-danger'
+}
 
 
 def cb_logs(app, shn: Session):
     @app.callback(
-        output=Output('logger-box', 'children'),
-        inputs=inputs
+        output=[
+            Output('logger-box', 'children'),
+            Output('msg-alert-box', 'hidden'),
+            Output('log-warns', 'children')
+        ],
+        inputs=[
+            Input(x, 'children') for x in INTERMEDIARIES
+        ] + [
+            Input('interval-component', 'n_intervals'),
+            Input("modal-close-log", "n_clicks")
+        ]
     )
     def log_update(*args):
+
         # update log list, add to bottom of list as display is reversed
         while not log_q.empty():
             log_item = log_q.get()
-            log_elements.insert(0, html.P(
+            lvl = log_item['record'].levelname
+            if lvl in ['WARNING', 'ERROR', 'CRITICAL']:
+                shn.log_nwarn += 1
+            shn.log_elements.insert(0, html.P(
                 log_item['txt'],
-                style={
-                    'margin': 0,
-                    # TODO - add colours for error/critical as well
-                    'background-color': 'yellow' if log_item['record'].levelname == 'WARNING' else None,
-                }
+                className='m-0 ' + LEVEL_COLORS.get(lvl, '')
             ))
-        return log_elements
+
+        if context.triggered_id() == 'modal-close-log':
+            shn.log_nwarn = 0
+
+        if shn.log_nwarn > 0:
+            hide_warn = False
+        else:
+            hide_warn = True
+
+        return shn.log_elements, hide_warn, str(shn.log_nwarn)
 
     @app.callback(
-        Output("modal-logs", "is_open"),
-        [Input("button-log", "n_clicks"), Input("modal-close-log", "n_clicks")],
-        [State("modal-logs", "is_open")],
+        output=Output("modal-logs", "is_open"),
+        inputs=[
+            Input("button-log", "n_clicks"),
+            Input("modal-close-log", "n_clicks")
+        ]
     )
-    def toggle_modal(n1, n2, is_open):
-        if n1 or n2:
-            return not is_open
-        return is_open
+    def toggle_modal(n1, n2):
+        if context.triggered_id() == 'button-log':
+            return True
+        else:
+            return False
+
+

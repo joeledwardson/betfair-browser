@@ -31,6 +31,15 @@ def header():
             width='auto',
             className='p-1'
         ),
+        dbc.Col(
+            dbc.Button(
+                html.I(className='fas fa-trash'),
+                id='button-mkt-bin',
+                color='warning'
+            ),
+            width='auto',
+            className='p-1'
+        ),
         dbc.Col(),  # pad spacing between titles/buttons and anchored right loading bar
         dbc.Col(
             dcc.Loading(

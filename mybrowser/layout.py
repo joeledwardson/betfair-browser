@@ -82,13 +82,20 @@ def header():
             width='auto',
             className='p-1'
         ),
-        dbc.Col(
+        dbc.Col([
             # TODO - add labels for errors/warnings
-            dbc.Button(
-                html.I(className="fas fa-envelope-open-text"),
-                id='button-log',
-                color='info'
-            ),
+                dbc.Button(
+                    html.I(className="fas fa-envelope-open-text"),
+                    id='button-log',
+                    color='info'
+                ),
+                html.Div(
+                    dbc.Badge(id='log-warns', color="danger", className='p-2'),
+                    id='msg-alert-box',
+                    className='right-corner-box',
+                    hidden=True
+                )
+            ],
             width='auto',
             className='p-1'
         )],
@@ -113,7 +120,7 @@ def header():
             width=3
         )],
         align='center',
-        className='bg-light'
+        className='bg-light py-2 px-4'
     )
 
 

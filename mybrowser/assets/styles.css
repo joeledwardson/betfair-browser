@@ -66,3 +66,10 @@ html, body {
 div.anchor-right div {
     justify-content: flex-end !important;
 }
+
+div.right-corner-box {
+    position: absolute;
+    transform: translate(50%, -50%);
+    right: 0;
+    top: 0;
+}
