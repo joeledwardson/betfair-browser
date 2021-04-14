@@ -55,49 +55,52 @@ def header():
 
 def inputs():
     # market/runner buttons
-    return html.Div([
-        dbc.Row([
-            dbc.Col(
-                dbc.Button(
-                    ['Orders', html.I(className='fas fa-file-invoice-dollar ml-2')],
-                    id='button-orders'
-                ),
-                width='auto',
-                className='pr-1'
+    return html.Div(dbc.Row([
+        dbc.Col(
+            dbc.Button(
+                ['Orders', html.I(className='fas fa-file-invoice-dollar ml-2')],
+                id='button-orders',
+                color='primary',
             ),
-            dbc.Col(
-                dbc.Button(
-                    ['Figure', html.I(className="fas fa-chart-line ml-2")],
-                    id='button-figure'
-                ),
-                width='auto',
-                className='p-1'
+            width='auto',
+            className='pr-1'
+        ),
+        dbc.Col(
+            dbc.Button(
+                ['Figure', html.I(className="fas fa-chart-line ml-2")],
+                id='button-figure',
+                color='primary',
             ),
-            dbc.Col(
-                dbc.Button(
-                    ['Timings', html.I(className='fas fa-hourglass ml-2')],
-                    id='button-timings'
-                ),
-                width='auto',
-                className='p-1'
-            ),
-            dbc.Col(),
-            dbc.Col(
-                dcc.Loading(
-                    html.Div(id='loading-out-figure'),
-                    type='dot',
-                    parent_className='anchor-right'
-                )
-            ),
-        ], no_gutters=True, align='center'),
-        html.Div([
-            html.Button(
-                children='all feature figures',
+            width='auto',
+            className='p-1'
+        ),
+        dbc.Col(
+            dbc.Button(
+                ['All figs', html.I(className="fas fa-chart-line ml-2")],
                 id='button-all-figures',
-                n_clicks=0
+                color='secondary',
+            ),
+            width='auto',
+            className='p-1'
+        ),
+        dbc.Col(
+            dbc.Button(
+                ['Timings', html.I(className='fas fa-hourglass ml-2')],
+                id='button-timings',
+                color='primary'
+            ),
+            width='auto',
+            className='p-1'
+        ),
+        dbc.Col(),
+        dbc.Col(
+            dcc.Loading(
+                html.Div(id='loading-out-figure'),
+                type='dot',
+                parent_className='anchor-right'
             )
-        ])
-    ])
+        )], no_gutters=True, align='center'
+    ))
 
 
 def market_info():

@@ -1,14 +1,13 @@
 from __future__ import annotations
 import dash
 import dash_renderer
+import dash_bootstrap_components as dbc
 import logging
 import sys
+
 from .layout import get_layout
 from . import callbacks
-import dash
-import dash_bootstrap_components as dbc
-from mybrowser.session.session import Session
-from mybrowser.session.config import init as config_init
+from .session import Session, config_init
 
 active_logger = logging.getLogger(__name__)
 active_logger.setLevel(logging.INFO)
@@ -25,15 +24,9 @@ def run_browser(debug: bool, config_path=None):
         raise Exception('Python version needs to be 3.9 or higher!')
 
     app = dash.Dash(__name__, external_stylesheets=[dbc.themes.BOOTSTRAP, FA])
-    session = Session()
 
     config = config_init(config_path)
-    db_kwargs = {}
-    if config.has_section('DB_CONFIG'):
-        db_kwargs = config['DB_CONFIG']
-
-    session.init_db(**db_kwargs)
-    session.init_config(config)
+    session = Session(config)
 
     callbacks.cb_runners(app, session)
     callbacks.cb_orders(app, session)

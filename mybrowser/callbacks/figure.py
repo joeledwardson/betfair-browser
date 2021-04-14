@@ -95,9 +95,9 @@ def cb_fig(app, shn: Session):
         secs = offset_dt.total_seconds() if offset_dt else 0
 
         # get selected IDs and plot
-        sel_ids = get_ids(cell, list(shn.runners_info.keys()))
+        sel_ids = get_ids(cell, list(shn.mkt_rnrs.keys()))
         for selection_id in sel_ids:
-            shn.fig_plt(selection_id, secs, ftr_key, plt_key)
+            shn.fig_plot(selection_id, secs, ftr_key, plt_key)
 
         ret[0] = shn.tms_get()
         mytiming.clear_timing_register()

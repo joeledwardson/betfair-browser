@@ -20,16 +20,16 @@ def cb_configs(app, shn: Session):
     )
     def update_files_table(n_clicks):
 
-        shn.ftr_load()
+        shn.ftr_update()
 
         feature_options = [{
             'label': v,
             'value': v,
-        } for v in shn.feature_configs.keys()]
+        } for v in shn.ftr_fcfgs.keys()]
         plot_options = [{
             'label': v,
             'value': v,
-        } for v in shn.plot_configs.keys()]
+        } for v in shn.ftr_pcfgs.keys()]
 
         return [
             feature_options,

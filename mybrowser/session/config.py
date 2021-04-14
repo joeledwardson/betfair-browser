@@ -6,7 +6,7 @@ active_logger = logging.getLogger(__name__)
 active_logger.setLevel(logging.INFO)
 
 
-def init(config_path=None):
+def init(config_path=None) -> configparser.ConfigParser:
     """
     load configuration file by passing path, or do not pass an arg to use default configuration file
 

@@ -33,6 +33,7 @@ def cb_runners(app, shn: Session):
             Output('infobox-market', 'children'),
             Output('intermediary-runners', 'children'),
             Output('button-mkt-bin', 'disabled'),
+            Output('button-all-figures', 'disabled'),
             Output('table-runners', 'active_cell'),
             Output('table-runners', 'selected_cells'),
             Output('loading-out-runners', 'children'),
@@ -61,6 +62,7 @@ def cb_runners(app, shn: Session):
             html.P('no market selected'),  # market status
             counter.next(),  # intermediary value increment
             True,  # by default assume market not loaded, bin market button disabled
+            True,  # by default assume market not loaded, figures button disabled
             None,  # reset active cell
             [],  # reset selected cells
             ''  # blank loading output
@@ -97,11 +99,12 @@ def cb_runners(app, shn: Session):
             'Name': d['runner_name'],
             'Starting Odds':  d['start_odds'],
             'Profit': d['runner_profit']
-        } for d in shn.runners_info.values()]
+        } for d in shn.mkt_rnrs.values()]
 
         ret[0] = sorted(tbl, key=lambda d: d['Starting Odds'])
         ret[1] = f'loaded "{market_id}"'
-        ret[3] = False
+        ret[3] = False  # enable bin market button
+        ret[4] = False  # enable plot all figures button
         return ret
 
     @app.callback(
@@ -118,8 +121,12 @@ def cb_runners(app, shn: Session):
             return ""
 
     @app.callback(
-        [Output('button-figure', 'disabled'), Output('button-orders', 'disabled')],
-        [Input('table-runners', 'active_cell')]
+        output=[
+            Output('button-figure', 'disabled'),
+            Output('button-orders', 'disabled')
+        ], inputs=[
+            Input('table-runners', 'active_cell')
+        ]
     )
     def fig_btn_disable(active_cell):
         active_logger.info(f'runners button callback, runners cell: {active_cell}')
@@ -128,7 +135,7 @@ def cb_runners(app, shn: Session):
 
         if active_cell is not None and 'row_id' in active_cell:
             dsbl_fig = False
-            if shn.strategy_id is not None:
+            if shn.mkt_sid is not None:
                 dsbl_odr = False
 
         return dsbl_fig, dsbl_odr

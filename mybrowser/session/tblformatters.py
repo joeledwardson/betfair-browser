@@ -2,7 +2,7 @@ from myutils.myregistrar import MyRegistrar
 from datetime import date, datetime
 
 
-def get_formatters(config):
+def get_formatters(config) -> MyRegistrar:
     formatters = MyRegistrar()
 
     @formatters.register_element

@@ -8,7 +8,7 @@ from sqlalchemy.exc import SQLAlchemyError
 import importlib
 import sys
 from datetime import datetime
-
+from configparser import ConfigParser
 
 from mytrading.visual import profits
 from mytrading.tradetracker.messages import MessageTypes
@@ -28,111 +28,38 @@ active_logger = logging.getLogger(__name__)
 active_logger.setLevel(logging.INFO)
 
 
-def fig_title(mkt_info: Dict, name: str, selection_id: int) -> str:
-    """
-    generate figure title from database market meta-information, runner name and runner selection ID
-    """
-    return '{} {} {} "{}", name: "{}", ID: "{}"'.format(
-        mkt_info['event_name'],
-        mkt_info['market_time'],
-        mkt_info['market_type'],
-        mkt_info['market_id'],
-        name,
-        selection_id
-    )
-
-
-def get_ftr_configs(config_dir: str) -> Dict:
-    """
-    get dictionary of configuration file name (without ext) to dict from dir
-
-    Parameters
-    ----------
-    info_strings :
-    config_dir :
-
-    Returns
-    -------
-
-    """
-
-    # check directory is set
-    if type(config_dir) is not str:
-        active_logger.error('directory not set')
-        return dict()
-
-    # check actually exists
-    if not path.exists(config_dir):
-        active_logger.error(f'directory does not exist!')
-        return dict()
-
-    # dict of configs to return
-    configs = dict()
-
-    # get files in directory
-    _, _, files = mypath.walk_first(config_dir)
-
-    # loop files
-    for file_name in files:
-
-        # get file path and name without ext
-        file_path = path.join(config_dir, file_name)
-        name, _ = path.splitext(file_name)
-
-        # read configuration from dictionary
-        cfg = jsonfile.read_file_data(file_path)
-
-        # check config successfully parsed
-        if cfg is not None:
-            configs[name] = cfg
-
-    active_logger.info(f'{len(configs)} valid configuration files found from {len(files)} files')
-    active_logger.info(f'feature configs: {list(configs.keys())}')
-    return configs
-
-
 # TODO - don't hardcode functions that require market/strategy ID
 # TODO - how to remove globals to make this multiprocess valid? strategy id, runner names, market info, start odds
 #  could all be cached or stored in hidden divs.
 # TODO - logger for each session?
 class Session:
+    def __init__(self, config: ConfigParser):
 
-    # TODO - put these in with init function
-    def init_db(self, **db_kwargs):
-        self.betting_db = BettingDB(**db_kwargs)
-
-    def init_config(self, config):
-        self.config = config
-        self.tbl_formatters = get_formatters(config)
-        self.rt_cache = config['CONFIG_PATHS']['cache']
-        self.db_filters = DBFilters(config['MARKET_FILTER']['date_format'])
-
-    def __init__(self):
+        self.config: ConfigParser = config  # parsed configuration
+        self.tbl_formatters = get_formatters(config)  # registrar of table formatters
+        self.cache_rt = config['CONFIG_PATHS']['cache']  # cache root dir
+        self.trading = mysecurity.get_api_client()  # API client instance
+        self.db_filters = DBFilters(config['MARKET_FILTER']['date_format'])  # market database filters
 
         # TODO - more standardized names
-        self.log_nwarn = 0
-        self.log_elements = list()
+        self.log_nwarn = 0  # number of logger warnings
+        self.log_elements = list()  # logging elements
 
-        self.db_filters = None
-        self.config: Optional[Dict] = None
-        self.tbl_formatters = None
-        self.rt_cache = None
-
-        # market info - selected strategy, runner names, market meta dict, and streaming update list
-        self.strategy_id = None
-        self.db_mkt_info = {}
-        self.record_list: List[List[MarketBook]] = []
-        self.runners_info: Dict[int, Dict] = {}
+        # selected market info
+        self.mkt_sid = None  # strategy ID
+        self.mkt_info = {}  # database meta information dict
+        self.mkt_records: List[List[MarketBook]] = []  # record list
+        self.mkt_rnrs: Dict[int, Dict] = {}  # market runners information, indexed by runner ID
 
         # betting database instance
-        self.betting_db: Optional[BettingDB] = None
+        db_kwargs = {}
+        if config.has_section('DB_CONFIG'):
+            db_kwargs = config['DB_CONFIG']
+        self.betting_db = BettingDB(**db_kwargs)
 
-        # API client instance
-        self.trading = mysecurity.get_api_client()
-
-        # dictionary holding of {file name: config} for feature/plot configurations
-        self.feature_configs = dict()
-        self.plot_configs = dict()
+        # feature-plot configurations
+        self.ftr_fcfgs = dict()  # feature configurations
+        self.ftr_pcfgs = dict()  # plot configurations
 
     @staticmethod
     def rl_mods():
@@ -145,19 +72,68 @@ class Session:
                 active_logger.debug(f'reloaded library {k}')
         active_logger.info('libraries reloaded')
 
-    def ftr_load(self):
+    @staticmethod
+    def ftr_readf(config_dir: str) -> Dict:
+        """
+        get dictionary of configuration file name (without ext) to dict from dir
+
+        Parameters
+        ----------
+        info_strings :
+        config_dir :
+
+        Returns
+        -------
+
+        """
+
+        # check directory is set
+        if type(config_dir) is not str:
+            active_logger.error('directory not set')
+            return dict()
+
+        # check actually exists
+        if not path.exists(config_dir):
+            active_logger.error(f'directory does not exist!')
+            return dict()
+
+        # dict of configs to return
+        configs = dict()
+
+        # get files in directory
+        _, _, files = mypath.walk_first(config_dir)
+
+        # loop files
+        for file_name in files:
+
+            # get file path and name without ext
+            file_path = path.join(config_dir, file_name)
+            name, _ = path.splitext(file_name)
+
+            # read configuration from dictionary
+            cfg = jsonfile.read_file_data(file_path)
+
+            # check config successfully parsed
+            if cfg is not None:
+                configs[name] = cfg
+
+        active_logger.info(f'{len(configs)} valid configuration files found from {len(files)} files')
+        active_logger.info(f'feature configs: {list(configs.keys())}')
+        return configs
+
+    def ftr_update(self):
         """
         load feature and plot configurations from directory to dicts
         """
         # get feature configs
         feature_dir = path.abspath(self.config['CONFIG_PATHS']['feature'])
         active_logger.info(f'getting feature configurations from:\n-> {feature_dir}"')
-        self.feature_configs = get_ftr_configs(feature_dir)
+        self.ftr_fcfgs = self.ftr_readf(feature_dir)
 
         # get plot configurations
         plot_dir = path.abspath(self.config['CONFIG_PATHS']['feature'])
         active_logger.info(f'getting plot configurations from:\n-> {plot_dir}"')
-        self.plot_configs = get_ftr_configs(plot_dir)
+        self.ftr_pcfgs = self.ftr_readf(plot_dir)
 
     def ftr_pcfg(self, plt_key: str) -> Dict:
         """
@@ -165,9 +141,9 @@ class Session:
         """
         plt_cfg = {}
         if plt_key:
-            if plt_key in self.plot_configs:
+            if plt_key in self.ftr_pcfgs:
                 active_logger.info(f'using selected plot configuration "{plt_key}"')
-                plt_cfg = self.plot_configs[plt_key]
+                plt_cfg = self.ftr_pcfgs[plt_key]
             else:
                 active_logger.warning(f'selected plot configuration "{plt_key}" not in plot configurations')
         else:
@@ -185,13 +161,13 @@ class Session:
             cfg_key = dft
             active_logger.info(f'no feature config selected, using default "{dft}"')
         else:
-            if ftr_key not in self.feature_configs:
+            if ftr_key not in self.ftr_fcfgs:
                 active_logger.warning(f'selected feature config "{ftr_key}" not found in list, using default "{dft}"')
                 return None
             else:
                 active_logger.info(f'using selected feature config "{ftr_key}"')
                 cfg_key = ftr_key
-        return self.feature_configs.get(cfg_key)
+        return self.ftr_fcfgs.get(cfg_key)
 
     def tms_get(self) -> List[Dict]:
         """
@@ -220,15 +196,15 @@ class Session:
 
         # check strategy valid if one is selected, when writing info to cache
         if strategy_id:
-            if not bfcache.w_strat(strategy_id, market_id, self.betting_db, self.rt_cache):
+            if not bfcache.w_strat(strategy_id, market_id, self.betting_db, self.cache_rt):
                 return False
 
         # check market stream is valid when writing to cache
-        if not bfcache.w_mkt(market_id, self.betting_db, self.rt_cache):
+        if not bfcache.w_mkt(market_id, self.betting_db, self.cache_rt):
             return False
 
         # read market stream back from cache and check valid
-        p = bfcache.p_mkt(market_id, self.rt_cache)
+        p = bfcache.p_mkt(market_id, self.cache_rt)
         record_list = bfcache.r_mkt(p, self.trading)
         if not record_list:
             return False
@@ -251,25 +227,25 @@ class Session:
         }
 
         # put market information into self
-        self.strategy_id = strategy_id
-        self.record_list = record_list
-        self.db_mkt_info = dict(meta)
-        self.runners_info = generic.dict_sort(rinf, key=lambda item:item[1]['start_odds'])
+        self.mkt_sid = strategy_id
+        self.mkt_records = record_list
+        self.mkt_info = dict(meta)
+        self.mkt_rnrs = generic.dict_sort(rinf, key=lambda item:item[1]['start_odds'])
 
         return True
 
     def mkt_clr(self):
-        self.db_mkt_info = {}
-        self.record_list = []
-        self.strategy_id = None
-        self.runners_info = {}
+        self.mkt_info = {}
+        self.mkt_records = []
+        self.mkt_sid = None
+        self.mkt_rnrs = {}
 
     def mkt_lginf(self):
         """
         log information about records
         """
-        rl = self.record_list
-        mt = self.db_mkt_info['market_time']
+        rl = self.mkt_records
+        mt = self.mkt_info['market_time']
 
         active_logger.info(f'{mt}, market time')
         active_logger.info(f'{rl[0][0].publish_time}, first record timestamp')
@@ -291,7 +267,7 @@ class Session:
         """
 
         if strat_id:
-            p = bfcache.p_strat(strat_id, mkt_id, self.rt_cache)
+            p = bfcache.p_strat(strat_id, mkt_id, self.cache_rt)
             if not path.exists(p):
                 active_logger.warning(f'could not find cached strategy market file:\n-> "{p}"')
                 return None
@@ -348,10 +324,10 @@ class Session:
         df['order £'] = [orderinfo.dict_order_profit(order) for order in lines]
         return df
 
-    # TODO - strategy updates read at market load so dont have to do it for every call?
+    # TODO - combine with odr_rd and process_profit_table(), too many nested functions
     def odr_prft(self, selection_id) -> Optional[pd.DataFrame]:
 
-        p = bfcache.p_strat(self.strategy_id, self.db_mkt_info['market_id'], self.rt_cache)
+        p = bfcache.p_strat(self.mkt_sid, self.mkt_info['market_id'], self.cache_rt)
         active_logger.info(f'reading strategy market cache file:\n-> {p}')
         if not path.isfile(p):
             active_logger.warning(f'file does not exist')
@@ -362,33 +338,47 @@ class Session:
             active_logger.warning(f'Retrieved profits dataframe is empty')
             return None
 
-        return profits.process_profit_table(df, self.db_mkt_info['market_time'])
+        return profits.process_profit_table(df, self.mkt_info['market_time'])
 
-    def fig_plt(self, selection_id, secs, ftr_key, plt_key):
+    @staticmethod
+    def fig_title(mkt_info: Dict, name: str, selection_id: int) -> str:
+        """
+        generate figure title from database market meta-information, runner name and runner selection ID
+        """
+        return '{} {} {} "{}", name: "{}", ID: "{}"'.format(
+            mkt_info['event_name'],
+            mkt_info['market_time'],
+            mkt_info['market_type'],
+            mkt_info['market_id'],
+            name,
+            selection_id
+        )
+
+    def fig_plot(self, selection_id, secs, ftr_key, plt_key):
 
         # if no active market selected then abort
-        if not self.record_list or not self.db_mkt_info:
+        if not self.mkt_records or not self.mkt_info:
             active_logger.warning('no market information/records')
             return
 
         try:
             # TODO - exit if selection iD not in runners info
             # get name and title
-            name = self.runners_info[selection_id]['runner_name'] or 'N/A'
-            title = fig_title(self.db_mkt_info, name, selection_id)
+            name = self.mkt_rnrs[selection_id]['runner_name'] or 'N/A'
+            title = self.fig_title(self.mkt_info, name, selection_id)
             active_logger.info(f'producing figure for runner {selection_id}, name: "{name}"')
 
-            # TODO - orders stored?
             # get orders dataframe (or None)
-            orders = self.odr_upd(self.strategy_id, self.db_mkt_info['market_id'])
+            orders = self.odr_upd(self.mkt_sid, self.mkt_info['market_id'])
             if orders is None:
                 return
 
             # get start/end of chart datetimes
-            dt0 = self.record_list[0][0].publish_time
-            mkt_dt = self.db_mkt_info['market_time']
+            dt0 = self.mkt_records[0][0].publish_time
+            mkt_dt = self.mkt_info['market_time']
             start = figurelib.get_chart_start(
-                display_seconds=secs, market_time=mkt_dt, first=dt0)
+                display_seconds=secs, market_time=mkt_dt, first=dt0
+            )
             end = mkt_dt
 
             # if orders exist, filter to runner and modify chart start/end
@@ -406,7 +396,7 @@ class Session:
 
             # generate plot by simulating features
             ftr_data = figurelib.generate_feature_data(
-                hist_records=self.record_list,
+                hist_records=self.mkt_records,
                 selection_id=selection_id,
                 chart_start=start,
                 chart_end=end,

@@ -46,7 +46,7 @@ def cb_orders(app, shn: Session):
             return r
 
         # if no active market selected then abort
-        if not shn.record_list or not shn.db_mkt_info:
+        if not shn.mkt_records or not shn.mkt_info:
             active_logger.warning('no market information/records')
             return r
 
@@ -60,11 +60,11 @@ def cb_orders(app, shn: Session):
             return r
 
         selection_id = cell['row_id']
-        if selection_id not in shn.runners_info:
+        if selection_id not in shn.mkt_rnrs:
             active_logger.warning(f'row ID "{selection_id}" not found in starting odds')
             return r
 
-        if not shn.strategy_id:
+        if not shn.mkt_sid:
             active_logger.warning(f'no strategy selected')
             return r
 
