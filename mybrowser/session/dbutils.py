@@ -37,35 +37,3 @@ def market_meta(db, market_id):
         db.tables['marketmeta'].columns['market_id'] == market_id
     ).first()
 
-
-def q_strategy(strategy_id, db):
-    """
-    get query for marketmeta , filtered to markets for strategy specified with additional "market_profit" column for
-    total profit for strategy for given market, grouped over runner profits per market
-
-    Parameters
-    ----------
-    strategy_id :
-
-    Returns
-    -------
-    """
-    sr = db.tables['strategyrunners']
-    meta = db.tables['marketmeta']
-
-    strat_cte = db.session.query(
-        sr.columns['market_id'],
-        sql_sum(sr.columns['profit']).label('market_profit')
-    ).filter(
-        sr.columns['strategy_id'] == strategy_id
-    ).group_by(
-        sr.columns['market_id']
-    ).cte()
-
-    return db.session.query(
-        meta,
-        strat_cte.c['market_profit']
-    ).join(
-        strat_cte,
-        meta.columns['market_id'] == strat_cte.c['market_id']
-    )

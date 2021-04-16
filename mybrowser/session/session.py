@@ -5,6 +5,8 @@ from typing import List, Dict, Union, Optional
 import pandas as pd
 import logging
 from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.sql.functions import sum as sql_sum
+import sqlalchemy
 import importlib
 import sys
 from datetime import datetime
@@ -29,19 +31,21 @@ active_logger.setLevel(logging.INFO)
 
 
 # TODO - don't hardcode functions that require market/strategy ID
-# TODO - how to remove globals to make this multiprocess valid? strategy id, runner names, market info, start odds
-#  could all be cached or stored in hidden divs.
-# TODO - logger for each session?
 class Session:
+
+    MODULES = ['myutils', 'mytrading']
+
     def __init__(self, config: ConfigParser):
 
         self.config: ConfigParser = config  # parsed configuration
         self.tbl_formatters = get_formatters(config)  # registrar of table formatters
         self.cache_rt = config['CONFIG_PATHS']['cache']  # cache root dir
         self.trading = mysecurity.get_api_client()  # API client instance
-        self.db_filters = DBFilters(config['MARKET_FILTER']['date_format'])  # market database filters
+        self.db_filters = DBFilters(
+            config['MARKET_FILTER']['mkt_date_format'],
+            config['MARKET_FILTER']['strategy_sel_format']
+        )  # market database filters
 
-        # TODO - more standardized names
         self.log_nwarn = 0  # number of logger warnings
         self.log_elements = list()  # logging elements
 
@@ -61,13 +65,13 @@ class Session:
         self.ftr_fcfgs = dict()  # feature configurations
         self.ftr_pcfgs = dict()  # plot configurations
 
-    @staticmethod
-    def rl_mods():
+    @classmethod
+    def rl_mods(cls):
         """
         reload all modules within 'mytrading' or 'myutils'
         """
         for k in list(sys.modules.keys()):
-            if 'mytrading' in k or 'myutils' in k:
+            if any([m in k for m in cls.MODULES]):
                 importlib.reload(sys.modules[k])
                 active_logger.debug(f'reloaded library {k}')
         active_logger.info('libraries reloaded')
@@ -283,7 +287,7 @@ class Session:
             return pd.DataFrame()
 
     @staticmethod
-    def odr_rd(p, selection_id) -> Optional[pd.DataFrame]:
+    def odr_rd(p, selection_id, mkt_dt) -> Optional[pd.DataFrame]:
         """
         get profit for each order from order updates file
         """
@@ -291,7 +295,7 @@ class Session:
         # get order results
         lines = jsonfile.read_file_lines(p)
 
-        # get order infos and check not blank
+        # get order infos for each message close and check not blank
         lines = [
             ln['order_info'] for ln in lines if
             ln['msg_type'] == MessageTypes.MSG_MARKET_CLOSE.name and
@@ -302,27 +306,54 @@ class Session:
         if not lines:
             return pd.DataFrame()
 
-        # lines = [order for order in lines if order['order_type']['order_type'] == 'Limit']
+        # attrs = {
+        #
+        # }
 
-        attrs = {
-            'date': 'date_time_created',
-            'trade': 'trade.id',
-            'side': 'info.side',
-            'price': 'order_type.price',
-            'size': 'order_type.size',
-            'm-price': 'average_price_matched',
-            'matched': 'info.size_matched'
-        }
+        df = pd.DataFrame([{
+            'date': datetime.fromtimestamp(o['date_time_created']),
+            'trade': o['trade']['id'],
+            'side': o['info']['side'],
+            'price': o['order_type']['price'],
+            'size': o['order_type']['size'],
+            'm-price': o['average_price_matched'],
+            'matched': o['info']['size_matched'],
+            'order £': orderinfo.dict_order_profit(o)
+        } for o in lines])
 
-        df = pd.DataFrame([
-            {
-                k: generic.dgetattr(o, v, is_dict=True)
-                for k, v in attrs.items()
-            } for o in lines
-        ])
-        df['date'] = df['date'].apply(datetime.fromtimestamp)
-        df['order £'] = [orderinfo.dict_order_profit(order) for order in lines]
-        return df
+
+        # df = pd.DataFrame([
+        #     {
+        #         k: generic.dgetattr(o, v, is_dict=True)
+        #         for k, v in attrs.items()
+        #     } for o in lines
+        # ])
+        # df['date'] = df['date'].apply(datetime.fromtimestamp)
+        # df['order £'] = [orderinfo.dict_order_profit(order) for order in lines]
+
+        # sum order profits in each trade
+        df['trade £'] = df.groupby(['trade'])['order £'].transform('sum')
+
+        # convert trade UUIDs to indexes for easy viewing
+        trade_ids = list(df['trade'].unique())
+        df['trade'] = [trade_ids.index(x) for x in df['trade'].values]
+        df['t-start'] = [mytiming.format_timedelta(mkt_dt - dt) for dt in df['date']]
+
+        # currency_cols = [
+        #     'trade £',
+        #     'order £',
+        #     'size',
+        #     'matched',
+        # ]
+        #
+        # def currency_format(x):
+        #     return f'£{x:.2f}' if x != 0 else ''
+        #
+        # for col in currency_cols:
+        #     df[col] = df[col].apply(currency_format)
+
+        # sort earliest first
+        return df.sort_values(by=['date'])
 
     # TODO - combine with odr_rd and process_profit_table(), too many nested functions
     def odr_prft(self, selection_id) -> Optional[pd.DataFrame]:
@@ -333,12 +364,12 @@ class Session:
             active_logger.warning(f'file does not exist')
             return None
 
-        df = self.odr_rd(p, selection_id)
+        df = self.odr_rd(p, selection_id, self.mkt_info['market_time'])
         if not df.shape[0]:
             active_logger.warning(f'Retrieved profits dataframe is empty')
             return None
 
-        return profits.process_profit_table(df, self.mkt_info['market_time'])
+        return df # profits.process_profit_table(df, self.mkt_info['market_time'])
 
     @staticmethod
     def fig_title(mkt_info: Dict, name: str, selection_id: int) -> str:
@@ -354,6 +385,7 @@ class Session:
             selection_id
         )
 
+    # TODO - check why plot isnt fixing start/end with orders
     def fig_plot(self, selection_id, secs, ftr_key, plt_key):
 
         # if no active market selected then abort
@@ -464,13 +496,33 @@ class Session:
         """
 
         # TODO - split date into year/month/day components
+        db = self.betting_db
         meta = self.betting_db.tables['marketmeta']
+        sr = db.tables['strategyrunners']
 
         # TODO - add error checking for sqlalchemy
         if strategy_id:
-            q = dbtable.q_strategy(strategy_id, self.betting_db)
+            strat_cte = db.session.query(
+                sr.columns['market_id'],
+                sql_sum(sr.columns['profit']).label('market_profit')
+            ).filter(
+                sr.columns['strategy_id'] == strategy_id
+            ).group_by(
+                sr.columns['market_id']
+            ).cte()
+
+            q = db.session.query(
+                meta,
+                strat_cte.c['market_profit']
+            ).join(
+                strat_cte,
+                meta.columns['market_id'] == strat_cte.c['market_id']
+            )
         else:
-            q = self.betting_db.session.query(meta)
+            q = self.betting_db.session.query(
+                meta,
+                sqlalchemy.null().label('market_profit')
+            )
 
         conditions = [
             f.db_filter(meta)
@@ -495,13 +547,10 @@ class Session:
     def flt_tbl(self, cte):
 
         # TODO - split date into year/month/day components
-        col_names = list(self.config['TABLE_COLS'].keys())
-        if 'market_profit' in cte.c:
-            col_names.append('market_profit')
-
+        col_names = list(self.config['TABLE_COLS'].keys()) + ['market_profit']
         cols = [cte.c[nm] for nm in col_names]
 
-        fmt_config=self.config['TABLE_FORMATTERS']
+        fmt_config = self.config['TABLE_FORMATTERS']
         max_rows = int(self.config['DB']['max_rows'])
         q_final = self.betting_db.session.query(*cols).limit(max_rows)
         q_result = q_final.all()

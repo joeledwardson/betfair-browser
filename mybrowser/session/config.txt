@@ -1,5 +1,8 @@
 [MARKET_FILTER]
-date_format = %%d %%b %%y
+# date format to present in market filter
+mkt_date_format = %%d %%b %%y
+# datetime format used in strategy filter
+strategy_sel_format = {exec_time:%%y-%%m-%%d %%H:%%M:%%S} {name}
 
 [TABLE]
 market_rows = 12

@@ -1,4 +1,5 @@
 from dash.dependencies import Output, Input, State
+import dash_html_components as html
 from myutils.mydash import intermediate
 from myutils.mydash import context
 import logging
@@ -94,8 +95,16 @@ def cb_market(app, shn: Session):
         opts = shn.flt_optsmkt(cte)
         n = shn.betting_db.session.query(cte).count()
 
+        q_sts = [
+            html.Div(f'Showing {len(tbl_rows)} of {n} available'),
+            html.Div(
+                f'strategy ID={strategy_id}'
+                if strategy_id is not None else 'no strategy selected'
+            )
+        ]
+
         return [
-            f'Showing {len(tbl_rows)} of {n} available',  # table query status
+            q_sts,  # table query status
             tbl_rows,  # set market table row data
             [],  # clear selected cell(s)
             None,  # clear selected cell

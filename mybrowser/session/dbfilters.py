@@ -1,8 +1,9 @@
 import logging
-from .dbfilter import DateFilter, JoinedFilter, DBFilter
+from .dbfilter import DBFilterDate, DBFilterJoin, DBFilter, DBFilterMulti
 
 active_logger = logging.getLogger(__name__)
 active_logger.setLevel(logging.INFO)
+
 
 # TODO - remove reg and just have a dict here indexed by 'strategy' or 'market'?
 class DBFilters:
@@ -22,9 +23,9 @@ class DBFilters:
         for val, flt in zip(args, DBFilter.reg[group]):
             flt.set_value(val, clear)
 
-    def __init__(self, dt_fmt):
+    def __init__(self, mkt_dt_fmt, strat_sel_fmt):
         self.filters = [
-            JoinedFilter(
+            DBFilterJoin(
                 "sport_id",
                 'MARKETFILTERS',
                 join_tbl_name='sportids',
@@ -43,7 +44,7 @@ class DBFilters:
                 'format',
                 'MARKETFILTERS'
             ),
-            JoinedFilter(
+            DBFilterJoin(
                 "country_code",
                 'MARKETFILTERS',
                 join_tbl_name='countrycodes',
@@ -54,13 +55,17 @@ class DBFilters:
                 "venue",
                 'MARKETFILTERS'
             ),
-            DateFilter(
+            DBFilterDate(
                 "market_time",
                 'MARKETFILTERS',
-                dt_fmt
+                mkt_dt_fmt
             ),
-            DBFilter(
+
+            DBFilterMulti(
                 'strategy_id',
-                'STRATEGYFILTERS'
+                'STRATEGYFILTERS',
+                fmt_spec=strat_sel_fmt,
+                order_col='exec_time',
+                is_desc=True,
             )
         ]

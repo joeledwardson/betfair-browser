@@ -16,12 +16,43 @@ def table(n_rows) -> dash_table.DataTable:
     """
     get empty DataTable for order profits
     """
+ 
     return dash_table.DataTable(
         id='table-orders',
         columns=[{
-            'name': x,
-            'id': x
-        } for x in profits.PROFIT_COLUMNS],
+            'name': 'Date',
+            'id': 'date'
+        }, {
+            'name': 'Trade',
+            'id': 'trade'
+        }, {
+            'name': 'Side',
+            'id': 'Side',
+        }, {
+            'name': 'Price',
+            'id': 'price'
+        }, {
+            'name': 'Size',
+            'id': 'size',
+        }, {
+            'name': 'Matched Price',
+            'id': 'm-price',
+        }, {
+            'name': 'Matched',
+            'id': 'matched',
+        }, {
+            'name': 'Order',
+            'id': 'order £'
+        }, {
+            'name': 'Trade',
+            'id': 'trade £'
+        }, {
+            'name': 'Trade Index',
+            'id': 'trade',
+        }, {
+            'name': 'Time to Start',
+            'id': 't-start'
+        }],
         style_cell={
             'textAlign': 'left',
         },

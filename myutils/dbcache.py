@@ -29,12 +29,12 @@ def cache_decode(data):
 
 
 def cache_path(root, tbl, filters, col) -> str:
-    return path.abspath(path.join(
+    return path.abspath(path.expandvars(path.join(
         root,
         tbl,
         *filters.values(),
         col
-    ))
+    )))
 
 
 def write_cache_path(root, tbl, filters, col, db, pre_processor=None) -> bool:

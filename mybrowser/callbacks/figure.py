@@ -90,6 +90,9 @@ def cb_fig(app, shn: Session):
             counter.next()
         ]
 
+        if my_context.triggered_id() != 'button-figure' and my_context.triggered_id() != 'button-all-figures':
+            return ret
+
         # get datetime/None chart offset from time input
         offset_dt = get_chart_offset(offset_str)
         secs = offset_dt.total_seconds() if offset_dt else 0

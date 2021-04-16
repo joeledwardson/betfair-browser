@@ -43,7 +43,7 @@ def get_profit_plotly_table(profit_df: pd.DataFrame, title: str) -> go.Figure:
         ),
     )
 
-
+# TODO - needed anymore?
 def process_profit_table(df: pd.DataFrame, market_start_time: datetime) -> pd.DataFrame:
     """
     - change "date" to timestamp form
