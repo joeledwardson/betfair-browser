@@ -22,9 +22,6 @@ active_logger = logging.getLogger(__name__)
 # number of seconds to buffer when trimming record list
 PROCESS_BUFFER_S = 10
 
-# offset either side of order info
-ORDER_OFFSET_SECONDS = 2
-
 
 def modify_start(chart_start: datetime, orders_df: pd.DataFrame, buffer_seconds: float) -> datetime:
     """
@@ -62,7 +59,7 @@ def modify_end(chart_end: datetime, orders_df: pd.DataFrame, buffer_seconds: flo
 
     """
     if orders_df.shape[0]:
-        trimmed_orders = orders_df[orders_df['msg_type'] != MessageTypes.MSG_MARKET_CLOSE.value]
+        trimmed_orders = orders_df[orders_df['msg_type'] != MessageTypes.MSG_MARKET_CLOSE.name]
         if trimmed_orders.shape[0]:
             orders_end = trimmed_orders.index[-1]
             orders_end = orders_end + timedelta(seconds=buffer_seconds)
