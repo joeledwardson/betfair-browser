@@ -5,7 +5,6 @@ active_logger = logging.getLogger(__name__)
 active_logger.setLevel(logging.INFO)
 
 
-# TODO - remove reg and just have a dict here indexed by 'strategy' or 'market'?
 class DBFilters:
 
     def filters_values(self, group):
@@ -17,7 +16,6 @@ class DBFilters:
             for flt in DBFilter.reg[group]
         ]
 
-    # TODO remove register and just use lists here?
     def update_filters(self, group, clear, *args):
         assert len(args) == len(DBFilter.reg[group])
         for val, flt in zip(args, DBFilter.reg[group]):

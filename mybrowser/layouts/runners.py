@@ -114,7 +114,6 @@ def table(n_rows):
     """
     return dash_table.DataTable(
         id='table-runners',
-        # TODO replace with better naming convention
         columns=[{
             'name': v, 'id': v
         } for v in [

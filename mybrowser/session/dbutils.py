@@ -14,7 +14,7 @@ def runner_rows(db, market_id, strategy_id):
         sr.columns['market_id'] == market_id
     ).cte()
 
-    rn = db.tables['runners']
+    rn = db.tables['marketrunners']
     return db.session.query(
         rn,
         cte_strat.c['runner_profit'],

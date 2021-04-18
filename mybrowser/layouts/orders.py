@@ -20,14 +20,14 @@ def table(n_rows) -> dash_table.DataTable:
     return dash_table.DataTable(
         id='table-orders',
         columns=[{
-            'name': 'Date',
+            'name': 'Timestamp',
             'id': 'date'
         }, {
-            'name': 'Trade',
+            'name': 'Trade Index',
             'id': 'trade'
         }, {
             'name': 'Side',
-            'id': 'Side',
+            'id': 'side',
         }, {
             'name': 'Price',
             'id': 'price'
@@ -42,13 +42,10 @@ def table(n_rows) -> dash_table.DataTable:
             'id': 'matched',
         }, {
             'name': 'Order',
-            'id': 'order £'
+            'id': 'order-profit'
         }, {
             'name': 'Trade',
-            'id': 'trade £'
-        }, {
-            'name': 'Trade Index',
-            'id': 'trade',
+            'id': 'trade-profit'
         }, {
             'name': 'Time to Start',
             'id': 't-start'

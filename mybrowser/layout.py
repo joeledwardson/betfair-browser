@@ -83,7 +83,6 @@ def header():
             className='p-1'
         ),
         dbc.Col([
-            # TODO - add labels for errors/warnings
                 dbc.Button(
                     html.I(className="fas fa-envelope-open-text"),
                     id='button-log',

@@ -12,8 +12,6 @@ counter = intermediate.Intermediary()
 
 
 def cb_market(app, shn: Session):
-
-    # TODO - expand strategy select inputs
     @app.callback(
         output=[
             Output('input-strategy-select', 'value'),
@@ -34,7 +32,6 @@ def cb_market(app, shn: Session):
         opts = shn.flt_optssrt(cte)
         return vals + opts
 
-    # TODO - split date into year/month/day components
     @app.callback(
         output=[
             Output('market-query-status', 'children'),

@@ -30,7 +30,6 @@ active_logger = logging.getLogger(__name__)
 active_logger.setLevel(logging.INFO)
 
 
-# TODO - don't hardcode functions that require market/strategy ID
 class Session:
 
     MODULES = ['myutils', 'mytrading']
@@ -261,31 +260,6 @@ class Session:
         else:
             active_logger.info(f'no inplay elements found')
 
-    def odr_upd(self, strat_id, mkt_id) -> Union[pd.DataFrame, None]:
-        """
-        get dataframe of order updates (datetime set as index)
-
-        return filled dataframe on success
-        return empty dataframe if strategy not specified
-        return None if strategy selected but fail
-        """
-
-        if strat_id:
-            p = bfcache.p_strat(strat_id, mkt_id, self.cache_rt)
-            if not path.exists(p):
-                active_logger.warning(f'could not find cached strategy market file:\n-> "{p}"')
-                return None
-
-            orders = orderinfo.get_order_updates(p)
-            if not orders.shape[0]:
-                active_logger.warning(f'could not find any rows in cached strategy market file:\n-> "{p}"')
-                return None
-
-            active_logger.info(f'loaded {orders.shape[0]} rows from cached strategy market file\n-> "{p}"')
-            return orders
-        else:
-            return pd.DataFrame()
-
     @staticmethod
     def odr_rd(p, selection_id, mkt_dt) -> Optional[pd.DataFrame]:
         """
@@ -306,10 +280,6 @@ class Session:
         if not lines:
             return pd.DataFrame()
 
-        # attrs = {
-        #
-        # }
-
         df = pd.DataFrame([{
             'date': datetime.fromtimestamp(o['date_time_created']),
             'trade': o['trade']['id'],
@@ -318,44 +288,32 @@ class Session:
             'size': o['order_type']['size'],
             'm-price': o['average_price_matched'],
             'matched': o['info']['size_matched'],
-            'order £': orderinfo.dict_order_profit(o)
+            'order-profit': orderinfo.dict_order_profit(o)
         } for o in lines])
 
-
-        # df = pd.DataFrame([
-        #     {
-        #         k: generic.dgetattr(o, v, is_dict=True)
-        #         for k, v in attrs.items()
-        #     } for o in lines
-        # ])
-        # df['date'] = df['date'].apply(datetime.fromtimestamp)
-        # df['order £'] = [orderinfo.dict_order_profit(order) for order in lines]
-
         # sum order profits in each trade
-        df['trade £'] = df.groupby(['trade'])['order £'].transform('sum')
+        df['trade-profit'] = df.groupby(['trade'])['order-profit'].transform('sum')
 
         # convert trade UUIDs to indexes for easy viewing
         trade_ids = list(df['trade'].unique())
         df['trade'] = [trade_ids.index(x) for x in df['trade'].values]
         df['t-start'] = [mytiming.format_timedelta(mkt_dt - dt) for dt in df['date']]
 
-        # currency_cols = [
-        #     'trade £',
-        #     'order £',
-        #     'size',
-        #     'matched',
-        # ]
-        #
-        # def currency_format(x):
-        #     return f'£{x:.2f}' if x != 0 else ''
-        #
-        # for col in currency_cols:
-        #     df[col] = df[col].apply(currency_format)
+        currency_cols = [
+            'trade-profit',
+            'order-profit',
+            'size',
+            'matched',
+        ]
+
+        def currency_format(x):
+            return f'£{x:.2f}' if x != 0 else ''
+        for col in currency_cols:
+            df[col] = df[col].apply(currency_format)
 
         # sort earliest first
         return df.sort_values(by=['date'])
 
-    # TODO - combine with odr_rd and process_profit_table(), too many nested functions
     def odr_prft(self, selection_id) -> Optional[pd.DataFrame]:
 
         p = bfcache.p_strat(self.mkt_sid, self.mkt_info['market_id'], self.cache_rt)
@@ -369,7 +327,7 @@ class Session:
             active_logger.warning(f'Retrieved profits dataframe is empty')
             return None
 
-        return df # profits.process_profit_table(df, self.mkt_info['market_time'])
+        return df
 
     @staticmethod
     def fig_title(mkt_info: Dict, name: str, selection_id: int) -> str:
@@ -385,7 +343,6 @@ class Session:
             selection_id
         )
 
-    # TODO - check why plot isnt fixing start/end with orders
     def fig_plot(self, selection_id, secs, ftr_key, plt_key):
 
         # if no active market selected then abort
@@ -400,11 +357,6 @@ class Session:
             title = self.fig_title(self.mkt_info, name, selection_id)
             active_logger.info(f'producing figure for runner {selection_id}, name: "{name}"')
 
-            # get orders dataframe (or None)
-            orders = self.odr_upd(self.mkt_sid, self.mkt_info['market_id'])
-            if orders is None:
-                return
-
             # get start/end of chart datetimes
             dt0 = self.mkt_records[0][0].publish_time
             mkt_dt = self.mkt_info['market_time']
@@ -413,11 +365,24 @@ class Session:
             )
             end = mkt_dt
 
-            # if orders exist, filter to runner and modify chart start/end
-            if orders.shape[0]:
+            # get orders dataframe (or None)
+            orders = None
+            if self.mkt_sid:
+                p = bfcache.p_strat(self.mkt_sid, self.mkt_info['market_id'], self.cache_rt)
+                if not path.exists(p):
+                    active_logger.warning(f'could not find cached strategy market file:\n-> "{p}"')
+                    return
+
+                orders = orderinfo.get_order_updates(p)
+                if not orders.shape[0]:
+                    active_logger.warning(f'could not find any rows in cached strategy market file:\n-> "{p}"')
+                    return
+
                 orders = orders[orders['selection_id'] == selection_id]
-                start = figurelib.modify_start(start, orders, figurelib.ORDER_OFFSET_SECONDS)
-                end = figurelib.modify_end(end, orders, figurelib.ORDER_OFFSET_SECONDS)
+                offset_secs = float(self.config['PLOT_CONFIG']['order_offset_secs'])
+                start = figurelib.modify_start(start, orders, offset_secs)
+                end = figurelib.modify_end(end, orders, offset_secs)
+                active_logger.info(f'loaded {orders.shape[0]} rows from cached strategy market file\n-> "{p}"')
 
             # feature and plot configurations
             plt_cfg = self.ftr_pcfg(plt_key)
@@ -495,7 +460,6 @@ class Session:
         get filtered database market common table expression (CTE)
         """
 
-        # TODO - split date into year/month/day components
         db = self.betting_db
         meta = self.betting_db.tables['marketmeta']
         sr = db.tables['strategyrunners']
@@ -546,7 +510,6 @@ class Session:
 
     def flt_tbl(self, cte):
 
-        # TODO - split date into year/month/day components
         col_names = list(self.config['TABLE_COLS'].keys()) + ['market_profit']
         cols = [cte.c[nm] for nm in col_names]
 

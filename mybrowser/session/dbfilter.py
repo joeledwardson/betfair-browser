@@ -51,7 +51,6 @@ class DBFilter:
         """
         return db.session.query(db_cte.c[self.db_col]).distinct().all()
 
-    # TODO - remove dash specific 'label' and 'value'
     def get_labels(self, opts: List[List[Any]]) -> List[Dict[str, Any]]:
         """
         get a list of dicts with 'label' and 'value' set (in accordance to plotly dash datatable)

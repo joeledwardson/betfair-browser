@@ -32,8 +32,8 @@ def cb_orders(app, shn: Session):
         r = [
             list(),
             False,
-            0,  # reset selected page on open/close modal - if last page selected was page 2 and new table loaded is only
-            # 1 page then table breaks
+            0,  # reset selected page on open/close modal - if last page selected was page 2 and new table loaded is
+            # only 1 page then table breaks
             counter.next()
         ]
         if my_context.triggered_id() == 'modal-close-orders':
