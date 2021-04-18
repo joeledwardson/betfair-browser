@@ -27,6 +27,7 @@ def update_index_window(
     return window_index
 
 
+# TODO - depreciated??
 class Windows:
     """
     Hold a set of sliding windows, where the index of timestamped records outside sliding window is updated as current

@@ -8,6 +8,7 @@ import logging
 from typing import Dict, List
 from os import path, makedirs
 from enum import Enum
+import uuid
 
 from myutils.mytiming import EdgeDetector, timing_register
 from myutils.jsonfile import add_to_file
@@ -107,6 +108,8 @@ class MarketHandler:
         )
 
 
+# TODO - make sure old market books and features removed so not to take too much memory
+# TODO - write feature data sequentially rather than as massive dictionary at end of processing
 class MyFeatureStrategy(MyBaseStrategy):
     """
     Store feature data for each market, providing functionality for updating features when new market_book received
@@ -139,6 +142,7 @@ class MyFeatureStrategy(MyBaseStrategy):
             **kwargs):
         super().__init__(*args, **kwargs)
 
+        self.strategy_id = uuid.uuid4()
         self.pre_seconds = pre_seconds
         self.cutoff_seconds = cutoff_seconds
         self.feature_seconds = feature_seconds
@@ -146,6 +150,7 @@ class MyFeatureStrategy(MyBaseStrategy):
         # strategy name
         self.strategy_name = name
 
+        # TODO update directories
         # strategies base directory
         subdir = SUBDIR_STRATEGY_HISTORIC if historic else SUBDIR_STRATEGY_LIVE
         strategy_base_dir = path.join(base_dir, subdir)
@@ -207,6 +212,7 @@ class MyFeatureStrategy(MyBaseStrategy):
         runner_handler.trade_tracker.active_order = None
         runner_handler.trade_tracker.active_trade = None
 
+    # TODO - should this be in runner handler?
     def _process_trade_machine(
             self,
             market_book: MarketBook,

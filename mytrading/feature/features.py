@@ -826,13 +826,6 @@ class RunnerFeatureHistoricOddscheckerAvg(RunnerFeatureBase):
         return self.oc_avg
 
 
-# TODO - depreciated?
-@register_feature
-class RunnerFeatureLTPWindow(RunnerFeatureLTP, RunnerFeatureWindowBase):
-    """last traded price of runner, with window processing"""
-    pass
-
-
 @register_feature
 class RunnerFeatureBestBackWindow(RunnerFeatureBestBack, RunnerFeatureWindowBase):
     """Best available back price of runner, with window processing"""

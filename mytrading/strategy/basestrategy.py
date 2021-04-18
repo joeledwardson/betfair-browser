@@ -22,7 +22,7 @@ class MyBaseStrategy(BaseStrategy):
 
     # override default place order, this time printing where order validation failed
     # TODO - print reason for validation fail
-    def place_order(self, market: Market, order) -> None:
+    def place_order(self, market: Market, order, market_version: int = None) -> None:
         runner_context = self.get_runner_context(*order.lookup)
         if self.validate_order(runner_context, order):
             runner_context.place()
