@@ -25,7 +25,7 @@ class MyBaseStrategy(BaseStrategy):
     def place_order(self, market: Market, order, market_version: int = None) -> None:
         runner_context = self.get_runner_context(*order.lookup)
         if self.validate_order(runner_context, order):
-            runner_context.place()
+            runner_context.place(order.trade.id)
             market.place_order(order)
         else:
             active_logger.warning(f'order validation failed for "{order.selection_id}"')

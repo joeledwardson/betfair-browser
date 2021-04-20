@@ -15,7 +15,7 @@ import statistics
 from datetime import datetime
 from typing import List, Callable, Dict
 import numpy as np
-from ..process.ticks.ticks import closest_tick
+from mytrading.process.ticks.ticks import closest_tick
 
 runner_feature_value_processors = MyRegistrar()
 

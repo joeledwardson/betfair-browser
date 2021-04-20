@@ -1,6 +1,5 @@
 import dash_html_components as html
 import dash_table
-from mytrading.visual import profits
 
 
 def header():

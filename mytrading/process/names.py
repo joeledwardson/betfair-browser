@@ -24,11 +24,13 @@ def get_names(market, name_attr='name', name_key=False) -> Dict[int, str]:
         }
 
 
+# TODO - if this is specific to oddschecker then should be in oddschecker file?
 def name_processor(name):
     """remove all characters not in alphabet and convert to lower case for horse names"""
     return re.sub('[^a-zA-Z]', '', name).lower()
 
 
+# TODO - specific to oddschecker?
 def names_to_id(input_names: List[str], name_id_map: Dict) -> List:
     """
     Convert a list of runner names to betfair IDs using the 'name_id_map' dict, mapping betfair IDs to betfair runner

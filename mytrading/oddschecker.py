@@ -15,6 +15,7 @@ OC_EXCHANGES = ['BF', 'MK', 'MA', 'BD', 'BQ']
 EXT_ODDSCHECKER = '.oddschecker'
 # SUBDIR_OC = 'oddschecker'
 
+# TODO - move to features?
 
 def tr_odds(tr):
     backs = {}

@@ -1,6 +1,6 @@
-from ...tradetracker.tradetracker import TradeTracker
-from flumine.order.order import OrderStatus, BetfairOrder
-from dataclasses import dataclass, field
+from ...strategy.tradetracker.tradetracker import TradeTracker
+from flumine.order.order import BetfairOrder
+from dataclasses import field
 
 
 class SpikeTradeTracker(TradeTracker):

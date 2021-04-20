@@ -6,14 +6,16 @@ from sklearn.linear_model import LinearRegression
 from datetime import datetime, timedelta
 import logging
 from os import path
+from collections import deque
+import pandas as pd
 
 from .featureprocessors import get_feature_processor, get_feature_processors
-from ..process.prices import best_price
-from ..process.tradedvolume import traded_runner_vol
-from ..process.ticks.ticks import tick_spread, LTICKS_DECODED
-from ..process.tradedvolume import get_record_tv_diff
-from ..utils.storage import construct_hist_dir
-from ..oddschecker import oc_hist_mktbk_processor
+from mytrading.process.prices import best_price
+from mytrading.process.tradedvolume import traded_runner_vol
+from mytrading.process.ticks.ticks import tick_spread, LTICKS_DECODED
+from mytrading.process.tradedvolume import get_record_tv_diff
+from mytrading.utils.storage import construct_hist_dir
+from mytrading.oddschecker import oc_hist_mktbk_processor
 from .window import Windows
 from myutils import mytiming
 
@@ -37,6 +39,11 @@ class BetfairFeatureException(Exception):
     pass
 
 
+# TODO - add function indicate if value changed, write values incrementally to file
+# TODO - how to store values without list getting too big? maybe accept arg which dicates how large to set the
+#  "cache" size, i.e. how many values to store in list - or a overridable function which removes values from deque
+#  that arent needed
+# TODO - shorten "RunnerFeature" syntax to "RF"
 class RunnerFeatureBase:
     """
     base class for runner features
@@ -56,15 +63,18 @@ class RunnerFeatureBase:
     def __init__(
             self,
             value_processors_config: Optional[List[Dict]] = None,
-            value_preprocessors_config: Optional[List[Dict]] = None,
+            value_preprocessors_config: Optional[List[Dict]] = None, # TODO - depreciated?
             periodic_ms: Optional[int] = None,
             periodic_timestamps: bool = False,
             sub_features_config: Optional[Dict] = None,
             parent: Optional[RunnerFeatureBase] = None,
-            feature_key=None,
+            feature_key=None,  # TODO - rename to 'name'
+            cache_count=2,
+            cache_secs=None,
+            cache_insidewindow=None,
     ):
 
-        self.parent: RunnerFeatureBase = parent
+        self.parent = parent
         self.windows: Windows = None
         self.selection_id: int = None
         if feature_key:
@@ -83,21 +93,45 @@ class RunnerFeatureBase:
         self.value_processors = get_feature_processors(value_processors_config or [])
         self.value_preprocessors = get_feature_processors(value_preprocessors_config or [])
         self.processed_vals = []
+        self.values_cache = deque()
+        self.cache_count = cache_count
+        self.cache_secs = cache_secs
+        self.inside_window = cache_insidewindow
 
         self.sub_features: Dict[str, RunnerFeatureBase] = {}
         if sub_features_config:
             for k, v in sub_features_config.items():
+                # TODO - don't do from globals, take fom feature register
                 feature_class = globals()[v['name']]
                 feature_kwargs = v.get('kwargs', {})
                 self.sub_features[k] = feature_class(
                     parent=self,
                     **feature_kwargs,
-                    feature_key=k,
+                    feature_key=k, # use dictionary name as feature name
                 )
 
         self.periodic_ms = periodic_ms
         self.periodic_timestamps = periodic_timestamps
         self.last_timestamp: datetime = None
+
+    def update_cache(self):
+        if self.cache_count:
+            while len(self.values_cache) > 2:
+                self.values_cache.popleft()
+        else:
+            if not len(self.values_cache):
+                return
+
+            dt = self.values_cache[-1][0]
+            dtw = dt - timedelta(seconds=self.cache_secs)
+
+            idx = 0 if self.inside_window else 1
+
+            while len(self.values_cache) > idx:
+                if self.values_cache[idx][0] >= dtw:
+                    break
+                else:
+                    self.values_cache.popleft()
 
     def race_initializer(
             self,
@@ -123,6 +157,7 @@ class RunnerFeatureBase:
         calls `self.runner_update()` to obtain feature value and if not None appends to list of values with timestamp
         """
 
+        # TODO - I think all this logic should be in a sub-feature, where just the base values are recorded in parent
         publish_time = new_book.publish_time
         update = False
 
@@ -174,6 +209,8 @@ class RunnerFeatureBase:
                 processed = postproc(processed, self.values, self.dts)
             self.processed_vals.append(processed)
 
+            self.values_cache.append((_publish_time, value, processed))
+
             for sub_feature in self.sub_features.values():
                 sub_feature.process_runner(market_list, new_book, windows, runner_index)
 
@@ -216,6 +253,7 @@ class RunnerFeatureBase:
         for entry in plotly_data:
             entry['x'] = [datetime.fromtimestamp(x) for x in entry['x']]
 
+    # TODO - remove this, should not be storing complete list of values, instead from file
     def get_plotly_data(self):
         """
         get feature data in list of plotly form dicts, where 'x' is timestamps and 'y' are feature values
@@ -288,6 +326,17 @@ class RunnerFeatureWindowBase(RunnerFeatureBase):
         return self.window_s
 
 
+@register_feature
+class RFTVLad(RunnerFeatureBase):
+    def runner_update(
+            self,
+            market_list: List[MarketBook],
+            new_book: MarketBook,
+            windows: Windows,
+            runner_index):
+        return new_book.runners[runner_index].ex.traded_volume or None
+
+
 class _RunnerFeatureTradedWindow(RunnerFeatureWindowBase):
     def __init__(self, window_s, **kwargs):
         super().__init__(
@@ -314,6 +363,7 @@ class _RunnerFeatureTradedWindow(RunnerFeatureWindowBase):
             return None
 
 
+# TODO - base these off internal window function
 @register_feature
 class RunnerFeatureTradedWindowMin(_RunnerFeatureTradedWindow):
     """Minimum of recent traded prices in last 'window_s' seconds"""
@@ -860,4 +910,52 @@ class RunnerFeatureBiggestDifference(RunnerFeatureWindowBase):
             return max(abs(np.diff(values)).tolist())
         return None
 
+
+@register_feature
+class RFTVLadDif(RunnerFeatureSub):
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        if type(self.parent) is not RFTVLad:
+            raise BetfairFeatureException('expected traded vol feature parent')
+
+    def runner_update(
+            self,
+            market_list: List[MarketBook],
+            new_book: MarketBook,
+            windows: Windows,
+            runner_index):
+        if len(self.parent.values_cache) >= 2:
+            return get_record_tv_diff(self.parent.values_cache[-1][2], self.parent.values_cache[0][2])
+        else:
+            return None
+
+
+class _RFTVLadFunc(RunnerFeatureSub):
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        if type(self.parent) is not RFTVLadDif:
+            raise BetfairFeatureException('expected traded vol diff feature parent')
+    def runner_update(
+            self,
+            market_list: List[MarketBook],
+            new_book: MarketBook,
+            windows: Windows,
+            runner_index):
+        if len(self.parent.values_cache):
+            tvs = self.parent.values_cache[-1][2]
+            if len(tvs):
+                return self.lad_func(tvs)
+        return None
+    def lad_func(self, tvs):
+        raise NotImplementedError
+
+@register_feature
+class RFTVLadMax(_RFTVLadFunc):
+    def lad_func(self, tvs):
+        return max([x['price'] for x in tvs])
+
+@register_feature
+class RFTVLadMin(_RFTVLadFunc):
+    def lad_func(self, tvs):
+        return min([x['price'] for x in tvs])
 

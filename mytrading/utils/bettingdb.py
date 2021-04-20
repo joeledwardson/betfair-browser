@@ -19,6 +19,7 @@ active_logger = logging.getLogger(__name__)
 active_logger.setLevel(logging.INFO)
 
 
+# TODO - need user data column in marketstream for user defined streaming data so can add oddschecker info
 class BettingDB:
     """
     Betting database handler

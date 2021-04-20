@@ -17,6 +17,9 @@ active_logger = logging.getLogger(__name__)
 active_logger.setLevel(logging.INFO)
 
 
+# TODO - should this be a dataclass?
+# TODO - also shouldn't this have more functions for getting a new trade etc?
+# TODO - worth reviewing if cant hack flumine code for trade/order updates
 @dataclass
 class TradeTracker:
     """

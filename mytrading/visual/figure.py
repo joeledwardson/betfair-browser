@@ -7,10 +7,10 @@ from plotly import graph_objects as go
 from plotly.subplots import make_subplots
 
 from ..process.ticks.ticks import LTICKS_DECODED, closest_tick
-from ..tradetracker.messages import MessageTypes
-from ..feature.window import Windows
-from ..feature.utils import generate_features, get_feature_data, get_max_buffer_s
-from ..feature.historic import hist_runner_features
+from ..strategy.tradetracker.messages import MessageTypes
+from ..strategy.feature.window import Windows
+from ..strategy.feature.utils import generate_features, get_feature_data, get_max_buffer_s
+from ..strategy.feature.historic import hist_runner_features
 from .config import get_plot_default_config
 from .feature import add_feature_trace
 from .orderinfo import plot_orders
@@ -19,6 +19,7 @@ import logging
 
 active_logger = logging.getLogger(__name__)
 
+# TODO - this should not be hardcoded
 # number of seconds to buffer when trimming record list
 PROCESS_BUFFER_S = 10
 
@@ -26,14 +27,6 @@ PROCESS_BUFFER_S = 10
 def modify_start(chart_start: datetime, orders_df: pd.DataFrame, buffer_seconds: float) -> datetime:
     """
     set start time to first order info update received minus buffer, if less than existing chart start
-
-    Parameters
-    ----------
-    chart_start :
-
-    Returns
-    -------
-
     """
     if orders_df.shape[0]:
         orders_start = orders_df.index[0]
@@ -47,16 +40,6 @@ def modify_end(chart_end: datetime, orders_df: pd.DataFrame, buffer_seconds: flo
     """
     set end time to last order info update minus received buffer, if more than existing chart end
     removes market close from data frame when looking at last order timestamp
-
-    Parameters
-    ----------
-    chart_end :
-    orders_df :
-    buffer_seconds :
-
-    Returns
-    -------
-
     """
     if orders_df.shape[0]:
         trimmed_orders = orders_df[orders_df['msg_type'] != MessageTypes.MSG_MARKET_CLOSE.name]
@@ -72,16 +55,6 @@ def get_chart_start(display_seconds: float, market_time: datetime, first: dateti
     """
     get datetime of start of chart, based on `display_seconds` number which if non-zero indicates number of seconds
     before start time to use, otherwise just take `first` book timestamp
-
-    Parameters
-    ----------
-    display_seconds :
-    market_time :
-    first :
-
-    Returns
-    -------
-
     """
 
     # check if display seconds is nonzero use offset from start time
@@ -174,6 +147,7 @@ def fig_historical(
     return fig
 
 
+# TODO - this really shouldn't be in figure?
 def generate_feature_data(
         hist_records: List[List[MarketBook]],
         selection_id: int,

@@ -5,7 +5,7 @@ import logging
 from typing import Dict
 from enum import Enum
 from myutils.jsonfile import read_file_lines, add_to_file
-from ..process.profit import order_profit
+from mytrading.process.profit import order_profit
 from .messages import MessageTypes
 
 

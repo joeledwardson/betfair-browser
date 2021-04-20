@@ -1,6 +1,5 @@
-from ..tradetracker.messages import MessageTypes
-from ..tradetracker.tradetracker import TradeTracker
-from ..process.prices import best_price
+from mytrading.strategy.tradetracker.messages import MessageTypes
+from mytrading.strategy.tradetracker.tradetracker import TradeTracker
 from .tradestates import TradeStateBase
 
 from myutils import statemachine as stm
@@ -27,6 +26,7 @@ class RunnerStateMachine(stm.StateMachine):
         super().__init__(states, initial_state)
         self.selection_id = selection_id
 
+    # TODO - need all these kwargs?
     def process_state_change(
             self,
             old_state: Enum,

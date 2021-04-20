@@ -13,8 +13,8 @@ from flumine import BaseStrategy
 from myutils import generic
 from myutils.generic import i_prev, i_next
 
-from ...trademachine import tradestates
-from ...trademachine.tradestates import TradeStateTypes
+from ...strategy.trademachine import tradestates
+from mytrading.strategy.trademachine.tradestates import TradeStateTypes
 from ...process.ladder import runner_spread, BfLadderPoint
 from ...process.prices import best_price
 from ...process.ticks.ticks import TICKS, LTICKS_DECODED, LTICKS

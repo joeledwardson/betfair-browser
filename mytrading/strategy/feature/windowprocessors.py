@@ -7,8 +7,8 @@ from betfairlightweight.resources.bettingresources import RunnerBook
 from myutils import mytiming
 from myutils.myregistrar import MyRegistrar
 from .featureprocessors import get_feature_processor
-from ..process.prices import best_price
-from ..process.tradedvolume import get_record_tv_diff
+from mytrading.process.prices import best_price
+from mytrading.process.tradedvolume import get_record_tv_diff
 
 
 window_process_registrar = MyRegistrar()

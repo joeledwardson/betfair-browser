@@ -1,7 +1,7 @@
 from dataclasses import dataclass, field
 
 from ...process.ladder import BfLadderPoint
-from ...tradetracker.tradetracker import TradeTracker
+from mytrading.strategy.tradetracker.tradetracker import TradeTracker
 
 
 @dataclass

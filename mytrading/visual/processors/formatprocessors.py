@@ -42,6 +42,7 @@ def formatter_decimal(value, name, n_decimals=2, prefix='') -> str:
     return f'{name}: {prefix}{value:.{n_decimals}f}'
 
 
+# TODO - newline should be variable not hardcoded
 @register_format_processor
 def formatter_regression(value, rsqaured_dp=0, gradient_dp=2) -> str:
     """

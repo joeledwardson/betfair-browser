@@ -1,7 +1,7 @@
 from typing import Dict
 from enum import Enum
-from ...tradetracker.messages import register_formatter
-from .datatypes import TrendData, TrendCriteria
+from mytrading.strategy.tradetracker.messages import register_formatter
+from .datatypes import TrendData
 
 # regression gradient % decimal places to display
 GR_DP = 2

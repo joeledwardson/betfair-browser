@@ -3,6 +3,7 @@ from datetime import datetime, timedelta
 from typing import List, Dict, Union, Optional
 from dash.dependencies import Output, Input, State
 import logging
+from plotly import graph_objects as go
 
 from mytrading.visual import figure as figurelib
 from myutils.mydash import context as my_context

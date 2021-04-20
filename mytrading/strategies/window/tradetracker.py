@@ -1,4 +1,4 @@
-from ...tradetracker.tradetracker import TradeTracker
+from mytrading.strategy.tradetracker.tradetracker import TradeTracker
 
 
 class WindowTradeTracker(TradeTracker):

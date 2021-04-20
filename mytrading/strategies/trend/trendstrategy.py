@@ -8,14 +8,12 @@ from betfairlightweight.resources.bettingresources import MarketBook, RunnerBook
 import logging
 
 from myutils.myclass import store_kwargs
-from myutils.mytiming import timing_register
-from ...trademachine import tradestates as basestates
-from ...trademachine.trademachine import RunnerStateMachine
-from ...strategy.featurestrategy import MyFeatureStrategy, MarketHandler, RunnerHandler
+from ...strategy.trademachine import tradestates as basestates
+from mytrading.strategy.trademachine.trademachine import RunnerStateMachine
+from ...strategy.featurestrategy import MyFeatureStrategy, MarketHandler
 from ...process.ticks.ticks import LTICKS_DECODED, tick_spread, closest_tick
-from ...process.tradedvolume import traded_runner_vol
 from ...process.prices import best_price, get_ltps
-from ...feature.features import RunnerFeatureBase
+from mytrading.strategy.feature import RunnerFeatureBase
 from .featuresconfig import get_trend_feature_configs
 from . import states as trendstates
 from .datatypes import TrendData, TrendCriteria

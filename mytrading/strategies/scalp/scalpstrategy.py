@@ -1,8 +1,8 @@
 from flumine.markets.market import Market
 from betfairlightweight.resources.bettingresources import MarketBook, RunnerBook
 
-from ...trademachine import tradestates
-from ...trademachine.trademachine import RunnerStateMachine
+from ...strategy.trademachine import tradestates
+from mytrading.strategy.trademachine.trademachine import RunnerStateMachine
 from ...strategy.featurestrategy import MyFeatureStrategy
 from ...process.ladder import BfLadderPoint, get_ladder_point
 from . import states as wallstates

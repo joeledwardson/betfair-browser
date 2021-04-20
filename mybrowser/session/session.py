@@ -1,7 +1,7 @@
 from functools import partial
 from betfairlightweight.resources.bettingresources import MarketBook
 from os import path
-from typing import List, Dict, Union, Optional
+from typing import List, Dict, Optional
 import pandas as pd
 import logging
 from sqlalchemy.exc import SQLAlchemyError
@@ -12,16 +12,15 @@ import sys
 from datetime import datetime
 from configparser import ConfigParser
 
-from mytrading.visual import profits
-from mytrading.tradetracker.messages import MessageTypes
-from mytrading.utils import security as mysecurity
+from mytrading.strategy.tradetracker.messages import MessageTypes
+from mytrading.utils import security as mysecurity, bfcache
 from mytrading.utils.bettingdb import BettingDB
-from mytrading.tradetracker import orderinfo
+from mytrading.strategy.tradetracker import orderinfo
 from mytrading.process import prices
 from mytrading.visual import figure as figurelib
 from myutils import mypath, mytiming, jsonfile, generic
 
-from mybrowser.session import dbutils as dbtable, bfcache
+from mybrowser.session import dbutils as dbtable
 from mybrowser.session.dbfilters import DBFilters, DBFilter
 from mybrowser.session.tblformatters import get_formatters
 
@@ -134,7 +133,7 @@ class Session:
         self.ftr_fcfgs = self.ftr_readf(feature_dir)
 
         # get plot configurations
-        plot_dir = path.abspath(self.config['CONFIG_PATHS']['feature'])
+        plot_dir = path.abspath(self.config['CONFIG_PATHS']['plot'])
         active_logger.info(f'getting plot configurations from:\n-> {plot_dir}"')
         self.ftr_pcfgs = self.ftr_readf(plot_dir)
 

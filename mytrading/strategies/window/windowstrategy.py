@@ -5,13 +5,12 @@ from flumine.markets.market import Market
 from betfairlightweight.resources.bettingresources import MarketBook, RunnerBook
 import logging
 
-from myutils.mytiming import timing_register
-from ...trademachine import tradestates as basestates
-from ...trademachine.trademachine import RunnerStateMachine
+from ...strategy.trademachine import tradestates as basestates
+from mytrading.strategy.trademachine.trademachine import RunnerStateMachine
 from ...strategy.featurestrategy import MyFeatureStrategy
-from ...process.ticks.ticks import LTICKS_DECODED, tick_spread
+from ...process.ticks.ticks import tick_spread
 from ...process.tradedvolume import traded_runner_vol
-from ...feature.config import get_features_default_configs
+from mytrading.strategy.feature import get_features_default_configs
 from . import states as windowstates
 from .tradetracker import WindowTradeTracker
 

@@ -1,22 +1,21 @@
 from enum import Enum
 from typing import List, Dict, Union
 from datetime import datetime, timedelta
-from flumine.controls.clientcontrols import MaxOrderCount
+from flumine.controls.clientcontrols import MaxTransactionCount
 
-from betfairlightweight.resources import MarketBook
 from flumine import BaseStrategy
 from flumine.markets.market import Market
 from flumine.order.order import BetfairOrder, OrderStatus
 from flumine.order.ordertype import LimitOrder, OrderTypes
 from flumine.order.trade import Trade, TradeStatus
-from betfairlightweight.resources.bettingresources import MarketCatalogue, MarketBook, RunnerBook
+from betfairlightweight.resources.bettingresources import MarketBook, RunnerBook
 
-from ..process.matchbet import get_match_bet_sums
-from ..process.profit import order_profit
-from ..process.side import select_ladder_side, select_operator_side, invert_side
-from ..process.ticks.ticks import closest_tick, LTICKS_DECODED
-from ..tradetracker.tradetracker import TradeTracker
-from ..tradetracker.messages import MessageTypes
+from mytrading.process.matchbet import get_match_bet_sums
+from mytrading.process.profit import order_profit
+from mytrading.process.side import select_ladder_side, select_operator_side, invert_side
+from mytrading.process.ticks.ticks import closest_tick, LTICKS_DECODED
+from mytrading.strategy.tradetracker.tradetracker import TradeTracker
+from mytrading.strategy.tradetracker.messages import MessageTypes
 from myutils import statemachine as stm
 
 
@@ -309,7 +308,7 @@ class TradeStateIdle(TradeStateBase):
             **inputs
     ):
 
-        max_order_count: MaxOrderCount = market.flumine.client.trading_controls[0]
+        max_order_count: MaxTransactionCount = market.flumine.client.trading_controls[0]
         if self.trade_transactions_cutoff and max_order_count.transaction_count >= self.trade_transactions_cutoff:
             return None
 

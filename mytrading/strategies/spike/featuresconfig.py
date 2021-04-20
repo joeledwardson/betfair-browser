@@ -49,16 +49,37 @@ def get_spike_feature_configs(
             },
         },
 
+        'tvlad': {
+            'name': 'RFTVLad',
+            'kwargs': {
+                'cache_secs': 60,
+                'cache_insidewindow': True,
+                'sub_features_config': {
+                    'dif': {
+                        'name': 'RFTVLadDif',
+                        'kwargs': {
+                            'sub_features_config': {
+                                'max': {'name': 'RFTVLadMax'},
+                                'min': {'name': 'RFTVLadMin'}
+                            }
+                        }
+                    }
+                }
+            }
+        },
+
         'ltp min': {
             'name': 'RunnerFeatureTradedWindowMin',
             'kwargs': {
                 'periodic_ms': ltp_window_sampling_ms,
                 'periodic_timestamps': True,
                 'window_s': ltp_window_width_s,
-                'value_processor': 'value_processor_moving_average',
-                'value_processor_args': {
-                    'n_entries': ltp_window_sampling_count
-                },
+                'value_processors_config': [{
+                    'name': 'value_processor_moving_average',
+                    'kwargs': {
+                        'n_entries': ltp_window_sampling_count
+                    }
+                }],
             }
         },
 
@@ -68,10 +89,12 @@ def get_spike_feature_configs(
                 'periodic_ms': ltp_window_sampling_ms,
                 'periodic_timestamps': True,
                 'window_s': ltp_window_width_s,
-                'value_processor': 'value_processor_moving_average',
-                'value_processor_args': {
-                    'n_entries': ltp_window_sampling_count
-                },
+                'value_processors_config': [{
+                    'name': 'value_processor_moving_average',
+                    'kwargs': {
+                        'n_entries': ltp_window_sampling_count
+                    }
+                }],
             }
         },
 
@@ -88,10 +111,12 @@ def get_spike_feature_configs(
             'kwargs': {
                 'periodic_ms': spread_sampling_ms,
                 'periodic_timestamps': True,
-                'value_processor': 'value_processor_moving_average',
-                'value_processor_args': {
-                    'n_entries': spread_sampling_count
-                },
+                'value_processors_config': [{
+                    'name': 'value_processor_moving_average',
+                    'kwargs': {
+                        'n_entries': spread_sampling_count
+                    }
+                }],
             }
         }
 

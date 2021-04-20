@@ -1,19 +1,14 @@
 from betfairlightweight.resources import MarketBook
 from flumine import BaseStrategy
 from flumine.markets.market import Market
-from flumine.order.order import OrderStatus, BetfairOrder
-from flumine.order.ordertype import LimitOrder, OrderTypes
+from flumine.order.ordertype import LimitOrder
 
 import logging
 from enum import Enum
-from typing import List, Dict, Union
-from datetime import datetime, timedelta
 
-from ...process.side import select_ladder_side
-from ...tradetracker.messages import MessageTypes
-from ...trademachine.tradestates import TradeStateTypes
-from ...process.ticks.ticks import tick_spread, closest_tick
-from ...trademachine import tradestates
+from mytrading.strategy.trademachine.tradestates import TradeStateTypes
+from ...process.ticks.ticks import closest_tick
+from ...strategy.trademachine import tradestates
 from .tradetracker import TrendTradeTracker
 from .datatypes import TrendData, TrendCriteria
 from .messages import TrendMessageTypes

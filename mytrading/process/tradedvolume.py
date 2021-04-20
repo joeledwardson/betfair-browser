@@ -19,7 +19,7 @@ def total_traded_vol(record: MarketBook):
     return sum(traded_runner_vol(runner) for runner in record.runners)
 
 
-def get_record_tv_diff(tv1: List[PriceSize], tv0: List[PriceSize], is_dict=False) -> List[Dict]:
+def get_record_tv_diff(tv1: List[PriceSize], tv0: List[PriceSize], is_dict=True) -> List[Dict]:
     """
     Get difference between traded volumes from one tv ladder to another
     use is_dict=False if `price` and `size` are object attributes, use is_dict=True if are dict keys

@@ -9,6 +9,7 @@ from .window import Windows
 active_logger = logging.getLogger(__name__)
 
 
+# TODO - should be in __init__?
 def generate_features(
         feature_configs: dict,
 ) -> Dict[str, RunnerFeatureBase]:
@@ -36,6 +37,7 @@ def generate_features(
     return features
 
 
+# TODO - remove?, this is just writing JSON to a file
 def write_feature_configs(
         feature_configs: dict,
         file_path: str,
@@ -57,6 +59,7 @@ def write_feature_configs(
     add_to_file(file_path, feature_configs, mode='w', indent=indent)
 
 
+# TODO - this should be a purely historic function where feature data is not deleted as generated
 def get_feature_data(
         features: Dict[str, RunnerFeatureBase],
         pre_serialize=True
@@ -97,6 +100,7 @@ def get_feature_data(
     return data
 
 
+# TODO - depreciated?
 def get_max_buffer_s(
         features: Dict[str, RunnerFeatureBase],
 ) -> int:

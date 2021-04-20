@@ -15,6 +15,12 @@ def get_spike_plot_configs(ltp_diff_opacity, ltp_diff_s) -> Dict:
         'wom': {
             'ignore': True,
         },
+        'tvlad': {
+            'ignore': True,
+        },
+        'tvlad.dif': {
+            'ignore': True,
+        },
         'best back': {
             'value_processors': [{
                 'name': 'plotly_set_attrs',

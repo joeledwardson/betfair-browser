@@ -1,21 +1,16 @@
 from betfairlightweight.resources import MarketBook
 from flumine import BaseStrategy
 from flumine.markets.market import Market
-from flumine.order.order import OrderStatus, BetfairOrder
+from flumine.order.order import OrderStatus
 from flumine.order.ordertype import LimitOrder, OrderTypes
 
 import logging
 from enum import Enum
-from typing import List, Dict, Union
-from datetime import datetime, timedelta
+from datetime import datetime
 
-from ...feature.features import RunnerFeatureBase
-from ...process.side import select_ladder_side
 from ...process.ticks.ticks import closest_tick
-from ...tradetracker.messages import MessageTypes
-from ...trademachine.tradestates import TradeStateTypes
 from ...process.ticks.ticks import tick_spread, LTICKS_DECODED
-from ...trademachine import tradestates
+from ...strategy.trademachine import tradestates
 from .tradetracker import SpikeTradeTracker
 from .datatypes import SpikeData
 from .messages import SpikeMessageTypes
@@ -134,6 +129,8 @@ class SpikeTradeStateMonitorWindows(tradestates.TradeStateBase):
         trade_tracker.lay_order = None
         self.update_timestamp = market_book.publish_time
 
+    # TODO - all these necessary? Market contains latest market book, strategy should no longer be used to place bets
+    # TODO - customised spike_data/first_runner/trade_tracker could all be merged with runner handler
     def run(
             self,
             market_book: MarketBook,

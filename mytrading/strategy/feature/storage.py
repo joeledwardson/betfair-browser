@@ -2,13 +2,14 @@ from os import path, makedirs
 import logging
 from myutils.jsonfile import add_to_file, read_file_lines
 from typing import List, Dict
-from ..utils.storage import EXT_FEATURE
+from mytrading.utils.storage import EXT_FEATURE
 from .utils import get_feature_data
 from .features import RunnerFeatureBase
 
 active_logger = logging.getLogger(__name__)
 
 
+# TODO - depreciated?
 def get_feature_file_name(selection_id) -> str:
     """
     get file name to store feature data for a runner
@@ -16,6 +17,7 @@ def get_feature_file_name(selection_id) -> str:
     return str(selection_id) + EXT_FEATURE
 
 
+# TODO - should be incremental in feature itself
 def features_to_file(file_path: str, features: Dict[str, RunnerFeatureBase]):
     """
     write runner dictionary of {feature name: feature instance} to file

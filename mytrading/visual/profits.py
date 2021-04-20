@@ -2,11 +2,10 @@ from datetime import datetime
 
 import pandas as pd
 
-from ..tradetracker.orderinfo import dict_order_profit
-from myutils.generic import dgetattr, dattr_name
+from ..strategy.tradetracker.orderinfo import dict_order_profit
+from myutils.generic import dgetattr
 from myutils.jsonfile import read_file_lines
 from myutils.mytiming import format_timedelta
-from flumine.markets.market import Market
 import plotly.graph_objects as go
 from myutils.myplotly.table import plotly_table_kwargs
 
@@ -43,7 +42,8 @@ def get_profit_plotly_table(profit_df: pd.DataFrame, title: str) -> go.Figure:
         ),
     )
 
-# TODO - needed anymore?
+# TODO - needed anymore? - now that order profit has moved to browser getting order profits should be moved here and
+#  all code in this file deleted
 def process_profit_table(df: pd.DataFrame, market_start_time: datetime) -> pd.DataFrame:
     """
     - change "date" to timestamp form

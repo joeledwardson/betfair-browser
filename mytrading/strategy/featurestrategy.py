@@ -1,6 +1,4 @@
 from flumine.markets.market import Market
-from flumine.controls import BaseControl
-from flumine.controls.clientcontrols import MaxOrderCount
 from betfairlightweight.resources.bettingresources import MarketBook, RunnerBook
 
 from datetime import timedelta, datetime, timezone
@@ -9,27 +7,28 @@ from typing import Dict, List
 from os import path, makedirs
 from enum import Enum
 import uuid
+import json
 
 from myutils.mytiming import EdgeDetector, timing_register
 from myutils.jsonfile import add_to_file
 from ..process.prices import best_price
-from ..trademachine.tradestates import TradeStateTypes
-from ..trademachine.trademachine import RunnerStateMachine
-from ..feature.features import RunnerFeatureBase
-from ..feature.window import Windows
-from ..feature.utils import generate_features, get_max_buffer_s
-from ..feature.storage import features_to_file, get_feature_file_name
-from ..tradetracker.tradetracker import TradeTracker
-from ..tradetracker.orderinfo import serializable_order_info
-from ..tradetracker.messages import MessageTypes
 from ..utils.storage import construct_hist_dir, SUBDIR_STRATEGY_HISTORIC, EXT_ORDER_RESULT, SUBDIR_STRATEGY_LIVE
 from ..utils.storage import EXT_ORDER_INFO, EXT_STRATEGY_INFO
+from .trademachine.tradestates import TradeStateTypes
+from .trademachine.trademachine import RunnerStateMachine
+from .feature.features import RunnerFeatureBase
+from .feature.window import Windows
+from .feature.utils import generate_features
+from .feature.storage import features_to_file, get_feature_file_name
+from .tradetracker.tradetracker import TradeTracker, serializable_order_info
+from .tradetracker.messages import MessageTypes
 from .basestrategy import MyBaseStrategy
 
 
 active_logger = logging.getLogger(__name__)
 
 
+# TODO - could this be merged with tradetracker?
 class RunnerHandler:
 
     def __init__(self, trade_tracker: TradeTracker, state_machine: RunnerStateMachine, features: Dict[str, RunnerFeatureBase]):
@@ -40,20 +39,19 @@ class RunnerHandler:
 
 class MarketHandler:
 
-    def __init__(self, output_dir: str):
+    def __init__(self):
 
         # create flag instances
         self.flag_allow = EdgeDetector(False)
         self.flag_cutoff = EdgeDetector(False)
         self.flag_feature = EdgeDetector(False)
 
-        # create and store output directory for current market
-        self.output_dir = output_dir
-
         # runners
         self.runner_handlers: Dict[int, RunnerHandler] = dict()
 
         self.windows = Windows()
+
+        # TODO - remove? bad practice to store all books
         self.market_books: List[MarketBook] = []
         self.closed = False
 
@@ -97,15 +95,6 @@ class MarketHandler:
         if self.flag_allow.rising:
             active_logger.info(f'market: "{market_book.market_id}", received allow trade flag at '
                                f'{market_book.publish_time}')
-
-    def get_orderinfo_path(self, market_book: MarketBook):
-        """
-        get path for order info file for a market
-        """
-        return path.join(
-            self.output_dir,
-            market_book.market_id + EXT_ORDER_INFO
-        )
 
 
 # TODO - make sure old market books and features removed so not to take too much memory
@@ -152,13 +141,7 @@ class MyFeatureStrategy(MyBaseStrategy):
 
         # TODO update directories
         # strategies base directory
-        subdir = SUBDIR_STRATEGY_HISTORIC if historic else SUBDIR_STRATEGY_LIVE
-        strategy_base_dir = path.join(base_dir, subdir)
-
-        # strategy output dir, create (assume not exist)
-        self.strategy_dir = self._get_strategy_dir(strategy_base_dir, name, datetime.now(timezone.utc))
-        makedirs(self.strategy_dir, exist_ok=False)
-
+        self.base_dir = base_dir
         self.market_handlers: Dict[str, MarketHandler] = dict()
 
         # self.max_order_count: MaxOrderCount = [ctrl for ctrl in self.client.trading_controls
@@ -176,26 +159,12 @@ class MyFeatureStrategy(MyBaseStrategy):
                             'key_kwargs="strategy_kwargs" set')
 
         # write to strategy info file
-        strategy_file_path = path.join(self.strategy_dir, EXT_STRATEGY_INFO)
-        active_logger.info(f'writing strategy info to file: "{strategy_file_path}')
-        add_to_file(strategy_file_path, self.strategy_kwargs, indent=indent)
-
-    def _get_strategy_dir(self, base_dir, name, dt: datetime):
-        """
-        get strategy output directory to store results
-        """
-        return path.join(base_dir, name, dt.strftime('%Y-%m-%dT%H_%M_%S'))
-
-    def _get_output_dir(self, market_book: MarketBook):
-        """
-        get output directory for current market to store files
-        """
-
-        # get event, dated market path
-        market_dir = construct_hist_dir(market_book)
-
-        # combine strategy dir with market constructed path
-        return path.join(self.strategy_dir, market_dir)
+        meta_path = path.join(self.base_dir, 'strategymeta', str(self.strategy_id), 'info')
+        active_logger.info(f'writing strategy info to file: "{meta_path}')
+        d, _ = path.split(meta_path)
+        makedirs(d)
+        with open(meta_path, 'w') as f:
+            f.write(json.dumps(self.strategy_kwargs, indent=indent))
 
     def _reset_complete_trade(self, runner_handler: RunnerHandler, reset_state: Enum = None):
         """
@@ -317,9 +286,6 @@ class MyFeatureStrategy(MyBaseStrategy):
         """
         pass
 
-    def create_market_handler(self, market: Market, market_book: MarketBook) -> MarketHandler:
-        raise NotImplementedError
-
     def get_features_config(self, market: Market, market_book: MarketBook, runner_index) -> Dict:
         raise NotImplementedError
 
@@ -389,11 +355,10 @@ class MyFeatureStrategy(MyBaseStrategy):
                f'expected market id "{market.market_id}" to be the same as market book id "{market_book.market_id}"')
 
         # check if market has been initialised
+        udpt_dir = path.join(self.base_dir, 'strategyupdates', str(self.strategy_id), market_book.market_id)
         if market.market_id not in self.market_handlers:
-
-            output_dir = self._get_output_dir(market_book)
-            makedirs(output_dir, exist_ok=True)
-            self.market_handlers[market.market_id] = MarketHandler(output_dir)
+            makedirs(udpt_dir)
+            self.market_handlers[market.market_id] = MarketHandler()
             self.custom_market_initialisation(market, market_book)
 
         mh = self.market_handlers[market.market_id]
@@ -415,9 +380,6 @@ class MyFeatureStrategy(MyBaseStrategy):
                 # initialiase runner if not tracked
                 if runner.selection_id not in mh.runner_handlers:
 
-                    # get order info path from market book
-                    file_path = mh.get_orderinfo_path(market_book)
-
                     # create runner features
                     features = generate_features(
                         feature_configs=self.get_features_config(market, market_book, runner_index)
@@ -427,8 +389,9 @@ class MyFeatureStrategy(MyBaseStrategy):
                     for feature in features.values():
                         feature.race_initializer(runner.selection_id, market_book, mh.windows)
 
+                    udt_path = path.join(udpt_dir, 'updates')
                     mh.runner_handlers[runner.selection_id] = RunnerHandler(
-                        trade_tracker=self.create_trade_tracker(market, market_book, runner, file_path),
+                        trade_tracker=self.create_trade_tracker(market, market_book, runner, udt_path),
                         state_machine=self.create_state_machine(runner, market, market_book),
                         features=features
                     )
@@ -496,26 +459,22 @@ class MyFeatureStrategy(MyBaseStrategy):
         # loop runners
         for selection_id, rh in mh.runner_handlers.items():
 
-            file_name = get_feature_file_name(selection_id)
-            file_path = path.join(mh.output_dir, file_name)
-            active_logger.info(f'writing features for "{selection_id}" to file "{file_path}"')
-            features_to_file(file_path, rh.features)
+            # file_name = get_feature_file_name(selection_id)
+            # file_path = path.join(mh.output_dir, file_name)
+            # active_logger.info(f'writing features for "{selection_id}" to file "{file_path}"')
+            # features_to_file(file_path, rh.features)
 
             # get file path for order result, using selection ID as file name and order result extension
-            file_path = path.join(
-                mh.output_dir,
-                str(selection_id) + EXT_ORDER_RESULT
-            )
+            # file_path = path.join(
+            #     mh.output_dir,
+            #     str(selection_id) + EXT_ORDER_RESULT
+            # )
 
             # loop trades
             for trade in rh.trade_tracker.trades:
 
                 # loop orders
                 for order in trade.orders:
-
-                    # add betfair order result to order results file
-                    order_info = serializable_order_info(order)
-                    add_to_file(file_path, order_info)
 
                     # TODO - reset trade ID here to None so market close messages not associated with any trade
                     rh.trade_tracker.log_update(
