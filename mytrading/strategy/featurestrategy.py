@@ -337,12 +337,7 @@ class MyFeatureStrategy(MyBaseStrategy):
 
         # process each feature for current runner
         for feature in mh.runner_handlers[selection_id].features.values():
-            feature.process_runner(
-                mh.market_books,
-                mb,
-                mh.windows,
-                runner_index
-            )
+            feature.process_runner(mb, mh.windows, runner_index)
 
     @timing_register
     def process_market_book(self, market: Market, market_book: MarketBook):

@@ -249,6 +249,7 @@ class Session:
         rl = self.mkt_records
         mt = self.mkt_info['market_time']
 
+        active_logger.info(f'loaded market "{self.mkt_info["market_id"]}"')
         active_logger.info(f'{mt}, market time')
         active_logger.info(f'{rl[0][0].publish_time}, first record timestamp')
         active_logger.info(f'{rl[-1][0].publish_time}, final record timestamp')

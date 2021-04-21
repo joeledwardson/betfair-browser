@@ -92,6 +92,7 @@ def cb_runners(app, shn: Session):
         if not shn.mkt_load(market_id, strategy_id):
             shn.mkt_clr()
             return ret
+        shn.mkt_lginf()
 
         tbl = [{
             'id': d['runner_id'],  # set row to ID for easy access in callbacks

@@ -25,4 +25,5 @@ def hist_runner_features(
         runner_index = next((i for i, r in enumerate(new_book.runners) if r.selection_id == selection_id), None)
         if runner_index is not None:
             for feature in features.values():
-                feature.process_runner(feature_records, new_book, windows, runner_index)
+                feature.process_runner(new_book, windows, runner_index)
+                feature.update_cache()
