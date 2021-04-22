@@ -4,7 +4,7 @@ from myutils.jsonfile import add_to_file, read_file_lines
 from typing import List, Dict
 from mytrading.utils.storage import EXT_FEATURE
 from .utils import get_feature_data
-from .features import RunnerFeatureBase
+from .features import RFBase
 
 active_logger = logging.getLogger(__name__)
 
@@ -18,7 +18,7 @@ def get_feature_file_name(selection_id) -> str:
 
 
 # TODO - should be incremental in feature itself
-def features_to_file(file_path: str, features: Dict[str, RunnerFeatureBase]):
+def features_to_file(file_path: str, features: Dict[str, RFBase]):
     """
     write runner dictionary of {feature name: feature instance} to file
     """
@@ -54,6 +54,6 @@ def features_from_file(file_path: str) -> Dict[str, List[Dict[str, List]]]:
     for _, feature_data in data.items():
 
         # de-serialize timestamps
-        RunnerFeatureBase.post_de_serialize(feature_data)
+        RFBase.post_de_serialize(feature_data)
 
     return data

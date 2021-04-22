@@ -190,13 +190,13 @@ def generate_feature_data(
     # initialise features with first of trimmed books and windows
     windows = Windows()
     for feature in features.values():
-        feature.race_initializer(selection_id, hist_records[0][0], windows)
+        feature.race_initializer(selection_id, hist_records[0][0])
 
     # run feature processors on historic data
     hist_runner_features(selection_id, hist_records, windows, features)
 
     # get feature data from feature set
-    return get_feature_data(features, pre_serialize=False)
+    return get_feature_data(features)
 
 
 def get_yaxes_names(feature_plot_configs: dict, default_yaxis: str) -> List[str]:

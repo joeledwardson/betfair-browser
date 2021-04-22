@@ -16,7 +16,7 @@ from ..utils.storage import construct_hist_dir, SUBDIR_STRATEGY_HISTORIC, EXT_OR
 from ..utils.storage import EXT_ORDER_INFO, EXT_STRATEGY_INFO
 from .trademachine.tradestates import TradeStateTypes
 from .trademachine.trademachine import RunnerStateMachine
-from .feature.features import RunnerFeatureBase
+from .feature.features import RFBase
 from .feature.window import Windows
 from .feature.utils import generate_features
 from .feature.storage import features_to_file, get_feature_file_name
@@ -31,8 +31,8 @@ active_logger = logging.getLogger(__name__)
 # TODO - could this be merged with tradetracker?
 class RunnerHandler:
 
-    def __init__(self, trade_tracker: TradeTracker, state_machine: RunnerStateMachine, features: Dict[str, RunnerFeatureBase]):
-        self.features: Dict[str, RunnerFeatureBase] = features
+    def __init__(self, trade_tracker: TradeTracker, state_machine: RunnerStateMachine, features: Dict[str, RFBase]):
+        self.features: Dict[str, RFBase] = features
         self.trade_tracker = trade_tracker
         self.state_machine = state_machine
 
@@ -337,7 +337,7 @@ class MyFeatureStrategy(MyBaseStrategy):
 
         # process each feature for current runner
         for feature in mh.runner_handlers[selection_id].features.values():
-            feature.process_runner(mb, mh.windows, runner_index)
+            feature.process_runner(mb, runner_index)
 
     @timing_register
     def process_market_book(self, market: Market, market_book: MarketBook):
@@ -382,7 +382,7 @@ class MyFeatureStrategy(MyBaseStrategy):
 
                     # initialise for race
                     for feature in features.values():
-                        feature.race_initializer(runner.selection_id, market_book, mh.windows)
+                        feature.race_initializer(runner.selection_id, market_book)
 
                     udt_path = path.join(udpt_dir, 'updates')
                     mh.runner_handlers[runner.selection_id] = RunnerHandler(

@@ -2,7 +2,7 @@ from typing import List, Dict
 
 from betfairlightweight.resources import MarketBook
 
-from .features import RunnerFeatureBase
+from .features import RFBase
 from .window import Windows
 from myutils import mytiming
 
@@ -12,7 +12,7 @@ def hist_runner_features(
         selection_id: int,
         records: List[List[MarketBook]],
         windows: Windows,
-        features: Dict[str, RunnerFeatureBase]):
+        features: Dict[str, RFBase]):
     """
     process historical records with a set of features for a selected runner
     """
@@ -25,5 +25,4 @@ def hist_runner_features(
         runner_index = next((i for i, r in enumerate(new_book.runners) if r.selection_id == selection_id), None)
         if runner_index is not None:
             for feature in features.values():
-                feature.process_runner(new_book, windows, runner_index)
-                feature.update_cache()
+                feature.process_runner(new_book, runner_index)

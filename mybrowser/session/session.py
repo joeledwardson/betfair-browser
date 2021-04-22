@@ -11,6 +11,7 @@ import importlib
 import sys
 from datetime import datetime
 from configparser import ConfigParser
+import yaml
 
 from mytrading.strategy.tradetracker.messages import MessageTypes
 from mytrading.utils import security as mysecurity, bfcache
@@ -22,11 +23,20 @@ from myutils import mypath, mytiming, jsonfile, generic
 
 from mybrowser.session import dbutils as dbtable
 from mybrowser.session.dbfilters import DBFilters, DBFilter
-from mybrowser.session.tblformatters import get_formatters
-
+from myutils.myregistrar import MyRegistrar
 
 active_logger = logging.getLogger(__name__)
 active_logger.setLevel(logging.INFO)
+
+
+def get_formatters(config) -> MyRegistrar:
+    formatters = MyRegistrar()
+
+    @formatters.register_element
+    def format_datetime(dt: datetime):
+        return dt.strftime(config['FORMATTERS_CONFIG']['dt_format'])
+
+    return formatters
 
 
 class Session:
@@ -110,10 +120,14 @@ class Session:
 
             # get file path and name without ext
             file_path = path.join(config_dir, file_name)
-            name, _ = path.splitext(file_name)
+            name, ext = path.splitext(file_name)
+            if ext != '.yaml':
+                continue
 
-            # read configuration from dictionary
-            cfg = jsonfile.read_file_data(file_path)
+            with open(file_path) as f:
+                # The FullLoader parameter handles the conversion from YAML
+                # scalar values to Python the dictionary format
+                cfg = yaml.load(f, Loader=yaml.FullLoader)
 
             # check config successfully parsed
             if cfg is not None:

@@ -8,6 +8,7 @@ import logging
 from os import path
 from collections import deque
 import pandas as pd
+import statistics
 
 from .featureprocessors import get_feature_processor, get_feature_processors
 from mytrading.process.prices import best_price
@@ -20,20 +21,8 @@ from .window import Windows
 from myutils import mytiming, myregistrar
 
 
-features_dict = {}
+ftrs_reg = myregistrar.MyRegistrar()
 active_logger = logging.getLogger(__name__)
-
-
-# TODO - replace with registrar
-def register_feature(cls):
-    """
-    register a feature, add to dictionary of features
-    """
-    if cls.__name__ in features_dict:
-        raise Exception(f'registering feature "{cls.__name__}", but already exists!')
-    else:
-        features_dict[cls.__name__] = cls
-        return cls
 
 
 class BetfairFeatureException(Exception):
@@ -44,8 +33,8 @@ class BetfairFeatureException(Exception):
 # TODO - how to store values without list getting too big? maybe accept arg which dicates how large to set the
 #  "cache" size, i.e. how many values to store in list - or a overridable function which removes values from deque
 #  that arent needed
-# TODO - shorten "RunnerFeature" syntax to "RF"
-class RunnerFeatureBase:
+# TODO - output cache?
+class RFBase:
     """
     base class for runner features
 
@@ -63,12 +52,8 @@ class RunnerFeatureBase:
     """
     def __init__(
             self,
-            value_processors_config: Optional[List[Dict]] = None,
-            value_preprocessors_config: Optional[List[Dict]] = None, # TODO - depreciated?
-            periodic_ms: Optional[int] = None,
-            periodic_timestamps: bool = False,
             sub_features_config: Optional[Dict] = None,
-            parent: Optional[RunnerFeatureBase] = None,
+            parent: Optional[RFBase] = None,
             feature_key=None,  # TODO - rename to 'name'
             cache_count=2,
             cache_secs=None,
@@ -76,7 +61,6 @@ class RunnerFeatureBase:
     ):
 
         self.parent = parent
-        self.windows: Windows = None
         self.selection_id: int = None
         if feature_key:
             self.ftr_identifier = feature_key
@@ -88,39 +72,45 @@ class RunnerFeatureBase:
                 self.ftr_identifier
             ])
 
-        self.values = []
-        self.dts = []
-
-        self.value_processors = get_feature_processors(value_processors_config or [])
-        self.value_preprocessors = get_feature_processors(value_preprocessors_config or [])
-        self.processed_vals = []
         self.values_cache = deque()
+        self.out_cache = deque()
         self.cache_count = cache_count
         self.cache_secs = cache_secs
         self.inside_window = cache_insidewindow
 
-        self.sub_features: Dict[str, RunnerFeatureBase] = {}
+        self.sub_features: Dict[str, RFBase] = {}
         if sub_features_config:
-            for k, v in sub_features_config.items():
-                # TODO - don't do from globals, take fom feature register
-                feature_class = globals()[v['name']]
-                feature_kwargs = v.get('kwargs', {})
-                self.sub_features[k] = feature_class(
-                    parent=self,
-                    **feature_kwargs,
-                    feature_key=k, # use dictionary name as feature name
+            if type(sub_features_config) is not dict:
+                raise BetfairFeatureException(
+                    f'error in feature "{self.ftr_identifier}", sub features config is not dict'
                 )
-
-        self.periodic_ms = periodic_ms
-        self.periodic_timestamps = periodic_timestamps
-        self.last_timestamp: datetime = None
+            for k, v in sub_features_config.items():
+                if type(v) is not dict:
+                    raise BetfairFeatureException(
+                        f'error in feature "{self.ftr_identifier}", sub-feature "{k}" value is not dict'
+                    )
+                if 'name' not in v:
+                    raise BetfairFeatureException(
+                        f'error in feature "{self.ftr_identifier}", sub-feature "{k}", no name element in dict'
+                    )
+                feature_class = ftrs_reg[v['name']]
+                feature_kwargs = v.get('kwargs', {})
+                try:
+                    self.sub_features[k] = feature_class(
+                        parent=self,
+                        **feature_kwargs,
+                        feature_key=k, # use dictionary name as feature name
+                    )
+                except TypeError as e:
+                    raise BetfairFeatureException(
+                        f'error in feature "{self.ftr_identifier}", sub-feature "{k}": {e}'
+                    )
 
     def is_new_value(self) -> bool:
         return len(self.values_cache) == 1 or \
                (len(self.values_cache) >= 2 and self.values_cache[-1][2] != self.values_cache[-2][2])
 
     def update_cache(self):
-
         if self.cache_secs:
             if len(self.values_cache):
                 dt = self.values_cache[-1][0]
@@ -132,237 +122,199 @@ class RunnerFeatureBase:
                     else:
                         self.values_cache.popleft()
         else:
-            while len(self.values_cache) > 2:
+            while len(self.values_cache) > self.cache_count:
                 self.values_cache.popleft()
 
-    def race_initializer(
-            self,
-            selection_id: int,
-            first_book: MarketBook,
-            windows: Windows):
+    def race_initializer(self, selection_id: int, first_book: MarketBook):
         """initialize feature with first market book of race and selected runner"""
-
-        self.last_timestamp = first_book.publish_time
         self.selection_id = selection_id
-        self.windows = windows
-
         for sub_feature in self.sub_features.values():
-            sub_feature.race_initializer(selection_id, first_book, windows)
+            sub_feature.race_initializer(selection_id, first_book)
 
-    def publish_update(self, new_book, windows, runner_index, pt):
-
+    def publish_update(self, new_book, runner_index, pt=None):
         # get feature value, ignore if None
-        value = self.runner_update(new_book, windows, runner_index)
+        value = self.runner_update(new_book, runner_index)
         if value is None:
             return
 
-        # if sub-feature, use parent timestamp
-        if self.parent is not None and self.parent.dts:
-            pt = self.parent.dts[-1]
+        # if publish time not explicitly passed, use parent if exist else market book
+        if pt is None:
+            if self.parent is None:
+                pt = new_book.publish_time
+            else:
+                pt = self.parent.values_cache[-1][0]
 
-        # add preprocessed value and timestamp to lists
-        self.dts.append(pt)
-        for preproc in self.value_preprocessors:
-            value = preproc(value, self.values, self.dts)
-        self.values.append(value)
-
-        # add postprocessed value to list
-        processed = value
-        for postproc in self.value_processors:
-            processed = postproc(processed, self.values, self.dts)
-        self.processed_vals.append(processed)
-
-        self.values_cache.append((pt, value, processed))
+        self.values_cache.append((pt, value))
+        self.out_cache.append((pt, value))
+        self.update_cache()
 
         for sub_feature in self.sub_features.values():
-            sub_feature.process_runner(new_book, windows, runner_index)
+            sub_feature.process_runner(new_book, runner_index)
 
     @mytiming.timing_register_attr(name_attr='ftr_identifier')
-    def process_runner(self, new_book: MarketBook, windows: Windows, runner_index):
-        """
-        calls `self.runner_update()` to obtain feature value and if not None appends to list of values with timestamp
-        """
+    def process_runner(self, new_book: MarketBook, runner_index):
+        """update feature value and add to cache"""
+        self.publish_update(new_book, runner_index)
 
-        # TODO - I think all this logic should be in a sub-feature, where just the base values are recorded in parent
-        # TODO - also should not give the option for periodic unless they are sampled to a ms value (i.e. periodic_ms
-        #  mandatory if periodic specified)
-        publish_time = new_book.publish_time
-        update = False
-
-        # if specified, updates only allow every 'periodic_ms' milliseconds
-        if self.periodic_ms:
-
-            # check if current book is 'periodic_ms' milliseconds past last update
-            if int((new_book.publish_time - self.last_timestamp).total_seconds() * 1000) > self.periodic_ms:
-
-                # specify that do want to update
-                update = True
-
-                # increment previous timestamps
-                self.last_timestamp = self.last_timestamp + timedelta(milliseconds=self.periodic_ms)
-
-                # if periodically timestamped flag specified, set timestamp to sampled time
-                if self.periodic_timestamps:
-                    publish_time = self.last_timestamp
-
-        # if periodic update milliseconds not specified, update regardless
-        else:
-            update = True
-
-        # if criteria for updating value not met the ignore
-        if not update:
-            return
-
-        self.publish_update(new_book, windows, runner_index, publish_time)
-
-        # if data is sampled and more than one sample time has elapsed, fill forwards until time is met
-        if self.periodic_ms:
-            while int((new_book.publish_time - self.last_timestamp).total_seconds() * 1000) > self.periodic_ms:
-                self.last_timestamp = self.last_timestamp + timedelta(milliseconds=self.periodic_ms)
-                if self.periodic_timestamps:
-                    self.publish_update(new_book, windows, runner_index, publish_time)
-
-    def runner_update(self, new_book: MarketBook, windows: Windows, runner_index):
+    def runner_update(self, new_book: MarketBook, runner_index):
         """
         implement this function to return feature value from new market book received
         return None if do not want value to be stored
         """
         raise NotImplementedError
 
-    @classmethod
-    def pre_serialize(cls, plotly_data: List[Dict]) -> List[Dict]:
-        """
-        pre-process for serialization of data
-        """
-        data = plotly_data.copy()
-        for entry in data:
-            entry['x'] = [x.timestamp() for x in entry['x']]
-        return data
-
-    @classmethod
-    def post_de_serialize(cls, plotly_data: List[Dict]) -> None:
-        """
-        post_process de-serialized feature plotly data
-        """
-        for entry in plotly_data:
-            entry['x'] = [datetime.fromtimestamp(x) for x in entry['x']]
-
-    # TODO - remove this, should not be storing complete list of values, instead from file
-    def get_plotly_data(self):
-        """
-        get feature data in list of plotly form dicts, where 'x' is timestamps and 'y' are feature values
-        by default only one entry is returned, but this style leaves the possibility open for returning list of dicts
-        for inheritance base method overloading, must adhere to rules:
-        - be list of dicts
-        - each dict entry be a list of values
-        - 'x' key values must be datetime entries for feature so can serialize
-        """
-        return [{
-            'x': self.dts,
-            'y': self.processed_vals
-        }]
+    # @classmethod
+    # def pre_serialize(cls, plotly_data: List[Dict]) -> List[Dict]:
+    #     """
+    #     pre-process for serialization of data
+    #     """
+    #     data = plotly_data.copy()
+    #     for entry in data:
+    #         entry['x'] = [x.timestamp() for x in entry['x']]
+    #     return data
+    #
+    # @classmethod
+    # def post_de_serialize(cls, plotly_data: List[Dict]) -> None:
+    #     """
+    #     post_process de-serialized feature plotly data
+    #     """
+    #     for entry in plotly_data:
+    #         entry['x'] = [datetime.fromtimestamp(x) for x in entry['x']]
+    #
+    # # TODO - remove this, should not be storing complete list of values, instead from file
+    # def get_plotly_data(self):
+    #     """
+    #     get feature data in list of plotly form dicts, where 'x' is timestamps and 'y' are feature values
+    #     by default only one entry is returned, but this style leaves the possibility open for returning list of dicts
+    #     for inheritance base method overloading, must adhere to rules:
+    #     - be list of dicts
+    #     - each dict entry be a list of values
+    #     - 'x' key values must be datetime entries for feature so can serialize
+    #     """
+    #     return [{
+    #         'x': self.dts,
+    #         'y': self.processed_vals
+    #     }]
 
     def last_value(self):
         """get most recent value processed, if empty return None"""
-        return self.processed_vals[-1] if len(self.processed_vals) else None
+        return self.values_cache[-1][1] if len(self.values_cache) else None
 
 
-@register_feature
-class RunnerFeatureWindowBase(RunnerFeatureBase):
+@ftrs_reg.register_element
+class RFChild(RFBase):
     """
-    base feature utilizing a window function (see bf_Windows)
-
-    - where `window_s` is the width in seconds of the window in which to trace values
-    - `window_function` is the name of the window processing function, applied when the window updates
+    feature that must be used as a sub-feature to existing feature
     """
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        if kwargs.get('parent') is None:
+            raise BetfairFeatureException(f'sub-feature has not received "parent" argument')
 
-    def __init__(
-            self,
-            window_s,
-            window_function: str,
-            window_function_kwargs: Optional[dict] = None,
-            **kwargs
-    ):
+    def runner_update(self, new_book: MarketBook, runner_index):
+        return self.parent.last_value()
+
+
+@ftrs_reg.register_element
+class RFMvAvg(RFChild):
+    """moving average of parent values"""
+    def runner_update(self, new_book: MarketBook, runner_index):
+        if len(self.parent.values_cache):
+            return statistics.mean([v[1] for v in self.parent.values_cache])
+
+
+@ftrs_reg.register_element
+class RFSample(RFChild):
+    """sample values to periodic timestamps with most recent value"""
+    def __init__(self, periodic_ms, **kwargs):
         super().__init__(**kwargs)
+        self.periodic_ms = periodic_ms
+        self.last_timestamp: datetime = None
 
-        self.window: dict = None
-        self.window_s = window_s
-        self.window_function = window_function
-        self.window_function_kwargs = window_function_kwargs or {}
+    def race_initializer(self, selection_id: int, first_book: MarketBook):
+        super().race_initializer(selection_id, first_book)
+        self.last_timestamp = first_book.publish_time.replace(microsecond=0)
 
-    def race_initializer(
-            self,
-            selection_id: int,
-            first_book: MarketBook,
-            windows: Windows):
-        """
-        add window of specified number of seconds to Windows instance and add specified window function when first
-        market book received
-        """
-
-        super().race_initializer(selection_id, first_book, windows)
-        self.window = windows.add_window(self.window_s)
-        windows.add_function(self.window_s, self.window_function, **self.window_function_kwargs)
-
-    def computation_buffer_seconds(self) -> int:
-        return self.window_s
+    def process_runner(self, new_book: MarketBook, runner_index):
+        # if data is sampled and more than one sample time has elapsed, fill forwards until time is met
+        while int((new_book.publish_time - self.last_timestamp).total_seconds() * 1000) > self.periodic_ms:
+            self.last_timestamp = self.last_timestamp + timedelta(milliseconds=self.periodic_ms)
+            self.publish_update(new_book, runner_index, self.last_timestamp)
 
 
-@register_feature
-class RFTVLad(RunnerFeatureBase):
-    def runner_update(self, new_book: MarketBook, windows: Windows, runner_index):
+@ftrs_reg.register_element
+class RFTVLad(RFBase):
+    def runner_update(self, new_book: MarketBook, runner_index):
         return new_book.runners[runner_index].ex.traded_volume or None
 
 
-class _RunnerFeatureTradedWindow(RunnerFeatureWindowBase):
-    def __init__(self, window_s, **kwargs):
-        super().__init__(
-            window_s=window_s,
-            window_function='WindowProcessorTradedVolumeLadder',
-            **kwargs
-        )
+@ftrs_reg.register_element
+class RFTVLadDif(RFChild):
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        if type(self.parent) is not RFTVLad:
+            raise BetfairFeatureException('expected traded vol feature parent')
 
-    def tv_process(self, values):
-        raise NotImplementedError
-
-    def runner_update(self, new_book: MarketBook, windows: Windows, runner_index):
-
-        values = self.window['tv_diff_ladder'][self.selection_id]
-
-        if len(values):
-            return self.tv_process(values)
+    def runner_update(self, new_book: MarketBook, runner_index):
+        if len(self.parent.values_cache) >= 2:
+            return get_record_tv_diff(
+                self.parent.values_cache[-1][1],
+                self.parent.values_cache[0][1]
+            )
         else:
             return None
 
 
-# TODO - base these off internal window function
-@register_feature
-class RunnerFeatureTradedWindowMin(_RunnerFeatureTradedWindow):
-    """Minimum of recent traded prices in last 'window_s' seconds"""
-    def tv_process(self, values):
-        return min([x['price'] for x in values])
+class _RFTVLadDifFunc(RFChild):
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        if type(self.parent) is not RFTVLadDif:
+            raise BetfairFeatureException('expected traded vol diff feature parent')
+
+    def runner_update(self, new_book: MarketBook, runner_index):
+        if len(self.parent.values_cache):
+            tvs = self.parent.values_cache[-1][1]
+            if len(tvs):
+                return self.lad_func(tvs)
+        return None
+
+    def lad_func(self, tvs):
+        raise NotImplementedError
 
 
-@register_feature
-class RunnerFeatureTradedWindowMax(_RunnerFeatureTradedWindow):
-    """Maximum of recent traded prices in last 'window_s' seconds"""
-    def tv_process(self, values):
-        return max([x['price'] for x in values])
+@ftrs_reg.register_element
+class RFTVLadMax(_RFTVLadDifFunc):
+    def lad_func(self, tvs):
+        v = max([x['price'] for x in tvs])
+        return v
 
 
-@register_feature
-class RunnerFeatureBookSplitWindow(RunnerFeatureBase):
+@ftrs_reg.register_element
+class RFTVLadMin(_RFTVLadDifFunc):
+    def lad_func(self, tvs):
+        v = min([x['price'] for x in tvs])
+        return v
+
+
+@ftrs_reg.register_element
+class RFTVLadTot(_RFTVLadDifFunc):
+    def lad_func(self, tvs):
+        v = sum([x['size'] for x in tvs])
+        return v
+
+
+@ftrs_reg.register_element
+class RFBkSplit(RFBase):
     """
-     percentage of recent traded volume in the last 'window_s' seconds that is above current best back price
+    traded volume since previous update that is above current best back price
     """
-
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.previous_best_back = None
         self.previous_best_lay = None
         self.previous_ladder = dict()
 
-    def runner_update(self, new_book: MarketBook, windows: Windows, runner_index):
+    def runner_update(self, new_book: MarketBook, runner_index):
 
         runner = new_book.runners[runner_index]
         value = None
@@ -370,8 +322,7 @@ class RunnerFeatureBookSplitWindow(RunnerFeatureBase):
         if self.previous_best_back and self.previous_best_lay:
             diff = get_record_tv_diff(
                 runner.ex.traded_volume,
-                self.previous_ladder,
-                is_dict=True
+                self.previous_ladder
             )
             # difference in new back and lay money
             back_diff = sum([x['size'] for x in diff if x['price'] <= self.previous_best_back])
@@ -386,26 +337,24 @@ class RunnerFeatureBookSplitWindow(RunnerFeatureBase):
         return value
 
 
-@register_feature
-class RunnerFeatureLTP(RunnerFeatureBase):
+@ftrs_reg.register_element
+class RFLTP(RFBase):
     """Last traded price of runner"""
-    def runner_update(self, new_book: MarketBook, windows: Windows, runner_index):
+    def runner_update(self, new_book: MarketBook, runner_index):
         return new_book.runners[runner_index].last_price_traded
 
 
-@register_feature
-class RunnerFeatureWOM(RunnerFeatureBase):
+@ftrs_reg.register_element
+class RFWOM(RFBase):
     """
     Weight of money (difference of available-to-lay to available-to-back)
-
     applied to `wom_ticks` number of ticks on BACK and LAY sides of the book
     """
-
     def __init__(self, wom_ticks, **kwargs):
         super().__init__(**kwargs)
         self.wom_ticks = wom_ticks
 
-    def runner_update(self, new_book: MarketBook, windows: Windows, runner_index):
+    def runner_update(self, new_book: MarketBook, runner_index):
         atl = new_book.runners[runner_index].ex.available_to_lay
         atb = new_book.runners[runner_index].ex.available_to_back
 
@@ -417,422 +366,315 @@ class RunnerFeatureWOM(RunnerFeatureBase):
             return None
 
 
-@register_feature
-class RunnerFeatureTradedDiff(RunnerFeatureWindowBase):
-    """Difference in total traded runner volume in the last 'window_s' seconds"""
-
-    def __init__(self, window_s, **kwargs):
-        super().__init__(window_s, window_function='WindowProcessorTradedVolumeLadder', **kwargs)
-
-    def runner_update(self, new_book: MarketBook, windows: Windows, runner_index):
-
-        try:
-            return self.window['tv_diff_totals'].get(self.selection_id, None)
-        except KeyError as e:
-            raise BetfairFeatureException(f'error getting window attribute "tv_diff_totals"\n{e}')
-
-
-@register_feature
-class RunnerFeatureBestBack(RunnerFeatureBase):
+@ftrs_reg.register_element
+class RFBck(RFBase):
     """Best available back price of runner"""
-
-    def runner_update(self, new_book: MarketBook, windows: Windows, runner_index):
-
+    def runner_update(self, new_book: MarketBook, runner_index):
         return best_price(new_book.runners[runner_index].ex.available_to_back)
 
 
-@register_feature
-class RunnerFeatureBestLay(RunnerFeatureBase):
+@ftrs_reg.register_element
+class RFLay(RFBase):
     """
     Best available lay price of runner
     """
-
-    def runner_update(self, new_book: MarketBook, windows: Windows, runner_index):
-
+    def runner_update(self, new_book: MarketBook, runner_index):
         return best_price(new_book.runners[runner_index].ex.available_to_lay)
 
 
-@register_feature
-class RunnerFeatureLadderSpread(RunnerFeatureBase):
+@ftrs_reg.register_element
+class RFLadSprd(RFBase):
     """
     tick spread between best lay and best back - defaults to 1000 if cannot find best back or lay
     """
-    def runner_update(self, new_book: MarketBook, windows: Windows, runner_index):
-
+    def runner_update(self, new_book: MarketBook, runner_index):
         best_lay = best_price(new_book.runners[runner_index].ex.available_to_lay)
         best_back = best_price(new_book.runners[runner_index].ex.available_to_back)
-
         if best_lay and best_back:
             return tick_spread(best_back, best_lay, check_values=False)
         else:
             return len(LTICKS_DECODED)
 
 
-@register_feature
-class RunnerFeatureBackLadder(RunnerFeatureBase):
+@ftrs_reg.register_element
+class RFLadBck(RFBase):
     """
     best available price-sizes on back side within specified number of elements of best price
     """
-
     def __init__(self, n_elements, *args, **kwargs):
         self.n_elements = n_elements
         super().__init__(*args, **kwargs)
 
-    def runner_update(self, new_book: MarketBook, windows: Windows, runner_index):
+    def runner_update(self, new_book: MarketBook, runner_index):
         return new_book.runners[runner_index].ex.available_to_back[:self.n_elements]
 
 
-@register_feature
-class RunnerFeatureLayLadder(RunnerFeatureBase):
+@ftrs_reg.register_element
+class RFLadLay(RFBase):
     """
     best available price-sizes on lay side within specified number of elements of best price
     """
-
     def __init__(self, n_elements, *args, **kwargs):
         self.n_elements = n_elements
         super().__init__(*args, **kwargs)
 
-    def runner_update(self, new_book: MarketBook, windows: Windows, runner_index):
+    def runner_update(self, new_book: MarketBook, runner_index):
         return new_book.runners[runner_index].ex.available_to_lay[:self.n_elements]
 
 
-@register_feature
-class RunnerFeatureSub(RunnerFeatureBase):
-    """
-    feature that must be used as a sub-feature to existing feature
-    """
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        if kwargs.get('parent') is None:
-            raise BetfairFeatureException(f'sub-feature has not received "parent" argument')
-
-    def runner_update(self, new_book: MarketBook, windows: Windows, runner_index):
-        return self.parent.last_value()
-
-
-class _RunnerFeatureSubDelayer(RunnerFeatureSub):
-    """
-    track a delay by x number of seconds
-    """
-    def __init__(self, delay_seconds, outside_window=True, *args, **kwargs):
-        self.delay_seconds = delay_seconds
-        self.delay_index = 0
-        self.outside_window = outside_window
-        self._td = timedelta(seconds=delay_seconds)
-        super().__init__(*args, **kwargs)
-
-    @mytiming.timing_register
-    def update_delay_index(self, pt):
-        n = len(self.parent.processed_vals)
-        dt = pt - self._td
-        while (self.delay_index + 1) < n and \
-                self.parent.dts[self.delay_index + self.outside_window] < dt:
-            self.delay_index += 1
-
-
-@register_feature
-class RunnerFeatureSubWindow(_RunnerFeatureSubDelayer):
+@ftrs_reg.register_element
+class RFMax(RFChild):
     """
     perform a feature processor function on windowed parent values
     """
-    def __init__(self, window_processors: List[Dict], *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.window_processors = get_feature_processors(window_processors)
-
-    def runner_update(self, new_book: MarketBook, windows: Windows, runner_index):
-        self.update_delay_index(new_book.publish_time)
-        v = self.parent.processed_vals[self.delay_index:]
-        if v:
-            for postproc in self.window_processors:
-                v = postproc(None, v, None)
-            if v is not None:
-                return v
+    def runner_update(self, new_book: MarketBook, runner_index):
+        if len(self.parent.values_cache) >= 1:
+            return max(abs(np.diff([v[1] for v in self.parent.values_cache])).tolist())
+        else:
+            return 0
 
 
-@register_feature
-class RunnerFeatureSubDelayComparison(_RunnerFeatureSubDelayer):
-    """
-    compare a parent feature current value to delayed value
-    """
-    def runner_update(self, new_book: MarketBook, windows: Windows, runner_index):
-        self.update_delay_index(new_book.publish_time)
-        if len(self.parent.processed_vals):
-            previous_value = self.parent.processed_vals[self.delay_index]
-            current_value = self.parent.last_value()
-            if previous_value is not None and current_value is not None:
-                return current_value - previous_value
-
-
-@register_feature
-class RunnerFeatureSubSum(_RunnerFeatureSubDelayer):
-    """
-    sum a parent feature values over x number of seconds
-    """
-    def runner_update(self, new_book: MarketBook, windows: Windows, runner_index):
-        self.update_delay_index(new_book.publish_time)
-        n = len(self.parent.processed_vals)
-        assert n >= self.delay_index
-        if n:
-            return sum(self.parent.processed_vals[self.delay_index:])
-
-
-@register_feature
-class RunnerFeatureSubConstDelayer(RunnerFeatureSub):
-    """
-    get last parent feature value that has held its value without changing for x number of seconds
-    """
-
-    def __init__(self, hold_seconds, *args, **kwargs):
-        self.hold_seconds = hold_seconds
-        self.value_timestamp: datetime = datetime.now()
-        self.parent_previous = None
-        self.hold_value = None
-        super().__init__(*args, **kwargs)
-
-    def race_initializer(
-            self,
-            selection_id: int,
-            first_book: MarketBook,
-            windows: Windows):
-        self.value_timestamp = first_book.publish_time
-
-    def runner_update(self, new_book: MarketBook, windows: Windows, runner_index):
-
-        parent_current = self.parent.last_value()
-        if self.parent_previous is None:
-            self.parent_previous = parent_current
-
-        if self.parent_previous is not None and parent_current is not None:
-            if self.parent_previous != parent_current:
-                self.value_timestamp = new_book.publish_time
-
-            if (new_book.publish_time - self.value_timestamp).total_seconds() >= self.hold_seconds:
-                self.hold_value = parent_current
-
-        self.parent_previous = parent_current
-        return self.hold_value
-
-
-@register_feature
-class RunnerFeatureSubLastValue(RunnerFeatureSub):
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-
-        # store parent active value (until change)
-        self.active_value = None
-
-    def runner_update(self, new_book: MarketBook, windows: Windows, runner_index):
-
-        # check parent value list not empty
-        if len(self.parent.processed_vals):
-
-            # get most recent value from parent
-            current_value = self.parent.processed_vals[-1]
-
-            # check if active value is None
-            if self.active_value is None:
-
-                # first initialisation, just use value dont check for change
-                self.active_value = current_value
-                return current_value
-
-            # check if current parent value is different from stored active value
-            elif current_value != self.active_value:
-
-                # stored active value is now previous value
-                previous_value = self.active_value
-
-                # update active value
-                self.active_value = current_value
-
-                # return previous state value
-                return previous_value
-
-
-@register_feature
-class RunnerFeatureTVTotal(RunnerFeatureBase):
+@ftrs_reg.register_element
+class RFTVTot(RFBase):
     """
     total traded volume of runner
     """
-    def runner_update(self, new_book: MarketBook, windows: Windows, runner_index):
+    def runner_update(self, new_book: MarketBook, runner_index):
         return traded_runner_vol(new_book.runners[runner_index])
 
+#
+# @ftrs_reg.register_element
+# class RunnerFeatureSubRegression(RFChild):
+#
+#     """
+#     Perform regressions on a runner values as a sub-feature
+#     - regression_preprocessor: apply pre-processor to feature values before performing linear regression (select from
+#     RunnerFeatureValueProcessors)
+#     """
+#
+#     def __init__(
+#             self,
+#             element_count,
+#             regression_preprocessor: str = 'value_processor_identity',
+#             regression_preprocessor_args: dict = None,
+#             *args,
+#             **kwargs):
+#         """
+#
+#         Parameters
+#         ----------
+#         element_count : number of elements at which to perform regression across
+#         regression_preprocessor : name of preprocessor function to use
+#         regression_preprocessor_args : kwargs passed to preprocessor function constructor
+#         args :
+#         kwargs :
+#         """
+#         super().__init__(
+#             *args,
+#             **kwargs,
+#         )
+#         self.element_count = element_count
+#         self.regression_preprocessor = get_feature_processor(regression_preprocessor, regression_preprocessor_args)
+#
+#     def runner_update(self, new_book: MarketBook, runner_index):
+#
+#         dts = self.parent.dts[-self.element_count:]
+#         x = [(x - new_book.publish_time).total_seconds() for x in dts]
+#         y = self.parent.processed_vals[-self.element_count:]
+#
+#         if not x or not y or len(x) != len(y):
+#             return None
+#
+#         if len(x) < self.element_count:
+#             return None
+#
+#         y_processed = [self.regression_preprocessor(v, y, dts) for v in y]
+#         X = np.expand_dims(x, -1)
+#         reg = LinearRegression().fit(X, y_processed)
+#
+#         if len(reg.coef_) == 1:
+#
+#             return {
+#                     'gradient': reg.coef_[0],
+#                     'rsquared': reg.score(X, y_processed)
+#                 }
+#
+#         return None
+#
+#     def computation_buffer_seconds(self) -> int:
+#         if not self.parent.periodic_ms:
+#             active_logger.warning(f'regression sub feature expected parent to have periodic ms')
+#             return 0
+#         else:
+#             return int((self.parent.periodic_ms * self.element_count) / 1000)
+#
 
-@register_feature
-class RunnerFeatureSubRegression(RunnerFeatureSub):
-
-    """
-    Perform regressions on a runner values as a sub-feature
-    - regression_preprocessor: apply pre-processor to feature values before performing linear regression (select from
-    RunnerFeatureValueProcessors)
-    """
-
-    def __init__(
-            self,
-            element_count,
-            regression_preprocessor: str = 'value_processor_identity',
-            regression_preprocessor_args: dict = None,
-            *args,
-            **kwargs):
-        """
-
-        Parameters
-        ----------
-        element_count : number of elements at which to perform regression across
-        regression_preprocessor : name of preprocessor function to use
-        regression_preprocessor_args : kwargs passed to preprocessor function constructor
-        args :
-        kwargs :
-        """
-        super().__init__(
-            *args,
-            **kwargs,
-        )
-        self.element_count = element_count
-        self.regression_preprocessor = get_feature_processor(regression_preprocessor, regression_preprocessor_args)
-
-    def runner_update(self, new_book: MarketBook, windows: Windows, runner_index):
-
-        dts = self.parent.dts[-self.element_count:]
-        x = [(x - new_book.publish_time).total_seconds() for x in dts]
-        y = self.parent.processed_vals[-self.element_count:]
-
-        if not x or not y or len(x) != len(y):
-            return None
-
-        if len(x) < self.element_count:
-            return None
-
-        y_processed = [self.regression_preprocessor(v, y, dts) for v in y]
-        X = np.expand_dims(x, -1)
-        reg = LinearRegression().fit(X, y_processed)
-
-        if len(reg.coef_) == 1:
-
-            return {
-                    'gradient': reg.coef_[0],
-                    'rsquared': reg.score(X, y_processed)
-                }
-
-        return None
-
-    def computation_buffer_seconds(self) -> int:
-        if not self.parent.periodic_ms:
-            active_logger.warning(f'regression sub feature expected parent to have periodic ms')
-            return 0
-        else:
-            return int((self.parent.periodic_ms * self.element_count) / 1000)
-
-
-@register_feature
-class RunnerFeatureHistoricOddscheckerAvg(RunnerFeatureBase):
-    """
-    get oddschecker average value between bookies (not exchanges) for runner
-    oddschecker file and catalogue file is retrieved using recorded directory as historic base, passed on feature
-    constructor
-    """
-    def __init__(
-            self,
-            recorded_dir: str,
-            *args,
-            **kwargs
-    ):
-        super().__init__(*args, **kwargs)
-        self.recorded_dir = recorded_dir
-        self.oc_dict = dict()
-        self.oc_avg = None
-
-    def race_initializer(
-            self,
-            selection_id: int,
-            first_book: MarketBook,
-            windows: Windows):
-        super().race_initializer(selection_id, first_book, windows)
-
-        market_dir = path.join(self.recorded_dir, construct_hist_dir(first_book))
-        self.oc_dict = oc_hist_mktbk_processor(first_book.market_id, market_dir, name_attr='runner_name')
-        if self.oc_dict['ok']:
-            if self.selection_id in self.oc_dict['oc_sorted']:
-                self.oc_avg = self.oc_dict['oc_sorted'][self.selection_id]
-
-    def runner_update(self, new_book: MarketBook, windows: Windows, runner_index):
-        return self.oc_avg
+# @ftrs_reg.register_element
+# class RunnerFeatureHistoricOddscheckerAvg(RFBase):
+#     """
+#     get oddschecker average value between bookies (not exchanges) for runner
+#     oddschecker file and catalogue file is retrieved using recorded directory as historic base, passed on feature
+#     constructor
+#     """
+#     def __init__(
+#             self,
+#             recorded_dir: str,
+#             *args,
+#             **kwargs
+#     ):
+#         super().__init__(*args, **kwargs)
+#         self.recorded_dir = recorded_dir
+#         self.oc_dict = dict()
+#         self.oc_avg = None
+#
+#     def race_initializer(self, selection_id: int, first_book: MarketBook):
+#         super().race_initializer(selection_id, first_book)
+#
+#         market_dir = path.join(self.recorded_dir, construct_hist_dir(first_book))
+#         self.oc_dict = oc_hist_mktbk_processor(first_book.market_id, market_dir, name_attr='runner_name')
+#         if self.oc_dict['ok']:
+#             if self.selection_id in self.oc_dict['oc_sorted']:
+#                 self.oc_avg = self.oc_dict['oc_sorted'][self.selection_id]
+#
+#     def runner_update(self, new_book: MarketBook, runner_index):
+#         return self.oc_avg
 
 
-@register_feature
-class RunnerFeatureBestBackWindow(RunnerFeatureBestBack, RunnerFeatureWindowBase):
-    """Best available back price of runner, with window processing"""
+
+#
+# @ftrs_reg.register_element
+# class RunnerFeatureBiggestDifference(RunnerFeatureWindowBase):
+#     """
+#     get biggest difference between sequential window values
+#     parent feature must have created a window processor of type `WindowProcessorFeatureBase` so that window data has
+#     'values' key
+#     """
+#     def __init__(self, window_var, *args, **kwargs):
+#         super().__init__(*args, **kwargs)
+#         self.window_key = window_var
+#         # if not isinstance(self.parent, RunnerFeatureWindowBase):
+#         #     raise Exception(f'sub feature {self.__name__} expected parent to be of type RunnerFeatureWindowBase')
+#
+#     def runner_update(self, new_book: MarketBook, runner_index):
+#         values = self.window[self.window_key][self.selection_id]['values']
+#         if len(values) >= 2:
+#             return max(abs(np.diff(values)).tolist())
+#         return None
 
 
-@register_feature
-class RunnerFeatureBestLayWindow(RunnerFeatureBestLay, RunnerFeatureWindowBase):
-    """Best available lay price of runner, with window processing"""
+# class RFDly(RFChild):
+#     """
+#     track a delay by x number of seconds
+#     """
+#     def __init__(self, delay_seconds, outside_window=True, *args, **kwargs):
+#         self.delay_seconds = delay_seconds
+#         self.delay_index = 0
+#         self.outside_window = outside_window
+#         self._td = timedelta(seconds=delay_seconds)
+#         super().__init__(*args, **kwargs)
+#
+#     @mytiming.timing_register
+#     def update_delay_index(self, pt):
+#         n = len(self.parent.processed_vals)
+#         dt = pt - self._td
+#         while (self.delay_index + 1) < n and \
+#                 self.parent.dts[self.delay_index + self.outside_window] < dt:
+#             self.delay_index += 1
+
+#
+# @ftrs_reg.register_element
+# class RunnerFeatureSubDelayComparison(_RunnerFeatureSubDelayer):
+#     """
+#     compare a parent feature current value to delayed value
+#     """
+#     def runner_update(self, new_book: MarketBook, runner_index):
+#         self.update_delay_index(new_book.publish_time)
+#         if len(self.parent.processed_vals):
+#             previous_value = self.parent.processed_vals[self.delay_index]
+#             current_value = self.parent.last_value()
+#             if previous_value is not None and current_value is not None:
+#                 return current_value - previous_value
 
 
-@register_feature
-class RunnerFeatureBiggestDifference(RunnerFeatureWindowBase):
-    """
-    get biggest difference between sequential window values
-    parent feature must have created a window processor of type `WindowProcessorFeatureBase` so that window data has
-    'values' key
-    """
-    def __init__(self, window_var, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.window_key = window_var
-        # if not isinstance(self.parent, RunnerFeatureWindowBase):
-        #     raise Exception(f'sub feature {self.__name__} expected parent to be of type RunnerFeatureWindowBase')
-
-    def runner_update(self, new_book: MarketBook, windows: Windows, runner_index):
-        values = self.window[self.window_key][self.selection_id]['values']
-        if len(values) >= 2:
-            return max(abs(np.diff(values)).tolist())
-        return None
+# @ftrs_reg.register_element
+# class RunnerFeatureSubSum(_RunnerFeatureSubDelayer):
+#     """
+#     sum a parent feature values over x number of seconds
+#     """
+#     def runner_update(self, new_book: MarketBook, runner_index):
+#         self.update_delay_index(new_book.publish_time)
+#         n = len(self.parent.processed_vals)
+#         assert n >= self.delay_index
+#         if n:
+#             return sum(self.parent.processed_vals[self.delay_index:])
 
 
-@register_feature
-class RFTVLadDif(RunnerFeatureSub):
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
-        if type(self.parent) is not RFTVLad:
-            raise BetfairFeatureException('expected traded vol feature parent')
+# @ftrs_reg.register_element
+# class RunnerFeatureSubConstDelayer(RFChild):
+#     """
+#     get last parent feature value that has held its value without changing for x number of seconds
+#     """
+#
+#     def __init__(self, hold_seconds, *args, **kwargs):
+#         self.hold_seconds = hold_seconds
+#         self.value_timestamp: datetime = datetime.now()
+#         self.parent_previous = None
+#         self.hold_value = None
+#         super().__init__(*args, **kwargs)
+#
+#     def race_initializer(self, selection_id: int, first_book: MarketBook):
+#         self.value_timestamp = first_book.publish_time
+#
+#     def runner_update(self, new_book: MarketBook, runner_index):
+#
+#         parent_current = self.parent.last_value()
+#         if self.parent_previous is None:
+#             self.parent_previous = parent_current
+#
+#         if self.parent_previous is not None and parent_current is not None:
+#             if self.parent_previous != parent_current:
+#                 self.value_timestamp = new_book.publish_time
+#
+#             if (new_book.publish_time - self.value_timestamp).total_seconds() >= self.hold_seconds:
+#                 self.hold_value = parent_current
+#
+#         self.parent_previous = parent_current
+#         return self.hold_value
 
-    def runner_update(self, new_book: MarketBook, windows: Windows, runner_index):
-        if len(self.parent.values_cache) >= 2:
-            return get_record_tv_diff(self.parent.values_cache[-1][2], self.parent.values_cache[0][2])
-        else:
-            return None
-
-
-class _RFTVLadFunc(RunnerFeatureSub):
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
-        if type(self.parent) is not RFTVLadDif:
-            raise BetfairFeatureException('expected traded vol diff feature parent')
-    def runner_update(self, new_book: MarketBook, windows: Windows, runner_index):
-        if new_book.runners[runner_index].last_price_traded == 3.65:
-            if (new_book.market_definition.market_time - new_book.publish_time).total_seconds() <= 180:
-                my_debug = True
-        if len(self.parent.values_cache):
-            tvs = self.parent.values_cache[-1][2]
-            if len(tvs):
-                return self.lad_func(tvs)
-        return None
-    def lad_func(self, tvs):
-        raise NotImplementedError
-
-
-@register_feature
-class RFTVLadMax(_RFTVLadFunc):
-    def lad_func(self, tvs):
-        v = max([x['price'] for x in tvs])
-        if v == 3.55:
-            my_debug = 1
-        return v
-
-
-@register_feature
-class RFTVLadMin(_RFTVLadFunc):
-    def lad_func(self, tvs):
-        return min([x['price'] for x in tvs])
+#
+# @ftrs_reg.register_element
+# class RunnerFeatureSubLastValue(RFChild):
+#
+#     def __init__(self, *args, **kwargs):
+#         super().__init__(*args, **kwargs)
+#
+#         # store parent active value (until change)
+#         self.active_value = None
+#
+#     def runner_update(self, new_book: MarketBook, runner_index):
+#
+#         # check parent value list not empty
+#         if len(self.parent.processed_vals):
+#
+#             # get most recent value from parent
+#             current_value = self.parent.processed_vals[-1]
+#
+#             # check if active value is None
+#             if self.active_value is None:
+#
+#                 # first initialisation, just use value dont check for change
+#                 self.active_value = current_value
+#                 return current_value
+#
+#             # check if current parent value is different from stored active value
+#             elif current_value != self.active_value:
+#
+#                 # stored active value is now previous value
+#                 previous_value = self.active_value
+#
+#                 # update active value
+#                 self.active_value = current_value
+#
+#                 # return previous state value
+#                 return previous_value
 

@@ -3,6 +3,11 @@ from typing import Dict
 
 def get_spike_plot_configs(ltp_diff_opacity, ltp_diff_s) -> Dict:
     return {
+        'tvlad.dif.min.s': {
+            'chart_args': {
+                'mode': 'lines+markers'
+            }
+        },
         'back ladder': {
             'ignore': True,
         },
@@ -118,6 +123,15 @@ def get_spike_plot_configs(ltp_diff_opacity, ltp_diff_s) -> Dict:
                         'attr_names': ['text', 'marker_color'],
                     }],
                 },
+            }, {
+                'name': 'data_nptype',
+                'kwargs': {
+                    'data_types': {
+                        'y': 'float',
+                        'text': 'float',
+                        'marker_color': 'float'
+                    }
+                }
             }, {
                 'name': 'plotly_values_resampler',
                 'kwargs': {

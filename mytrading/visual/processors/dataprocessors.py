@@ -1,27 +1,21 @@
 from typing import Dict, List
 import pandas as pd
+from myutils import myregistrar
+from pandas.core.base import DataError
 from .formatprocessors import format_processors
 from functools import partial
 import logging
 
-plotly_processors = {}
+
+plt_procs = myregistrar.MyRegistrar()
 active_logger = logging.getLogger(__name__)
 
 
-def register_data_processor(func):
-    """
-    register a plotly processor, add to dictionary of processors
-    signature:
-
-    def func(data, features_data, **kwargs)
-    """
-    if func.__name__ in plotly_processors:
-        raise Exception(f'registering plotly data processor "{func.__name__}", but already exists!')
-    else:
-        plotly_processors[func.__name__] = func
-        return func
+class FigureProcessorException(Exception):
+    pass
 
 
+# TODO - these should probably be in a class so can store data
 def process_plotly_data(
         data: Dict,
         features_data: Dict[str, List[Dict[str, List]]],
@@ -30,10 +24,15 @@ def process_plotly_data(
     """
     use plotly data processors to process data
     """
-    for cfg in processors_config:
-        func = plotly_processors[cfg['name']]
+    for i, cfg in enumerate(processors_config):
+        func = plt_procs[cfg['name']]
         kwargs = cfg.get('kwargs', {})
-        data = func(data, features_data, **kwargs)
+        try:
+            data = func(data, features_data, **kwargs)
+        except (TypeError, ValueError, DataError) as e:
+            raise FigureProcessorException(
+                f'error processing figure data, cfg #{i} in func "{cfg["name"]}" with kwargs "{kwargs}": {e}'
+            )
     return data
 
 
@@ -44,7 +43,7 @@ def remove_duplicates(data: pd.Series) -> pd.Series:
     return data[~data.index.duplicated(keep='last')]
 
 
-@register_data_processor
+@plt_procs.register_element
 def plotly_df_to_data(data: pd.DataFrame, features_data) -> Dict:
     """
     convert dataframe to dictionary (assuming columns are appropriate for plotly chart arg) and use index for 'x' vals
@@ -54,7 +53,7 @@ def plotly_df_to_data(data: pd.DataFrame, features_data) -> Dict:
     return values
 
 
-@register_data_processor
+@plt_procs.register_element
 def plotly_series_to_data(data: pd.Series, features_data) -> Dict:
     """
     convert series to dictionary with 'x' and 'y'
@@ -66,7 +65,7 @@ def plotly_series_to_data(data: pd.Series, features_data) -> Dict:
 
 
 # TODO - need anymore?
-@register_data_processor
+@plt_procs.register_element
 def plotly_regression(data: Dict, features_data) -> Dict:
     """
     convert returned values dict from 'RunnerFeatureRegression' feature into plotly compatible dict with 'x',
@@ -84,7 +83,7 @@ def plotly_regression(data: Dict, features_data) -> Dict:
     }
 
 
-@register_data_processor
+@plt_procs.register_element
 def plotly_values_resampler(data: pd.DataFrame, features_data, n_seconds, agg_function) -> pd.DataFrame:
     """
     resample 'df' DataFrame for 'n_seconds', using last value each second and forward filling
@@ -94,13 +93,13 @@ def plotly_values_resampler(data: pd.DataFrame, features_data, n_seconds, agg_fu
     return data.resample(rule).agg(agg_function) if data.shape[0] else data
 
 
-@register_data_processor
+@plt_procs.register_element
 def plotly_values_rolling(data: pd.DataFrame, features_data, n_seconds, agg_function) -> pd.DataFrame:
     rule = f'{n_seconds}S'
     return data.rolling(rule).agg(agg_function) if data.shape[0] else data
 
 
-@register_data_processor
+@plt_procs.register_element
 def plotly_data_to_series(data: Dict, features_data) -> pd.Series:
     """
     convert 'data' x-y plotly values (dict with 'x' and 'y' indexed list values) to pandas series where index is 'x'
@@ -108,7 +107,15 @@ def plotly_data_to_series(data: Dict, features_data) -> pd.Series:
     return pd.Series(data['y'], index=data['x'])
 
 
-@register_data_processor
+@plt_procs.register_element
+def data_nptype(data, features_data, data_types):
+    for k, v in data_types.items():
+        data[k] = data[k].astype(v)
+    return data
+
+
+
+@plt_procs.register_element
 def plotly_set_attrs(
         data: Dict,
         features_data: Dict[str, List[Dict[str, List]]],
@@ -201,7 +208,7 @@ def plotly_set_attrs(
     return df
 
 
-@register_data_processor
+@plt_procs.register_element
 def plotly_df_formatter(data: pd.DataFrame, features_data, formatter_name, df_column, formatter_kwargs: Dict=None):
     """
     apply a value formatter to a column in a pandas dataframe
@@ -241,17 +248,17 @@ def plotly_df_formatter(data: pd.DataFrame, features_data, formatter_name, df_co
     return data
 
 
-@register_data_processor
+@plt_procs.register_element
 def plotly_df_fillna(data: pd.DataFrame, features_data, method='ffill'):
     return data.fillna(method=method)
 
 
-@register_data_processor
+@plt_procs.register_element
 def plotly_df_diff(data: pd.DataFrame, features_data):
     return data.diff()
 
 
-@register_data_processor
+@plt_procs.register_element
 def plotly_df_text_join(data: pd.DataFrame, features_data, dest_col: str, source_cols: List[str]) -> pd.DataFrame:
     """
     join multiple text columns to form a single text column and remove source cols

@@ -2,7 +2,7 @@ import plotly.graph_objects as go
 from typing import List, Dict
 from datetime import datetime
 import logging
-from .processors.dataprocessors import process_plotly_data
+from .processors.dataprocessors import process_plotly_data, FigureProcessorException
 from .processors.figprocessors import post_process_figure
 
 active_logger = logging.getLogger(__name__)
@@ -52,8 +52,13 @@ def add_feature_trace(
 
     value_processors = feature_config.get('value_processors', [])
 
-    for trace_data in trace_data_lists:
-        trace_data = process_plotly_data(trace_data, all_features_data, value_processors)
+    for i, trace_data in enumerate(trace_data_lists):
+        try:
+            trace_data = process_plotly_data(trace_data, all_features_data, value_processors)
+        except FigureProcessorException as e:
+            raise FigureProcessorException(
+                f'error processing feature "{feature_name}", trace #{i}\n{e}'
+            )
 
         # check there is data
         if not('x' in trace_data and len(trace_data['x'])):
