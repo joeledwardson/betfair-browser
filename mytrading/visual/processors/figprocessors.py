@@ -28,18 +28,12 @@ def post_process_figure(fig, processors_config):
 
 @register_figure_processor
 def plotly_group(fig: go.Figure, name: str, group_name: str):
-    """
-    group a set of plotly traces with a unified name to a single legend
-    """
-
+    """group a set of plotly traces with a unified name to a single legend"""
     # filter to traces with name
-    for i, trace in enumerate([t for t in fig.data if t['name']==name]):
-
-        # show legend on first trace but ignore others
+    for i, trace in enumerate([t for t in fig.data if t['name'] == name]):
+        # show legend on first trace but ignore others, group name together
+        trace['legendgroup'] = group_name
         if i == 0:
             trace['showlegend'] = True
         else:
             trace['showlegend'] = False
-
-        # set all trace group names the same
-        trace['legendgroup'] = group_name

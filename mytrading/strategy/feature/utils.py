@@ -2,12 +2,16 @@ from typing import Dict
 import logging
 from betfairlightweight.resources import MarketBook
 
+import pandas as pd
 import numpy as np
 from myutils.jsonfile import add_to_file
 from .features import RFBase, ftrs_reg, BetfairFeatureException
 from .window import Windows
 
 active_logger = logging.getLogger(__name__)
+
+class FeatureGetterException(Exception):
+    pass
 
 
 # TODO - should be in __init__?
@@ -66,7 +70,7 @@ def write_feature_configs(
 
 
 # TODO - this should be a purely historic function where feature data is not deleted as generated
-def get_feature_data(features: Dict[str, RFBase]):
+def get_feature_data(features: Dict[str, RFBase]) -> Dict:
     """
     recursively get plotly data from feature list (indexed by feature name)
     assign sub-feature data using '.' to indicate parent with feature naming
@@ -74,35 +78,19 @@ def get_feature_data(features: Dict[str, RFBase]):
     return data dictionary
     """
 
+    # loop features and get data recursively
     data = {}
 
     def inner(_features: Dict[str, RFBase]):
-
-        # loop features and get data
         for ftr in _features.values():
-
-            # # get plotly data
-            # f_data = feature.get_plotly_data()
-            #
-            # # serialize if specified
-            # if pre_serialize:
-            #     f_data = feature.pre_serialize(f_data)
-
-            # if parent name given, use it to prefix sub-name (e.g. for parent 'ltp' and name 'delay' it would be
-            # 'ltp.delay')
-            # if _parent_name:
-            #     feature_name = '.'.join([_parent_name, feature_name])
-
+            if ftr.ftr_identifier in data:
+                raise FeatureGetterException(f'feature "{ftr.ftr_identifier}" already exists')
             if len(ftr.out_cache):
                 a = np.array(ftr.out_cache)
-                data[ftr.ftr_identifier] = [{
-                    'x': a[:, 0],
-                    'y': a[:, 1]
-                }]
-            #
-            #
-            # # assign data to name key
-            # data[feature_name] = f_data
+                data[ftr.ftr_identifier] = {
+                    'y': a[:,1],
+                    'x': a[:,0]
+                }
 
             # call function recursively with sub features
             inner(_features=ftr.sub_features)

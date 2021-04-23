@@ -21,3 +21,5 @@ import flumine
 #         )
 # flumine.controls.BaseControl = MyBaseControl
 # my_debug=1
+
+# TODO - I think a general replacement of logging warnings replaced with raising exceptions would be good

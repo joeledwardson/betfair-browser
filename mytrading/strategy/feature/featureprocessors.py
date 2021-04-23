@@ -17,6 +17,7 @@ from typing import List, Callable, Dict
 import numpy as np
 from mytrading.process.ticks.ticks import closest_tick
 
+# TODO - depreciated?
 runner_feature_value_processors = MyRegistrar()
 
 

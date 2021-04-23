@@ -22,4 +22,5 @@ class MyRegistrar:
         else:
             raise RegistrarException(f'object "{item}" not found in registrar')
 
-
+    def __contains__(self, item):
+        return item in self._reg
