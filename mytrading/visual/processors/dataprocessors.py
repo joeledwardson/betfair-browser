@@ -56,6 +56,7 @@ class FigPostProcessor:
                 raise FigurePostProcessException(f'process "{name}" not recognised')
             func = getattr(self, name)
             kwargs = cfg.get('kwargs', {})
+            active_logger.info(f'fig kwargs:\n{yaml.dump(kwargs)}')
             func(self.fig, **kwargs)
 
     def prc_plotlygroup(self, t_name,  t_group: str):
@@ -74,6 +75,7 @@ class FigDataProcessor:
     """process feature data in a figure"""
     DEF_KEY = 'key_default'
     NEWLINE = '<br>'
+
     def __init__(self, ftr_key, features_data, prc_config):
         self.ftr_key = ftr_key
         self.features_data = features_data

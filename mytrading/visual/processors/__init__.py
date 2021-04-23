@@ -3,23 +3,25 @@ import pandas as pd
 from pandas.core.base import DataError
 import logging
 from plotly import graph_objects as go
+import yaml
+import copy
 
 active_logger = logging.getLogger(__name__)
 
 
-class FigureException(Exception):
+class FigureProcessException(Exception):
     pass
 
 
-class FigureDataProcessorException(FigureException):
+class FigureDataProcessorException(FigureProcessException):
     pass
 
 
-class FigurePostProcessException(FigureException):
+class FigurePostProcessException(FigureProcessException):
     pass
 
 
-class FigEmptyException(FigureException):
+class FigEmptyException(FigureProcessException):
     pass
 
 
@@ -71,7 +73,7 @@ class FigPostProcessor:
 
 class FigDataProcessor:
     """process feature data in a figure"""
-    DEF_KEY = 'key_default'
+    DEF_KEY = 'key_0'
     NEWLINE = '<br>'
 
     def __init__(self, ftr_key, features_data, prc_config):
@@ -90,19 +92,24 @@ class FigDataProcessor:
 
     def process(self):
         active_logger.info(f'processing feature "{self.ftr_key}"')
-        key_out = ''
-        for i, cfg in enumerate(self.prc_config):
+        key_out = self.DEF_KEY
+        for i, _cfg in enumerate(self.prc_config):
+            cfg = copy.deepcopy(_cfg)  # dont want to modify configurations dict by popping values
             active_logger.info(f'invoking fig process: #{i}')
             if type(cfg) is not dict:
                 raise FigureDataProcessorException(f'config "{cfg}" is not dict')
             if 'name' not in cfg:
                 raise FigureDataProcessorException(f'config does not have "name" key')
-            name = cfg['name']
+            name = cfg.pop('name')
             active_logger.info(f'fig process name: {name}')
-            kwargs = cfg.get('kwargs', {})
-            keys = kwargs.get('keys', {})
-            key_in = keys.get('key_in', self.DEF_KEY)
-            key_out = keys.get('key_out', self.DEF_KEY)
+            kwargs = cfg.pop('kwargs', {})
+            keys = cfg.pop('keys', {})
+            if cfg:
+                raise FigureDataProcessorException(f'config dict "{cfg}" still has values')
+            key_in = keys.pop('key_in', self.DEF_KEY)
+            key_out = keys.pop('key_out', self.DEF_KEY)
+            if keys:
+                raise FigureDataProcessorException(f'keys dict "{keys}" still has elements')
             if not hasattr(self, name):
                 raise FigureDataProcessorException(f'no processor "{name}" found')
             func = getattr(self, name)
@@ -112,7 +119,8 @@ class FigDataProcessor:
                 self.buf[key_out] = new_data
             except (TypeError, ValueError, DataError) as e:
                 raise FigureDataProcessorException(
-                    f'error processing figure data, cfg #{i} in func "{cfg["name"]}" with kwargs "{kwargs}": {e}'
+                    f'error processing figure data, cfg #{i} in func "{name}" with kwargs\n'
+                    f'{yaml.dump(kwargs)}\n{e}'
                 )
         return self.buf[key_out]
 
@@ -131,9 +139,26 @@ class FigDataProcessor:
             data_col=data_col
         )
 
+    def prc_ftrstodf(self, data, ftr_keys: dict) -> pd.DataFrame:
+        """create dataframe from multiple features specified by dictionary of (df col => feature key)"""
+        d = {}
+        for df_col, k in ftr_keys.items():
+            if k not in self.features_data:
+                raise FigureDataProcessorException(f'feature "{k}" not found')
+            ftr = self.features_data[k]
+            if 'y' not in ftr or 'x' not in ftr:
+                raise FigureDataProcessorException(
+                    f'"x" or "y" not found in feature "{k}", with keys: {list(ftr.keys())}'
+                )
+            d[df_col] = pd.Series(self.features_data[k]['y'], index=self.features_data[k]['x'])
+        return pd.DataFrame(d)
+
     def prc_dfconcat(self, data, buf_keys: List[str], concat_kwargs: Optional[Dict]) -> pd.DataFrame:
         """concatenate dataframes from buffer together"""
         concat_kwargs = concat_kwargs or {}
+        for k in buf_keys:
+            if k not in self.buf:
+                raise FigureDataProcessorException(f'buffer key "{k}" not found')
         return pd.concat([self.buf[k] for k in buf_keys], **concat_kwargs)
 
     def prc_dftodict(self, data: pd.DataFrame, orient='list', key_index='x') -> Dict:
@@ -186,3 +211,8 @@ class FigDataProcessor:
         """resample DataFrame over number of seconds period specifying an aggregate function"""
         rule = f'{n_seconds}S'
         return data.resample(rule).agg(agg_function)
+
+    def prc_dfcp(self, data: pd.DataFrame, col_src, col_out) -> pd.DataFrame:
+        """copy a dataframe column"""
+        data[col_out] = data[col_src]
+        return data

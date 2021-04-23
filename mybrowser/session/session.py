@@ -430,8 +430,8 @@ class Session:
             # display figure
             fig.show()
 
-        except (ValueError, TypeError) as e:
-            active_logger.error('plot error', e, exc_info=True)
+        except (ValueError, TypeError, figurelib.FigureException) as e:
+            active_logger.error(f'plot error: {e}')
 
     def flt_upmkt(self, clear, *flt_args):
         """

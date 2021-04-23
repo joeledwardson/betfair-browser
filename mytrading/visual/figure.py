@@ -1,6 +1,7 @@
 from datetime import timedelta, datetime
 from typing import List, Dict
 
+import copy
 import pandas as pd
 from betfairlightweight.resources import MarketBook
 from plotly import graph_objects as go
@@ -25,6 +26,9 @@ active_logger = logging.getLogger(__name__)
 # TODO - this should not be hardcoded
 # number of seconds to buffer when trimming record list
 PROCESS_BUFFER_S = 10
+
+class FigureException(Exception):
+    pass
 
 
 def modify_start(chart_start: datetime, orders_df: pd.DataFrame, buffer_seconds: float) -> datetime:
@@ -114,7 +118,8 @@ def fig_historical(
     default_plot_config = get_plot_default_config()
 
     # get list of yaxes names from feature plot configurations and default plot configuration
-    y_axes_names = get_yaxes_names(feature_plot_configs, default_plot_config['y_axis'])
+    fpc = copy.deepcopy(feature_plot_configs)
+    y_axes_names = get_yaxes_names(fpc, default_plot_config['y_axis'])
 
     # create figure based off axis names with correct number of subplots
     fig = create_figure(y_axes_names)
@@ -123,7 +128,7 @@ def fig_historical(
     for feature_name in all_features_data.keys():
 
         # get feature plot configuration
-        conf = feature_plot_configs.get(feature_name, {})
+        conf = fpc.pop(feature_name, {})
 
         # add feature trace with data
         add_feature_trace(
@@ -136,6 +141,9 @@ def fig_historical(
             chart_start=chart_start,
             chart_end=chart_end,
         )
+
+    if fpc:
+        raise FigureException(f'figure configuration still contains keys: "{list(fpc.keys())}"')
 
     # if order info dataframe passed and not emptythen plot
     if orders_df is not None and orders_df.shape[0]:
@@ -315,6 +323,7 @@ def add_feature_trace(
 
     # if told to ignore feature then exit
     if feature_config.get('ignore'):
+        active_logger.info(f'ignoring...')
         return
 
     # get default y-axis name
@@ -328,18 +337,11 @@ def add_feature_trace(
     chart_args = feature_config.get('chart_args', default_config['chart_args'])
     trace_args = feature_config.get('trace_args', default_config['trace_args'])
     trace_args.update({'col': 1, 'row': row})
-
-    # get list of plotly data dictionary
-    trace_data = all_features_data[feature_name]
-
     value_processors = feature_config.get('value_processors', [])
 
-
-    # for i, trace_data in enumerate(trace_data):
     try:
         prc = FigDataProcessor(feature_name, all_features_data, value_processors)
-        prc.process()
-        # trace_data = process_plotly_data(trace_data, all_features_data, value_processors)
+        trace_data = prc.process()
     except FigureDataProcessorException as e:
         raise FigureDataProcessorException(
             f'error processing feature "{feature_name}"\n{e}'
