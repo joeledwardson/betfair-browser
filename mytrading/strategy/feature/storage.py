@@ -3,7 +3,7 @@ import logging
 from myutils.jsonfile import add_to_file, read_file_lines
 from typing import List, Dict
 from mytrading.utils.storage import EXT_FEATURE
-from .utils import get_feature_data
+from .utils import get_ftrdata
 from .features import RFBase
 
 active_logger = logging.getLogger(__name__)
@@ -28,7 +28,7 @@ def features_to_file(file_path: str, features: Dict[str, RFBase]):
     makedirs(dir_path, exist_ok=True)
 
     # get feature data into dictionary
-    data = get_feature_data(features, pre_serialize=True)
+    data = get_ftrdata(features, pre_serialize=True)
 
     # write to file, overwriting if already exist
     add_to_file(file_path, data, mode='w')

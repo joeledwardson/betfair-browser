@@ -55,12 +55,6 @@ def hidden_elements(n_odr_rows, n_tmr_rows):
         # hidden divs for intermediary output components
         *[intermediate.hidden_div(x) for x in INTERMEDIARIES],
 
-        # periodic update
-        dcc.Interval(
-            id='interval-component',
-            interval=1 * 1000,  # in milliseconds
-            n_intervals=0
-        )
     ]
 
 

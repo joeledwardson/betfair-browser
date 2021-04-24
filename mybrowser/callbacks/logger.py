@@ -26,7 +26,6 @@ def cb_logs(app, shn: Session):
         inputs=[
             Input(x, 'children') for x in INTERMEDIARIES
         ] + [
-            Input('interval-component', 'n_intervals'),
             Input("modal-close-log", "n_clicks")
         ]
     )

@@ -4,18 +4,18 @@ from typing import List, Dict, Union, Optional
 from dash.dependencies import Output, Input, State
 import logging
 from plotly import graph_objects as go
+import traceback
 
-from mytrading.visual import figure as figurelib
+from mytrading import visual as vislib
 from myutils.mydash import context as my_context
 from myutils import mytiming
 from myutils.mydash import intermediate
 
-from ..session import Session
+from ..session import Session, SessionException
 
 
 # override visual logger with custom logger
 active_logger = logging.getLogger(__name__)
-figurelib.active_logger = active_logger
 counter = intermediate.Intermediary()
 
 
@@ -100,8 +100,12 @@ def cb_fig(app, shn: Session):
 
         # get selected IDs and plot
         sel_ids = get_ids(cell, list(shn.mkt_rnrs.keys()))
-        for selection_id in sel_ids:
-            shn.fig_plot(selection_id, secs, ftr_key, plt_key)
+        try:
+            shn.ftr_update()  # update feature & plot configs
+            for selection_id in sel_ids:
+                shn.fig_plot(selection_id, secs, ftr_key, plt_key)
+        except (ValueError, TypeError, vislib.FigureException, SessionException) as e:
+            active_logger.error(f'plot error: {e}\n{traceback.format_exc()}')
 
         ret[0] = shn.tms_get()
         mytiming.clear_timing_register()

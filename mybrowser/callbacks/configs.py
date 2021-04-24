@@ -1,9 +1,10 @@
 from dash.dependencies import Output, Input, State
 import logging
+import traceback
 
 
 from myutils.mydash import intermediate
-from ..session import Session
+from ..session import Session, SessionException
 
 counter = intermediate.Intermediary()
 active_logger = logging.getLogger(__name__)
@@ -20,7 +21,10 @@ def cb_configs(app, shn: Session):
     )
     def update_files_table(n_clicks):
 
-        shn.ftr_update()
+        try:
+            shn.ftr_update()
+        except SessionException as e:
+            active_logger.warning(f'error getting feature configs: {e}\n{traceback.format_exc()}')
 
         feature_options = [{
             'label': v,

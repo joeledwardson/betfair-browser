@@ -3,7 +3,7 @@ import dash_core_components as dcc
 import dash_bootstrap_components as dbc
 import dash_table
 
-
+# TODO - add market refresh
 def header():
     return dbc.Row([
         dbc.Col(

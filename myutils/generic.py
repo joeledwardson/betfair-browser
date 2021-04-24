@@ -41,21 +41,6 @@ def dict_sort(d: dict, key=lambda item: item[1]) -> Dict:
     return {k: v for k, v in sorted(d.items(), key=key)}
 
 
-def create_dirs(func):
-    """
-    Sample function wrapper that
-    - assumes first function is file name
-    - creates nested directories specified by first arg file name before running function
-    """
-
-    def wrapper(file_name, *args, **kwargs):
-        dir_name = os.path.dirname(file_name)
-        if dir_name:
-            os.makedirs(dir_name, exist_ok=True)
-        return func(file_name, *args, **kwargs)
-    return wrapper
-
-
 def get_filepaths(target_path, file_pattern=None, dir_pattern=None):
     """
     get complete list of full file paths with a 'target_path' directory

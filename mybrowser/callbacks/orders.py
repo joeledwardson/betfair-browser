@@ -1,8 +1,9 @@
 from dash.dependencies import Output, Input, State
 import logging
+import traceback
 from myutils.mydash import intermediate
 from myutils.mydash import context as my_context
-from ..session import Session
+from ..session import Session, SessionException
 
 
 active_logger = logging.getLogger(__name__)
@@ -68,8 +69,10 @@ def cb_orders(app, shn: Session):
             active_logger.warning(f'no strategy selected')
             return r
 
-        df = shn.odr_prft(selection_id)
-        if df is None or not df.shape[0]:
+        try:
+            df = shn.odr_prft(selection_id)
+        except SessionException as e:
+            active_logger.warning(f'getting order profits failed: {e}\n{traceback.format_exc()}')
             return r
 
         active_logger.info(f'producing orders for {selection_id}, {df.shape[0]} results found"')

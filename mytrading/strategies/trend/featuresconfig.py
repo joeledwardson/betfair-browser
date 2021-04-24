@@ -1,7 +1,11 @@
 from typing import Dict
+from ...strategy.feature.utils import FeatureCfgUtils as CfgUtil
 
+
+KEY_SAMPLE = 'smp'
+KEY_AVERAGE = 'avg'
 KEY_SMOOTH = 'sm'
-KEY_TICKS = 't'
+KEY_TICKS = 'tcl'
 KEY_MAX_DIF = 'mdf'
 KEY_COMPARE = 'cmp'
 

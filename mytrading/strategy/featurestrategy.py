@@ -18,7 +18,7 @@ from .trademachine.tradestates import TradeStateTypes
 from .trademachine.trademachine import RunnerStateMachine
 from .feature.features import RFBase
 from .feature.window import Windows
-from .feature.utils import generate_features
+from .feature.utils import gen_ftrs
 from .feature.storage import features_to_file, get_feature_file_name
 from .tradetracker.tradetracker import TradeTracker, serializable_order_info
 from .tradetracker.messages import MessageTypes
@@ -27,6 +27,9 @@ from .basestrategy import MyBaseStrategy
 
 active_logger = logging.getLogger(__name__)
 
+# TODO - roll other strategy files into this one, merge orderinfo/tradefollwer into tradetracker file,
+#  collapse trademachine package, collapse tradetracker package, features can still be in own package with global
+#  desf like FeatureHolder and FeatureCfgUtils in __init__
 
 # TODO - could this be merged with tradetracker?
 class RunnerHandler:
@@ -376,8 +379,8 @@ class MyFeatureStrategy(MyBaseStrategy):
                 if runner.selection_id not in mh.runner_handlers:
 
                     # create runner features
-                    features = generate_features(
-                        feature_configs=self.get_features_config(market, market_book, runner_index)
+                    features = gen_ftrs(
+                        ftr_cfgs=self.get_features_config(market, market_book, runner_index)
                     )
 
                     # initialise for race

@@ -37,6 +37,7 @@ default_offset = 00:03:00
 default_features = basic
 ; number of seconds to plot either side of order update start/end
 order_offset_secs = 2
+cmp_buffer_secs = 10
 
 [TIMING_CONFIG]
 str_format = {d}d {h:02}:{m:02}:{s:02}.{u:06}

@@ -12,14 +12,17 @@ import sys
 from datetime import datetime
 from configparser import ConfigParser
 import yaml
+import importlib.resources as pkg_resources
 
 from mytrading.strategy.tradetracker.messages import MessageTypes
 from mytrading.utils import security as mysecurity, bfcache
 from mytrading.utils.bettingdb import BettingDB
 from mytrading.strategy.tradetracker import orderinfo
 from mytrading.process import prices
-from mytrading.visual import figure as figurelib
+from mytrading import visual as figlib
+from mytrading.strategy.feature import utils as ftrutils
 from myutils import mypath, mytiming, jsonfile, generic
+
 
 from mybrowser.session import dbutils as dbtable
 from mybrowser.session.dbfilters import DBFilters, DBFilter
@@ -29,6 +32,11 @@ active_logger = logging.getLogger(__name__)
 active_logger.setLevel(logging.INFO)
 
 
+class SessionException(Exception):
+    pass
+
+
+# TODO - this is poor
 def get_formatters(config) -> MyRegistrar:
     formatters = MyRegistrar()
 
@@ -42,8 +50,19 @@ def get_formatters(config) -> MyRegistrar:
 class Session:
 
     MODULES = ['myutils', 'mytrading']
+    CFG_LOCAL_FILE = 'config.txt'
 
-    def __init__(self, config: ConfigParser):
+    def __init__(self, config: Optional[ConfigParser] = None):
+
+        # load configuration from local file if not passed, then print values
+        if config is None:
+            config = self.cfg_local()
+        active_logger.info(f'configuration values:')
+        for section in config.sections():
+            active_logger.info(f'Section {section}, values:')
+            for k, v in config[section].items():
+                active_logger.info(f'{k}: {v}')
+        active_logger.info(f'configuration end')
 
         self.config: ConfigParser = config  # parsed configuration
         self.tbl_formatters = get_formatters(config)  # registrar of table formatters
@@ -74,6 +93,14 @@ class Session:
         self.ftr_pcfgs = dict()  # plot configurations
 
     @classmethod
+    def cfg_local(cls):
+        active_logger.info(f'reading configuration from default "{cls.CFG_LOCAL_FILE}"...')
+        config = ConfigParser()
+        txt = pkg_resources.read_text("mybrowser.session", cls.CFG_LOCAL_FILE)
+        config.read_string(txt)
+        return config
+
+    @classmethod
     def rl_mods(cls):
         """
         reload all modules within 'mytrading' or 'myutils'
@@ -86,28 +113,15 @@ class Session:
 
     @staticmethod
     def ftr_readf(config_dir: str) -> Dict:
-        """
-        get dictionary of configuration file name (without ext) to dict from dir
-
-        Parameters
-        ----------
-        info_strings :
-        config_dir :
-
-        Returns
-        -------
-
-        """
+        """get dictionary of (configuration file name without ext => config dict) directory of yaml files"""
 
         # check directory is set
         if type(config_dir) is not str:
-            active_logger.error('directory not set')
-            return dict()
+            raise SessionException(f'directory "{config_dir}" is not a string')
 
         # check actually exists
         if not path.exists(config_dir):
-            active_logger.error(f'directory does not exist!')
-            return dict()
+            raise SessionException(f'directory "{config_dir}" does not exist!')
 
         # dict of configs to return
         configs = dict()
@@ -152,16 +166,14 @@ class Session:
         self.ftr_pcfgs = self.ftr_readf(plot_dir)
 
     def ftr_pcfg(self, plt_key: str) -> Dict:
-        """
-        get plot configuration or empty dictionary from key
-        """
+        """get plot configuration or empty dictionary from key"""
         plt_cfg = {}
         if plt_key:
             if plt_key in self.ftr_pcfgs:
                 active_logger.info(f'using selected plot configuration "{plt_key}"')
                 plt_cfg = self.ftr_pcfgs[plt_key]
             else:
-                active_logger.warning(f'selected plot configuration "{plt_key}" not in plot configurations')
+                raise SessionException(f'selected plot configuration "{plt_key}" not in plot configurations')
         else:
             active_logger.info('no plot configuration selected')
         return plt_cfg
@@ -178,12 +190,16 @@ class Session:
             active_logger.info(f'no feature config selected, using default "{dft}"')
         else:
             if ftr_key not in self.ftr_fcfgs:
-                active_logger.warning(f'selected feature config "{ftr_key}" not found in list, using default "{dft}"')
-                return None
+                raise SessionException(f'selected feature config "{ftr_key}" not found in list')
             else:
                 active_logger.info(f'using selected feature config "{ftr_key}"')
                 cfg_key = ftr_key
         return self.ftr_fcfgs.get(cfg_key)
+
+    def ftr_clear(self):
+        """clear existing feature/plot configurations"""
+        self.ftr_fcfgs = dict()
+        self.ftr_pcfgs = dict()
 
     def tms_get(self) -> List[Dict]:
         """
@@ -328,18 +344,16 @@ class Session:
         # sort earliest first
         return df.sort_values(by=['date'])
 
-    def odr_prft(self, selection_id) -> Optional[pd.DataFrame]:
+    def odr_prft(self, selection_id) -> pd.DataFrame:
 
         p = bfcache.p_strat(self.mkt_sid, self.mkt_info['market_id'], self.cache_rt)
         active_logger.info(f'reading strategy market cache file:\n-> {p}')
         if not path.isfile(p):
-            active_logger.warning(f'file does not exist')
-            return None
+            raise SessionException(f'order file does not exist')
 
         df = self.odr_rd(p, selection_id, self.mkt_info['market_time'])
         if not df.shape[0]:
-            active_logger.warning(f'Retrieved profits dataframe is empty')
-            return None
+            raise SessionException(f'Retrieved profits dataframe is empty')
 
         return df
 
@@ -361,77 +375,62 @@ class Session:
 
         # if no active market selected then abort
         if not self.mkt_records or not self.mkt_info:
-            active_logger.warning('no market information/records')
-            return
+            raise SessionException('no market information/records')
 
-        try:
-            # TODO - exit if selection iD not in runners info
-            # get name and title
-            name = self.mkt_rnrs[selection_id]['runner_name'] or 'N/A'
-            title = self.fig_title(self.mkt_info, name, selection_id)
-            active_logger.info(f'producing figure for runner {selection_id}, name: "{name}"')
+        # TODO - exit if selection iD not in runners info
+        # get name and title
+        name = self.mkt_rnrs[selection_id]['runner_name'] or 'N/A'
+        title = self.fig_title(self.mkt_info, name, selection_id)
+        active_logger.info(f'producing figure for runner {selection_id}, name: "{name}"')
 
-            # get start/end of chart datetimes
-            dt0 = self.mkt_records[0][0].publish_time
-            mkt_dt = self.mkt_info['market_time']
-            start = figurelib.get_chart_start(
-                display_seconds=secs, market_time=mkt_dt, first=dt0
-            )
-            end = mkt_dt
+        # get start/end of chart datetimes
+        dt0 = self.mkt_records[0][0].publish_time
+        mkt_dt = self.mkt_info['market_time']
+        start = figlib.FeatureFigure.get_chart_start(
+            display_seconds=secs, market_time=mkt_dt, first=dt0
+        )
+        end = mkt_dt
 
-            # get orders dataframe (or None)
-            orders = None
-            if self.mkt_sid:
-                p = bfcache.p_strat(self.mkt_sid, self.mkt_info['market_id'], self.cache_rt)
-                if not path.exists(p):
-                    active_logger.warning(f'could not find cached strategy market file:\n-> "{p}"')
-                    return
+        # get orders dataframe (or None)
+        orders = None
+        if self.mkt_sid:
+            p = bfcache.p_strat(self.mkt_sid, self.mkt_info['market_id'], self.cache_rt)
+            if not path.exists(p):
+                raise SessionException(f'could not find cached strategy market file:\n-> "{p}"')
 
-                orders = orderinfo.get_order_updates(p)
-                if not orders.shape[0]:
-                    active_logger.warning(f'could not find any rows in cached strategy market file:\n-> "{p}"')
-                    return
+            orders = orderinfo.get_order_updates(p)
+            if not orders.shape[0]:
+                raise SessionException(f'could not find any rows in cached strategy market file:\n-> "{p}"')
 
-                orders = orders[orders['selection_id'] == selection_id]
-                offset_secs = float(self.config['PLOT_CONFIG']['order_offset_secs'])
-                start = figurelib.modify_start(start, orders, offset_secs)
-                end = figurelib.modify_end(end, orders, offset_secs)
-                active_logger.info(f'loaded {orders.shape[0]} rows from cached strategy market file\n-> "{p}"')
+            orders = orders[orders['selection_id'] == selection_id]
+            offset_secs = float(self.config['PLOT_CONFIG']['order_offset_secs'])
+            start = figlib.FeatureFigure.modify_start(start, orders, offset_secs)
+            end = figlib.FeatureFigure.modify_end(end, orders, offset_secs)
+            active_logger.info(f'loaded {orders.shape[0]} rows from cached strategy market file\n-> "{p}"')
 
-            # feature and plot configurations
-            plt_cfg = self.ftr_pcfg(plt_key)
-            ftr_cfg = self.ftr_fcfg(ftr_key)
-            if not ftr_cfg:
-                active_logger.error(f'feature config "{ftr_key}" empty')
-                return None
+        # feature and plot configurations
+        plt_cfg = self.ftr_pcfg(plt_key)
+        ftr_cfg = self.ftr_fcfg(ftr_key)
 
-            # generate plot by simulating features
-            ftr_data = figurelib.generate_feature_data(
-                hist_records=self.mkt_records,
-                selection_id=selection_id,
-                chart_start=start,
-                chart_end=end,
-                feature_configs=ftr_cfg
-            )
-            if not ftr_data:
-                active_logger.error('feature data empty')
-                return
+        # generate plot by simulating features
+        ftrs_data = ftrutils.FeatureHolder.gen_ftrs(ftr_cfg).sim_mktftrs(
+            hist_records=self.mkt_records,
+            selection_id=selection_id,
+            cmp_start=start,
+            cmp_end=end,
+            buffer_s=float(self.config['PLOT_CONFIG']['cmp_buffer_secs'])
+        )
 
-            # generate figure
-            fig = figurelib.fig_historical(
-                all_features_data=ftr_data,
-                feature_plot_configs=plt_cfg,
-                title=title,
-                chart_start=start,
-                chart_end=end,
-                orders_df=orders
-            )
-
-            # display figure
-            fig.show()
-
-        except (ValueError, TypeError, figurelib.FigureException) as e:
-            active_logger.error(f'plot error: {e}')
+        # generate figure and display
+        fig = figlib.FeatureFigure(
+            ftrs_data=ftrs_data,
+            plot_cfg=plt_cfg,
+            title=title,
+            chart_start=start,
+            chart_end=end,
+            orders_df=orders
+        )
+        fig.show()
 
     def flt_upmkt(self, clear, *flt_args):
         """

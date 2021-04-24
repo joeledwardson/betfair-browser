@@ -31,7 +31,7 @@ class BfLadderPoint:
     tick_index: int
     side: str
 
-    def str(self):
+    def __str__(self):
         return f'{self.side} at {self.price} for £{self.size:.2f}, tick index {self.tick_index}'
 
 

@@ -51,6 +51,7 @@ def names_to_id(input_names: List[str], name_id_map: Dict) -> List:
     return [name_id_map[n] for n in input_names]
 
 
+# TODO - needed?
 def market_id_processor(market_id):
     """remove 1. prefix used in some betfair IDs"""
     return re.sub(r'^1.', '', market_id)

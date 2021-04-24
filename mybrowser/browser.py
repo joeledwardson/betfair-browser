@@ -4,10 +4,12 @@ import dash_renderer
 import dash_bootstrap_components as dbc
 import logging
 import sys
+from configparser import ConfigParser
 
 from .layout import get_layout
 from . import callbacks
-from .session import Session, config_init
+from .session import Session
+
 
 active_logger = logging.getLogger(__name__)
 active_logger.setLevel(logging.INFO)
@@ -25,7 +27,11 @@ def run_browser(debug: bool, config_path=None):
 
     app = dash.Dash(__name__, external_stylesheets=[dbc.themes.BOOTSTRAP, FA])
 
-    config = config_init(config_path)
+    if config_path:
+        config = ConfigParser()
+        config.read_file(config_path)
+    else:
+        config = None
     session = Session(config)
 
     callbacks.cb_runners(app, session)
@@ -37,13 +43,13 @@ def run_browser(debug: bool, config_path=None):
     callbacks.cb_fig(app, session)
 
     app.layout = get_layout(
-        n_odr_rows=int(config['TABLE']['orders_rows']),
-        n_tmr_rows=int(config['TABLE']['timings_rows']),
-        filter_margins=config['LAYOUT']['filter_margins'],
-        dflt_offset=config['PLOT_CONFIG']['default_offset'],
-        mkt_tbl_cols=dict(config['TABLE_COLS']),
-        n_mkt_rows=int(config['TABLE']['market_rows']),
-        n_run_rows=int(config['TABLE']['runner_rows'])
+        n_odr_rows=int(session.config['TABLE']['orders_rows']),
+        n_tmr_rows=int(session.config['TABLE']['timings_rows']),
+        filter_margins=session.config['LAYOUT']['filter_margins'],
+        dflt_offset=session.config['PLOT_CONFIG']['default_offset'],
+        mkt_tbl_cols=dict(session.config['TABLE_COLS']),
+        n_mkt_rows=int(session.config['TABLE']['market_rows']),
+        n_run_rows=int(session.config['TABLE']['runner_rows'])
     )
 
     active_logger.info(f'Dash version: {dash.__version__}')

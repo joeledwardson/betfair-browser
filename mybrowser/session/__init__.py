@@ -1,2 +1,1 @@
-from .session import Session
-from .config import init as config_init
+from .session import Session, SessionException
