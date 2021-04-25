@@ -236,6 +236,17 @@ class FigDataProcessor:
         data[col_out] = data[col_src]
         return data
 
+    def prc_dftxtjoin(self, data: pd.DataFrame, src_cols, dest_col) -> pd.DataFrame:
+        """join columns of dataframe together as text on separate lines"""
+        def txtjoin(vals):
+            return self.NEWLINE.join([str(v) for v in vals])
+        data[dest_col] = data[src_cols].apply(txtjoin)
+        return data
+
+    def prc_dfdrop(self, data: pd.DataFrame, cols) -> pd.DataFrame:
+        """drop dataframe columns"""
+        return data.drop(cols, axis=1)
+
 
 class FeatureFigure:
     DEFAULT_PLOT_CFG = {
@@ -568,3 +579,28 @@ class FeatureFigure:
             'nticks': 10,
         }, secondary_y=True)
 
+
+class FigConfigUtils:
+    """utilities for constructing figure configurations"""
+
+    @staticmethod
+    def lad_prcs(ftr_key, lad_key):
+        """return processors to add ladder feature of price sizes to back/lay feature"""
+        return [
+            {
+                'name': 'prc_ftrstodf',
+                'kwargs': {
+                    'ftr_keys': {
+                        'y': ftr_key,
+                        'text': lad_key
+                    }
+                }
+            }, {
+                'name': 'prc_dffmtps',
+                'kwargs': {
+                    'df_col': 'text'
+                }
+            }, {
+                'name': 'prc_dftodict'
+            }
+        ]

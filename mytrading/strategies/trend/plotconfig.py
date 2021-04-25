@@ -1,104 +1,7 @@
 from typing import List, Dict
-
-# TODO - make this work
-def ladder_value_processors(ladder_feature) -> List[Dict]:
-    return [{
-        'name': 'plotly_set_attrs',
-        'kwargs': {
-            'attr_configs': [{
-                'feature_name': ladder_feature,
-                'attr_names': ['text'],
-            }],
-        }
-    }, {
-        'name': 'plotly_df_formatter',
-        'kwargs': {
-            'formatter_name': 'formatter_pricesize',
-            'df_column': 'text',
-        }
-    }, {
-        'name': 'plotly_df_to_data',
-    }]
+from ...visual import FigConfigUtils as CfgUtl
 
 
-def ltp_value_processors(tv_feature, spread_feature, wom_feature, split_feature) -> List[Dict]:
-    return [{
-        'name': 'plotly_set_attrs',
-        'kwargs': {
-            'attr_configs': [{
-                'feature_name': tv_feature,
-                'attr_names': ['tv_text'],
-            }, {
-                'feature_name': spread_feature,
-                'attr_names': ['spread_text'],
-            }, {
-                'feature_name': split_feature,
-                'attr_names': ['split_text'],
-            },
-            #     {
-            #     'feature_name': wom_feature,
-            #     'attr_names': ['wom_text', 'marker_color']
-            # }
-            ],
-        }
-    }, {
-        'name': 'plotly_df_fillna',
-    }, {
-        'name': 'plotly_df_formatter',
-        'kwargs': {
-            'formatter_name': 'formatter_generic',
-            'df_column': 'spread_text',
-            'formatter_kwargs': {
-                'name': 'spread',
-            }
-        }
-    }, {
-        'name': 'plotly_df_formatter',
-        'kwargs': {
-            'formatter_name': 'formatter_decimal',
-            'df_column': 'tv_text',
-            'formatter_kwargs': {
-                'name': 'traded vol',
-                'prefix': '£',
-            }
-        }
-    },
-    {
-        'name': 'plotly_df_formatter',
-        'kwargs': {
-            'formatter_name': 'formatter_decimal',
-            'df_column': 'split_text',
-            'formatter_kwargs': {
-                'name': 'book split',
-                'prefix': '£',
-            }
-        }
-    },
-    #     {
-    #     'name': 'plotly_df_formatter',
-    #     'kwargs': {
-    #         'formatter_name': 'formatter_decimal',
-    #         'df_column': 'wom_text',
-    #         'formatter_kwargs': {
-    #             'name': 'weight of money',
-    #             'prefix': '£',
-    #         }
-    #     }
-    # },
-    {
-        'name': 'plotly_df_text_join',
-        'kwargs': {
-            'dest_col': 'text',
-            'source_cols': [
-                'tv_text',
-                'spread_text',
-                # 'wom_text',
-                'split_text',
-            ],
-        }
-    }, {
-        'name': 'plotly_df_to_data',
-    }]
 
 
 def smooth_chart_kwargs(color_0, color_1) -> Dict:
@@ -208,220 +111,297 @@ def bar_chart_kwargs(color_0, color_1, opacity, width_ms):
     }
 
 
-def tv_bar_value_processors(tv_name, bar_width_ms):
-    return [{
-        'name': 'plotly_set_attrs',
-        'kwargs': {
-            'attr_configs': [{
-                'feature_name': tv_name,
-                'attr_names': ['text', 'marker_color'],
-                'feature_value_processors': [{
-                    'name': 'plotly_data_to_series'
-                }, {
-                    'name': 'plotly_df_diff'
-                }, {
-                    'name': 'plotly_series_to_data'
-                }],
-            }],
-        },
-        }, {
-            'name': 'plotly_values_resampler',
+#
+# def ltp_value_procs():
+#     return [
+#         {
+#             'name': 'plotly_data_to_series'
+#         },
+#         {
+#             'name': 'plotly_values_resampler',
+#             'kwargs': {
+#                 'n_seconds': 1,
+#                 'agg_function': 'mean',
+#             }
+#         }, {
+#             'name': 'plotly_df_fillna'
+#         }, {
+#             'name': 'plotly_values_rolling',
+#             'kwargs': {
+#                 'n_seconds': 3,
+#                 'agg_function': 'mean',
+#             },
+#         }, {
+#             'name': 'plotly_series_to_data'
+#         }
+#     ]
+
+
+
+
+class PlotConfig:
+    IGNORE_LIST = [
+        'bcklad',
+        'laylad',
+        'wom',
+        'spread',
+        'tv',
+        'ltp.t',
+        'bck.t',
+        'lay.t',
+        'ltp.t.mdf',
+        'bck.t.mdf',
+        'lay.t.mdf',
+        'ltp.t.sm',
+        'bck.t.sm',
+        'lay.t.sm',
+        'ltp.t.sm.cmp',
+        'bck.t.sm.cmp',
+        'lay.t.sm.cmp',
+    ]
+
+    def __init__(self, bar_width_ms, tv_opacity):
+        self._bar_width_ms = bar_width_ms
+        self._tv_opacity = tv_opacity
+
+    @staticmethod
+    def prcs_ltp(ltp, tv, spread, split) -> List[Dict]:
+        return [{
+            'name': 'prc_ftrstodf',
             'kwargs': {
-                'n_seconds': int(bar_width_ms/1000),
+                'ftr_keys': {
+                    'y': ltp,
+                    'tv_text': tv,
+                    'spread_text': spread,
+                    'split_text': split,
+                }
+            }
+        }, {
+            'name': 'prc_dffillna',
+        }, {
+            'name': 'prc_dffmtstr',
+            'kwargs': {
+                'df_col': 'spread_text',
+                'fmt_spec': 'Spread: {0}'
+            }
+        }, {
+            'name': 'prc_dffmtstr',
+            'kwargs': {
+                'df_col': 'tv_text',
+                'fmt_spec': 'Traded Volume: £{0:.2f}'
+            }
+        }, {
+            'name': 'prc_dffmtstr',
+            'kwargs': {
+                'df_col': 'split_text',
+                'fmt_spec': 'Book split: £{0:.2f}'
+            }
+        }, {
+            'name': 'prc_dftxtjoin',
+            'kwargs': {
+                'dest_col': 'text',
+                'src_cols': [
+                    'tv_text',
+                    'spread_text',
+                    'split_text',
+                ],
+            }
+        }, {
+            'name': 'prc_dfdrop',
+            'kwargs': {
+                'cols': [
+                    'tv_text',
+                    'spread_text',
+                    'split_text'
+                ]
+            }
+        }, {
+            'name': 'prc_dftodict',
+        }]
+
+    @staticmethod
+    def prcs_tvbar(tv, bar_width_ms):
+        return [{
+            'name': 'prc_getftr',
+            'keys': {
+                'key_out': 'key_tv'
+            },
+            'kwargs': {
+                'ftr_key': tv
+            }
+        }, {
+            'name': 'prc_dfdiff',
+            'keys': {
+                'key_in': 'key_tv',
+                'key_out': 'key_tv'
+            }
+        }, {
+            'name': 'prc_buftodf',
+            'kwargs': {
+                'buf_cfg': {
+                    'y': 'key_0',
+                    'text': 'key_tv'
+                }
+            }
+        }, {
+            'name': 'prc_resmp',
+            'kwargs': {
+                'n_seconds': int(bar_width_ms / 1000),
                 'agg_function': {
                     'y': 'sum',
-                    'text': 'sum',
-                    'marker_color': 'sum',
+                    'text': 'sum'
                 }
             }
         }, {
-            'name': 'plotly_df_formatter',
+            'name': 'prc_dfcp',
             'kwargs': {
-                'formatter_name': 'formatter_decimal',
-                'df_column': 'text',
-                'formatter_kwargs': {
-                    'name': tv_name,
-                    'prefix': '£',
-                }
-            },
-        },{
-            'name': 'plotly_df_to_data'
-        }
-    ]
-
-
-def ltp_value_procs():
-    return [
-        {
-            'name': 'plotly_data_to_series'
-        },
-        {
-            'name': 'plotly_values_resampler',
-            'kwargs': {
-                'n_seconds': 1,
-                'agg_function': 'mean',
+                'col_src': 'text',
+                'col_out': 'marker_color'
             }
         }, {
-            'name': 'plotly_df_fillna'
-        }, {
-            'name': 'plotly_values_rolling',
+            'name': 'prc_dffmtstr',
             'kwargs': {
-                'n_seconds': 3,
-                'agg_function': 'mean',
-            },
+                'df_col': 'text',
+                'fmt_spec': 'Traded volume: £{0:.2f}'
+            }
         }, {
-            'name': 'plotly_series_to_data'
+            'name': 'prc_dftodict'
+        }]
+
+    @property
+    def configs(self):
+        return {
+            f: {
+                'ignore': True
+            } for f in self.IGNORE_LIST
+        } | {
+
+            'bck': {
+                'chart_args': {
+                    'visible': 'legendonly',
+                },
+                'value_processors': CfgUtl.lad_prcs('bck', 'bcklad'),
+            },
+
+            'lay': {
+                'chart_args': {
+                    'visible': 'legendonly',
+                },
+                'value_processors': CfgUtl.lad_prcs('lay', 'laylad'),
+            },
+
+            'ltp': {
+                'value_processors': self.prcs_ltp(
+                    ltp='ltp',
+                    tv='tv',
+                    spread='spread',
+                    split='split.sum',
+                ),
+                'chart_args': {
+                    'mode': 'lines+markers',
+                    'visible': 'legendonly',
+                },
+            },
+
+            'split': {
+                'chart': 'Bar',
+                'chart_args': {
+                    'marker': { # default plotly colours go white, so use a green to red scale
+                        'colorscale': [
+                            [0, 'rgb(250,50,50)'],
+                            [1, 'rgb(50,250,50)']
+                        ],
+                        'cmid': 0,  # with grey 0 scale
+                    },
+                    'opacity': self._tv_opacity,
+                    'width': self._bar_width_ms,  # 1 seconds width of bars
+                    'offset': 0,  # end of bar to be aligned with timestamp
+                },
+                'trace_args': {
+                    'secondary_y': True
+                },
+                'value_processors': self.prcs_tvbar('tv', self._bar_width_ms),
+            },
+
+            'split.sum': {
+                'chart_args': {
+                    'visible': 'legendonly',
+                },
+                'trace_args': {
+                    'secondary_y': True
+                },
+            },
+
+            'split.tot': {
+                'chart_args': {
+                    'texttemplate': "%{label}: £%{value:.2f}",
+                },
+                'trace_args': {
+                    'secondary_y': True
+                },
+            },
+
+            'ltp.sm': {
+                # yellow to blue scale
+                'chart_args': smooth_chart_kwargs(
+                    color_0='rgb(255,255,0)',
+                    color_1='rgb(0,0,255)',
+                ),
+                'value_processors': [{
+                    'name': 'plotly_set_attrs',
+                    'kwargs': {
+                        'attr_configs': [{
+                            'feature_name': 'split.sum',
+                            'attr_names': ['text', 'marker_color'],
+                        }],
+                    },
+                }, {
+                    'name': 'plotly_df_formatter',
+                    'kwargs': {
+                        'formatter_name': 'formatter_decimal',
+                        'df_column': 'text',
+                        'formatter_kwargs': {
+                            'name': 'book split',
+                            'n_decimals': 2,
+                        }
+                    },
+                }, {
+                    'name': 'plotly_df_to_data',
+                }],
+            },
+
+            'bck.sm': {
+                # use red to green scale
+                'chart_args': smooth_chart_kwargs(
+                    color_0='rgb(255,0,0)',
+                    color_1='rgb(0,255,0)',
+                ),
+                'value_processors': smooth_value_processors(
+                    ftr_tks='bck.t.sm',
+                    ftr_cmp='bck.t.sm.cmp',
+                    ftr_dif='bck.t.mdf',
+                )
+            },
+
+            'lay.sm': {
+                # use red to green scale
+                'chart_args': smooth_chart_kwargs(
+                    color_0='rgb(255,0,0)',
+                    color_1='rgb(0,255,0)',
+                ),
+                'value_processors': smooth_value_processors(
+                    ftr_tks='lay.t.sm',
+                    ftr_cmp='lay.t.sm.cmp',
+                    ftr_dif='lay.t.mdf',
+                )
+            },
+
+            # 'ltp.min': {
+            #     'value_processors': ltp_value_procs(),
+            # },
+            #
+            # 'ltp.max': {
+            #     'value_processors': ltp_value_procs(),
+            # },
+
         }
-    ]
-
-
-IGNORE_LIST = [
-    'bcklad',
-    'laylad',
-    'wom',
-    'spread',
-    'tv',
-    'ltp.t',
-    'bck.t',
-    'lay.t',
-    'ltp.t.mdf',
-    'bck.t.mdf',
-    'lay.t.mdf',
-    'ltp.t.sm',
-    'bck.t.sm',
-    'lay.t.sm',
-    'ltp.t.sm.cmp',
-    'bck.t.sm.cmp',
-    'lay.t.sm.cmp',
-]
-
-
-def get_trend_plot_configs(bar_width_ms, tv_opacity):
-
-    return {
-
-        'bck': {
-            'chart_args': {
-                'visible': 'legendonly',
-            },
-            'value_processors': ladder_value_processors('bcklad'),
-        },
-
-        'lay': {
-            'chart_args': {
-                'visible': 'legendonly',
-            },
-            'value_processors': ladder_value_processors('laylad'),
-        },
-
-        'ltp': {
-            'value_processors': ltp_value_processors(
-                tv_feature='tv',
-                spread_feature='spread',
-                wom_feature='wom',
-                split_feature='split.sum',
-            ),
-            'chart_args': {
-                'mode': 'lines+markers',
-                'visible': 'legendonly',
-            },
-        },
-
-        'split': {
-            'chart': 'Bar',
-            # default plotly colours go white, so use a green to red scale
-            'chart_args': bar_chart_kwargs(
-                'rgb(250,50,50)',
-                'rgb(50,250,50)',
-                tv_opacity,
-                bar_width_ms
-            ),
-            'trace_args': {
-                'secondary_y': True
-            },
-            'value_processors': tv_bar_value_processors('tv', bar_width_ms),
-        },
-
-        'split.sum': {
-            'chart_args': {
-                'visible': 'legendonly',
-            },
-            'trace_args': {
-                'secondary_y': True
-            },
-        },
-
-        'split.tot': {
-            'chart_args': {
-                'texttemplate': "%{label}: £%{value:.2f}",
-            },
-            'trace_args': {
-                'secondary_y': True
-            },
-        },
-
-        'ltp.sm': {
-            # yellow to blue scale
-            'chart_args': smooth_chart_kwargs(
-                color_0='rgb(255,255,0)',
-                color_1='rgb(0,0,255)',
-            ),
-            'value_processors': [{
-                'name': 'plotly_set_attrs',
-                'kwargs': {
-                    'attr_configs': [{
-                        'feature_name': 'split.sum',
-                        'attr_names': ['text', 'marker_color'],
-                    }],
-                },
-            }, {
-                'name': 'plotly_df_formatter',
-                'kwargs': {
-                    'formatter_name': 'formatter_decimal',
-                    'df_column': 'text',
-                    'formatter_kwargs': {
-                        'name': 'book split',
-                        'n_decimals': 2,
-                    }
-                },
-            }, {
-                'name': 'plotly_df_to_data',
-            }],
-        },
-
-        'bck.sm': {
-            # use red to green scale
-            'chart_args': smooth_chart_kwargs(
-                color_0='rgb(255,0,0)',
-                color_1='rgb(0,255,0)',
-            ),
-            'value_processors': smooth_value_processors(
-                ftr_tks='bck.t.sm',
-                ftr_cmp='bck.t.sm.cmp',
-                ftr_dif='bck.t.mdf',
-            )
-        },
-
-        'lay.sm': {
-            # use red to green scale
-            'chart_args': smooth_chart_kwargs(
-                color_0='rgb(255,0,0)',
-                color_1='rgb(0,255,0)',
-            ),
-            'value_processors': smooth_value_processors(
-                ftr_tks='lay.t.sm',
-                ftr_cmp='lay.t.sm.cmp',
-                ftr_dif='lay.t.mdf',
-            )
-        },
-
-        'ltp.min': {
-            'value_processors': ltp_value_procs(),
-        },
-
-        'ltp.max': {
-            'value_processors': ltp_value_procs(),
-        },
-
-        **{f: {'ignore': True} for f in IGNORE_LIST},
-    }

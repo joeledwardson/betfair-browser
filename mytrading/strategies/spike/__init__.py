@@ -1,3 +1,6 @@
+from ...visual import FigConfigUtils as CfgUtl
+
+
 class PlotConfig:
     IGNORE = [
         'back ladder',
@@ -19,27 +22,6 @@ class PlotConfig:
         self._ltp_diff_opacity = ltp_diff_opacity
         self._ltp_diff_s = ltp_diff_s
 
-    def _lad_procs(self, ftr_key, lad_key):
-        """return processors to add ladder feature of price sizes to back/lay feature"""
-        return [
-            {
-                'name': 'prc_ftrstodf',
-                'kwargs': {
-                    'ftr_keys': {
-                        'y': ftr_key,
-                        'text': lad_key
-                    }
-                }
-            }, {
-                'name': 'prc_dffmtps',
-                'kwargs': {
-                    'df_col': 'text'
-                }
-            }, {
-                'name': 'prc_dftodict'
-            }
-        ]
-
     @property
     def configs(self):
         return {
@@ -48,10 +30,10 @@ class PlotConfig:
             } for k in self.IGNORE
         } | {
             'best back': {
-                'value_processors': self._lad_procs('best back', 'back ladder'),
+                'value_processors': CfgUtl.lad_procs('best back', 'back ladder'),
             },
             'best lay': {
-                'value_processors': self._lad_procs('best lay', 'lay ladder')
+                'value_processors': CfgUtl.lad_procs('best lay', 'lay ladder')
             },
             'ltp': {
                 'chart_args': {
