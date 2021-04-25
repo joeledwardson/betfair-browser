@@ -8,8 +8,8 @@ from betfairlightweight.resources.bettingresources import MarketBook, RunnerBook
 import logging
 
 from myutils.myclass import store_kwargs
-from ...strategy.trademachine import tradestates as basestates
-from ...strategy.trademachine.trademachine import RunnerStateMachine
+from ...strategy import tradestates as basestates
+from ...strategy.trademachine import RunnerStateMachine
 from ...strategy.strategy import MyFeatureStrategy
 from ...process.prices import get_ltps
 from .featuresconfig import get_spike_feature_configs
@@ -81,11 +81,11 @@ class MySpikeStrategy(MyFeatureStrategy):
             file_path=file_path,
         )
 
-    def create_state_machine(
+    def get_state_machine(
             self,
             runner: RunnerBook,
-            market: Market,
-            market_book: MarketBook
+            mkt: Market,
+            mbk: MarketBook
     ) -> RunnerStateMachine:
         return RunnerStateMachine(
             states={

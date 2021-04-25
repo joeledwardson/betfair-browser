@@ -6,9 +6,8 @@ import logging
 import numpy as np
 import pandas as pd
 from betfairlightweight.resources import MarketBook
-
-from mytrading.strategy.feature.features import FeatureException, ftrs_reg, RFBase
 from myutils import mytiming
+from .features import FeatureException, ftrs_reg, RFBase
 
 
 active_logger = logging.getLogger(__name__)

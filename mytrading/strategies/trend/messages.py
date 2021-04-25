@@ -1,6 +1,6 @@
 from typing import Dict
 from enum import Enum
-from mytrading.strategy.tradetracker.messages import register_formatter
+from mytrading.strategy.messages import register_formatter
 from .datatypes import TrendData
 
 # regression gradient % decimal places to display

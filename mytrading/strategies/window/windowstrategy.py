@@ -47,11 +47,11 @@ class MyWindowStrategy(MyFeatureStrategy):
         self.track_seconds = track_seconds
         self.min_total_matched = min_total_matched
 
-    def create_state_machine(
+    def get_state_machine(
             self,
             runner: RunnerBook,
-            market: Market,
-            market_book: MarketBook
+            mkt: Market,
+            mbk: MarketBook
     ) -> RunnerStateMachine:
         """
         get trading state machine for selected runner

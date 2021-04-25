@@ -1,8 +1,8 @@
 from flumine.markets.market import Market
 from betfairlightweight.resources.bettingresources import MarketBook, RunnerBook
 
-from ...strategy.trademachine import tradestates
-from mytrading.strategy.trademachine.trademachine import RunnerStateMachine
+from ...strategy import tradestates
+from ...strategy.trademachine import RunnerStateMachine
 from ...strategy.strategy import MyFeatureStrategy
 from ...process.ladder import BfLadderPoint, get_ladder_point
 from . import states as wallstates
@@ -115,11 +115,11 @@ class MyScalpStrategy(MyFeatureStrategy):
 
         return chosen_book[max_chosen_index].copy()
 
-    def create_state_machine(
+    def get_state_machine(
             self,
             runner: RunnerBook,
-            market: Market,
-            market_book: MarketBook
+            mkt: Market,
+            mbk: MarketBook
     ) -> RunnerStateMachine:
         """
         get trading state machine for selected runner
@@ -172,7 +172,7 @@ class MyScalpStrategy(MyFeatureStrategy):
 
             trade_tracker = self.trade_trackers[market.market_id][runner.selection_id]
             state_machine = self.state_machines[market.market_id][runner.selection_id]
-            if self._process_trade_machine(runner, state_machine, trade_tracker):
+            if self.allow_trademachine(runner, state_machine, trade_tracker):
 
                 # get wall point for runner
                 wall_point = self.get_wall(runner)

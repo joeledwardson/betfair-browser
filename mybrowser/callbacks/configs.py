@@ -2,11 +2,10 @@ from dash.dependencies import Output, Input, State
 import logging
 import traceback
 
-
-from myutils.mydash import intermediate
+from myutils import mydash as myd
 from ..session import Session, SessionException
 
-counter = intermediate.Intermediary()
+counter = myd.Intermediary()
 active_logger = logging.getLogger(__name__)
 
 

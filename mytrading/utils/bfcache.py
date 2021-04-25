@@ -12,7 +12,7 @@ from myutils import dbcache as cache
 active_logger = logging.getLogger(__name__)
 active_logger.setLevel(logging.INFO)
 
-
+# TODO - put this into its own class that stores bettingdb and root directory
 def w_mkt(market_id, db, root):
     """
     write market stream cache

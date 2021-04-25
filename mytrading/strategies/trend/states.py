@@ -6,9 +6,9 @@ from flumine.order.ordertype import LimitOrder
 import logging
 from enum import Enum
 
-from mytrading.strategy.trademachine.tradestates import TradeStateTypes
+from mytrading.strategy.tradestates import TradeStateTypes
 from ...process.ticks.ticks import closest_tick
-from ...strategy.trademachine import tradestates
+from ...strategy import tradestates
 from .tradetracker import TrendTradeTracker
 from .datatypes import TrendData, TrendCriteria
 from .messages import TrendMessageTypes

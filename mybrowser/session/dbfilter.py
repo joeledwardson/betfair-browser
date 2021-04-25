@@ -3,7 +3,7 @@ from sqlalchemy import func, cast, Date, desc, asc, Table
 from sqlalchemy.sql.functions import coalesce
 from sqlalchemy.sql import cte
 from datetime import date, datetime
-from mytrading.utils.bettingdb import BettingDB
+from mytrading.utils import bettingdb as bdb
 
 
 class DBFilter:
@@ -45,7 +45,7 @@ class DBFilter:
         """
         return tbl.columns[self.db_col] == self.value
 
-    def get_options(self, db: BettingDB, db_cte: cte) -> List[List[Any]]:
+    def get_options(self, db: bdb.BettingDB, db_cte: cte) -> List[List[Any]]:
         """
         get a list of distinct values from database
         """
@@ -111,7 +111,7 @@ class DBFilterJoin(DBFilter):
         self.join_name_col = join_name_col
         self.output_col = 'TEMP_OUTPUT_NAME'
 
-    def get_options(self, db: BettingDB, db_cte: cte):
+    def get_options(self, db: bdb.BettingDB, db_cte: cte):
         join_tbl = db.tables[self.join_tbl_name]
         q = db.session.query(
             db_cte.c[self.db_col],
@@ -148,7 +148,7 @@ class DBFilterMulti(DBFilter):
         self.order_col = order_col
         self.is_desc = desc
 
-    def get_options(self, db: BettingDB, db_cte: cte) -> List[List[Any]]:
+    def get_options(self, db: bdb.BettingDB, db_cte: cte) -> List[List[Any]]:
         """
         get a list of distinct values from database
         """

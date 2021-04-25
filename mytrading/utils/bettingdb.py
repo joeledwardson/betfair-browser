@@ -25,7 +25,7 @@ class BettingDB:
     Betting database handler
     Manages session that connects to remote SQL database for querying
 
-    "Historic" markets to are files downlaoded directly from betfair's historical data website
+    "Historic" markets to are files downloaded directly from betfair's historical data website
     "Recorded" markets are files from betfair markets recorded through a python script locally, which are recorded
     with the accompanying market catalogue file
     """

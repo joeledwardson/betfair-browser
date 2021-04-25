@@ -13,7 +13,7 @@ import json
 from dataclasses import dataclass, field
 
 from .messages import MessageTypes, format_message
-from ...process.profit import order_profit
+from ..process.profit import order_profit
 
 active_logger = logging.getLogger(__name__)
 active_logger.setLevel(logging.INFO)

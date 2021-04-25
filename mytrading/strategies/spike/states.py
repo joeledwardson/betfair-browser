@@ -10,7 +10,7 @@ from datetime import datetime
 
 from ...process.ticks.ticks import closest_tick
 from ...process.ticks.ticks import tick_spread, LTICKS_DECODED
-from ...strategy.trademachine import tradestates
+from ...strategy import tradestates
 from .tradetracker import SpikeTradeTracker
 from .datatypes import SpikeData
 from .messages import SpikeMessageTypes

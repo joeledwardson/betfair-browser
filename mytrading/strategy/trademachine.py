@@ -1,5 +1,5 @@
-from mytrading.strategy.tradetracker.messages import MessageTypes
-from mytrading.strategy.tradetracker.tradetracker import TradeTracker
+from .messages import MessageTypes
+from .tradetracker import TradeTracker
 from .tradestates import TradeStateBase
 
 from myutils import statemachine as stm
@@ -36,8 +36,8 @@ class RunnerStateMachine(stm.StateMachine):
             runner_index: int,
             trade_tracker: TradeTracker,
             strategy: BaseStrategy,
-            **kwargs):
-
+            **kwargs
+    ):
         # if state specifies that on entering dont print update, exit
         if not self.states[new_state].print_change_message:
             return

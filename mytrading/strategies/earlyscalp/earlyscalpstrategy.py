@@ -8,8 +8,8 @@ from betfairlightweight.resources.bettingresources import MarketBook, RunnerBook
 import logging
 from datetime import datetime
 
-from ...strategy.trademachine import tradestates as basestates
-from mytrading.strategy.trademachine.trademachine import RunnerStateMachine
+from ...strategy import tradestates as basestates
+from ...strategy.trademachine import RunnerStateMachine
 from ...strategy.strategy import MyFeatureStrategy
 from .featuresconfig import get_scalp_feature_configs
 from . import states as scalpstates
@@ -65,11 +65,11 @@ class MyEarlyScalpStrategy(MyFeatureStrategy):
             file_path=file_path,
         )
 
-    def create_state_machine(
+    def get_state_machine(
             self,
             runner: RunnerBook,
-            market: Market,
-            market_book: MarketBook
+            mkt: Market,
+            mbk: MarketBook
     ) -> RunnerStateMachine:
         return RunnerStateMachine(
             states={

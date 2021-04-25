@@ -8,12 +8,11 @@ from betfairlightweight.resources.bettingresources import MarketBook, RunnerBook
 import logging
 
 from myutils.myclass import store_kwargs
-from ...strategy.trademachine import tradestates as basestates
-from mytrading.strategy.trademachine.trademachine import RunnerStateMachine
+from ...strategy import tradestates as basestates
+from mytrading.strategy.trademachine import RunnerStateMachine
 from ...strategy.strategy import MarketHandler, MyFeatureStrategy
 from ...process.ticks.ticks import LTICKS_DECODED, tick_spread, closest_tick
 from ...process.prices import best_price, get_ltps
-from mytrading.strategy.feature import RunnerFeatureBase
 from .featuresconfig import get_trend_feature_configs
 from . import states as trendstates
 from .datatypes import TrendData, TrendCriteria
@@ -61,11 +60,11 @@ class MyTrendStrategy(MyFeatureStrategy):
         # market -> runner ID -> trend data
         self.trend_data_dicts: Dict[str, Dict[int, TrendData]] = dict()
 
-    def create_state_machine(
+    def get_state_machine(
             self,
             runner: RunnerBook,
-            market: Market,
-            market_book: MarketBook
+            mkt: Market,
+            mbk: MarketBook
     ) -> RunnerStateMachine:
         return RunnerStateMachine(
             states={

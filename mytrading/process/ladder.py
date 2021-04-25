@@ -34,7 +34,7 @@ class BfLadderPoint:
     def __str__(self):
         return f'{self.side} at {self.price} for £{self.size:.2f}, tick index {self.tick_index}'
 
-
+# TODO - put in class
 def get_ladder_point(price: float, size: float, side: str) -> BfLadderPoint:
     """get ladder point instance with tick index"""
 

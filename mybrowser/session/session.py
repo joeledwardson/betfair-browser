@@ -14,11 +14,11 @@ from configparser import ConfigParser
 import yaml
 import importlib.resources as pkg_resources
 
-import mytrading.strategy.feature
-from mytrading.strategy.tradetracker.messages import MessageTypes
-from mytrading.utils import security as mysecurity, bfcache
-from mytrading.utils.bettingdb import BettingDB
-from mytrading.strategy.tradetracker import tradetracker
+from mytrading.strategy import messages as msgs
+from mytrading import utils as trutils
+from mytrading.utils import bfcache
+from mytrading.utils import bettingdb as bdb
+from mytrading.strategy import tradetracker
 from mytrading.process import prices
 from mytrading import visual as figlib
 from mytrading.strategy import feature as ftrutils
@@ -68,7 +68,7 @@ class Session:
         self.config: ConfigParser = config  # parsed configuration
         self.tbl_formatters = get_formatters(config)  # registrar of table formatters
         self.cache_rt = config['CONFIG_PATHS']['cache']  # cache root dir
-        self.trading = mysecurity.get_api_client()  # API client instance
+        self.trading = trutils.BFSecurity().API_client  # API client instance
         self.db_filters = DBFilters(
             config['MARKET_FILTER']['mkt_date_format'],
             config['MARKET_FILTER']['strategy_sel_format']
@@ -87,7 +87,7 @@ class Session:
         db_kwargs = {}
         if config.has_section('DB_CONFIG'):
             db_kwargs = config['DB_CONFIG']
-        self.betting_db = BettingDB(**db_kwargs)
+        self.betting_db = bdb.BettingDB(**db_kwargs)
 
         # feature-plot configurations
         self.ftr_fcfgs = dict()  # feature configurations
@@ -303,7 +303,7 @@ class Session:
         # get order infos for each message close and check not blank
         lines = [
             ln['order_info'] for ln in lines if
-            ln['msg_type'] == MessageTypes.MSG_MARKET_CLOSE.name and
+            ln['msg_type'] == msgs.MessageTypes.MSG_MARKET_CLOSE.name and
             'order_info' in ln and ln['order_info'] and
             ln['order_info']['order_type']['order_type'] == 'Limit' and
             ln['selection_id'] == selection_id
@@ -417,7 +417,7 @@ class Session:
         ftr_cfg = self.ftr_fcfg(ftr_key)
 
         # generate plot by simulating features
-        ftrs_data = mytrading.strategy.feature.FeatureHolder.gen_ftrs(ftr_cfg).sim_mktftrs(
+        ftrs_data = ftrutils.FeatureHolder.gen_ftrs(ftr_cfg).sim_mktftrs(
             hist_records=self.mkt_records,
             selection_id=selection_id,
             cmp_start=start,
