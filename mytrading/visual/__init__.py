@@ -160,7 +160,8 @@ class FigDataProcessor:
             if k not in self.features_data:
                 raise FigureDataProcessorException(f'feature "{k}" not found')
             d[df_col] = self.features_data[k]
-        return pd.DataFrame(d)
+        df = pd.DataFrame(d)
+        return df
 
     def prc_buftodf(self, data, buf_cfg: Dict) -> pd.DataFrame:
         """concatenate series from buffer into dataframe, specified by (column name => buffer key)"""
@@ -240,7 +241,7 @@ class FigDataProcessor:
         """join columns of dataframe together as text on separate lines"""
         def txtjoin(vals):
             return self.NEWLINE.join([str(v) for v in vals])
-        data[dest_col] = data[src_cols].apply(txtjoin)
+        data[dest_col] = data[src_cols].apply(txtjoin, axis=1)
         return data
 
     def prc_dfdrop(self, data: pd.DataFrame, cols) -> pd.DataFrame:
@@ -604,3 +605,18 @@ class FigConfigUtils:
                 'name': 'prc_dftodict'
             }
         ]
+
+    @staticmethod
+    def chart_colorscale(color_0, color_1) -> Dict:
+        """`chart_args` argument to set colorscale with lines+markers"""
+        return {
+            'mode': 'lines+markers',
+            'line_color': 'black',
+            'marker': {
+                'colorscale': [
+                    [0, color_0],
+                    [1, color_1]
+                ],
+                'cmid': 0,
+            }
+        }

@@ -30,10 +30,10 @@ class PlotConfig:
             } for k in self.IGNORE
         } | {
             'best back': {
-                'value_processors': CfgUtl.lad_procs('best back', 'back ladder'),
+                'value_processors': CfgUtl.lad_prcs('best back', 'back ladder'),
             },
             'best lay': {
-                'value_processors': CfgUtl.lad_procs('best lay', 'lay ladder')
+                'value_processors': CfgUtl.lad_prcs('best lay', 'lay ladder')
             },
             'ltp': {
                 'chart_args': {
@@ -44,7 +44,7 @@ class PlotConfig:
                     'kwargs': {
                         'ftr_keys': {
                             'y': 'ltp',
-                            'text':'tv',
+                            'text': 'tv',
                         }
                     }
                 }, {

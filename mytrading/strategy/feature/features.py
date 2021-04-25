@@ -1,7 +1,7 @@
 from __future__ import annotations
 from betfairlightweight.resources.bettingresources import MarketBook
 import numpy as np
-from typing import List, Dict, Optional
+from typing import List, Dict, Optional, Any
 from sklearn.linear_model import LinearRegression
 from datetime import datetime, timedelta
 import logging
@@ -73,7 +73,7 @@ class RFBase:
                 self.ftr_identifier
             ])
 
-        self.values_cache = deque()
+        self._values_cache = deque()
         self.out_cache = deque()
         self.cache_count = cache_count
         self.cache_secs = cache_secs
@@ -107,34 +107,30 @@ class RFBase:
                         f'error in feature "{self.ftr_identifier}", sub-feature "{k}": {e}'
                     )
 
-    def is_new_value(self) -> bool:
-        return len(self.values_cache) == 1 or \
-               (len(self.values_cache) >= 2 and self.values_cache[-1][2] != self.values_cache[-2][2])
-
-    def update_cache(self):
+    def _update_cache(self):
         if self.cache_secs:
-            if len(self.values_cache):
-                dt = self.values_cache[-1][0]
+            if len(self._values_cache):
+                dt = self._values_cache[-1][0]
                 dtw = dt - timedelta(seconds=self.cache_secs)
                 idx = 0 if self.inside_window else 1
-                while len(self.values_cache) > idx:
-                    if self.values_cache[idx][0] >= dtw:
+                while len(self._values_cache) > idx:
+                    if self._values_cache[idx][0] >= dtw:
                         break
                     else:
-                        self.values_cache.popleft()
+                        self._values_cache.popleft()
         else:
-            while len(self.values_cache) > self.cache_count:
-                self.values_cache.popleft()
+            while len(self._values_cache) > self.cache_count:
+                self._values_cache.popleft()
 
-    def race_initializer(self, selection_id: int, first_book: MarketBook):
+    def race_initializer(self, selection_id: int, first_book: MarketBook) -> None:
         """initialize feature with first market book of race and selected runner"""
         self.selection_id = selection_id
         for sub_feature in self.sub_features.values():
             sub_feature.race_initializer(selection_id, first_book)
 
-    def publish_update(self, new_book, runner_index, pt=None):
+    def _publish_update(self, new_book, runner_index, pt=None):
         # get feature value, ignore if None
-        value = self.runner_update(new_book, runner_index)
+        value = self._get_value(new_book, runner_index)
         if value is None:
             return
 
@@ -143,30 +139,30 @@ class RFBase:
             if self.parent is None:
                 pt = new_book.publish_time
             else:
-                pt = self.parent.values_cache[-1][0]
+                pt = self.parent._values_cache[-1][0]
 
-        self.values_cache.append((pt, value))
+        self._values_cache.append((pt, value))
         self.out_cache.append((pt, value))
-        self.update_cache()
+        self._update_cache()
 
         for sub_feature in self.sub_features.values():
             sub_feature.process_runner(new_book, runner_index)
 
     @mytiming.timing_register_attr(name_attr='ftr_identifier')
-    def process_runner(self, new_book: MarketBook, runner_index):
+    def process_runner(self, new_book: MarketBook, runner_index) -> None:
         """update feature value and add to cache"""
-        self.publish_update(new_book, runner_index)
+        self._publish_update(new_book, runner_index)
 
-    def runner_update(self, new_book: MarketBook, runner_index):
+    def _get_value(self, new_book: MarketBook, runner_index) -> Optional[Any]:
         """
         implement this function to return feature value from new market book received
         return None if do not want value to be stored
         """
         raise NotImplementedError
 
-    def last_value(self):
+    def last_value(self) -> Optional[Any]:
         """get most recent value processed, if empty return None"""
-        return self.values_cache[-1][1] if len(self.values_cache) else None
+        return self._values_cache[-1][1] if len(self._values_cache) else None
 
 
 @ftrs_reg.register_element
@@ -179,16 +175,16 @@ class RFChild(RFBase):
         if kwargs.get('parent') is None:
             raise FeatureException(f'sub-feature has not received "parent" argument')
 
-    def runner_update(self, new_book: MarketBook, runner_index):
+    def _get_value(self, new_book: MarketBook, runner_index):
         return self.parent.last_value()
 
 
 @ftrs_reg.register_element
 class RFMvAvg(RFChild):
     """moving average of parent values"""
-    def runner_update(self, new_book: MarketBook, runner_index):
-        if len(self.parent.values_cache):
-            return statistics.mean([v[1] for v in self.parent.values_cache])
+    def _get_value(self, new_book: MarketBook, runner_index):
+        if len(self.parent._values_cache):
+            return statistics.mean([v[1] for v in self.parent._values_cache])
 
 
 @ftrs_reg.register_element
@@ -207,13 +203,13 @@ class RFSample(RFChild):
         # if data is sampled and more than one sample time has elapsed, fill forwards until time is met
         while int((new_book.publish_time - self.last_timestamp).total_seconds() * 1000) > self.periodic_ms:
             self.last_timestamp = self.last_timestamp + timedelta(milliseconds=self.periodic_ms)
-            self.publish_update(new_book, runner_index, self.last_timestamp)
+            self._publish_update(new_book, runner_index, self.last_timestamp)
 
 
 @ftrs_reg.register_element
 class RFTVLad(RFBase):
     """traded volume ladder"""
-    def runner_update(self, new_book: MarketBook, runner_index):
+    def _get_value(self, new_book: MarketBook, runner_index):
         return new_book.runners[runner_index].ex.traded_volume or None
 
 
@@ -225,11 +221,11 @@ class RFTVLadDif(RFChild):
         if type(self.parent) is not RFTVLad:
             raise FeatureException('expected traded vol feature parent')
 
-    def runner_update(self, new_book: MarketBook, runner_index):
-        if len(self.parent.values_cache) >= 2:
+    def _get_value(self, new_book: MarketBook, runner_index):
+        if len(self.parent._values_cache) >= 2:
             return get_record_tv_diff(
-                self.parent.values_cache[-1][1],
-                self.parent.values_cache[0][1]
+                self.parent._values_cache[-1][1],
+                self.parent._values_cache[0][1]
             )
         else:
             return None
@@ -241,9 +237,9 @@ class _RFTVLadDifFunc(RFChild):
         if type(self.parent) is not RFTVLadDif:
             raise FeatureException('expected traded vol diff feature parent')
 
-    def runner_update(self, new_book: MarketBook, runner_index):
-        if len(self.parent.values_cache):
-            tvs = self.parent.values_cache[-1][1]
+    def _get_value(self, new_book: MarketBook, runner_index):
+        if len(self.parent._values_cache):
+            tvs = self.parent._values_cache[-1][1]
             if len(tvs):
                 return self.lad_func(tvs)
         return None
@@ -287,7 +283,7 @@ class RFBkSplit(RFBase):
         self.previous_best_lay = None
         self.previous_ladder = dict()
 
-    def runner_update(self, new_book: MarketBook, runner_index):
+    def _get_value(self, new_book: MarketBook, runner_index):
 
         runner = new_book.runners[runner_index]
         value = None
@@ -313,7 +309,7 @@ class RFBkSplit(RFBase):
 @ftrs_reg.register_element
 class RFLTP(RFBase):
     """Last traded price of runner"""
-    def runner_update(self, new_book: MarketBook, runner_index):
+    def _get_value(self, new_book: MarketBook, runner_index):
         return new_book.runners[runner_index].last_price_traded
 
 
@@ -327,7 +323,7 @@ class RFWOM(RFBase):
         super().__init__(**kwargs)
         self.wom_ticks = wom_ticks
 
-    def runner_update(self, new_book: MarketBook, runner_index):
+    def _get_value(self, new_book: MarketBook, runner_index):
         atl = new_book.runners[runner_index].ex.available_to_lay
         atb = new_book.runners[runner_index].ex.available_to_back
 
@@ -342,7 +338,7 @@ class RFWOM(RFBase):
 @ftrs_reg.register_element
 class RFBck(RFBase):
     """Best available back price of runner"""
-    def runner_update(self, new_book: MarketBook, runner_index):
+    def _get_value(self, new_book: MarketBook, runner_index):
         return best_price(new_book.runners[runner_index].ex.available_to_back)
 
 
@@ -351,7 +347,7 @@ class RFLay(RFBase):
     """
     Best available lay price of runner
     """
-    def runner_update(self, new_book: MarketBook, runner_index):
+    def _get_value(self, new_book: MarketBook, runner_index):
         return best_price(new_book.runners[runner_index].ex.available_to_lay)
 
 
@@ -360,7 +356,7 @@ class RFLadSprd(RFBase):
     """
     tick spread between best lay and best back - defaults to 1000 if cannot find best back or lay
     """
-    def runner_update(self, new_book: MarketBook, runner_index):
+    def _get_value(self, new_book: MarketBook, runner_index):
         best_lay = best_price(new_book.runners[runner_index].ex.available_to_lay)
         best_back = best_price(new_book.runners[runner_index].ex.available_to_back)
         if best_lay and best_back:
@@ -378,7 +374,7 @@ class RFLadBck(RFBase):
         self.n_elements = n_elements
         super().__init__(*args, **kwargs)
 
-    def runner_update(self, new_book: MarketBook, runner_index):
+    def _get_value(self, new_book: MarketBook, runner_index):
         return new_book.runners[runner_index].ex.available_to_back[:self.n_elements]
 
 
@@ -391,16 +387,16 @@ class RFLadLay(RFBase):
         self.n_elements = n_elements
         super().__init__(*args, **kwargs)
 
-    def runner_update(self, new_book: MarketBook, runner_index):
+    def _get_value(self, new_book: MarketBook, runner_index):
         return new_book.runners[runner_index].ex.available_to_lay[:self.n_elements]
 
 
 @ftrs_reg.register_element
 class RFMaxDif(RFChild):
     """maximum difference of parent cache values"""
-    def runner_update(self, new_book: MarketBook, runner_index):
-        if len(self.parent.values_cache) >= 1:
-            return max(abs(np.diff([v[1] for v in self.parent.values_cache])).tolist())
+    def _get_value(self, new_book: MarketBook, runner_index):
+        if len(self.parent._values_cache) >= 2:
+            return max(abs(np.diff([v[1] for v in self.parent._values_cache])).tolist())
         else:
             return 0
 
@@ -408,7 +404,7 @@ class RFMaxDif(RFChild):
 @ftrs_reg.register_element
 class RFTVTot(RFBase):
     """total traded volume of runner"""
-    def runner_update(self, new_book: MarketBook, runner_index):
+    def _get_value(self, new_book: MarketBook, runner_index):
         return traded_runner_vol(new_book.runners[runner_index])
 
 
@@ -419,28 +415,28 @@ class RFIncSum(RFChild):
         super().__init__(*args, **kwargs)
         self._sum = 0
 
-    def runner_update(self, new_book: MarketBook, runner_index):
-        self._sum += self.parent.values_cache[-1][1]
+    def _get_value(self, new_book: MarketBook, runner_index):
+        self._sum += self.parent._values_cache[-1][1]
         return self._sum
 
 
 @ftrs_reg.register_element
 class RFSum(RFChild):
     """sum parent cache values"""
-    def runner_update(self, new_book: MarketBook, runner_index):
-        return sum(v[1] for v in self.parent.values_cache)
+    def _get_value(self, new_book: MarketBook, runner_index):
+        return sum(v[1] for v in self.parent._values_cache)
 
 
 @ftrs_reg.register_element
 class RFTick(RFChild):
     """convert parent to tick value"""
-    def runner_update(self, new_book: MarketBook, runner_index):
-        return closest_tick(self.parent.values_cache[-1][1], return_index=True)
+    def _get_value(self, new_book: MarketBook, runner_index):
+        return closest_tick(self.parent._values_cache[-1][1], return_index=True)
 
 
 @ftrs_reg.register_element
 class RFDif(RFChild):
     """compare parent most recent value to first value in cache"""
-    def runner_update(self, new_book: MarketBook, runner_index):
-        return self.parent.values_cache[-1][1] - self.parent.values_cache[0][1]
+    def _get_value(self, new_book: MarketBook, runner_index):
+        return self.parent._values_cache[-1][1] - self.parent._values_cache[0][1]
 
