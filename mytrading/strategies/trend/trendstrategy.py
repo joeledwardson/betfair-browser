@@ -10,7 +10,7 @@ import logging
 from myutils.myclass import store_kwargs
 from ...strategy.trademachine import tradestates as basestates
 from mytrading.strategy.trademachine.trademachine import RunnerStateMachine
-from ...strategy.featurestrategy import MyFeatureStrategy, MarketHandler
+from ...strategy.strategy import MarketHandler, MyFeatureStrategy
 from ...process.ticks.ticks import LTICKS_DECODED, tick_spread, closest_tick
 from ...process.prices import best_price, get_ltps
 from mytrading.strategy.feature import RunnerFeatureBase

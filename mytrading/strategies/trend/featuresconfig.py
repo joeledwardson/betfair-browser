@@ -1,6 +1,5 @@
 from typing import Dict
-from ...strategy.feature.utils import FeatureCfgUtils as CfgUtil
-
+from ...strategy.feature import FeatureCfgUtils as CfgUtil
 
 KEY_SAMPLE = 'smp'
 KEY_AVERAGE = 'avg'

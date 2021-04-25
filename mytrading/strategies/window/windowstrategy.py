@@ -7,7 +7,7 @@ import logging
 
 from ...strategy.trademachine import tradestates as basestates
 from mytrading.strategy.trademachine.trademachine import RunnerStateMachine
-from ...strategy.featurestrategy import MyFeatureStrategy
+from ...strategy.strategy import MyFeatureStrategy
 from ...process.ticks.ticks import tick_spread
 from ...process.tradedvolume import traded_runner_vol
 from mytrading.strategy.feature import get_features_default_configs

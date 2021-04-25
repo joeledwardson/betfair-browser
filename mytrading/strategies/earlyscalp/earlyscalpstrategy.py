@@ -10,7 +10,7 @@ from datetime import datetime
 
 from ...strategy.trademachine import tradestates as basestates
 from mytrading.strategy.trademachine.trademachine import RunnerStateMachine
-from ...strategy.featurestrategy import MyFeatureStrategy
+from ...strategy.strategy import MyFeatureStrategy
 from .featuresconfig import get_scalp_feature_configs
 from . import states as scalpstates
 from .datatypes import EScalpData

@@ -1,5 +1,5 @@
 from typing import Dict, List
-from ...strategy.feature.utils import FeatureCfgUtils as FtrUtil
+from ...strategy.feature import FeatureCfgUtils as FtrUtil
 from ...visual import FigConfigUtils as PltUtil
 
 

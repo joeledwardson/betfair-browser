@@ -3,7 +3,7 @@ from betfairlightweight.resources.bettingresources import MarketBook, RunnerBook
 
 from ...strategy.trademachine import tradestates
 from mytrading.strategy.trademachine.trademachine import RunnerStateMachine
-from ...strategy.featurestrategy import MyFeatureStrategy
+from ...strategy.strategy import MyFeatureStrategy
 from ...process.ladder import BfLadderPoint, get_ladder_point
 from . import states as wallstates
 from .tradetracker import WallTradeTracker

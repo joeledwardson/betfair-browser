@@ -11,10 +11,10 @@ import pandas as pd
 from plotly import graph_objects as go
 from plotly.subplots import make_subplots
 
-from ..strategy.tradetracker.messages import format_message
-from ..process.ticks.ticks import LTICKS_DECODED, closest_tick
-from ..strategy.tradetracker.messages import MessageTypes
-from ..strategy.feature.utils import FeatureHolder
+from .strategy.tradetracker.messages import format_message
+from .process.ticks.ticks import LTICKS_DECODED, closest_tick
+from .strategy.tradetracker.messages import MessageTypes
+from .strategy.feature import FeatureHolder
 from myutils import generic
 
 

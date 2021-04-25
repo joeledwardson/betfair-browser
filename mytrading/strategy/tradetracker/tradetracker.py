@@ -1,26 +1,44 @@
 from flumine.order.order import BetfairOrder, OrderStatus
-from flumine.order.trade import Trade
+from flumine.order.trade import Trade, TradeStatus
 from flumine.order.ordertype import LimitOrder
 
 import logging
 from enum import Enum
+import pandas as pd
+from datetime import datetime
+from uuid import UUID
+from typing import List, Dict, Optional, AnyStr
+from os import path
+import json
+from dataclasses import dataclass, field
 
 from .messages import MessageTypes, format_message
-from .orderinfo import serializable_order_info, write_order_update
-from .tradefollower import OrderTracker, TradeFollower
-from typing import List, Dict
-from datetime import datetime
-from dataclasses import dataclass, field
-from uuid import UUID
+from ...process.profit import order_profit
 
 active_logger = logging.getLogger(__name__)
 active_logger.setLevel(logging.INFO)
 
 
-# TODO - should this be a dataclass?
+class TrackerException(Exception):
+    pass
+
+
+@dataclass
+class OrderTracker:
+    """track the status and matched money of an order"""
+    matched: float
+    status: OrderStatus
+
+
+@dataclass
+class TradeFollower:
+    """track the status of a trade"""
+    status: TradeStatus = field(default=None)
+    order_trackers: Dict[str, OrderTracker] = field(default_factory=dict)
+
+
 # TODO - also shouldn't this have more functions for getting a new trade etc?
 # TODO - worth reviewing if cant hack flumine code for trade/order updates
-@dataclass
 class TradeTracker:
     """
     Track trades for a runner, logging order updates
@@ -33,20 +51,84 @@ class TradeTracker:
 
     if `file_path` is specified, it is used as the path to log updates to as well as logging to stream
     """
+    def __init__(self, selection_id: int, file_path: Optional[str] = None):
+        active_logger.info(f'creating trade tracker with selection ID "{selection_id}" and file path "{file_path}"')
+        self.selection_id = selection_id
+        self.file_path = file_path
 
-    selection_id: int
-    trades: List[Trade] = field(default_factory=list)
-    active_trade: Trade = field(default=None)
-    active_order: BetfairOrder = field(default=None)
-    open_side: str = field(default=None)
+        self.trades: List[Trade] = list()
+        self.active_trade: Optional[Trade] = None
+        self.active_order: Optional[BetfairOrder] = None
+        self.open_side: Optional[str] = None
+        self._log: List[Dict] = list() # TODO - do really need this?
 
-    _log: List[Dict] = field(default_factory=list)
-    file_path: str = field(default=None)
+        # indexed by trade ID
+        self._trade_followers: Dict[UUID, TradeFollower] = dict()
+        self._followed_orders = list()
 
-    # indexed by trade ID
-    _trade_followers: Dict[UUID, TradeFollower] = field(default_factory=dict)
-    # cache of tracked orders
-    _followed_orders: List[UUID] = field(default_factory=list)
+    @staticmethod
+    def serializable_order_info(order: BetfairOrder) -> dict:
+        """convert betfair order info to JSON serializable format"""
+
+        # copy order info so modifications don't change original object
+        info = order.info.copy()
+
+        # convert trade ID to string
+        info['trade']['id'] = str(info['trade']['id'])
+
+        # dont store strategy info
+        # convert strategy object in trade to dict of info
+        # info['trade']['strategy'] = info['trade']['strategy'].info
+        del info['trade']['strategy']
+
+        # convert strategy status to string
+        info['trade']['status'] = str(info['trade']['status'])
+
+        # add runner status to order
+        info['runner_status'] = str(order.runner_status)
+
+        # add datetime created
+        info['date_time_created'] = order.date_time_created.timestamp()
+        info['average_price_matched'] = order.average_price_matched
+
+        return info
+
+    @staticmethod
+    def get_order_updates(file_path) -> pd.DataFrame:
+        """get `TradeTracker` data written to file in dataframe format, with index set as `pt` converted to datetimes if
+        fail, return None"""
+        if not path.isfile(file_path):
+            raise TrackerException(f'Cannot get order updates, path is not valid file: "{file_path}')
+
+        with open(file_path) as f:
+            lines = f.readlines()
+
+        try:
+            order_data = [json.loads(line) for line in lines]
+        except (ValueError, TypeError) as e:
+            raise TrackerException(f'Cannot json parse order updates from "{file_path}": {e}')
+
+        order_df = pd.DataFrame(order_data)
+        if order_df.shape[0]:
+            order_df.index = order_df['dt'].apply(datetime.fromtimestamp)
+        return order_df
+
+    @staticmethod
+    def dict_order_profit(order_info: dict) -> float:
+        """
+        Compute order profit from dictionary of values retrieved from a line of a file written to by TradeTracker.log_update
+
+        Function is shamelessly stolen from `flumine.backtest.simulated.Simulated.profit`, but that requires an order
+        instance which is not possible to create trade/strategy information etc
+        """
+        try:
+            sts = order_info['runner_status']
+            side = order_info['info']['side']
+            price = order_info['info']['average_price_matched']
+            size = order_info['info']['size_matched']
+            return order_profit(sts, side, price, size)
+        except KeyError as e:
+            raise TrackerException(f'failed to get profit elements: {e}')
 
     def update_order_tracker(self, publish_time: datetime):
         """
@@ -57,7 +139,6 @@ class TradeTracker:
 
         # loop trades
         for trade in self.trades:
-
             # add untracked trades to tracker
             if trade.id not in tfs:
                 self.log_update(
@@ -84,7 +165,6 @@ class TradeTracker:
 
             # loop limit orders in trade
             for order in [o for o in trade.orders if type(o.order_type) == LimitOrder]:
-
                 # if order untracked, create order tracker and track
                 if order.id not in self._followed_orders:
                     self.log_update(
@@ -139,6 +219,8 @@ class TradeTracker:
                         order=order,
                         display_odds=order.order_type.price,
                     )
+
+                # update cached order status and size matched values
                 tf.order_trackers[order.id].status = order.status
                 tf.order_trackers[order.id].matched = order.size_matched
 
@@ -150,7 +232,8 @@ class TradeTracker:
             level=logging.INFO,
             to_file=True,
             display_odds: float = 0.0,
-            order: BetfairOrder = None):
+            order: BetfairOrder = None
+    ):
         """
         Log an update
         - msg: verbose string describing the update
@@ -194,21 +277,25 @@ class TradeTracker:
 
             # get order serialized info (if exist)
             if order:
-                order_info = serializable_order_info(order)
+                order_info = self.serializable_order_info(order)
             else:
                 order_info = None
 
             # convert message attrs to empty dict if not set
             msg_attrs = msg_attrs or {}
 
-            write_order_update(
-                file_path=self.file_path,
-                selection_id=self.selection_id,
-                dt=dt,
-                msg_type=msg_type,
-                msg_attrs=msg_attrs,
-                display_odds=display_odds,
-                order_info=order_info,
-                trade_id=trade_id,
-            )
-
+            data = {
+                'selection_id': self.selection_id,
+                'dt': dt.timestamp(),
+                'msg_type': msg_type.name,
+                'msg_attrs': msg_attrs,
+                'display_odds': display_odds,
+                'order_info': order_info,
+                'trade_id': str(trade_id)
+            }
+            with open(self.file_path, mode='a') as f:
+                try:
+                    json_data = json.dumps(data)
+                except TypeError as e:
+                    raise TrackerException(f'failed to serialise data writing to file: "{self.file_path}"\n{e}')
+                f.writelines([json_data + '\n'])

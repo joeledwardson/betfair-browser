@@ -14,13 +14,14 @@ from configparser import ConfigParser
 import yaml
 import importlib.resources as pkg_resources
 
+import mytrading.strategy.feature
 from mytrading.strategy.tradetracker.messages import MessageTypes
 from mytrading.utils import security as mysecurity, bfcache
 from mytrading.utils.bettingdb import BettingDB
-from mytrading.strategy.tradetracker import orderinfo
+from mytrading.strategy.tradetracker import tradetracker
 from mytrading.process import prices
 from mytrading import visual as figlib
-from mytrading.strategy.feature import utils as ftrutils
+from mytrading.strategy import feature as ftrutils
 from myutils import mypath, mytiming, jsonfile, generic
 
 
@@ -318,7 +319,7 @@ class Session:
             'size': o['order_type']['size'],
             'm-price': o['average_price_matched'],
             'matched': o['info']['size_matched'],
-            'order-profit': orderinfo.dict_order_profit(o)
+            'order-profit': tradetracker.TradeTracker.dict_order_profit(o)
         } for o in lines])
 
         # sum order profits in each trade
@@ -398,7 +399,10 @@ class Session:
             if not path.exists(p):
                 raise SessionException(f'could not find cached strategy market file:\n-> "{p}"')
 
-            orders = orderinfo.get_order_updates(p)
+            try:
+                orders = tradetracker.TradeTracker.get_order_updates(p)
+            except tradetracker.TrackerException as e:
+                raise SessionException(e)
             if not orders.shape[0]:
                 raise SessionException(f'could not find any rows in cached strategy market file:\n-> "{p}"')
 
@@ -413,7 +417,7 @@ class Session:
         ftr_cfg = self.ftr_fcfg(ftr_key)
 
         # generate plot by simulating features
-        ftrs_data = ftrutils.FeatureHolder.gen_ftrs(ftr_cfg).sim_mktftrs(
+        ftrs_data = mytrading.strategy.feature.FeatureHolder.gen_ftrs(ftr_cfg).sim_mktftrs(
             hist_records=self.mkt_records,
             selection_id=selection_id,
             cmp_start=start,

@@ -2,23 +2,16 @@ from __future__ import annotations
 from betfairlightweight.resources.bettingresources import MarketBook
 import numpy as np
 from typing import List, Dict, Optional, Any
-from sklearn.linear_model import LinearRegression
 from datetime import datetime, timedelta
 import logging
-from os import path
 from collections import deque
-import pandas as pd
 import statistics
 
-from .featureprocessors import get_feature_processor, get_feature_processors
 from mytrading.process.prices import best_price
 from mytrading.process.tradedvolume import traded_runner_vol
 from mytrading.process.ticks.ticks import tick_spread, LTICKS_DECODED
 from mytrading.process.tradedvolume import get_record_tv_diff
-from mytrading.utils.storage import construct_hist_dir
-from mytrading.oddschecker import oc_hist_mktbk_processor
 from mytrading.process.ticks.ticks import closest_tick
-from .window import Windows
 from myutils import mytiming, myregistrar
 
 
@@ -30,41 +23,29 @@ class FeatureException(Exception):
     pass
 
 
-# TODO - add function indicate if value changed, write values incrementally to file
-# TODO - how to store values without list getting too big? maybe accept arg which dicates how large to set the
-#  "cache" size, i.e. how many values to store in list - or a overridable function which removes values from deque
-#  that arent needed
-# TODO - output cache?
 class RFBase:
     """
-    base class for runner features
-    # TODO - update this
-    - value_processor: process output values by selecting processor from `runner_feature_value_processors` - processed
-    values will be taken from `.values` into `.processed_values`
-    - value_processor_args: kwargs to pass to `value_processor` function creator
-    - periodic_ms: specify to only compute and store feature value every 'periodic_ms' milliseconds
-    - period_timestamps: only valid is `periodic_ms` is not None, specifies if timestamps should be sampled
-    - components: list of dictionary specifications for sub-features, i.e. features that base some of their
-    calculations on the existing feature, dictionary values are:
-        key: human name of feature for dictionary 'self.sub_features', (.e.g 'my minimum')
-        values:
-            'name': feature name as matches file (e.g.  'RunnerFeatureTradedWindowMin')
-            'kwargs': arguments to pass to sub feature constructor
+    base class for runner features that can hold child features specified by `sub_features_config`, dictionary of
+    (child feature identifier => child feature constructor kwargs)
     """
     def __init__(
             self,
             sub_features_config: Optional[Dict] = None,
             parent: Optional[RFBase] = None,
-            feature_key=None,  # TODO - rename to 'name'
+            ftr_identifier=None,
             cache_count=2,
             cache_secs=None,
             cache_insidewindow=None,
     ):
+        """by default store cache of 2 values using `cache_count`. If cache seconds `cache_secs` is specified this
+        takes priority over `cache_count` by indicating number of seconds prior to cache values. In this case,
+        `cache_insidewindow` determines whether first cache value in queue should be inside the time window or
+        outside"""
 
         self.parent = parent
         self.selection_id: int = None
-        if feature_key:
-            self.ftr_identifier = feature_key
+        if ftr_identifier:
+            self.ftr_identifier = ftr_identifier
         else:
             self.ftr_identifier = self.__class__.__name__
         if self.parent:
@@ -100,7 +81,7 @@ class RFBase:
                     self.sub_features[k] = feature_class(
                         parent=self,
                         **feature_kwargs,
-                        feature_key=k, # use dictionary name as feature name
+                        ftr_identifier=k,  # use dictionary name as feature name
                     )
                 except TypeError as e:
                     raise FeatureException(
