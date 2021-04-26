@@ -1,17 +1,14 @@
 from __future__ import annotations
 from betfairlightweight.resources.bettingresources import MarketBook
 import numpy as np
-from typing import List, Dict, Optional, Any
+from typing import Dict, Optional, Any
 from datetime import datetime, timedelta
 import logging
 from collections import deque
 import statistics
 
-from mytrading.process.prices import best_price
-from mytrading.process.tradedvolume import traded_runner_vol
-from mytrading.process.ticks.ticks import tick_spread, LTICKS_DECODED
-from mytrading.process.tradedvolume import get_record_tv_diff
-from mytrading.process.ticks.ticks import closest_tick
+from mytrading.process import get_best_price, closest_tick, tick_spread, traded_runner_vol, get_record_tv_diff
+from mytrading.process.ticks import LTICKS_DECODED
 from myutils import mytiming, myregistrar
 
 
@@ -280,8 +277,8 @@ class RFBkSplit(RFBase):
             value = back_diff - lay_diff
 
         # update previous state values
-        self.previous_best_back = best_price(runner.ex.available_to_back)
-        self.previous_best_lay = best_price(runner.ex.available_to_lay)
+        self.previous_best_back = get_best_price(runner.ex.available_to_back)
+        self.previous_best_lay = get_best_price(runner.ex.available_to_lay)
         self.previous_ladder = runner.ex.traded_volume
 
         return value
@@ -320,7 +317,7 @@ class RFWOM(RFBase):
 class RFBck(RFBase):
     """Best available back price of runner"""
     def _get_value(self, new_book: MarketBook, runner_index):
-        return best_price(new_book.runners[runner_index].ex.available_to_back)
+        return get_best_price(new_book.runners[runner_index].ex.available_to_back)
 
 
 @ftrs_reg.register_element
@@ -329,7 +326,7 @@ class RFLay(RFBase):
     Best available lay price of runner
     """
     def _get_value(self, new_book: MarketBook, runner_index):
-        return best_price(new_book.runners[runner_index].ex.available_to_lay)
+        return get_best_price(new_book.runners[runner_index].ex.available_to_lay)
 
 
 @ftrs_reg.register_element
@@ -338,8 +335,8 @@ class RFLadSprd(RFBase):
     tick spread between best lay and best back - defaults to 1000 if cannot find best back or lay
     """
     def _get_value(self, new_book: MarketBook, runner_index):
-        best_lay = best_price(new_book.runners[runner_index].ex.available_to_lay)
-        best_back = best_price(new_book.runners[runner_index].ex.available_to_back)
+        best_lay = get_best_price(new_book.runners[runner_index].ex.available_to_lay)
+        best_back = get_best_price(new_book.runners[runner_index].ex.available_to_back)
         if best_lay and best_back:
             return tick_spread(best_back, best_lay, check_values=False)
         else:

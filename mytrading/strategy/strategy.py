@@ -10,7 +10,7 @@ from betfairlightweight.resources import MarketBook, RunnerBook
 from flumine import clients, BaseStrategy
 from flumine.markets.market import Market
 
-from ..process.prices import best_price
+from ..process import get_best_price
 from .feature import RFBase, FeatureHolder
 from .trademachine.trademachine import RunnerStateMachine
 from.trademachine.tradestates import TradeStateTypes
@@ -173,8 +173,8 @@ class RunnerHandler:
         """log message that allow trading point reached"""
         # set display odds as either LTP/best back/best lay depending if any/all are available
         ltp = rbk.last_price_traded
-        best_back = best_price(rbk.ex.available_to_back)
-        best_lay = best_price(rbk.ex.available_to_lay)
+        best_back = get_best_price(rbk.ex.available_to_back)
+        best_lay = get_best_price(rbk.ex.available_to_lay)
         display_odds = ltp or best_back or best_lay or 0
 
         # log message

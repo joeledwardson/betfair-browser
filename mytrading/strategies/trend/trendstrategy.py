@@ -11,8 +11,8 @@ from myutils.myclass import store_kwargs
 from ...strategy import tradestates as basestates
 from mytrading.strategy.trademachine import RunnerStateMachine
 from ...strategy.strategy import MarketHandler, MyFeatureStrategy
-from ...process.ticks.ticks import LTICKS_DECODED, tick_spread, closest_tick
-from ...process.prices import best_price, get_ltps
+from mytrading.process.ticks import LTICKS_DECODED
+from ...process import get_best_price, get_ltps, closest_tick, tick_spread
 from .featuresconfig import get_trend_feature_configs
 from . import states as trendstates
 from .datatypes import TrendData, TrendCriteria
@@ -123,8 +123,8 @@ class MyTrendStrategy(MyFeatureStrategy):
         self.trend_data_dicts[market.market_id] = dict()
 
     def custom_runner_initialisation(self, market: Market, market_book: MarketBook, runner: RunnerBook):
-        best_back = best_price(runner.ex.available_to_back)
-        best_lay = best_price(runner.ex.available_to_lay)
+        best_back = get_best_price(runner.ex.available_to_back)
+        best_lay = get_best_price(runner.ex.available_to_lay)
         do_features = runner.last_price_traded and runner.last_price_traded <= self.price_cutoff and \
                       best_lay and best_lay <= self.price_cutoff and \
                       best_back and best_back <= self.price_cutoff
@@ -184,8 +184,8 @@ class MyTrendStrategy(MyFeatureStrategy):
         trend_data.ltp_strength = ltp_regression.get('rsquared')
 
         # set best back/best lay/ltp
-        trend_data.best_back = best_price(runner.ex.available_to_back)
-        trend_data.best_lay = best_price(runner.ex.available_to_lay)
+        trend_data.best_back = get_best_price(runner.ex.available_to_back)
+        trend_data.best_lay = get_best_price(runner.ex.available_to_lay)
         trend_data.ltp = runner.last_price_traded
 
         # set smoothed data values

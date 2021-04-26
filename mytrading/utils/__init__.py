@@ -8,7 +8,7 @@ import keyring
 from betfairlightweight.filters import market_filter
 from betfairlightweight.resources import MarketCatalogue
 
-from ..process.times import bf_dt
+from ..process import bf_dt
 from myutils.generic import dgetattr
 
 

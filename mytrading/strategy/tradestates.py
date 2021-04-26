@@ -11,9 +11,8 @@ from flumine.order.trade import Trade, TradeStatus
 from betfairlightweight.resources.bettingresources import MarketBook, RunnerBook
 
 from mytrading.process.matchbet import get_match_bet_sums
-from mytrading.process.profit import order_profit
-from mytrading.process.side import select_ladder_side, select_operator_side, invert_side
-from mytrading.process.ticks.ticks import closest_tick, LTICKS_DECODED
+from mytrading.process import get_order_profit, get_side_operator, get_side_ladder, side_invert, closest_tick
+from mytrading.process.ticks import LTICKS_DECODED
 from mytrading.strategy.tradetracker.tradetracker import TradeTracker
 from mytrading.strategy.tradetracker.messages import MessageTypes
 from myutils import statemachine as stm
@@ -746,13 +745,13 @@ class TradeStateHedgeWaitTake(TradeStateHedgeWaitBase):
             return 0
 
         # get ladder on close side for hedging
-        available = select_ladder_side(
+        available = get_side_ladder(
             market_book.runners[runner_index].ex,
             order.side
         )
 
         # get operator for comparing available price and current hedge price
-        op = select_operator_side(
+        op = get_side_operator(
             order.side,
             invert=True
         )
@@ -883,9 +882,9 @@ class TradeStateHedgeWaitQueue(TradeStateHedgeWaitBase):
             return 0
 
         # get ladder on open side for hedging
-        available = select_ladder_side(
+        available = get_side_ladder(
             market_book.runners[runner_index].ex,
-            invert_side(order.side)
+            side_invert(order.side)
         )
 
         # check not empty
@@ -947,7 +946,7 @@ class TradeStateClean(TradeStateBase):
             orders = [o for o in trade_tracker.active_trade.orders if o.order_type.ORDER_TYPE == OrderTypes.LIMIT]
 
             win_profit = sum(
-                order_profit(
+                get_order_profit(
                     'WINNER',
                     o.side,
                     o.average_price_matched,
@@ -955,7 +954,7 @@ class TradeStateClean(TradeStateBase):
                 for o in orders)
 
             loss_profit = sum(
-                order_profit(
+                get_order_profit(
                     'LOSER',
                     o.side,
                     o.average_price_matched,

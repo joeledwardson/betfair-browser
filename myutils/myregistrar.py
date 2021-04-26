@@ -11,7 +11,7 @@ class MyRegistrar:
         register an element, add to dictionary of elements
         """
         if obj.__name__ in self._reg:
-            raise Exception(f'registering object "{obj.__name__}", but already exists!')
+            raise RegistrarException(f'registering object "{obj.__name__}", but already exists!')
         else:
             self._reg[obj.__name__] = obj
             return obj

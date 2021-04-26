@@ -8,7 +8,7 @@ import logging
 from enum import Enum
 
 from mytrading.strategy.tradetracker.messages import MessageTypes
-from ...process.ticks.ticks import LTICKS_DECODED
+from mytrading.process.ticks import LTICKS_DECODED
 from ...strategy.trademachine import tradestates
 from .tradetracker import EScalpTradeTracker
 from .datatypes import EScalpData

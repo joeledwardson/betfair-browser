@@ -11,7 +11,7 @@ from myutils.myclass import store_kwargs
 from ...strategy import tradestates as basestates
 from ...strategy.trademachine import RunnerStateMachine
 from ...strategy.strategy import MyFeatureStrategy
-from ...process.prices import get_ltps
+from ...process import get_ltps
 from .featuresconfig import get_spike_feature_configs
 from . import states as spikestates
 from .datatypes import SpikeData

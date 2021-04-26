@@ -13,7 +13,7 @@ import json
 from dataclasses import dataclass, field
 
 from .messages import MessageTypes, format_message
-from ..process.profit import order_profit
+from ..process import get_order_profit
 
 active_logger = logging.getLogger(__name__)
 active_logger.setLevel(logging.INFO)
@@ -126,7 +126,7 @@ class TradeTracker:
             side = order_info['info']['side']
             price = order_info['info']['average_price_matched']
             size = order_info['info']['size_matched']
-            return order_profit(sts, side, price, size)
+            return get_order_profit(sts, side, price, size)
         except KeyError as e:
             raise TrackerException(f'failed to get profit elements: {e}')
 

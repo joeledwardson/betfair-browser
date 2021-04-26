@@ -15,10 +15,9 @@ from myutils.generic import i_prev, i_next
 
 from ...strategy.trademachine import tradestates
 from mytrading.strategy.trademachine.tradestates import TradeStateTypes
-from ...process.ladder import runner_spread, BfLadderPoint
-from ...process.prices import best_price
-from ...process.ticks.ticks import TICKS, LTICKS_DECODED, LTICKS
-from ...process.side import select_ladder_side, invert_side, select_operator_side
+from ...process import get_runner_spread, BfLadderPoint, get_best_price, get_side_operator, get_side_ladder, \
+    side_invert
+from mytrading.process.ticks import TICKS, LTICKS_DECODED, LTICKS
 from .messages import WallMessageTypes
 from .tradetracker import WallTradeTracker
 
@@ -53,7 +52,7 @@ def validate_wall(
         )
 
     # get ladder on wall side of book
-    available = select_ladder_side(runner_book.ex, trade_tracker.wall.side)
+    available = get_side_ladder(runner_book.ex, trade_tracker.wall.side)
 
     # limit tick range, if price drifts to much then bet will be cancelled if not matched
     available = available[:wall_ticks]
@@ -139,14 +138,14 @@ class WallTradeStateIdle(tradestates.TradeStateIdle):
             **inputs) -> bool:
 
         if inputs.get('wall_point') is not None:
-            spread = runner_spread(market_book.runners[runner_index].ex)
+            spread = get_runner_spread(market_book.runners[runner_index].ex)
             if spread <= self.max_tick_spread:
                 trade_tracker.log_update(
                     msg_type=WallMessageTypes.WALL_DETECT,
                     msg_attrs={
                         'wall_point': inputs['wall_point'].__dict__,
-                        'best_atb': best_price(market_book.runners[runner_index].ex.available_to_back),
-                        'best_atl': best_price(market_book.runners[runner_index].ex.available_to_lay),
+                        'best_atb': get_best_price(market_book.runners[runner_index].ex.available_to_back),
+                        'best_atl': get_best_price(market_book.runners[runner_index].ex.available_to_lay),
                         'spread_ticks': spread,
                     },
                     dt=market_book.publish_time,
@@ -189,7 +188,7 @@ class WallTradeStateOpenPlace(tradestates.TradeStateOpenPlace):
         price = get_wall_adjacent(wall.side, wall.tick_index)
 
         # wall side is given as available, so if £150 available to back at 2.5 we want to lay at 2.51
-        side = invert_side(wall.side)
+        side = side_invert(wall.side)
 
         # create and place order
         order = trade_tracker.active_trade.create_order(
@@ -242,7 +241,7 @@ class WallTradeStateOpenMatching(tradestates.TradeStateOpenMatching):
             ]
 
         # get > or < comparator for BACK/LAY side selection
-        op = select_operator_side(trade_tracker.open_side)
+        op = get_side_operator(trade_tracker.open_side)
 
         wall: BfLadderPoint = inputs['wall_point']
 

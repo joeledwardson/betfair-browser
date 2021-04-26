@@ -8,8 +8,8 @@ import logging
 from enum import Enum
 from datetime import datetime
 
-from ...process.ticks.ticks import closest_tick
-from ...process.ticks.ticks import tick_spread, LTICKS_DECODED
+from ...process import closest_tick, tick_spread
+from mytrading.process.ticks import LTICKS_DECODED
 from ...strategy import tradestates
 from .tradetracker import SpikeTradeTracker
 from .datatypes import SpikeData

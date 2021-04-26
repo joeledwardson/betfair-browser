@@ -12,7 +12,8 @@ from plotly import graph_objects as go
 from plotly.subplots import make_subplots
 
 from .strategy.messages import format_message, MessageTypes
-from .process.ticks.ticks import LTICKS_DECODED, closest_tick
+from mytrading.process.ticks import LTICKS_DECODED
+from .process import closest_tick
 from myutils import generic
 
 

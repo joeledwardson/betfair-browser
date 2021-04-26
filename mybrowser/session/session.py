@@ -14,6 +14,7 @@ from configparser import ConfigParser
 import yaml
 import importlib.resources as pkg_resources
 
+import mytrading.process
 from mytrading.strategy import messages as msgs
 from mytrading import utils as trutils
 from mytrading.utils import bfcache
@@ -250,7 +251,7 @@ class Session:
             active_logger.warning(f'failed getting runners rows/market meta from DB: {e}', exc_info=True)
             return False
 
-        start_odds = prices.starting_odds(record_list)
+        start_odds = mytrading.process.get_starting_odds(record_list)
         drows = [dict(r) for r in rows]
         rinf = {
             r['runner_id']: r | {

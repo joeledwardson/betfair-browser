@@ -7,7 +7,7 @@ import logging
 from enum import Enum
 
 from mytrading.strategy.tradestates import TradeStateTypes
-from ...process.ticks.ticks import closest_tick
+from ...process import closest_tick
 from ...strategy import tradestates
 from .tradetracker import TrendTradeTracker
 from .datatypes import TrendData, TrendCriteria

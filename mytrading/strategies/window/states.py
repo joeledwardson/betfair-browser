@@ -8,11 +8,9 @@ import logging
 from datetime import datetime
 from enum import Enum
 
-from ...process.prices import best_price
-from ...process.side import select_ladder_side
+from ...process import get_best_price, get_side_ladder, tick_spread
 from mytrading.strategy.tradetracker.messages import MessageTypes
 from mytrading.strategy.trademachine.tradestates import TradeStateTypes
-from ...process.ticks.ticks import tick_spread
 from ...strategy.trademachine import tradestates
 from .tradetracker import WindowTradeTracker
 from .messages import WindowMessageTypes
@@ -43,7 +41,7 @@ def get_price(ltp, ladder, side):
     """
 
     ltp = ltp or 0
-    price = best_price(ladder)
+    price = get_best_price(ladder)
 
     # if greening on back side, take max of LTP and best back
     if side == 'BACK':
@@ -481,7 +479,7 @@ class WindowTradeStateOpenMatching(tradestates.TradeStateOpenMatching):
         elif sts != OrderStatus.EXECUTION_COMPLETE:
 
             # get ladder on close side for hedging
-            available = select_ladder_side(
+            available = get_side_ladder(
                 market_book.runners[runner_index].ex,
                 trade_tracker.active_order.side
             )
