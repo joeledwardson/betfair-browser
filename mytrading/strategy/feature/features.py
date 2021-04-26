@@ -7,6 +7,7 @@ import logging
 from collections import deque
 import statistics
 
+from mytrading.exceptions import FeatureException
 from mytrading.process import get_best_price, closest_tick, tick_spread, traded_runner_vol, get_record_tv_diff
 from mytrading.process.ticks import LTICKS_DECODED
 from myutils import mytiming, myregistrar
@@ -14,10 +15,6 @@ from myutils import mytiming, myregistrar
 
 ftrs_reg = myregistrar.MyRegistrar()
 active_logger = logging.getLogger(__name__)
-
-
-class FeatureException(Exception):
-    pass
 
 
 class RFBase:

@@ -1,16 +1,16 @@
 from __future__ import annotations
-# TODO - organise these into a single file
 import operator
 from dataclasses import dataclass
 import logging
 from datetime import datetime
 from typing import Dict, List, Union, Optional, Callable
 from betfairlightweight.resources import MarketBook, RunnerBook, MarketDefinitionRunner
-from betfairlightweight.resources.bettingresources import RunnerBookEX, PriceSize
+from betfairlightweight.resources.bettingresources import RunnerBookEX
 from flumine.order.trade import Trade
 
 from .ticks import LTICKS, LTICKS_DECODED, TICKS, TICKS_DECODED
 from myutils import generic, mytiming
+from ..exceptions import BfProcessException
 
 active_logger = logging.getLogger(__name__)
 active_logger.setLevel(logging.INFO)
@@ -23,10 +23,6 @@ GETTER = {
     True: dict.get,
     False: getattr
 }
-
-
-class BfProcessException(Exception):
-    pass
 
 
 @dataclass

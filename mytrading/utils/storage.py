@@ -35,7 +35,8 @@ RE_MARKET_ID = r'^\d\.\d{9}$'
 
 active_logger = logging.getLogger(__name__)
 
-
+# TODO - add string based betfair historical processor for read files
+# TODO - most of this depreciated?
 def get_historical(api_client: APIClient, directory: str) -> Queue:
     """Get Queue object from historical Betfair data file"""
     output_queue = Queue()

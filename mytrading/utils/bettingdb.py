@@ -20,6 +20,9 @@ active_logger.setLevel(logging.INFO)
 
 
 # TODO - need user data column in marketstream for user defined streaming data so can add oddschecker info
+# TODO - have dict of processors to convert streaming files to list of markertbook, catalogue JSON to catalogue etc
+# TODO - add health checker for market elements
+# TODO - function for converting stream to cache
 class BettingDB:
     """
     Betting database handler
@@ -61,6 +64,7 @@ class BettingDB:
         """
         return bool(self.session.query(table_class).filter_by(market_id=market_id).count())
 
+    # TODO - split this into individual functions for different tables
     def insert_market(self, data, meta: Dict, names: Dict, catalogue: Optional[MarketCatalogue]=None) -> bool:
         """
         Insert row(s) into database table(s) for Meta and streaming info given streaming data and market metadata

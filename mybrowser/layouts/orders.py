@@ -9,8 +9,6 @@ def header():
     )
 
 
-# TODO - tables cannot use 'fixed_headers=True' with % height parent or else chrome winges about "Maximum call stack
-#  exceeded" - however it works fine with paginated tables - probably worth posting about on forum
 def table(n_rows) -> dash_table.DataTable:
     """
     get empty DataTable for order profits

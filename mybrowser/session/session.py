@@ -1,6 +1,7 @@
 from functools import partial
 from betfairlightweight.resources.bettingresources import MarketBook
 from os import path
+import os
 from typing import List, Dict, Optional
 import pandas as pd
 import logging
@@ -12,22 +13,25 @@ import sys
 from datetime import datetime
 from configparser import ConfigParser
 import yaml
+import json
+from json.decoder import JSONDecodeError
 import importlib.resources as pkg_resources
 
+
+import mytrading.exceptions
 import mytrading.process
+from mybrowser.session.dbfilter import DBFilter, DBFilterJoin, DBFilterDate, DBFilterMulti
 from mytrading.strategy import messages as msgs
 from mytrading import utils as trutils
 from mytrading.utils import bfcache
 from mytrading.utils import bettingdb as bdb
 from mytrading.strategy import tradetracker
-from mytrading.process import prices
 from mytrading import visual as figlib
 from mytrading.strategy import feature as ftrutils
-from myutils import mypath, mytiming, jsonfile, generic
+from myutils import mytiming, generic
 
 
 from mybrowser.session import dbutils as dbtable
-from mybrowser.session.dbfilters import DBFilters, DBFilter
 from myutils.myregistrar import MyRegistrar
 
 active_logger = logging.getLogger(__name__)
@@ -38,7 +42,70 @@ class SessionException(Exception):
     pass
 
 
-# TODO - this is poor
+class DBFilters:
+
+    def filters_values(self, group):
+        return [flt.value for flt in DBFilter.reg[group]]
+
+    def filters_labels(self, group, db, cte):
+        return [
+            flt.get_labels(flt.get_options(db, cte))
+            for flt in DBFilter.reg[group]
+        ]
+
+    def update_filters(self, group, clear, *args):
+        assert len(args) == len(DBFilter.reg[group])
+        for val, flt in zip(args, DBFilter.reg[group]):
+            flt.set_value(val, clear)
+
+    def __init__(self, mkt_dt_fmt, strat_sel_fmt):
+        self.filters = [
+            DBFilterJoin(
+                "sport_id",
+                'MARKETFILTERS',
+                join_tbl_name='sportids',
+                join_id_col='sport_id',
+                join_name_col='sport_name'
+            ),
+            DBFilter(
+                "market_type",
+                'MARKETFILTERS'
+            ),
+            DBFilter(
+                "betting_type",
+                'MARKETFILTERS'
+            ),
+            DBFilter(
+                'format',
+                'MARKETFILTERS'
+            ),
+            DBFilterJoin(
+                "country_code",
+                'MARKETFILTERS',
+                join_tbl_name='countrycodes',
+                join_id_col='alpha_2_code',
+                join_name_col='name'
+            ),
+            DBFilter(
+                "venue",
+                'MARKETFILTERS'
+            ),
+            DBFilterDate(
+                "market_time",
+                'MARKETFILTERS',
+                mkt_dt_fmt
+            ),
+
+            DBFilterMulti(
+                'strategy_id',
+                'STRATEGYFILTERS',
+                fmt_spec=strat_sel_fmt,
+                order_col='exec_time',
+                is_desc=True,
+            )
+        ]
+
+
 def get_formatters(config) -> MyRegistrar:
     formatters = MyRegistrar()
 
@@ -122,14 +189,14 @@ class Session:
             raise SessionException(f'directory "{config_dir}" is not a string')
 
         # check actually exists
-        if not path.exists(config_dir):
+        if not path.isdir(config_dir):
             raise SessionException(f'directory "{config_dir}" does not exist!')
 
         # dict of configs to return
         configs = dict()
 
         # get files in directory
-        _, _, files = mypath.walk_first(config_dir)
+        _, _, files = next(os.walk(config_dir))
 
         # loop files
         for file_name in files:
@@ -299,7 +366,11 @@ class Session:
         """
 
         # get order results
-        lines = jsonfile.read_file_lines(p)
+        try:
+            with open(p) as f:
+                lines = [json.loads(ln) for ln in f.readlines()]
+        except JSONDecodeError as e:
+            raise SessionException(f'error reading orders file "{p}": {e}')
 
         # get order infos for each message close and check not blank
         lines = [
@@ -379,8 +450,9 @@ class Session:
         if not self.mkt_records or not self.mkt_info:
             raise SessionException('no market information/records')
 
-        # TODO - exit if selection iD not in runners info
         # get name and title
+        if selection_id not in self.mkt_rnrs:
+            raise SessionException(f'selection ID "{selection_id}" not found in market runners')
         name = self.mkt_rnrs[selection_id]['runner_name'] or 'N/A'
         title = self.fig_title(self.mkt_info, name, selection_id)
         active_logger.info(f'producing figure for runner {selection_id}, name: "{name}"')
@@ -402,7 +474,7 @@ class Session:
 
             try:
                 orders = tradetracker.TradeTracker.get_order_updates(p)
-            except tradetracker.TrackerException as e:
+            except mytrading.exceptions.TradeTrackerException as e:
                 raise SessionException(e)
             if not orders.shape[0]:
                 raise SessionException(f'could not find any rows in cached strategy market file:\n-> "{p}"')
@@ -482,7 +554,6 @@ class Session:
         meta = self.betting_db.tables['marketmeta']
         sr = db.tables['strategyrunners']
 
-        # TODO - add error checking for sqlalchemy
         if strategy_id:
             strat_cte = db.session.query(
                 sr.columns['market_id'],

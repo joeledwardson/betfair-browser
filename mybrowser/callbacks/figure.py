@@ -6,6 +6,7 @@ import logging
 from plotly import graph_objects as go
 import traceback
 
+import mytrading.exceptions
 from mytrading import visual as vislib
 from myutils import mydash as myd
 from myutils import mytiming
@@ -102,7 +103,7 @@ def cb_fig(app, shn: Session):
             shn.ftr_update()  # update feature & plot configs
             for selection_id in sel_ids:
                 shn.fig_plot(selection_id, secs, ftr_key, plt_key)
-        except (ValueError, TypeError, vislib.FigureException, SessionException) as e:
+        except (ValueError, TypeError, mytrading.exceptions.FigureException, SessionException) as e:
             active_logger.error(f'plot error: {e}\n{traceback.format_exc()}')
 
         ret[0] = shn.tms_get()

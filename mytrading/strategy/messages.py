@@ -2,6 +2,7 @@ from enum import Enum
 from typing import Dict, Callable
 from myutils.counter import Counter
 import logging
+from ..exceptions import MessagerException
 
 active_logger = logging.getLogger(__name__)
 message_formatters: Dict[Enum, Callable] = {}
@@ -13,7 +14,10 @@ def format_message(msg_type: str, msg_attrs: Dict) -> str:
     where a formatter is not found, the message type and attributes dictionary will be returned
     """
     if msg_type in message_formatters:
-        return message_formatters[msg_type](msg_attrs)
+        msg = message_formatters[msg_type](msg_attrs)
+        if type(msg) is not str:
+            raise MessagerException(f'message type "{msg_type}" formatting did not return string, instead: {msg}')
+        return msg
     else:
         msg = f'message type "{msg_type}"'
         for k, v in msg_attrs.items():
@@ -28,7 +32,7 @@ def register_formatter(key: Enum):
     """
     def decorator(func):
         if key.name in message_formatters:
-            raise Exception(f'registering message type "{key.name}", but already exists!')
+            raise MessagerException(f'registering message type "{key.name}", but already exists!')
         else:
             message_formatters[key.name] = func
         return func

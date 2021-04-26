@@ -23,7 +23,7 @@ def run_browser(debug: bool, config_path=None):
     - "recorded" dir
     """
     if sys.version_info < (3, 9):
-        raise Exception('Python version needs to be 3.9 or higher!')
+        raise ImportError('Python version needs to be 3.9 or higher!')
 
     app = dash.Dash(__name__, external_stylesheets=[dbc.themes.BOOTSTRAP, FA])
 

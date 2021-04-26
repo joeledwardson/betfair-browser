@@ -18,7 +18,6 @@ class QueueHandler(Handler):
             self.handleError(record)
 
 
-
 def create_dual_logger(name, file_name,
                        file_log_level=logging.DEBUG,
                        stream_log_level=logging.INFO,

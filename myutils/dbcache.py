@@ -8,10 +8,6 @@ active_logger = logging.getLogger(__name__)
 active_logger.setLevel(logging.INFO)
 
 
-class CacheException(Exception):
-    pass
-
-
 def cache_decompress(sql_row):
     return zlib.decompress(sql_row).decode()
 
@@ -37,6 +33,7 @@ def cache_path(root, tbl, filters, col) -> str:
     )))
 
 
+# TODO - dont catch exceptions
 def write_cache_path(root, tbl, filters, col, db, pre_processor=None) -> bool:
     p = cache_path(root, tbl, filters, col)
     d, _ = path.split(p)

@@ -11,7 +11,7 @@ from .bettingdb import BettingDB
 active_logger = logging.getLogger(__name__)
 active_logger.setLevel(logging.INFO)
 
-
+# TODO - all this can probably be rolled up into bettingdb
 def get_meta(first_book: MarketBook, cat: MarketCatalogue = None) -> Dict:
     """
     Get metadata corresponding to the "Meta" table in the betting database for a given betfair Market
@@ -126,7 +126,6 @@ def dir_to_db(db: BettingDB, dirpath: str) -> None:
 
                 if path.exists(cat_path):
                     market_to_db(db, filepath, cat_path)
-
                 else:
                     active_logger.warning(f'"{filepath}" <- recorded file\n'
                                           f'"{cat_path}" <- catalogue file not found')

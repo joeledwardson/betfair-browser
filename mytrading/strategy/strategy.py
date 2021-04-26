@@ -1,17 +1,18 @@
 import json
 import uuid
 from datetime import datetime, timedelta
-from enum import Enum
 from os import path, makedirs
-from typing import Optional, Dict, List
+from typing import Optional, Dict
 import logging
+import yaml
 
 from betfairlightweight.resources import MarketBook, RunnerBook
 from flumine import clients, BaseStrategy
 from flumine.markets.market import Market
 
+from ..exceptions import MyStrategyException
 from ..process import get_best_price
-from .feature import RFBase, FeatureHolder
+from .feature import FeatureHolder
 from .trademachine.trademachine import RunnerStateMachine
 from.trademachine.tradestates import TradeStateTypes
 from.tradetracker.messages import MessageTypes
@@ -20,10 +21,6 @@ from ..utils.storage import SUBDIR_RECORDED, construct_hist_dir, EXT_CATALOGUE, 
 from myutils.mytiming import EdgeDetector, timing_register
 
 active_logger = logging.getLogger(__name__)
-
-
-class MyStrategyException(Exception):
-    pass
 
 
 class BackTestClientNoMin(clients.BacktestClient):
@@ -47,7 +44,7 @@ class MyBaseStrategy(BaseStrategy):
             return True
 
     # override default place order, this time printing where order validation failed
-    # TODO - print reason for validation fail
+    # TODO - trade tracker log reason for validation fail
     def place_order(self, market: Market, order, market_version: int = None) -> None:
         runner_context = self.get_runner_context(*order.lookup)
         if self.validate_order(runner_context, order):
@@ -58,6 +55,10 @@ class MyBaseStrategy(BaseStrategy):
 
 
 # TODO - make this work with database, update from old storage convention
+# TODO - user data recording process which accepts a function to retrieve custom user data, then writes it into the
+#  cache file for USER info in market streaming - each line can have a dictionary of user values which is keyed by
+#  the user function name - to pass down to features, could have a class object which is passed to race initialiser
+#  on creation
 class MyRecorderStrategy(BaseStrategy):
     """
     Record streaming updates by writing to file
@@ -136,13 +137,8 @@ class MyRecorderStrategy(BaseStrategy):
         with open(self.market_paths[market_id], 'a') as f:
             f.write(update)
 
-# TODO - roll other strategy files into this one, merge orderinfo/tradefollwer into tradetracker file,
-#  collapse trademachine package, collapse tradetracker package, features can still be in own package with global
-#  desf like FeatureHolder and FeatureCfgUtils in __init__
-
 
 class RunnerHandler:
-
     def __init__(
             self,
             selection_id: int,
@@ -263,7 +259,6 @@ class MarketHandler:
                                f'{market_book.publish_time}')
 
 
-# TODO - make sure old market books and features removed so not to take too much memory
 # TODO - write feature data sequentially rather than as massive dictionary at end of processing
 class MyFeatureStrategy(MyBaseStrategy):
     """
@@ -287,6 +282,7 @@ class MyFeatureStrategy(MyBaseStrategy):
 
     def __init__(
             self,
+            *,
             name: str,
             base_dir: str,
             cutoff_seconds: int,
@@ -306,25 +302,18 @@ class MyFeatureStrategy(MyBaseStrategy):
         self.base_dir = base_dir
         self.market_handlers: Dict[str, MarketHandler] = dict()
 
-    # TODO - update
-    def write_strategy_kwargs(self, indent=4):
-
-        # check no args passed
-        if self.strategy_args:
-            raise Exception('please pass kwargs only to strategy so they can logged in strategy config file')
-
-        # check kwargs passed
-        if not self.strategy_kwargs:
-            raise Exception('if writing strategy kwargs, please ensure "store_kwargs" wraps constructor with '
-                            'key_kwargs="strategy_kwargs" set')
-
-        # write to strategy info file
+    def write_strategy_info(self, init_kwargs):
+        """write strategy information to file"""
+        info = {
+            'name': self.__class__.__name__,
+            'kwargs': init_kwargs
+        }
         meta_path = path.join(self.base_dir, 'strategymeta', str(self.strategy_id), 'info')
         active_logger.info(f'writing strategy info to file: "{meta_path}')
         d, _ = path.split(meta_path)
         makedirs(d)
         with open(meta_path, 'w') as f:
-            f.write(json.dumps(self.strategy_kwargs, indent=indent))
+            f.write(yaml.dump(info))
 
     def allow_trademachine(
             self,

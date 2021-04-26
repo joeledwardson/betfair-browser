@@ -7,12 +7,16 @@ active_logger = logging.getLogger(__name__)
 active_logger.setLevel(logging.INFO)
 
 
+class StateMachineException(Exception):
+    pass
+
+
 class State:
     def enter(self, **inputs):
         pass
 
     def run(self, **inputs):
-        assert 0, "run not implemented"
+        raise NotImplementedError
 
 
 class StateMachine:
@@ -60,7 +64,7 @@ class StateMachine:
                 self.current_state_key = self.state_queue.get()
             elif ret is None or ret is False or ret == self.current_state_key:
                 # no value returned or same state returned, same state
-                self.current_state_key = self.previous_state_key
+                pass
             elif isinstance(ret, Enum):
                 # True means go to next state, None means use existing, otherwise single state value has been
                 # returned so add to queue
@@ -70,14 +74,12 @@ class StateMachine:
                 # returned value implies state change (True, list of states, or single new state)
                 if not self.state_queue.qsize():
                     # state has returned true when nothing in queue! (this shouldn't happen)
-                    active_logger.critical('queue has no size')
-                    self.current_state_key = self.previous_state_key
-                else:
-                    # get next state from queue
-                    self.current_state_key = self.state_queue.get()
+                    raise StateMachineException('state machine queue has no size')
+                # get next state from queue
+                self.current_state_key = self.state_queue.get()
             else:
                 # unrecognized return type
-                raise Exception(f'return value "{ret}" in state machine not recognised')
+                raise StateMachineException(f'return value "{ret}" in state machine not recognised')
 
             self.is_state_change = self.previous_state_key != self.current_state_key
             if self.is_state_change:

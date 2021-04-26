@@ -16,6 +16,7 @@ from mytrading.process.ticks import LTICKS_DECODED
 from mytrading.strategy.tradetracker.tradetracker import TradeTracker
 from mytrading.strategy.tradetracker.messages import MessageTypes
 from myutils import statemachine as stm
+from ..exceptions import TradeStateException
 
 
 order_error_states = [
@@ -57,7 +58,6 @@ class TradeStateBase(stm.State):
     """
     base trading state for implementing sub-classes with run() defined
     """
-
     # override default state name and next state without the need for sub-class
     def __init__(self, name: Enum = None, next_state: Enum = None):
         if name:
@@ -67,10 +67,8 @@ class TradeStateBase(stm.State):
 
     # set this value to false where entering into state should not be printed to info log in trademachine
     print_change_message = True
-
     # use enumerations for name of state for other states to refer to
     name: TradeStateTypes = TradeStateTypes.BASE
-
     # easily overridable state to progress to when state action is complete
     next_state: TradeStateTypes = TradeStateTypes.BASE
 
@@ -117,7 +115,7 @@ class TradeStateIntermediary(TradeStateBase):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         if 'next_state' in kwargs:
-            raise Exception(f'next_state kwarg found in intermediary state')
+            raise TradeStateException(f'next_state kwarg found in intermediary state')
 
 
 class TradeStatePending(TradeStateIntermediary):
@@ -128,7 +126,6 @@ class TradeStatePending(TradeStateIntermediary):
     Specifying `all_trade_orders=True` means all orders within active trade are checked, rather than just the active
     order
     """
-
     name = TradeStateTypes.PENDING
 
     def __init__(self, all_trade_orders=False, delay_once=False, **kwargs):
@@ -140,9 +137,8 @@ class TradeStatePending(TradeStateIntermediary):
     def enter(self, **inputs):
         self.first_call = True
 
-    # called to operate state - return None to remain in same state, or return string for new state
     def run(self, trade_tracker: TradeTracker, **inputs):
-
+        """called to operate state - return None to remain in same state, or return string for new state"""
         # hold for 1 state
         if self.first_call:
             self.first_call = False
@@ -157,11 +153,9 @@ class TradeStatePending(TradeStateIntermediary):
 
         # loop orders
         for order in orders:
-
             # ignore, go to next order if doesn't exist
             if order is None:
                 continue
-
             # if order in pending states then not done yet, don't exit state
             if order.status in order_pending_states:
                 return False
@@ -171,12 +165,10 @@ class TradeStatePending(TradeStateIntermediary):
 
 
 class TradeStateBin(TradeStateIntermediary):
-
     """
     intermediary state waits for active order to finish pending (if exist) and cancel it
     intermediary state: run() returns True when complete
     """
-
     name = TradeStateTypes.BIN
 
     def __init__(self, all_trade_orders=False, **kwargs):
@@ -190,35 +182,29 @@ class TradeStateBin(TradeStateIntermediary):
             strategy: BaseStrategy,
             **inputs
     ):
-
         # select either active order or all active trade orders
         if not self.all_trade_orders:
             orders = [trade_tracker.active_order]
         else:
             orders = [o for o in trade_tracker.active_trade.orders] if trade_tracker.active_trade else []
-
         done = True
 
         # loop orders
         for order in orders:
-
             # ignore, go to next order if doesn't exist
             if order is None:
                 continue
-
             # if order in pending states then not done yet, don't exit state
             if order.status in order_pending_states:
                 done = False
 
             elif order.status == OrderStatus.EXECUTABLE:
-
+                # check if order has been called to be cancelled but has gone back to EXECUTABLE before finishing
                 if len(order.status_log) >= 2 and order.status_log[-2] == OrderStatus.CANCELLING:
-                    # check if order has been called to be cancelled but has gone back to EXECUTABLE before finishing
                     pass
                 else:
                     # cancel order (flumine checks order is EXECUTABLE before cancelling or throws error)
                     strategy.cancel_order(market, order)
-
                 done = False
 
         return done
@@ -306,7 +292,6 @@ class TradeStateIdle(TradeStateBase):
             strategy: BaseStrategy,
             **inputs
     ):
-
         max_order_count: MaxTransactionCount = market.flumine.client.trading_controls[0]
         if self.trade_transactions_cutoff and max_order_count.transaction_count >= self.trade_transactions_cutoff:
             return None
@@ -376,7 +361,6 @@ class TradeStateOpenMatching(TradeStateBase):
 
     def __init__(self, move_on_complete=True, *args, **kwargs):
         """
-
         Parameters
         ----------
         move_on_complete : specifies whether to move to next state once active order status becomes EXECUTION_COMPLETE
@@ -384,7 +368,6 @@ class TradeStateOpenMatching(TradeStateBase):
         self.move_on_complete = move_on_complete
         super().__init__(*args, **kwargs)
 
-    # return new state(s) if different action required, otherwise None
     def open_order_processing(
             self,
             market_book: MarketBook,
@@ -394,6 +377,7 @@ class TradeStateOpenMatching(TradeStateBase):
             strategy: BaseStrategy,
             **inputs
     ) -> Union[None, List[Enum]]:
+        """return new state(s) if different action required, otherwise None"""
         raise NotImplementedError
 
     def run(
@@ -410,10 +394,8 @@ class TradeStateOpenMatching(TradeStateBase):
             return new_states
         else:
             sts = trade_tracker.active_order.status
-
             if sts == OrderStatus.EXECUTION_COMPLETE and self.move_on_complete:
                 return self.next_state
-
             elif sts in order_error_states:
                 trade_tracker.log_update(
                     msg_type=MessageTypes.MSG_OPEN_ERROR,
@@ -444,7 +426,6 @@ class TradeStateHedgePlaceBase(TradeStateBase):
     - check that ladder back/lay is available and that unimplemented method get_hedge_price() doesn't return 0 before
     - placing trade
     """
-
     def __init__(self, min_hedge_price, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.min_hedge_price = min_hedge_price
@@ -472,7 +453,6 @@ class TradeStateHedgePlaceBase(TradeStateBase):
             strategy: BaseStrategy,
             **inputs
     ):
-
         # get oustanding profit on trade (dif between profit in win/loss case)
         match_bet_sums = get_match_bet_sums(trade_tracker.active_trade)
         outstanding_profit = match_bet_sums.outstanding_profit()
@@ -490,17 +470,13 @@ class TradeStateHedgePlaceBase(TradeStateBase):
             return TradeStateTypes.CLEANING
 
         runner = market_book.runners[runner_index]
-
         if outstanding_profit > 0:
             # value is positive: trade is "underlayed", i.e. needs more lay money
-
             close_side = 'LAY'
             open_ladder = runner.ex.available_to_back
             close_ladder = runner.ex.available_to_lay
-
         else:
             # value is negative: trade is "overlayed", i.e. needs more back moneyy
-
             close_side = 'BACK'
             open_ladder = runner.ex.available_to_lay
             close_ladder = runner.ex.available_to_back
@@ -511,7 +487,6 @@ class TradeStateHedgePlaceBase(TradeStateBase):
                 msg_type=MessageTypes.MSG_BOOKS_EMPTY,
                 dt=market_book.publish_time
             )
-
             # wait for ladder to populate
             return None
 
@@ -540,7 +515,6 @@ class TradeStateHedgePlaceBase(TradeStateBase):
                 },
                 dt=market_book.publish_time
             )
-
             # use best available
             green_price = close_ladder[0]['price']
 

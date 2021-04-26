@@ -11,6 +11,7 @@ import pandas as pd
 from plotly import graph_objects as go
 from plotly.subplots import make_subplots
 
+from .exceptions import FigureException, FigureDataProcessorException, FigurePostProcessException
 from .strategy.messages import format_message, MessageTypes
 from mytrading.process.ticks import LTICKS_DECODED
 from .process import closest_tick
@@ -18,26 +19,6 @@ from myutils import generic
 
 
 active_logger = logging.getLogger(__name__)
-
-
-class FigureException(Exception):
-    pass
-
-
-class FigureProcessException(FigureException):
-    pass
-
-
-class FigureDataProcessorException(FigureProcessException):
-    pass
-
-
-class FigurePostProcessException(FigureProcessException):
-    pass
-
-
-class FigEmptyException(FigureProcessException):
-    pass
 
 
 class FigPostProcessor:
@@ -571,7 +552,6 @@ class FeatureFigure:
             'tickvals': LTICKS_DECODED[i_min:i_max + 1],
         })
 
-        # TODO - fix?
         # set secondary yaxis, manually set ticks to auto and number to display or for some reason they appear bunched up?
         fig.update_yaxes({
             'showgrid': False,

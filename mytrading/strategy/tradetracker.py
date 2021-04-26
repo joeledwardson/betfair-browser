@@ -7,20 +7,17 @@ from enum import Enum
 import pandas as pd
 from datetime import datetime
 from uuid import UUID
-from typing import List, Dict, Optional, AnyStr
+from typing import List, Dict, Optional
 from os import path
 import json
 from dataclasses import dataclass, field
 
 from .messages import MessageTypes, format_message
+from ..exceptions import TradeTrackerException
 from ..process import get_order_profit
 
 active_logger = logging.getLogger(__name__)
 active_logger.setLevel(logging.INFO)
-
-
-class TrackerException(Exception):
-    pass
 
 
 @dataclass
@@ -37,8 +34,6 @@ class TradeFollower:
     order_trackers: Dict[str, OrderTracker] = field(default_factory=dict)
 
 
-# TODO - also shouldn't this have more functions for getting a new trade etc?
-# TODO - worth reviewing if cant hack flumine code for trade/order updates
 class TradeTracker:
     """
     Track trades for a runner, logging order updates
@@ -60,7 +55,7 @@ class TradeTracker:
         self.active_trade: Optional[Trade] = None
         self.active_order: Optional[BetfairOrder] = None
         self.open_side: Optional[str] = None
-        self._log: List[Dict] = list() # TODO - do really need this?
+        self._prv_display_odds = 0
 
         # indexed by trade ID
         self._trade_followers: Dict[UUID, TradeFollower] = dict()
@@ -98,7 +93,7 @@ class TradeTracker:
         """get `TradeTracker` data written to file in dataframe format, with index set as `pt` converted to datetimes if
         fail, return None"""
         if not path.isfile(file_path):
-            raise TrackerException(f'Cannot get order updates, path is not valid file: "{file_path}')
+            raise TradeTrackerException(f'Cannot get order updates, path is not valid file: "{file_path}')
 
         with open(file_path) as f:
             lines = f.readlines()
@@ -106,7 +101,7 @@ class TradeTracker:
         try:
             order_data = [json.loads(line) for line in lines]
         except (ValueError, TypeError) as e:
-            raise TrackerException(f'Cannot json parse order updates from "{file_path}": {e}')
+            raise TradeTrackerException(f'Cannot json parse order updates from "{file_path}": {e}')
 
         order_df = pd.DataFrame(order_data)
         if order_df.shape[0]:
@@ -128,7 +123,7 @@ class TradeTracker:
             size = order_info['info']['size_matched']
             return get_order_profit(sts, side, price, size)
         except KeyError as e:
-            raise TrackerException(f'failed to get profit elements: {e}')
+            raise TradeTrackerException(f'failed to get profit elements: {e}')
 
     def update_order_tracker(self, publish_time: datetime):
         """
@@ -248,9 +243,10 @@ class TradeTracker:
         # print update to stream
         active_logger.log(level, f'{dt} {self.selection_id} {format_message(msg_type.name, msg_attrs)}')
 
-        # use previous log odds if not given
-        if not display_odds and self._log:
-            display_odds = self._log[-1]['display_odds']
+        # use previous log odds if not given and update
+        if not display_odds and self._prv_display_odds:
+            display_odds = self._prv_display_odds
+        self._prv_display_odds = display_odds
 
         # if order instance not given then assume current order/trade
         if not order:
@@ -261,16 +257,6 @@ class TradeTracker:
 
         # get trade ID if trade exists else None
         trade_id = trade.id if trade else None
-
-        # add to internal list
-        self._log.append({
-            'dt': dt,
-            'msg_type': msg_type,
-            'msg_attrs': msg_attrs,
-            'display_odds': display_odds,
-            'order': order,
-            'trade_id': trade_id,
-        })
 
         # write to file if path specified
         if self.file_path and to_file:
@@ -297,5 +283,5 @@ class TradeTracker:
                 try:
                     json_data = json.dumps(data)
                 except TypeError as e:
-                    raise TrackerException(f'failed to serialise data writing to file: "{self.file_path}"\n{e}')
+                    raise TradeTrackerException(f'failed to serialise data writing to file: "{self.file_path}"\n{e}')
                 f.writelines([json_data + '\n'])

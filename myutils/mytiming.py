@@ -5,8 +5,6 @@ import pytz
 import logging
 import pandas as pd
 from typing import List, Dict
-from functools import partial
-from .myplotly.table import create_plotly_table
 
 
 active_logger = logging.getLogger(__name__)

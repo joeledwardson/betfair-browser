@@ -7,8 +7,8 @@ import numpy as np
 import pandas as pd
 from betfairlightweight.resources import MarketBook
 from myutils import mytiming
-from .features import FeatureException, ftrs_reg, RFBase
-
+from .features import ftrs_reg, RFBase
+from ...exceptions import FeatureException
 
 active_logger = logging.getLogger(__name__)
 

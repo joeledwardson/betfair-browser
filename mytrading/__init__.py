@@ -1,2 +1,0 @@
-# TODO - I think a general replacement of logging warnings replaced with raising exceptions would be good
-# TODO - base exception imported by all submodules would also be good so any root caller can use that

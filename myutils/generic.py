@@ -109,11 +109,6 @@ def get_object(object_list: [List, object], f):
         return None
 
 
-class StaticClass:
-    def __init__(self):
-        raise Exception('Static class only, instances not allowed')
-
-
 def milliseconds():
     """milliseconds sinch epoch"""
     return round(time.time()*1000)
@@ -167,4 +162,15 @@ def constructor_verify(value, object_type) -> bool:
         object_type(value)
         return True
     except (ValueError, TypeError) as e:
+        return False
+
+
+def is_jsonable(x):
+    """
+    determine if data can be serialized
+    """
+    try:
+        json.dumps(x)
+        return True
+    except (TypeError, OverflowError):
         return False
