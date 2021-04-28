@@ -12,12 +12,12 @@ from flumine.markets.market import Market
 
 from ..exceptions import MyStrategyException
 from ..process import get_best_price
+from ..utils import bettingdb
 from .feature import FeatureHolder
-from .trademachine.trademachine import RunnerStateMachine
-from.trademachine.tradestates import TradeStateTypes
-from.tradetracker.messages import MessageTypes
-from.tradetracker.tradetracker import TradeTracker
-from ..utils.storage import SUBDIR_RECORDED, construct_hist_dir, EXT_CATALOGUE, EXT_RECORDED
+from .trademachine import RunnerStateMachine
+from .tradestates import TradeStateTypes
+from .messages import MessageTypes
+from .tradetracker import TradeTracker
 from myutils.mytiming import EdgeDetector, timing_register
 
 active_logger = logging.getLogger(__name__)
@@ -54,7 +54,6 @@ class MyBaseStrategy(BaseStrategy):
             active_logger.warning(f'order validation failed for "{order.selection_id}"')
 
 
-# TODO - make this work with database, update from old storage convention
 # TODO - user data recording process which accepts a function to retrieve custom user data, then writes it into the
 #  cache file for USER info in market streaming - each line can have a dictionary of user values which is keyed by
 #  the user function name - to pass down to features, could have a class object which is passed to race initialiser
@@ -71,6 +70,7 @@ class MyRecorderStrategy(BaseStrategy):
     """
     def __init__(self, base_dir, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        self.db = bettingdb.BettingDB()
         self.base_dir = base_dir
         self.market_paths = {}
         self.catalogue_paths = {}
@@ -80,43 +80,32 @@ class MyRecorderStrategy(BaseStrategy):
 
     def process_market_book(self, market: Market, market_book: MarketBook) -> None:
         market_id = market_book.market_id
-
         if market_id not in self.catalogue_paths and market.market_catalogue:
-
-            # make sure dir exists
-            dir_path = path.join(
-                self.base_dir,
-                SUBDIR_RECORDED,
-                construct_hist_dir(market_book)
+            # get cache path, create dir if not exist
+            p = self.db.cache_col(
+                'marketstream',
+                {'market_id': market_id},
+                'catalogue',
             )
-            makedirs(dir_path, exist_ok=True)
-
+            d, _ = path.split(p)
+            makedirs(d, exist_ok=True)
             # store catalogue
-            catalogue_path = path.join(
-                dir_path,
-                market_id + EXT_CATALOGUE
-            )
-            self.catalogue_paths[market_id] = catalogue_path
+            self.catalogue_paths[market_id] = p
             active_logger.info(f'writing market id "{market_id}" catalogue to "{catalogue_path}"')
-            with open(catalogue_path, 'w') as file_catalogue:
-                file_catalogue.write(market.market_catalogue.json())
+            with open(p, 'w') as f:
+                f.write(market.market_catalogue.json())
 
         if market_id not in self.market_paths:
-
-            # create directory for historical market
-            dir_path = path.join(
-                self.base_dir,
-                SUBDIR_RECORDED,
-                construct_hist_dir(market_book)
+            # get cache path, create dir if not exist
+            p = self.db.cache_col(
+                'marketstream',
+                {'market_id': market_id},
+                'data'
             )
-            makedirs(dir_path, exist_ok=True)
-
-            # get path for historical file where market data to be stored
-            market_path = path.join(
-                dir_path,
-                market_id + EXT_RECORDED
-            )
-            self.market_paths[market_id] = market_path
+            d, _ = path.split(p)
+            makedirs(d, exist_ok=True)
+            # set path var
+            self.market_paths[market_id] = p
             active_logger.info(f'new market started recording: "{market_id}" to {market_path}')
 
         # convert datetime to milliseconds since epoch

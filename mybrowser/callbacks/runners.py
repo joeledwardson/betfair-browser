@@ -1,9 +1,12 @@
 from dash.dependencies import Output, Input, State
 import dash_html_components as html
 import logging
+import traceback
 from ..session import Session
 from myutils.mydash import intermediate
 from myutils.mydash import context
+from mytrading import exceptions as trdexp
+from sqlalchemy.exc import SQLAlchemyError
 
 
 active_logger = logging.getLogger(__name__)
@@ -88,11 +91,13 @@ def cb_runners(app, shn: Session):
         if not market_id:
             active_logger.warning(f'row ID is blank')
             return ret
-
-        if not shn.mkt_load(market_id, strategy_id):
+        try:
+            shn.mkt_load(market_id, strategy_id)
+            shn.mkt_lginf()
+        except (trdexp.MyTradingException, SQLAlchemyError) as e:
+            active_logger.warning(f'failed to load market: {e}\n{traceback.format_exc()}')
             shn.mkt_clr()
             return ret
-        shn.mkt_lginf()
 
         tbl = [{
             'id': d['runner_id'],  # set row to ID for easy access in callbacks

@@ -23,15 +23,11 @@ import mytrading.process
 from mybrowser.session.dbfilter import DBFilter, DBFilterJoin, DBFilterDate, DBFilterMulti
 from mytrading.strategy import messages as msgs
 from mytrading import utils as trutils
-from mytrading.utils import bfcache
 from mytrading.utils import bettingdb as bdb
 from mytrading.strategy import tradetracker
 from mytrading import visual as figlib
 from mytrading.strategy import feature as ftrutils
 from myutils import mytiming, generic
-
-
-from mybrowser.session import dbutils as dbtable
 from myutils.myregistrar import MyRegistrar
 
 active_logger = logging.getLogger(__name__)
@@ -120,6 +116,11 @@ class Session:
 
     MODULES = ['myutils', 'mytrading']
     CFG_LOCAL_FILE = 'config.txt'
+    FTR_DEFAULT = {
+        'ltp': {'name': 'RFLTP'},
+        'best_back': {'name': 'RFBck'},
+        'best_lay': {'name': 'RFLay'}
+    }
 
     def __init__(self, config: Optional[ConfigParser] = None):
 
@@ -135,8 +136,7 @@ class Session:
 
         self.config: ConfigParser = config  # parsed configuration
         self.tbl_formatters = get_formatters(config)  # registrar of table formatters
-        self.cache_rt = config['CONFIG_PATHS']['cache']  # cache root dir
-        self.trading = trutils.BFSecurity().API_client  # API client instance
+        self.api_handler = trutils.APIHandler()   # API client instance
         self.db_filters = DBFilters(
             config['MARKET_FILTER']['mkt_date_format'],
             config['MARKET_FILTER']['strategy_sel_format']
@@ -253,17 +253,15 @@ class Session:
         return None on failure to retrieve configuration
         """
 
-        dft = self.config['PLOT_CONFIG']['default_features']
         if not ftr_key:
-            cfg_key = dft
-            active_logger.info(f'no feature config selected, using default "{dft}"')
+            active_logger.info(f'no feature config selected, using default "{self.FTR_DEFAULT}"')
+            return self.FTR_DEFAULT
         else:
             if ftr_key not in self.ftr_fcfgs:
                 raise SessionException(f'selected feature config "{ftr_key}" not found in list')
             else:
                 active_logger.info(f'using selected feature config "{ftr_key}"')
-                cfg_key = ftr_key
-        return self.ftr_fcfgs.get(cfg_key)
+                return self.ftr_fcfgs[ftr_key]
 
     def ftr_clear(self):
         """clear existing feature/plot configurations"""
@@ -293,30 +291,29 @@ class Session:
         """
         mytiming.clear_timing_register()
 
-    def mkt_load(self, market_id, strategy_id) -> bool:
+    def mkt_load(self, market_id, strategy_id):
 
         # check strategy valid if one is selected, when writing info to cache
         if strategy_id:
-            if not bfcache.w_strat(strategy_id, market_id, self.betting_db, self.cache_rt):
-                return False
+            strat_filters = {
+                'strategy_id': strategy_id,
+                'market_id': market_id
+            }
+            if not self.betting_db.row_exist('strategyupdates', strat_filters):
+                raise SessionException(f'strategy selected "{strategy_id}" not found in db')
+            self.betting_db.read_to_cache('strategyupdates', strat_filters)
+            self.betting_db.read_to_cache('strategymeta', {'strategy_id': strategy_id})
 
-        # check market stream is valid when writing to cache
-        if not bfcache.w_mkt(market_id, self.betting_db, self.cache_rt):
-            return False
+        mkt_filters = {'market_id': market_id}
+        self.betting_db.read_to_cache('marketstream', mkt_filters)
+        p = self.betting_db.cache_col('marketstream', mkt_filters, 'data')
+        q = self.api_handler.get_historical(p)
+        record_list = list(q.queue)
+        if not len(record_list):
+            raise SessionException(f'record list is empty')
 
-        # read market stream back from cache and check valid
-        p = bfcache.p_mkt(market_id, self.cache_rt)
-        record_list = bfcache.r_mkt(p, self.trading)
-        if not record_list:
-            return False
-
-        # get runner name/profit and market metadata from session
-        try:
-            rows = dbtable.runner_rows(self.betting_db, market_id, strategy_id)
-            meta = dbtable.market_meta(self.betting_db, market_id)
-        except SQLAlchemyError as e:
-            active_logger.warning(f'failed getting runners rows/market meta from DB: {e}', exc_info=True)
-            return False
+        rows = self.betting_db.runner_rows(market_id, strategy_id)
+        meta = self.betting_db.read_row('marketmeta', mkt_filters)
 
         start_odds = mytrading.process.get_starting_odds(record_list)
         drows = [dict(r) for r in rows]
@@ -332,8 +329,6 @@ class Session:
         self.mkt_records = record_list
         self.mkt_info = dict(meta)
         self.mkt_rnrs = generic.dict_sort(rinf, key=lambda item:item[1]['start_odds'])
-
-        return True
 
     def mkt_clr(self):
         self.mkt_info = {}
@@ -419,7 +414,11 @@ class Session:
 
     def odr_prft(self, selection_id) -> pd.DataFrame:
 
-        p = bfcache.p_strat(self.mkt_sid, self.mkt_info['market_id'], self.cache_rt)
+        flt = {
+            'strategy_id': self.mkt_sid,
+            'market_id': self.mkt_info['market_id']
+        }
+        p = self.betting_db.cache_col('strategyupdates', flt, 'updates')
         active_logger.info(f'reading strategy market cache file:\n-> {p}')
         if not path.isfile(p):
             raise SessionException(f'order file does not exist')
@@ -468,7 +467,11 @@ class Session:
         # get orders dataframe (or None)
         orders = None
         if self.mkt_sid:
-            p = bfcache.p_strat(self.mkt_sid, self.mkt_info['market_id'], self.cache_rt)
+            flt = {
+                'strategy_id': self.mkt_sid,
+                'market_id': self.mkt_info['market_id']
+            }
+            p = self.betting_db.cache_col('strategyupdates', flt, 'updates')
             if not path.exists(p):
                 raise SessionException(f'could not find cached strategy market file:\n-> "{p}"')
 

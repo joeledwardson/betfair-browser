@@ -473,7 +473,7 @@ class FeatureFigure:
 
             # if messages are to contain trade ID, then format trade ID with messages
             def join_trade(row):
-                return f'trade ID: {0}{1}{2}'.format(
+                return 'trade ID: {}{}{}'.format(
                     row['trade_id'],
                     FigDataProcessor.NEWLINE,
                     row["msg"]

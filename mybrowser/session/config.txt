@@ -30,11 +30,9 @@ max_rows = 100
 ; can use relative paths here
 feature = ../plot_configs/feature
 plot = ../plot_configs/plot
-cache = %%USERPROFILE%%/Documents/_bf_cache
 
 [PLOT_CONFIG]
 default_offset = 00:03:00
-default_features = basic
 ; number of seconds to plot either side of order update start/end
 order_offset_secs = 2
 cmp_buffer_secs = 10

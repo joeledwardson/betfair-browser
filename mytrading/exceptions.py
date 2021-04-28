@@ -45,3 +45,7 @@ class FeatureException(MyTradingException):
 
 class BfProcessException(MyTradingException):
     pass
+
+
+class DBException(MyTradingException):
+    pass
