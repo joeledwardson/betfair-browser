@@ -3,7 +3,7 @@ import dash_core_components as dcc
 import dash_bootstrap_components as dbc
 import dash_table
 
-# TODO - add market refresh
+
 def header():
     return dbc.Row([
         dbc.Col(
@@ -19,6 +19,15 @@ def header():
             ),
             width='auto',
             className='p-0'
+        ),
+        dbc.Col(
+            dbc.Button(
+                html.I(className="fas fa-sync-alt"),
+                id="btn-db-refresh",
+                n_clicks=0,
+                color='primary'
+            ),
+            width='auto'
         ),
         dbc.Col(),
         dbc.Col(

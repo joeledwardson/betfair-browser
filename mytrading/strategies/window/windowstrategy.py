@@ -46,7 +46,7 @@ class MyWindowStrategy(MyFeatureStrategy):
         self.track_seconds = track_seconds
         self.min_total_matched = min_total_matched
 
-    def get_state_machine(
+    def _trade_machine_create(
             self,
             runner: RunnerBook,
             mkt: Market,

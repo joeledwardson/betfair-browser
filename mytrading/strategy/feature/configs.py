@@ -1,27 +1,43 @@
-from typing import Dict
+from typing import List, Dict, Optional
+from myutils.myregistrar import MyRegistrar
+import os, yaml
+from os import path
+from ...exceptions import FeatureConfigException
+
+reg_features = MyRegistrar()
 
 
-def ltp_win_kwargs(sample_ms, cache_count):
-    d = {
-        'sub_features_config': {
-            'smp':  {
-                'name': 'RFSample',
-                'kwargs': {
-                    'periodic_ms': sample_ms,
-                    'cache_count': cache_count,
-                    'sub_features_config': {
-                        'avg': {
-                            'name': 'RFMvAvg'
-                        }
-                    }
-                }
-            }
-        }
-    }
-    return d
+class ConfigDirHolder:
+    def __init__(self, cfg_dir: str, out_dir, reg: MyRegistrar):
+        self._cfg_dir = cfg_dir
+        self._out_dir = out_dir
+        self._reg = reg
+
+    def reload(self):
+        _, _, filenames = os.walk(self._cfg_dir)
+        for fn in filenames:
+            p_in = path.join(self._cfg_dir, fn)
+            with open(p_in, 'r') as f:
+                data = f.read()
+            file_cfg = yaml.load(data, yaml.FullLoader)
+            if 'name' not in file_cfg:
+                raise FeatureConfigException(f'"name" not found in config path "{p_in}"')
+            if 'kwargs' not in file_cfg:
+                raise FeatureConfigException(f'"kwargs" not found in config path "{p_in}"')
+            if type(file_cfg['kwargs']) is not dict:
+                raise FeatureConfigException(f'"kwargs" item in "{p_in}" not dict')
+            reg_nm = file_cfg.pop('name')
+            reg_kwargs = file_cfg.pop('kwargs')
+            if file_cfg:
+                raise FeatureConfigException(f'"{p_in}" contains known keys: {file_cfg}')
+            ftr_cfg = self._reg[reg_nm](**reg_kwargs)
+            p_out = path.join(self._out_dir, fn)
+            with open(p_out, 'w') as f:
+                f.write(yaml.dump(ftr_cfg))
 
 
-def get_spike_feature_configs(
+@reg_features.register_element
+def features_config_spike(
         n_ladder_elements,
         n_wom_ticks,
         ltp_window_width_s,
@@ -37,6 +53,25 @@ def get_spike_feature_configs(
         - 'name': class name of feature
         - 'kwargs': dict of constructor arguments used when creating feature
     """
+
+    def ltp_win_kwargs(sample_ms, cache_count):
+        d = {
+            'sub_features_config': {
+                'smp': {
+                    'name': 'RFSample',
+                    'kwargs': {
+                        'periodic_ms': sample_ms,
+                        'cache_count': cache_count,
+                        'sub_features_config': {
+                            'avg': {
+                                'name': 'RFMvAvg'
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        return d
 
     return {
 
@@ -81,11 +116,11 @@ def get_spike_feature_configs(
                             'sub_features_config': {
                                 'max': {
                                     'name': 'RFTVLadMax',
-                                    'kwargs': ltp_win_kwargs(ltp_window_sampling_ms, 10)
+                                    'kwargs': ltp_win_kwargs(ltp_window_sampling_ms, ltp_window_sampling_count)
                                 },
                                 'min': {
                                     'name': 'RFTVLadMin',
-                                    'kwargs': ltp_win_kwargs(ltp_window_sampling_ms, 10)
+                                    'kwargs': ltp_win_kwargs(ltp_window_sampling_ms, ltp_window_sampling_count)
                                 }
                             }
                         }
@@ -122,3 +157,4 @@ def get_spike_feature_configs(
             }
         }
     }
+

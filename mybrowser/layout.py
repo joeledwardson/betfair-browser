@@ -2,7 +2,7 @@ import dash_bootstrap_components as dbc
 import dash_html_components as html
 import dash_core_components as dcc
 
-from myutils.mydash import intermediate
+import myutils.mydash
 
 from .layouts import market, runners, configs, orders, timings, logger, INTERMEDIARIES
 
@@ -52,8 +52,32 @@ def hidden_elements(n_odr_rows, n_tmr_rows):
             id='modal-libs',
         ),
 
+        dbc.Toast(
+            "Feature & plot configurations reloaded",
+            id="toast-fcfgs",
+            header="Configurations",
+            is_open=False,
+            dismissable=True,
+            icon="info",
+            duration=3000,
+            # top: 66 positions the toast below the navbar
+            style={"position": "fixed", "top": 66, "right": 10, "width": 350},
+        ),
+
+        dbc.Modal([
+            dbc.ModalHeader('Feature/plot configurations reloaded'),
+            dbc.ModalFooter(
+                dbc.Button(
+                    "Close",
+                    id="modal-close-fcfgs",
+                    className='ml-auto'
+                )
+            )],
+            id='modal-fcfgs',
+        ),
+
         # hidden divs for intermediary output components
-        *[intermediate.hidden_div(x) for x in INTERMEDIARIES],
+        *[myutils.mydash.hidden_div(x) for x in INTERMEDIARIES],
 
     ]
 

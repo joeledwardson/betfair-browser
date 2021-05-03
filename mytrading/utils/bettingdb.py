@@ -180,6 +180,9 @@ class DBCache(DBBase):
             *pkey_flts.values()
         )
 
+    def cache_dict_path(self, tbl_nm: str, pkey_flts: Dict) -> str:
+        return path.join(self.cache_dir(tbl_nm, pkey_flts), self.FILE_DICT)
+
     def cache_col(self, tbl_nm: str, pkey_flts: Dict, col: str) -> str:
         return path.join(self.cache_dir(tbl_nm, pkey_flts), col)
 
@@ -292,10 +295,7 @@ CACHE_PROCESSORS = {
     }
 }
 
-# TODO - need user data column in marketstream for user defined streaming data so can add oddschecker info
-# TODO - have dict of processors to convert streaming files to list of markertbook, catalogue JSON to catalogue etc
-# TODO - add health checker for market elements
-# TODO - function for converting stream to cache
+
 class BettingDB(DBCache):
     """
     Betting database handler
@@ -397,7 +397,7 @@ class BettingDB(DBCache):
         active_logger.info(f'creating metadata database entry for market "{market_id}"')
         self.read_to_cache('marketstream', {'market_id': market_id})
         d = self.cache_dir('marketstream', {'market_id': market_id})
-        stream_path = path.join(d, 'data')
+        stream_path = path.join(d, 'stream_updates')
         bk = self.get_first_book(stream_path)
         cat = None
         cat_path = path.join(d, 'catalogue')
@@ -423,7 +423,7 @@ class BettingDB(DBCache):
         meta_data = self.get_meta(bk, cat)
         self.insert_row('marketmeta', meta_data)
 
-    def insert_mkt_caches(self):
+    def scan_mkt_caches(self):
         stream_root = path.join(self.cache_root, 'marketstream')
         active_logger.info(f'scanning for cached markets to insert in "{stream_root}"')
         _, dirnames, _ = next(os.walk(stream_root))
@@ -459,3 +459,64 @@ class BettingDB(DBCache):
         ).filter(
             rn.columns['market_id'] == market_id
         ).all()
+
+    def lost_ids(self, t1: Table, t2, id_col: str):
+        """
+        get a query for where table `t1` has rows that are not reflected in table `t2`, joined by a column with name
+        specified by `id_col`. table `t2` can be a 1-to-1 mapping of rows from `t1` or 1 to many.
+
+        E.g. if `t1` had an id column of 'sample_id_col' and some values [1,2,3], and `t2` had hundreds of rows but
+        only with 'sample_id_col' equal to 1 or 2, then the function would return the 'sample_id_col' value of 3
+        """
+        cte = self.session.query(
+            t2.columns[id_col]
+        ).group_by(t2.columns[id_col]).cte()
+
+        return self.session.query(
+            t1.columns[id_col],
+            cte.c[id_col]
+        ).join(
+            cte,
+            t1.columns[id_col] == cte.c[id_col],
+            isouter=True
+        ).filter(cte.c[id_col] == None)
+
+    def health_check(self):
+        mkt_stm = self.tables['marketstream']
+        mkt_met = self.tables['marketmeta']
+        mkt_run = self.tables['marketrunners']
+
+        n_mkt = self.session.query(mkt_stm).count()
+        active_logger.info(f'{n_mkt} market stream rows')
+        n_met = self.session.query(mkt_met).count()
+        active_logger.info(f'{n_met} market meta rows')
+
+        q = self.lost_ids(mkt_stm, mkt_met, 'market_id')
+        for row in q.all():
+            active_logger.error(f'market "{row[0]}" does not have a meta row')
+
+        nrun = self.session.query(mkt_run).count()
+        active_logger.info(f'{nrun} market runner rows')
+
+        q = self.lost_ids(mkt_stm, mkt_run, 'market_id')
+        for row in q.all():
+            active_logger.error(f'market "{row[0]}" does not have any runner rows')
+
+        srt_met = self.tables['strategymeta']
+        srt_run = self.tables['strategyrunners']
+        srt_udt = self.tables['strategyupdates']
+
+        n_srtmet = self.session.query(srt_met).count()
+        active_logger.info(f'{n_srtmet} strategy meta rows found')
+        n_srtudt = self.session.query(srt_udt).count()
+        active_logger.info(f'{n_srtudt} strategy market update rows found')
+
+        q = self.lost_ids(srt_met, srt_udt, 'strategy_id')
+        for row in q.all():
+            active_logger.error(f'strategy {row[0]} does not have any market updates')
+
+        n_srtrun = self.session.query(srt_run).count()
+        active_logger.info(f'{n_srtrun} strategy runner rows found')
+        q = self.lost_ids(srt_met, srt_run, 'strategy_id')
+        for row in q.all():
+            active_logger.error(f'strategy {row[0]} does not have any runner rows')

@@ -46,20 +46,32 @@ class TradeTracker:
 
     if `file_path` is specified, it is used as the path to log updates to as well as logging to stream
     """
-    def __init__(self, selection_id: int, file_path: Optional[str] = None):
+    def __init__(self, selection_id: int, strategy, market_id, file_path: Optional[str] = None):
         active_logger.info(f'creating trade tracker with selection ID "{selection_id}" and file path "{file_path}"')
         self.selection_id = selection_id
         self.file_path = file_path
 
-        self.trades: List[Trade] = list()
+        self._trades: List[Trade] = list()
         self.active_trade: Optional[Trade] = None
         self.active_order: Optional[BetfairOrder] = None
         self.open_side: Optional[str] = None
         self._prv_display_odds = 0
+        self._strategy = strategy
+        self.market_id = market_id
 
         # indexed by trade ID
         self._trade_followers: Dict[UUID, TradeFollower] = dict()
         self._followed_orders = list()
+
+    def create_trade(self, handicap):
+        trade = Trade(
+            market_id=self.market_id,
+            selection_id=self.selection_id,
+            handicap=handicap,
+            strategy=self._strategy
+        )
+        self._trades.append(trade)
+        self.active_trade = trade
 
     @staticmethod
     def serializable_order_info(order: BetfairOrder) -> dict:
@@ -133,18 +145,7 @@ class TradeTracker:
         tfs = self._trade_followers
 
         # loop trades
-        for trade in self.trades:
-            # add untracked trades to tracker
-            if trade.id not in tfs:
-                self.log_update(
-                    msg_type=MessageTypes.MSG_TRACK_TRADE,
-                    dt=publish_time,
-                    msg_attrs={
-                        "trade_id": str(trade.id)
-                    },
-                )
-                tfs[trade.id] = TradeFollower()
-
+        for trade in self._trades:
             # log trade status updates
             tf = tfs[trade.id]
             if tf.status != trade.status:

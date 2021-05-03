@@ -131,16 +131,7 @@ class SpikeTradeStateMonitorWindows(tradestates.TradeStateBase):
 
     # TODO - all these necessary? Market contains latest market book, strategy should no longer be used to place bets
     # TODO - customised spike_data/first_runner/trade_tracker could all be merged with runner handler
-    def run(
-            self,
-            market_book: MarketBook,
-            market: Market,
-            trade_tracker: SpikeTradeTracker,
-            strategy: BaseStrategy,
-            first_runner: bool,
-            spike_data: SpikeData,
-            **inputs,
-    ):
+    def run(self, market: Market, runner_index: SpikeTradeTracker, runner_handler):
 
         # check back/lay/ltp values are all non-null
         if not validate_spike_data(spike_data):
@@ -441,13 +432,7 @@ class SpikeTradeStateHedgeWait(tradestates.TradeStateHedgeWaitBase):
 
 
 class SpikeTradeStateBounce(tradestates.TradeStateWait):
-    def run(
-            self,
-            market_book: MarketBook,
-            trade_tracker: SpikeTradeTracker,
-            spike_data: SpikeData,
-            **inputs
-    ):
+    def run(self, market: SpikeTradeTracker, runner_index: SpikeData, runner_handler):
         if (market_book.publish_time - self.start_time) >= self.td:
             return True
         elif not validate_spike_data(spike_data):

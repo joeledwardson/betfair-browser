@@ -116,7 +116,7 @@ class MyScalpStrategy(MyFeatureStrategy):
 
         return chosen_book[max_chosen_index].copy()
 
-    def get_state_machine(
+    def _trade_machine_create(
             self,
             runner: RunnerBook,
             mkt: Market,
@@ -173,7 +173,7 @@ class MyScalpStrategy(MyFeatureStrategy):
 
             trade_tracker = self.trade_trackers[market.market_id][runner.selection_id]
             state_machine = self.state_machines[market.market_id][runner.selection_id]
-            if self.allow_trademachine(runner, state_machine, trade_tracker):
+            if self._allow_trade_machine(runner, state_machine, trade_tracker):
 
                 # get wall point for runner
                 wall_point = self.get_wall(runner)

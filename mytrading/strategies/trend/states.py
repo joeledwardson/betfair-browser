@@ -138,15 +138,7 @@ class TrendTradeStateMonitorOpen(tradestates.TradeStateBase):
         else:
             return False
 
-    def run(
-            self,
-            market_book: MarketBook,
-            market: Market,
-            trade_tracker: TrendTradeTracker,
-            strategy: BaseStrategy,
-            trend_data: TrendData,
-            **inputs,
-    ):
+    def run(self, market: Market, runner_index: TrendTradeTracker, runner_handler):
         if not trend_data.ok:
             trade_tracker.log_update(
                 msg_type=TrendMessageTypes.TREND_MONITOR_FAIL,

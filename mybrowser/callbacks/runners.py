@@ -2,9 +2,9 @@ from dash.dependencies import Output, Input, State
 import dash_html_components as html
 import logging
 import traceback
+
+import myutils.mydash
 from ..session import Session
-from myutils.mydash import intermediate
-from myutils.mydash import context
 from mytrading import exceptions as trdexp
 from sqlalchemy.exc import SQLAlchemyError
 
@@ -12,7 +12,7 @@ from sqlalchemy.exc import SQLAlchemyError
 active_logger = logging.getLogger(__name__)
 active_logger.setLevel(logging.INFO)
 
-counter = intermediate.Intermediary()
+counter = myutils.mydash.Intermediary()
 
 
 def cb_runners(app, shn: Session):
@@ -79,7 +79,7 @@ def cb_runners(app, shn: Session):
             return ret
 
         # market clear
-        if context.triggered_id() == 'button-mkt-bin':
+        if myutils.mydash.triggered_id() == 'button-mkt-bin':
             active_logger.info(f'clearing market')
             return ret
 
@@ -121,7 +121,7 @@ def cb_runners(app, shn: Session):
         ],
     )
     def toggle_classname(n1, n2):
-        if context.triggered_id() == 'btn-runners-filter':
+        if myutils.mydash.triggered_id() == 'btn-runners-filter':
             return "left-not-collapsed"
         else:
             return ""

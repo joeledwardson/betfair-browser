@@ -11,6 +11,7 @@ from flumine.order.trade import Trade
 from .ticks import LTICKS, LTICKS_DECODED, TICKS, TICKS_DECODED
 from myutils import generic, mytiming
 from ..exceptions import BfProcessException
+from . import oddschecker as oc
 
 active_logger = logging.getLogger(__name__)
 active_logger.setLevel(logging.INFO)

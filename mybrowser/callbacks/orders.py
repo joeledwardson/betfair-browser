@@ -1,13 +1,13 @@
 from dash.dependencies import Output, Input, State
 import logging
 import traceback
-from myutils.mydash import intermediate
-from myutils.mydash import context as my_context
+
+import myutils.mydash
 from ..session import Session, SessionException
 
 
 active_logger = logging.getLogger(__name__)
-counter = intermediate.Intermediary()
+counter = myutils.mydash.Intermediary()
 
 
 def cb_orders(app, shn: Session):
@@ -29,7 +29,7 @@ def cb_orders(app, shn: Session):
     )
     def update_orders_table(n1, n2, n3, cell):
 
-        orders_pressed = my_context.triggered_id() == 'button-orders'
+        orders_pressed = myutils.mydash.triggered_id() == 'button-orders'
         r = [
             list(),
             False,
@@ -37,7 +37,7 @@ def cb_orders(app, shn: Session):
             # only 1 page then table breaks
             counter.next()
         ]
-        if my_context.triggered_id() == 'modal-close-orders':
+        if myutils.mydash.triggered_id() == 'modal-close-orders':
             return r
 
         active_logger.info(f'attempting to get orders, active cell: {cell}')

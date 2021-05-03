@@ -22,6 +22,7 @@ active_logger = logging.getLogger(__name__)
 active_logger.setLevel(logging.INFO)
 
 
+
 class MySpikeStrategy(MyFeatureStrategy):
     """
     Trades spikes above & below LTP window max and minimums
@@ -81,7 +82,7 @@ class MySpikeStrategy(MyFeatureStrategy):
             file_path=file_path,
         )
 
-    def get_state_machine(
+    def _trade_machine_create(
             self,
             runner: RunnerBook,
             mkt: Market,

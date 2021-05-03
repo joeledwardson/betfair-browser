@@ -1,10 +1,10 @@
 from dash.dependencies import Output, Input, State
 import dash_html_components as html
 
+import myutils.mydash
 from .. import log_q
 from ..session import Session
 from ..layouts import INTERMEDIARIES
-from myutils.mydash import context
 
 # mapping of log levels to bootstrap background colors
 LEVEL_COLORS = {
@@ -42,7 +42,7 @@ def cb_logs(app, shn: Session):
                 className='m-0 ' + LEVEL_COLORS.get(lvl, '')
             ))
 
-        if context.triggered_id() == 'modal-close-log':
+        if myutils.mydash.triggered_id() == 'modal-close-log':
             shn.log_nwarn = 0
 
         if shn.log_nwarn > 0:
@@ -60,7 +60,7 @@ def cb_logs(app, shn: Session):
         ]
     )
     def toggle_modal(n1, n2):
-        if context.triggered_id() == 'button-log':
+        if myutils.mydash.triggered_id() == 'button-log':
             return True
         else:
             return False

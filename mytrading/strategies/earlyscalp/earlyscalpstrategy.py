@@ -65,7 +65,7 @@ class MyEarlyScalpStrategy(MyFeatureStrategy):
             file_path=file_path,
         )
 
-    def get_state_machine(
+    def _trade_machine_create(
             self,
             runner: RunnerBook,
             mkt: Market,

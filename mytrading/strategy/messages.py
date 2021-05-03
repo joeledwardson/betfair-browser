@@ -1,6 +1,5 @@
 from enum import Enum
 from typing import Dict, Callable
-from myutils.counter import Counter
 import logging
 from ..exceptions import MessagerException
 

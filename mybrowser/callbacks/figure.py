@@ -7,15 +7,14 @@ from plotly import graph_objects as go
 import traceback
 
 import mytrading.exceptions
-from mytrading import visual as vislib
-from myutils import mydash as myd
+import myutils.mydash
 from myutils import mytiming
 from ..session import Session, SessionException
 
 
 # override visual logger with custom logger
 active_logger = logging.getLogger(__name__)
-counter = myd.Intermediary()
+counter = myutils.mydash.Intermediary()
 
 
 def get_ids(cell, id_list) -> List[int]:
@@ -26,7 +25,7 @@ def get_ids(cell, id_list) -> List[int]:
     """
 
     # determine if 'all feature plots' clicked as opposed to single plot
-    do_all = myd.triggered_id() == 'button-all-figures'
+    do_all = myutils.mydash.triggered_id() == 'button-all-figures'
 
     # do all selection IDs if requested
     if do_all:
@@ -90,7 +89,7 @@ def cb_fig(app, shn: Session):
             counter.next()
         ]
 
-        if myd.triggered_id() != 'button-figure' and myd.triggered_id() != 'button-all-figures':
+        if myutils.mydash.triggered_id() != 'button-figure' and myutils.mydash.triggered_id() != 'button-all-figures':
             return ret
 
         # get datetime/None chart offset from time input
@@ -115,5 +114,5 @@ def cb_fig(app, shn: Session):
         [Input('button-timings', 'n_clicks'), Input('modal-close-timings', 'n_clicks')]
     )
     def modal_timings(n1, n2):
-        return myd.triggered_id() == 'button-timings'
+        return myutils.mydash.triggered_id() == 'button-timings'
 

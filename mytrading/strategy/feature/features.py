@@ -81,6 +81,12 @@ class RFBase:
                     raise FeatureException(
                         f'error in feature "{self.ftr_identifier}", sub-feature "{k}": {e}'
                     )
+        self._user_data = None
+
+    def update_user_data(self, user_data):
+        self._user_data = user_data
+        for ftr in self.sub_features.values():
+            ftr.update_user_data(user_data)
 
     def _update_cache(self):
         if self.cache_secs:

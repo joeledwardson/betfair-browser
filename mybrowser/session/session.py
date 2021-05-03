@@ -306,7 +306,7 @@ class Session:
 
         mkt_filters = {'market_id': market_id}
         self.betting_db.read_to_cache('marketstream', mkt_filters)
-        p = self.betting_db.cache_col('marketstream', mkt_filters, 'data')
+        p = self.betting_db.cache_col('marketstream', mkt_filters, 'stream_updates')
         q = self.api_handler.get_historical(p)
         record_list = list(q.queue)
         if not len(record_list):
@@ -418,7 +418,7 @@ class Session:
             'strategy_id': self.mkt_sid,
             'market_id': self.mkt_info['market_id']
         }
-        p = self.betting_db.cache_col('strategyupdates', flt, 'updates')
+        p = self.betting_db.cache_col('strategyupdates', flt, 'strategy_updates')
         active_logger.info(f'reading strategy market cache file:\n-> {p}')
         if not path.isfile(p):
             raise SessionException(f'order file does not exist')
@@ -471,7 +471,7 @@ class Session:
                 'strategy_id': self.mkt_sid,
                 'market_id': self.mkt_info['market_id']
             }
-            p = self.betting_db.cache_col('strategyupdates', flt, 'updates')
+            p = self.betting_db.cache_col('strategyupdates', flt, 'strategy_updates')
             if not path.exists(p):
                 raise SessionException(f'could not find cached strategy market file:\n-> "{p}"')
 

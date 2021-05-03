@@ -9,7 +9,7 @@ import logging
 
 from myutils.myclass import store_kwargs
 from ...strategy import tradestates as basestates
-from mytrading.strategy.trademachine import RunnerStateMachine
+from mytrading.strategy.trademachine import RunnerTradeMachine
 from ...strategy.strategy import MarketHandler, MyFeatureStrategy
 from mytrading.process.ticks import LTICKS_DECODED
 from ...process import get_best_price, get_ltps, closest_tick, tick_spread
@@ -60,13 +60,13 @@ class MyTrendStrategy(MyFeatureStrategy):
         # market -> runner ID -> trend data
         self.trend_data_dicts: Dict[str, Dict[int, TrendData]] = dict()
 
-    def get_state_machine(
+    def _trade_machine_create(
             self,
             runner: RunnerBook,
             mkt: Market,
             mbk: MarketBook
-    ) -> RunnerStateMachine:
-        return RunnerStateMachine(
+    ) -> RunnerTradeMachine:
+        return RunnerTradeMachine(
             states={
                 state.name: state
                 for state in [
@@ -136,7 +136,7 @@ class MyTrendStrategy(MyFeatureStrategy):
     def tick_comp(feature: RunnerFeatureBase):
         return feature.sub_features['ticks'].sub_features['comparison'].last_value()
 
-    def process_runner_features(self, mb: MarketBook, mh: MarketHandler, selection_id, runner_index):
+    def _feature_process(self, mb: MarketBook, mh: MarketHandler, selection_id, runner_index):
         # only process features if allowed
         if self.trend_data_dicts[mb.market_id][selection_id].do_features:
             super().process_runner_features(mb, mh, selection_id, runner_index)

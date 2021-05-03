@@ -193,7 +193,7 @@ class EarlyScalpTradeStateHedgeWait(tradestates.TradeStateHedgeWaitBase):
         return data.back_delayed
 
     def run(self, data: EScalpData, **inputs):
-        return_states = super().run(data=data, **inputs)
+        return_states = super().run(,,
         if not data.allow:
             return [
                 tradestates.TradeStateTypes.BIN,

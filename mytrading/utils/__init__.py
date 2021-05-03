@@ -28,7 +28,7 @@ active_logger.setLevel(logging.INFO)
 
 
 class APIHandler:
-    MAX_CATALOGUES = 1000
+    MAX_CATALOGUES = 100
     DEF_CAT_ATTRS = {
         'market ID': 'market_id',
         'market name': 'market_name',
@@ -60,10 +60,10 @@ class APIHandler:
 
     def list_market_catalogues(
         self,
-        event_type_id: str,
-        market_type_code: str,
-        market_betting_type: str,
-        market_limit: int,
+        event_type_ids: Optional[List[str]] = None,
+        market_type_codes: Optional[List[str]] = None,
+        market_betting_types: Optional[List[str]] = None,
+        market_limit: int = 0,
         market_countries: Optional[List[str]] = None,
         from_datetime: Optional[datetime] = None,
         to_datetime: Optional[datetime] = None,
@@ -79,9 +79,9 @@ class APIHandler:
                              'RUNNER_DESCRIPTION']
 
         race_filter = market_filter(
-            event_type_ids=[event_type_id],
-            market_type_codes=[market_type_code],
-            market_betting_types=[market_betting_type],
+            event_type_ids=event_type_ids,
+            market_type_codes=market_type_codes,
+            market_betting_types=market_betting_types,
             market_countries=market_countries,
             market_start_time={
                 'from': bf_dt(from_datetime) if from_datetime else None,
@@ -137,7 +137,7 @@ def migrate_mkt_cache(db: BettingDB, market_id: str, stream_path: str, cat_path:
     """
     d = db.cache_dir('marketstream', {'market_id': market_id})
     os.makedirs(d, exist_ok=True)
-    stream_dest = path.join(d, 'data')
+    stream_dest = path.join(d, 'stream_updates')
     shutil.copy(stream_path, stream_dest)
     active_logger.info(f'migrating stream from "{stream_path}" to cache "{stream_dest}')
     if cat_path is not None:

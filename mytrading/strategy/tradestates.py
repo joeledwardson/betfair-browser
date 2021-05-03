@@ -10,13 +10,13 @@ from flumine.order.ordertype import LimitOrder, OrderTypes
 from flumine.order.trade import Trade, TradeStatus
 from betfairlightweight.resources.bettingresources import MarketBook, RunnerBook
 
-from mytrading.process.matchbet import get_match_bet_sums
-from mytrading.process import get_order_profit, get_side_operator, get_side_ladder, side_invert, closest_tick
-from mytrading.process.ticks import LTICKS_DECODED
-from mytrading.strategy.tradetracker.tradetracker import TradeTracker
-from mytrading.strategy.tradetracker.messages import MessageTypes
-from myutils import statemachine as stm
+from ..process import MatchBetSums, get_order_profit, get_side_operator, get_side_ladder, side_invert, closest_tick, \
+    LTICKS_DECODED
 from ..exceptions import TradeStateException
+from .tradetracker import TradeTracker
+from .messages import MessageTypes
+from .runnerhandler import RunnerHandler
+from myutils import statemachine as stm
 
 
 order_error_states = [
@@ -72,29 +72,13 @@ class TradeStateBase(stm.State):
     # easily overridable state to progress to when state action is complete
     next_state: TradeStateTypes = TradeStateTypes.BASE
 
-    def enter(
-            self,
-            market_book: MarketBook,
-            market: Market,
-            runner_index: int,
-            trade_tracker: TradeTracker,
-            strategy: BaseStrategy,
-            **inputs
-    ):
+    def enter(self, market: Market, runner_index: int, runner_handler: RunnerHandler):
         """
         initialise a state
         """
         pass
 
-    def run(
-            self,
-            market_book: MarketBook,
-            market: Market,
-            runner_index: int,
-            trade_tracker: TradeTracker,
-            strategy: BaseStrategy,
-            **inputs
-    ):
+    def run(self, market: Market, runner_index: int, runner_handler: RunnerHandler):
         """
          called to operate state, options for return are:
          - return None to remain in same state
@@ -112,8 +96,8 @@ class TradeStateIntermediary(TradeStateBase):
     """
     Intermediary state
     """
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
         if 'next_state' in kwargs:
             raise TradeStateException(f'next_state kwarg found in intermediary state')
 
@@ -134,10 +118,10 @@ class TradeStatePending(TradeStateIntermediary):
         self.delay_once = delay_once
         self.first_call = True
 
-    def enter(self, **inputs):
+    def enter(self, market: Market, runner_index: int, runner_handler: RunnerHandler):
         self.first_call = True
 
-    def run(self, trade_tracker: TradeTracker, **inputs):
+    def run(self, market: Market, runner_index: int, runner_handler: RunnerHandler):
         """called to operate state - return None to remain in same state, or return string for new state"""
         # hold for 1 state
         if self.first_call:
@@ -146,10 +130,11 @@ class TradeStatePending(TradeStateIntermediary):
                 return False
 
         # select either active order or all active trade orders
+        trk = runner_handler.trade_tracker
         if not self.all_trade_orders:
-            orders = [trade_tracker.active_order]
+            orders = [trk.active_order]
         else:
-            orders = trade_tracker.active_trade.orders if trade_tracker.active_trade else []
+            orders = trk.active_trade.orders if trk.active_trade else []
 
         # loop orders
         for order in orders:
@@ -175,18 +160,13 @@ class TradeStateBin(TradeStateIntermediary):
         super().__init__(**kwargs)
         self.all_trade_orders = all_trade_orders
 
-    def run(
-            self,
-            trade_tracker: TradeTracker,
-            market: Market,
-            strategy: BaseStrategy,
-            **inputs
-    ):
+    def run(self, market: Market, runner_index: BaseStrategy, runner_handler: RunnerHandler):
+        trk = runner_handler.trade_tracker
         # select either active order or all active trade orders
         if not self.all_trade_orders:
-            orders = [trade_tracker.active_order]
+            orders = [trk.active_order]
         else:
-            orders = [o for o in trade_tracker.active_trade.orders] if trade_tracker.active_trade else []
+            orders = [o for o in trk.active_trade.orders] if trk.active_trade else []
         done = True
 
         # loop orders
@@ -204,7 +184,7 @@ class TradeStateBin(TradeStateIntermediary):
                     pass
                 else:
                     # cancel order (flumine checks order is EXECUTABLE before cancelling or throws error)
-                    strategy.cancel_order(market, order)
+                    market.cancel_order(order)
                 done = False
 
         return done
@@ -222,11 +202,11 @@ class TradeStateWait(TradeStateIntermediary):
         self.td = timedelta(milliseconds=wait_ms)
         self.start_time = datetime.now()
 
-    def enter(self, market_book: MarketBook, **inputs):
-        self.start_time = market_book.publish_time
+    def enter(self, market: Market, runner_index: int, runner_handler: RunnerHandler):
+        self.start_time = market.market_book.publish_time
 
-    def run(self, market_book: MarketBook, **inputs):
-        return (market_book.publish_time - self.start_time) >= self.td
+    def run(self, market: Market, runner_index: BaseStrategy, runner_handler: RunnerHandler):
+        return (market.market_book.publish_time - self.start_time) >= self.td
 
 
 # core states
@@ -237,23 +217,10 @@ class TradeStateCreateTrade(TradeStateBase):
     name = TradeStateTypes.CREATE_TRADE
     next_state = TradeStateTypes.IDLE
 
-    def run(
-            self,
-            market_book: MarketBook,
-            market: Market,
-            runner_index: int,
-            trade_tracker: TradeTracker,
-            strategy: BaseStrategy,
-            **inputs
-    ):
-        trade = Trade(
-            market_id=market.market_id,
-            selection_id=market_book.runners[runner_index].selection_id,
-            handicap=market_book.runners[runner_index].handicap,
-            strategy=strategy
+    def run(self, market: Market, runner_index: int, runner_handler: RunnerHandler):
+        runner_handler.trade_tracker.create_trade(
+            handicap=market.market_book.runners[runner_index].handicap
         )
-        trade_tracker.trades.append(trade)
-        trade_tracker.active_trade = trade
         return self.next_state
 
 
@@ -273,36 +240,15 @@ class TradeStateIdle(TradeStateBase):
         self.trade_transactions_cutoff = trade_transactions_cutoff
 
     # return true to move to next state opening trade, false to remain idle
-    def trade_criteria(
-            self,
-            market_book: MarketBook,
-            market: Market,
-            runner_index: int,
-            trade_tracker: TradeTracker,
-            strategy: BaseStrategy,
-            **inputs) -> bool:
+    def trade_criteria(self, market: Market, runner_index: int, runner_handler: RunnerHandler) -> bool:
         raise NotImplementedError
 
-    def run(
-            self,
-            market_book: MarketBook,
-            market: Market,
-            runner_index: int,
-            trade_tracker: TradeTracker,
-            strategy: BaseStrategy,
-            **inputs
-    ):
+    def run(self, market: Market, runner_index: int, runner_handler: RunnerHandler):
         max_order_count: MaxTransactionCount = market.flumine.client.trading_controls[0]
         if self.trade_transactions_cutoff and max_order_count.transaction_count >= self.trade_transactions_cutoff:
             return None
 
-        if self.trade_criteria(
-                market_book=market_book,
-                market=market,
-                runner_index=runner_index,
-                trade_tracker=trade_tracker,
-                strategy=strategy,
-                **inputs):
+        if self.trade_criteria(market, runner_index, runner_handler):
             return self.next_state
 
 
@@ -313,42 +259,27 @@ class TradeStateOpenPlace(TradeStateBase):
     name = TradeStateTypes.OPEN_PLACING
     next_state = TradeStateTypes.OPEN_MATCHING
 
-    def place_order(
-            self,
-            market_book: MarketBook,
-            market: Market,
-            runner_index: int,
-            trade_tracker: TradeTracker,
-            strategy: BaseStrategy,
-            **inputs) -> Union[None, BetfairOrder]:
+    def place_order(self, market: Market, runner_index: int, runner_handler: RunnerHandler) -> Union[None, BetfairOrder]:
         raise NotImplementedError
 
-    def run(
-            self,
-            market_book: MarketBook,
-            market: Market,
-            runner_index: int,
-            trade_tracker: TradeTracker,
-            strategy: BaseStrategy,
-            **inputs
-    ):
-        limit_order = self.place_order(market_book, market, runner_index, trade_tracker, strategy, **inputs)
+    def run(self, market: Market, runner_index: int, runner_handler: RunnerHandler):
+        limit_order = self.place_order(market, runner_index, runner_handler)
         if not limit_order:
             return [TradeStateTypes.PENDING, self.next_state]
         else:
-            trade_tracker.log_update(
+            runner_handler.trade_tracker.log_update(
                 msg_type=MessageTypes.MSG_OPEN_PLACE,
                 msg_attrs={
                     'side':  limit_order.side,
                     'price': limit_order.order_type.price,
                     'size': limit_order.order_type.size,
                 },
-                dt=market_book.publish_time,
+                dt=market.market_book.publish_time,
                 display_odds=limit_order.order_type.price,
                 order=limit_order
             )
-            trade_tracker.active_order = limit_order
-            trade_tracker.open_side = limit_order.side
+            runner_handler.trade_tracker.active_order = limit_order
+            runner_handler.trade_tracker.open_side = limit_order.side
             return [TradeStateTypes.PENDING, self.next_state]
 
 
@@ -369,40 +300,26 @@ class TradeStateOpenMatching(TradeStateBase):
         super().__init__(*args, **kwargs)
 
     def open_order_processing(
-            self,
-            market_book: MarketBook,
-            market: Market,
-            runner_index: int,
-            trade_tracker: TradeTracker,
-            strategy: BaseStrategy,
-            **inputs
+            self, market: Market, runner_index: int, runner_handler: RunnerHandler
     ) -> Union[None, List[Enum]]:
         """return new state(s) if different action required, otherwise None"""
         raise NotImplementedError
 
-    def run(
-            self,
-            market_book: MarketBook,
-            market: Market,
-            runner_index: int,
-            trade_tracker: TradeTracker,
-            strategy: BaseStrategy,
-            **inputs
-    ):
-        new_states = self.open_order_processing(market_book, market, runner_index, trade_tracker, strategy, **inputs)
+    def run(self, market: Market, runner_index: int, runner_handler: RunnerHandler):
+        new_states = self.open_order_processing(market, runner_index, runner_handler)
         if new_states:
             return new_states
         else:
-            sts = trade_tracker.active_order.status
+            sts = runner_handler.trade_tracker.active_order.status
             if sts == OrderStatus.EXECUTION_COMPLETE and self.move_on_complete:
                 return self.next_state
             elif sts in order_error_states:
-                trade_tracker.log_update(
+                runner_handler.trade_tracker.log_update(
                     msg_type=MessageTypes.MSG_OPEN_ERROR,
                     msg_attrs={
                         'order_status': str(sts),
                     },
-                    dt=market_book.publish_time
+                    dt=market.market_book.publish_time
                 )
                 return self.next_state
 
@@ -410,13 +327,12 @@ class TradeStateOpenMatching(TradeStateBase):
 class TradeStateHedgeSelect(TradeStateBase):
     """
     proceed to hedge placement state, defined by `next_state`
-    proceed to 'hedge_state' if found in `inputs` kwargs in run()
     """
     name = TradeStateTypes.HEDGE_SELECT
     next_state = TradeStateTypes.HEDGE_TAKE_PLACE
 
-    def run(self, **inputs):
-        return inputs.get('hedge_state', self.next_state)
+    def run(self, market: Market, runner_index: int, runner_handler: RunnerHandler):
+        return self.next_state
 
 
 class TradeStateHedgePlaceBase(TradeStateBase):
@@ -431,89 +347,58 @@ class TradeStateHedgePlaceBase(TradeStateBase):
         self.min_hedge_price = min_hedge_price
 
     def get_hedge_price(
-            self,
-            open_ladder: List[Dict],
-            close_ladder: List[Dict],
-            close_side,
-            trade_tracker: TradeTracker,
-            market_book: MarketBook,
-            market: Market,
-            runner_index: int,
-            strategy: BaseStrategy,
-            **inputs
+            self, market: Market, runner_index: int, runner_handler: RunnerHandler, outstanding_profit: float
     ) -> float:
         raise NotImplementedError
 
-    def run(
-            self,
-            market_book: MarketBook,
-            market: Market,
-            runner_index: int,
-            trade_tracker: TradeTracker,
-            strategy: BaseStrategy,
-            **inputs
-    ):
-        # get oustanding profit on trade (dif between profit in win/loss case)
-        match_bet_sums = get_match_bet_sums(trade_tracker.active_trade)
+    def run(self, market: Market, runner_index: int, runner_handler: RunnerHandler):
+        # get outstanding profit on trade (dif between profit in win/loss case)
+        match_bet_sums = MatchBetSums.get_match_bet_sums(runner_handler.trade_tracker.active_trade)
         outstanding_profit = match_bet_sums.outstanding_profit()
 
         # abort if below minimum required to hedge
         if abs(outstanding_profit) <= self.min_hedge_price:
-            trade_tracker.log_update(
+            runner_handler.trade_tracker.log_update(
                 msg_type=MessageTypes.MSG_HEDGE_NOT_MET,
                 msg_attrs={
                     'outstanding_profit': outstanding_profit,
                     'min_hedge': self.min_hedge_price
                 },
-                dt=market_book.publish_time
+                dt=market.market_book.publish_time
             )
             return TradeStateTypes.CLEANING
 
-        runner = market_book.runners[runner_index]
-        if outstanding_profit > 0:
-            # value is positive: trade is "underlayed", i.e. needs more lay money
-            close_side = 'LAY'
-            open_ladder = runner.ex.available_to_back
-            close_ladder = runner.ex.available_to_lay
-        else:
-            # value is negative: trade is "overlayed", i.e. needs more back moneyy
-            close_side = 'BACK'
-            open_ladder = runner.ex.available_to_lay
-            close_ladder = runner.ex.available_to_back
-
         # check that ladders not empty
-        if not close_ladder:
-            trade_tracker.log_update(
+        runner = market.market_book.runners[runner_index]
+        if not runner.ex.available_to_lay or not runner.ex.available_to_back:
+            runner_handler.trade_tracker.log_update(
                 msg_type=MessageTypes.MSG_BOOKS_EMPTY,
-                dt=market_book.publish_time
+                dt=market.market_book.publish_time
             )
             # wait for ladder to populate
             return None
 
-        # get green price for hedging
-        green_price = self.get_hedge_price(
-            open_ladder=open_ladder,
-            close_ladder=close_ladder,
-            close_side=close_side,
-            trade_tracker=trade_tracker,
-            market_book=market_book,
-            market=market,
-            runner_index=runner_index,
-            strategy=strategy,
-            **inputs
-        )
+        if outstanding_profit > 0:
+            # value is positive: trade is "underlayed", i.e. needs more lay money
+            close_side = 'LAY'
+            close_ladder = runner.ex.available_to_lay
+        else:
+            # value is negative: trade is "overlayed", i.e. needs more back moneyy
+            close_side = 'BACK'
+            close_ladder = runner.ex.available_to_back
 
-        # convert price to 2dp
+        # get green price for hedging, round to 2dp
+        green_price = self.get_hedge_price(market, runner_index, runner_handler, outstanding_profit)
         green_price = round(green_price, ndigits=2)
 
         # if function returns 0 or invalid then error
-        if not green_price or green_price and green_price not in LTICKS_DECODED:
-            trade_tracker.log_update(
+        if green_price <= 0 or green_price and green_price not in LTICKS_DECODED:
+            runner_handler.trade_tracker.log_update(
                 msg_type=MessageTypes.MSG_GREEN_INVALID,
                 msg_attrs={
                     'green_price': green_price
                 },
-                dt=market_book.publish_time
+                dt=market.market_book.publish_time
             )
             # use best available
             green_price = close_ladder[0]['price']
@@ -523,18 +408,20 @@ class TradeStateHedgePlaceBase(TradeStateBase):
         green_size = round(green_size, 2)
 
         # TODO (temporary fix so that orders are processed)
-        trade_tracker.active_trade._update_status(TradeStatus.PENDING)
+        runner_handler.trade_tracker.active_trade._update_status(TradeStatus.PENDING)
 
+        # TODO - handle order errors
         # place order
-        green_order = trade_tracker.active_trade.create_order(
+        green_order = runner_handler.trade_tracker.active_trade.create_order(
             side=close_side,
             order_type=LimitOrder(
                 price=green_price,
                 size=green_size
-            ))
+            )
+        )
 
-        strategy.place_order(market, green_order)
-        trade_tracker.log_update(
+        market.place_order(green_order)
+        runner_handler.trade_tracker.log_update(
             msg_type=MessageTypes.MSG_GREEN_PLACE,
             msg_attrs={
                 'close_side': close_side,
@@ -542,11 +429,11 @@ class TradeStateHedgePlaceBase(TradeStateBase):
                 'green_size': green_size,
                 'order_id': str(green_order.id),
             },
-            dt=market_book.publish_time,
+            dt=market.market_book.publish_time,
             display_odds=green_price,
         )
 
-        trade_tracker.active_order = green_order
+        runner_handler.trade_tracker.active_order = green_order
         return [TradeStateTypes.PENDING, self.next_state]
 
 
@@ -560,15 +447,7 @@ class TradeStateHedgeWaitBase(TradeStateBase):
         super().__init__(*args, **kwargs)
         self.hedge_place_state = hedge_place_state
 
-    def price_moved(
-            self,
-            market_book: MarketBook,
-            market: Market,
-            runner_index: int,
-            trade_tracker: TradeTracker,
-            strategy: BaseStrategy,
-            **inputs
-    ) -> float:
+    def price_moved(self, market: Market, runner_index: int, runner_handler: RunnerHandler) -> float:
         """
         determines whether a new hedge price is available and should be taken
         if new hedge price available, return its price otherwise 0
@@ -582,26 +461,18 @@ class TradeStateHedgeWaitBase(TradeStateBase):
         """
         return new_price != current_price
 
-    def run(
-            self,
-            market_book: MarketBook,
-            market: Market,
-            runner_index: int,
-            trade_tracker: TradeTracker,
-            strategy: BaseStrategy,
-            **inputs
-    ):
+    def run(self, market: Market, runner_index: int, runner_handler):
 
-        order = trade_tracker.active_order
+        order = runner_handler.trade_tracker.active_order
 
         # check if there has been an error with the order
         if order.status in order_error_states:
-            trade_tracker.log_update(
+            runner_handler.trade_tracker.log_update(
                 msg_type=MessageTypes.MSG_HEDGE_ERROR,
                 msg_attrs={
                     'order_status': order.violation_msg,
                 },
-                dt=market_book.publish_time
+                dt=market.market_book.publish_time
             )
 
             # try to hedge again
@@ -620,26 +491,19 @@ class TradeStateHedgeWaitBase(TradeStateBase):
         elif order.status == OrderStatus.EXECUTABLE:
 
             # hedge matching, get new price
-            new_price = self.price_moved(
-                market_book=market_book,
-                market=market,
-                runner_index=runner_index,
-                trade_tracker=trade_tracker,
-                strategy=strategy,
-                **inputs
-            )
+            new_price = self.price_moved(market, runner_index, runner_handler)
 
             # non-zero value indicates price has moved
-            runner = market_book.runners[runner_index]
+            runner = market.market_book.runners[runner_index]
             if new_price and self.compare_price(new_price, order.order_type.price, order.side, runner):
 
-                trade_tracker.log_update(
+                runner_handler.trade_tracker.log_update(
                     msg_type=MessageTypes.MSG_HEDGE_REPLACE,
                     msg_attrs={
                         'old_price': order.order_type.price,
                         'new_price': new_price
                     },
-                    dt=market_book.publish_time,
+                    dt=market.market_book.publish_time,
                     display_odds=new_price,
                 )
 
@@ -654,12 +518,12 @@ class TradeStateHedgeWaitBase(TradeStateBase):
         else:
             # theoretically should never reach here - pending states covered, error states, EXECUTABLE and
             # EXECUTION_COMPLETE
-            trade_tracker.log_update(
+            runner_handler.trade_tracker.log_update(
                 msg_type=MessageTypes.MSG_HEDGE_UNKNOWN,
                 msg_attrs={
                     'order_status': order.status.value
                 },
-                dt=market_book.publish_time,
+                dt=market.market_book.publish_time,
             )
             return [
                 TradeStateTypes.BIN,
@@ -676,23 +540,13 @@ class TradeStateHedgePlaceTake(TradeStateHedgePlaceBase):
     next_state = TradeStateTypes.HEDGE_TAKE_MATCHING
 
     def get_hedge_price(
-            self,
-            open_ladder: List[Dict],
-            close_ladder: List[Dict],
-            close_side,
-            trade_tracker: TradeTracker,
-            market_book: MarketBook,
-            market: Market,
-            runner_index: int,
-            strategy: BaseStrategy,
-            **inputs
-    ):
-        """
-        take best available price
-        e.g. if trade was opened as a back (the 'open_side') argument, then take lowest lay price available (the
-        'close_side')
-        """
-        return close_ladder[0]['price'] if close_ladder else 0
+            self, market: Market, runner_index: int, runner_handler: RunnerHandler, outstanding_profit: float
+    ) -> float:
+        ex = market.market_book.runners[runner_index].ex
+        if outstanding_profit > 0:
+            return ex.available_to_lay[0]['price']
+        else:
+            return ex.available_to_back[0]['price']
 
 
 class TradeStateHedgeWaitTake(TradeStateHedgeWaitBase):
@@ -703,24 +557,15 @@ class TradeStateHedgeWaitTake(TradeStateHedgeWaitBase):
     name = TradeStateTypes.HEDGE_TAKE_MATCHING
     next_state = TradeStateTypes.CLEANING
 
-    def price_moved(
-            self,
-            market_book: MarketBook,
-            market: Market,
-            runner_index: int,
-            trade_tracker: TradeTracker,
-            strategy: BaseStrategy,
-            **inputs
-    ) -> float:
-
+    def price_moved(self, market: Market, runner_index: int, runner_handler: RunnerHandler) -> float:
         # check active order exists
-        order = trade_tracker.active_order
+        order = runner_handler.trade_tracker.active_order
         if not order:
             return 0
 
         # get ladder on close side for hedging
         available = get_side_ladder(
-            market_book.runners[runner_index].ex,
+            market.market_book.runners[runner_index].ex,
             order.side
         )
 
@@ -756,19 +601,17 @@ class TradeStateHedgePlaceQueue(TradeStateHedgePlaceBase):
         self.tick_offset = tick_offset
 
     def get_hedge_price(
-            self,
-            open_ladder: List[Dict],
-            close_ladder: List[Dict],
-            close_side,
-            trade_tracker: TradeTracker,
-            market_book: MarketBook,
-            market: Market,
-            runner_index: int,
-            strategy: BaseStrategy,
-            **inputs
-    ):
-        if not open_ladder:
-            return 0
+            self, market: Market, runner_index: int, runner_handler: RunnerHandler, outstanding_profit: float
+    ) -> float:
+        runner = market.market_book.runners[runner_index]
+        if outstanding_profit > 0:
+            # value is positive: trade is "underlayed", i.e. needs more lay money
+            close_side = 'LAY'
+            open_ladder = runner.ex.available_to_back
+        else:
+            # value is negative: trade is "overlayed", i.e. needs more back moneyy
+            close_side = 'BACK'
+            open_ladder = runner.ex.available_to_lay
 
         price = open_ladder[0]['price']
         if not self.tick_offset:
@@ -799,16 +642,8 @@ class TradeStateHedgeWaitQueue(TradeStateHedgeWaitBase):
         self.moving = False
         self.original_price = 0
 
-    def enter(
-            self,
-            market_book: MarketBook,
-            market: Market,
-            runner_index: int,
-            trade_tracker: TradeTracker,
-            strategy: BaseStrategy,
-            **inputs
-    ):
-        self.reset_time = market_book.publish_time
+    def enter(self, market: Market, runner_index: int, runner_handler: RunnerHandler):
+        self.reset_time = market.market_book.publish_time
         self.moving = False
         self.original_price = 0
 
@@ -840,15 +675,10 @@ class TradeStateHedgeWaitQueue(TradeStateHedgeWaitBase):
                     return True
         return False
 
-    def price_moved(
-            self,
-            market_book: MarketBook,
-            market: Market,
-            runner_index: int,
-            trade_tracker: TradeTracker,
-            strategy: BaseStrategy,
-            **inputs
-    ) -> float:
+    def price_moved(self, market: Market, runner_index: int, runner_handler: RunnerHandler) -> float:
+
+        market_book = market.market_book
+        trade_tracker = runner_handler.trade_tracker
 
         # check active order exists
         order = trade_tracker.active_order
@@ -893,29 +723,14 @@ class TradeStateHedgeWaitQueue(TradeStateHedgeWaitBase):
         return 0
 
 
-class TradeStateHedgeMk2(TradeStateBase):
-    """
-    Hedge state 2nd generation - one user defined function
-    """
-    pass
-
-
 class TradeStateClean(TradeStateBase):
 
     name = TradeStateTypes.CLEANING
 
-    def enter(
-            self,
-            market_book: MarketBook,
-            market: Market,
-            runner_index: int,
-            trade_tracker: TradeTracker,
-            strategy: BaseStrategy,
-            **inputs
-    ):
-
+    def enter(self, market: Market, runner_index: int, runner_handler: RunnerHandler):
+        market_book = market.market_book
+        trade_tracker = runner_handler.trade_tracker
         if trade_tracker.active_trade:
-
             # filter to limit orders
             orders = [o for o in trade_tracker.active_trade.orders if o.order_type.ORDER_TYPE == OrderTypes.LIMIT]
 
@@ -944,6 +759,6 @@ class TradeStateClean(TradeStateBase):
                 dt=market_book.publish_time
             )
 
-    def run(self, **kwargs):
+    def run(self, market: Market, runner_index: int, runner_handler: RunnerHandler):
         pass
 

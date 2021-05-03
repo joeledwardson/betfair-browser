@@ -16,7 +16,6 @@ def inputs(filter_margins, dflt_offset):
             placeholder='Select plot config',
             className=filter_margins
         ),
-        # TODO - alert once done reloading
         dbc.Button(
             'reload feature configs',
             id='button-feature-config',

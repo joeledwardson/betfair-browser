@@ -7,6 +7,7 @@ import numpy as np
 import pandas as pd
 from betfairlightweight.resources import MarketBook
 from myutils import mytiming
+from collections import MutableMapping
 from .features import ftrs_reg, RFBase
 from ...exceptions import FeatureException
 
@@ -127,6 +128,9 @@ class FeatureHolder(dict):
         # get feature data from feature set
         return self.sim_getftrdata()
 
+    def __getitem__(self, item) -> RFBase:
+        return super().__getitem__(item)
+
 
 class FeatureCfgUtils:
     KEY_SAMPLE = 'smp'
@@ -194,3 +198,6 @@ class FeatureCfgUtils:
                 }
             }
         }
+
+
+# TODO add feature/plot configuration handler

@@ -43,9 +43,17 @@ class FeatureException(MyTradingException):
     pass
 
 
+class FeatureConfigException(MyTradingException):
+    pass
+
+
 class BfProcessException(MyTradingException):
     pass
 
 
 class DBException(MyTradingException):
+    pass
+
+
+class OCException(MyTradingException):
     pass

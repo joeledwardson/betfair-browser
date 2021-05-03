@@ -1,14 +1,14 @@
 from dash.dependencies import Output, Input, State
 import dash_html_components as html
-from myutils.mydash import intermediate
-from myutils.mydash import context
+
+import myutils.mydash
 import logging
 from ..session import Session
 
 active_logger = logging.getLogger(__name__)
 active_logger.setLevel(logging.INFO)
 
-counter = intermediate.Intermediary()
+counter = myutils.mydash.Intermediary()
 
 
 def cb_market(app, shn: Session):
@@ -23,7 +23,7 @@ def cb_market(app, shn: Session):
         ],
     )
     def strategy_callback(n_clicks, *flt_args):
-        clear = context.triggered_id() == 'input-strategy-clear'
+        clear = myutils.mydash.triggered_id() == 'input-strategy-clear'
 
         shn.flt_upsrt(clear, *flt_args)
         cte = shn.flt_ctesrt()
@@ -62,6 +62,7 @@ def cb_market(app, shn: Session):
             Input('input-mkt-clear', 'n_clicks'),
             Input('table-market-session', 'sort_mode'),
             Input('input-strategy-select', 'value'),
+            Input('btn-db-refresh', 'n_clicks'),
 
             Input('input-sport-type', 'value'),
             Input('input-mkt-type', 'value'),
@@ -79,9 +80,10 @@ def cb_market(app, shn: Session):
             n_clicks,
             sort_mode,
             strategy_id,
+            refresh,
             *args
     ):
-        clear = context.triggered_id() == 'input-mkt-clear'
+        clear = myutils.mydash.triggered_id() == 'input-mkt-clear'
 
         shn.flt_upmkt(clear, *args)
         cte = shn.flt_ctemkt(strategy_id)
@@ -91,9 +93,10 @@ def cb_market(app, shn: Session):
         vals = shn.flt_valsmkt()
         opts = shn.flt_optsmkt(cte)
         n = shn.betting_db.session.query(cte).count()
+        ns = shn.betting_db.session.query(shn.betting_db.tables['strategymeta']).count()
 
         q_sts = [
-            html.Div(f'Showing {len(tbl_rows)} of {n} available'),
+            html.Div(f'Showing {len(tbl_rows)} of {n} available, {ns} strategies available'),
             html.Div(
                 f'strategy ID={strategy_id}'
                 if strategy_id is not None else 'no strategy selected'
@@ -118,7 +121,7 @@ def cb_market(app, shn: Session):
         ],
     )
     def toggle_classname(n1, n2):
-        if context.triggered_id() == 'btn-session-filter':
+        if myutils.mydash.triggered_id() == 'btn-session-filter':
             return "right-not-collapsed"
         else:
             return ""

@@ -1,7 +1,8 @@
 import json
 import uuid
 from datetime import datetime, timedelta
-from os import path, makedirs
+from os import path
+import os
 from typing import Optional, Dict
 import logging
 import yaml
@@ -10,14 +11,15 @@ from betfairlightweight.resources import MarketBook, RunnerBook
 from flumine import clients, BaseStrategy
 from flumine.markets.market import Market
 
+from .userdata import UserDataLoader, UserDataStreamer
 from ..exceptions import MyStrategyException
-from ..process import get_best_price
 from ..utils import bettingdb
 from .feature import FeatureHolder
-from .trademachine import RunnerStateMachine
+from .trademachine import RunnerTradeMachine
 from .tradestates import TradeStateTypes
 from .messages import MessageTypes
 from .tradetracker import TradeTracker
+from .runnerhandler import RunnerHandler
 from myutils.mytiming import EdgeDetector, timing_register
 
 active_logger = logging.getLogger(__name__)
@@ -31,11 +33,6 @@ class BackTestClientNoMin(clients.BacktestClient):
 
 
 class MyBaseStrategy(BaseStrategy):
-    """
-    Implementation of flumine `BaseStrategy`:
-    - check_market_book() checks if book is closed
-    - place_order() prints if order validation failed
-    """
     def check_market_book(self, market: Market, market_book: MarketBook) -> bool:
         """
         return True (tell flumine to run process_market_book()) only executed if market not closed
@@ -43,21 +40,7 @@ class MyBaseStrategy(BaseStrategy):
         if market_book.status != "CLOSED":
             return True
 
-    # override default place order, this time printing where order validation failed
-    # TODO - trade tracker log reason for validation fail
-    def place_order(self, market: Market, order, market_version: int = None) -> None:
-        runner_context = self.get_runner_context(*order.lookup)
-        if self.validate_order(runner_context, order):
-            runner_context.place(order.trade.id)
-            market.place_order(order)
-        else:
-            active_logger.warning(f'order validation failed for "{order.selection_id}"')
 
-
-# TODO - user data recording process which accepts a function to retrieve custom user data, then writes it into the
-#  cache file for USER info in market streaming - each line can have a dictionary of user values which is keyed by
-#  the user function name - to pass down to features, could have a class object which is passed to race initialiser
-#  on creation
 class MyRecorderStrategy(BaseStrategy):
     """
     Record streaming updates by writing to file
@@ -74,9 +57,20 @@ class MyRecorderStrategy(BaseStrategy):
         self.base_dir = base_dir
         self.market_paths = {}
         self.catalogue_paths = {}
+        self.closed_markets = []
 
     def check_market_book(self, market: Market, market_book: MarketBook) -> bool:
         return True
+
+    def process_closed_market(self, market: Market, market_book: MarketBook) -> None:
+        market_id = market_book.market_id
+        active_logger.info(f'received closed market function for "{market_id}"')
+        if market_id in self.closed_markets:
+            active_logger.warning(f'market already closed')
+        else:
+            if market_id not in self.market_paths:
+                active_logger.warning(f'market has no stream file')
+        self.closed_markets.append(market_id)
 
     def process_market_book(self, market: Market, market_book: MarketBook) -> None:
         market_id = market_book.market_id
@@ -88,10 +82,10 @@ class MyRecorderStrategy(BaseStrategy):
                 'catalogue',
             )
             d, _ = path.split(p)
-            makedirs(d, exist_ok=True)
+            os.makedirs(d, exist_ok=True)
             # store catalogue
             self.catalogue_paths[market_id] = p
-            active_logger.info(f'writing market id "{market_id}" catalogue to "{catalogue_path}"')
+            active_logger.info(f'writing market id "{market_id}" catalogue to "{p}"')
             with open(p, 'w') as f:
                 f.write(market.market_catalogue.json())
 
@@ -100,95 +94,31 @@ class MyRecorderStrategy(BaseStrategy):
             p = self.db.cache_col(
                 'marketstream',
                 {'market_id': market_id},
-                'data'
+                'stream_updates'
             )
             d, _ = path.split(p)
-            makedirs(d, exist_ok=True)
+            os.makedirs(d, exist_ok=True)
             # set path var
             self.market_paths[market_id] = p
-            active_logger.info(f'new market started recording: "{market_id}" to {market_path}')
+            active_logger.info(f'new market started recording: "{market_id}" to {p}')
 
-        # convert datetime to milliseconds since epoch
-        pt = int((market_book.publish_time - datetime.utcfromtimestamp(0)).total_seconds() * 1000)
-
-        # construct data in historical format
-        update = {
-            'op': 'mcm',
-            'clk': None,
-            'pt': pt,
-            'mc': [market_book.streaming_update]
-        }
-
-        # convert to string and add newline
-        update = json.dumps(update) + '\n'
-
-        # write to file
-        with open(self.market_paths[market_id], 'a') as f:
-            f.write(update)
-
-
-class RunnerHandler:
-    def __init__(
-            self,
-            selection_id: int,
-            trade_tracker: TradeTracker,
-            state_machine: RunnerStateMachine,
-            features: FeatureHolder
-    ):
-        self.selection_id = selection_id
-        self.features: FeatureHolder = features
-        self.trade_tracker = trade_tracker
-        self.state_machine = state_machine
-
-    def rst_trade(self):
-        """process a complete trade by forcing trade machine back to initial state, clearing active order and active
-        trade"""
-
-        # clear existing states from state machine
-        self.state_machine.flush()
-
-        # reset to starting states
-        self.state_machine.force_change([self.state_machine.initial_state_key])
-
-        # reset active order and trade variables
-        self.trade_tracker.active_order = None
-        self.trade_tracker.active_trade = None
-
-    def msg_allow(self, mbk: MarketBook, rbk: RunnerBook, pre_seconds: float):
-        """log message that allow trading point reached"""
-        # set display odds as either LTP/best back/best lay depending if any/all are available
-        ltp = rbk.last_price_traded
-        best_back = get_best_price(rbk.ex.available_to_back)
-        best_lay = get_best_price(rbk.ex.available_to_lay)
-        display_odds = ltp or best_back or best_lay or 0
-
-        # log message
-        self.trade_tracker.log_update(
-            msg_type=MessageTypes.MSG_ALLOW_REACHED,
-            dt=mbk.publish_time,
-            msg_attrs={
-                'pre_seconds': pre_seconds,
-                'start_time': mbk.market_definition.market_time.isoformat()
-            },
-            display_odds=display_odds
-        )
-
-    def msg_cutoff(self, mbk: MarketBook, cutoff_seconds):
-        """log message that reached cutoff point"""
-        self.trade_tracker.log_update(
-            msg_type=MessageTypes.MSG_CUTOFF_REACHED,
-            dt=mbk.publish_time,
-            msg_attrs={
-                'cutoff_seconds': cutoff_seconds,
-                'start_time': mbk.market_definition.market_time.isoformat()
+        if market_id in self.closed_markets:
+            active_logger.warning(f'received market update for "{market_id}" when market closed')
+        else:
+            # convert datetime to milliseconds since epoch
+            pt = int((market_book.publish_time - datetime.utcfromtimestamp(0)).total_seconds() * 1000)
+            # construct data in historical format
+            update = {
+                'op': 'mcm',
+                'clk': None,
+                'pt': pt,
+                'mc': [market_book.streaming_update]
             }
-        )
-
-    def force_hedge(self, hedge_states):
-        """force state machine to hedge"""
-        active_logger.info(f'forcing "{self.selection_id}" to stop trading and hedge')
-        self.state_machine.flush()
-        self.state_machine.force_change(hedge_states)
+            # convert to string and add newline
+            update = json.dumps(update) + '\n'
+            # write to file
+            with open(self.market_paths[market_id], 'a') as f:
+                f.write(update)
 
 
 class MarketHandler:
@@ -248,7 +178,7 @@ class MarketHandler:
                                f'{market_book.publish_time}')
 
 
-# TODO - write feature data sequentially rather than as massive dictionary at end of processing
+# TODO - log reason for order validation fail
 class MyFeatureStrategy(MyBaseStrategy):
     """
     Store feature data for each market, providing functionality for updating features when new market_book received
@@ -273,11 +203,11 @@ class MyFeatureStrategy(MyBaseStrategy):
             self,
             *,
             name: str,
-            base_dir: str,
             cutoff_seconds: int,
             pre_seconds: int,
             feature_seconds: int,
-            historic: bool,
+            db_kwargs: Optional[Dict] = None,
+            oc_td: Optional[timedelta] = None,
             **kwargs,
     ):
         super().__init__(**kwargs)
@@ -286,25 +216,42 @@ class MyFeatureStrategy(MyBaseStrategy):
         self.cutoff_seconds = cutoff_seconds
         self.feature_seconds = feature_seconds
         self.strategy_name = name
-        # TODO update directories
-        # strategies base directory
-        self.base_dir = base_dir
         self.market_handlers: Dict[str, MarketHandler] = dict()
+        self._db = bettingdb.BettingDB(**(db_kwargs or {}))
+        if self.client.EXCHANGE == clients.ExchangeType.SIMULATED:
+            active_logger.info('client is historic, using recorded user data "UserDataLoader"')
+            self._usr_data = UserDataLoader(self._db, oc_td)
+        else:
+            active_logger.info('client is live, using streaming user data "UserData')
+            self._usr_data = UserDataStreamer(self._db, oc_td)
 
-    def write_strategy_info(self, init_kwargs):
+    def _strat_meta_path(self, strategy_id):
+        return self._db.cache_dict_path('strategymeta', {'strategy_id': str(strategy_id)})
+
+    def _strat_updt_path(self, strategy_id, market_id):
+        return self._db.cache_col(
+            tbl_nm='strategyupdates',
+            pkey_flts={
+                'strategy_id': str(strategy_id),
+                'market_id': market_id
+            },
+            col='strategy_updates'
+        )
+
+    def strategy_write_info(self, init_kwargs):
         """write strategy information to file"""
         info = {
             'name': self.__class__.__name__,
             'kwargs': init_kwargs
         }
-        meta_path = path.join(self.base_dir, 'strategymeta', str(self.strategy_id), 'info')
+        meta_path = self._strat_meta_path(str(self.strategy_id))
         active_logger.info(f'writing strategy info to file: "{meta_path}')
         d, _ = path.split(meta_path)
-        makedirs(d)
+        os.makedirs(d)
         with open(meta_path, 'w') as f:
             f.write(yaml.dump(info))
 
-    def allow_trademachine(
+    def _trade_machine_allow(
             self,
             mbk: MarketBook,
             rbk: RunnerBook,
@@ -325,7 +272,7 @@ class MyFeatureStrategy(MyBaseStrategy):
 
         # only run state if past timestamp when trading allowed
         if mh.flag_allow.current_value:
-            sm = rh.state_machine
+            sm = rh.trade_machine
 
             # if just passed point where trading has stopped, force hedge trade
             if mh.flag_cutoff.rising:
@@ -347,46 +294,67 @@ class MyFeatureStrategy(MyBaseStrategy):
 
         return False
 
-    def get_featureholder(self, mkt: Market, mbk: MarketBook, rbk: RunnerBook, runner_index: int) -> FeatureHolder:
-        """generate feature holder dictionary of feature instance for new runner"""
-        raise NotImplementedError
-
-    def run_trade_machine(self, mkt: Market, mbk: MarketBook, rbk: RunnerBook, runner_index: int):
-        """operate runner trade machine given new market book"""
-        raise NotImplementedError
-
-    def get_state_machine(self, mkt: Market, mbk: MarketBook, rbk: RunnerBook, runner_index: int) -> RunnerStateMachine:
+    def _trade_machine_create(self, mkt: Market, mbk: MarketBook, rbk: RunnerBook, runner_index: int) -> RunnerTradeMachine:
         """create trade state machine for a new runner"""
         raise NotImplementedError
 
-    def process_runner_features(self, mb: MarketBook, mh: MarketHandler, selection_id, runner_index):
+    def _trade_machine_run(self, mkt: Market, mbk: MarketBook, rbk: RunnerBook, runner_index: int):
+        """operate runner trade machine given new market book"""
+        raise NotImplementedError
+
+    def _feature_holder_create(self, mkt: Market, mbk: MarketBook, rbk: RunnerBook, runner_index: int) -> FeatureHolder:
+        """generate feature holder dictionary of feature instance for new runner"""
+        raise NotImplementedError
+
+    def _feature_process(self, mb: MarketBook, mh: MarketHandler, selection_id, runner_index):
         """process features for a given runner for new market book"""
+        # TODO - write feature values to file?
+        def _dump(feature):
+            feature.out_cache.clear()
+            for sub_ftr in feature.sub_features.items():
+                feature.out_cache.clear()
         for feature in mh.runner_handlers[selection_id].features.values():
             feature.process_runner(mb, runner_index)
+            _dump(feature)
 
-    def get_runner_handler(
+    def _user_data_process(self, mb: MarketBook, mkt: Market, mh: MarketHandler):
+        user_data = self._usr_data.get_user_data(mkt, mb)
+        for rh in mh.runner_handlers.values():
+            rh.user_data = user_data
+            for ftr in rh.features.values():
+                ftr.update_user_data(user_data)
+
+    def _runner_handler_create(
             self,
-            mkt: Market,
-            mbk: MarketBook,
-            rbk: RunnerBook,
-            fh: FeatureHolder,
-            i: int,
-            upth: str,
+            runner_book: RunnerBook,
+            feature_holder: FeatureHolder,
+            update_path: str,
+            trade_machine: RunnerTradeMachine,
+            market_id
     ) -> RunnerHandler:
         """create runner handler instance on new runner"""
         return RunnerHandler(
-            selection_id=rbk.selection_id,
+            selection_id=runner_book.selection_id,
             trade_tracker=TradeTracker(
-                selection_id=rbk.selection_id,
-                file_path=upth
+                selection_id=runner_book.selection_id,
+                strategy=self,
+                market_id=market_id,
+                file_path=update_path
             ),
-            state_machine=self.get_state_machine(mkt, mbk, rbk, i),
-            features=fh
+            trade_machine=trade_machine,
+            features=feature_holder
         )
 
-    def get_market_handler(self, mkt: Market, mbk: MarketBook) -> MarketHandler:
+    def _market_handler_create(self, mkt: Market, mbk: MarketBook) -> MarketHandler:
         """create market handler, can be overridden to customise market handler instance with more attributes"""
         return MarketHandler()
+
+    def _market_validate(self, market: Market, market_book: MarketBook):
+        """sanity check market id matches market book"""
+        if market.market_id != market_book.market_id:
+            raise MyStrategyException(
+                f'expected market id "{market.market_id}" to be the same as market book id "{market_book.market_id}"'
+            )
 
     @timing_register
     def process_market_book(self, market: Market, market_book: MarketBook):
@@ -394,17 +362,12 @@ class MyFeatureStrategy(MyBaseStrategy):
         get runner feature data for current market with new `market_book` received
         - if first time market is received then `market_initialisation()` is called
         """
-        # sanity check market id matches market book
-        if market.market_id != market_book.market_id:
-            raise MyStrategyException(
-                f'expected market id "{market.market_id}" to be the same as market book id "{market_book.market_id}"'
-            )
-
         # check if market has been initialised
-        udpt_dir = path.join(self.base_dir, 'strategyupdates', str(self.strategy_id), market_book.market_id)
+        udt_path = self._strat_updt_path(self.strategy_id, market.market_id)
         if market.market_id not in self.market_handlers:
-            makedirs(udpt_dir)
-            self.market_handlers[market.market_id] = self.get_market_handler(market, market_book)
+            d, _ = path.split(udt_path)
+            os.makedirs(d)
+            self.market_handlers[market.market_id] = self._market_handler_create(market, market_book)
 
         # check market not closed
         mh = self.market_handlers[market.market_id]
@@ -423,25 +386,30 @@ class MyFeatureStrategy(MyBaseStrategy):
             for runner_index, runner_book in enumerate(market_book.runners):
                 if runner_book.selection_id not in mh.runner_handlers:
                     # create runner features
-                    feature_holder = self.get_featureholder(market, market_book, runner_book, runner_index)
+                    feature_holder = self._feature_holder_create(market, market_book, runner_book, runner_index)
                     # initialise for race
                     for feature in feature_holder.values():
                         feature.race_initializer(runner_book.selection_id, market_book)
                     # create runner handler
-                    udt_path = path.join(udpt_dir, 'updates')
-                    mh.runner_handlers[runner_book.selection_id] = self.get_runner_handler(
-                        mkt=market, mbk=market_book, rbk=runner_book, fh=feature_holder, upth=udt_path, i=runner_index
+                    tm = self._trade_machine_create(market, market_book, runner_book, runner_index)
+                    mh.runner_handlers[runner_book.selection_id] = self._runner_handler_create(
+                        runner_book=runner_book,
+                        feature_holder=feature_holder,
+                        update_path=udt_path,
+                        trade_machine=tm,
+                        market_id=market.market_id
                     )
-            # process runner features
+            # process user data and runner features
             for runner_index, runner_book in enumerate(market_book.runners):
-                self.process_runner_features(market_book, mh, runner_book.selection_id, runner_index)
+                self._user_data_process(market_book, market, mh)
+                self._feature_process(market_book, mh, runner_book.selection_id, runner_index)
 
             # check if trading is to be performed (features flag *should* always be true if allow flag is)
             for runner_index, runner_book in enumerate(market_book.runners):
                 rh = mh.runner_handlers[runner_book.selection_id]
                 # run trade machine if permitted
-                if self.allow_trademachine(market_book, runner_book, mh, rh):
-                    self.run_trade_machine(market, market_book, runner_book, runner_index)
+                if self._trade_machine_allow(market_book, runner_book, mh, rh):
+                    self._trade_machine_run(market, market_book, runner_book, runner_index)
                 # update order tracker
                 rh.trade_tracker.update_order_tracker(market_book.publish_time)
 
