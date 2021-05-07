@@ -51,6 +51,10 @@ def get_chart_offset(chart_offset_str) -> Optional[timedelta]:
     """
     get chart offset based on HH:MM:SS form, return datetime on success, or None on fail
     """
+    # if html trims off the seconds part of hh:mm:ss then add it back on
+    if re.match(r'^\d{2}:\d{2}$', chart_offset_str):
+        chart_offset_str = chart_offset_str + ':00'
+
     if re.match(r'^\d{2}:\d{2}:\d{2}$', chart_offset_str):
         try:
             t = datetime.strptime(chart_offset_str, "%H:%M:%S")

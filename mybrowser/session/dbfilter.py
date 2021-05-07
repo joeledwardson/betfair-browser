@@ -142,21 +142,26 @@ class DBFilterMulti(DBFilter):
     would mean for a sample row where 'sport_name'='football' and 'sport_time'='13:00'
     the output label would be 'football, 13:00'
     """
-    def __init__(self, db_col: str, group: str, fmt_spec, order_col, is_desc: bool):
+    def __init__(self, db_col: str, group: str, fmt_spec, order_col, is_desc: bool, cols: List[str]):
         super().__init__(db_col, group)
         self.fmt_spec = fmt_spec
         self.order_col = order_col
-        self.is_desc = desc
+        self.is_desc = desc if is_desc else asc
+        self.cols = cols
 
     def get_options(self, db: bdb.BettingDB, db_cte: cte) -> List[List[Any]]:
         """
         get a list of distinct values from database
         """
         if self.is_desc:
-            s = desc
+            odr = desc
         else:
-            s = asc
-        return db.session.query(db_cte).distinct().order_by(s(db_cte.c[self.db_col])).all()
+            odr = asc
+        return db.session.query(
+            *(db_cte.c[col] for col in self.cols)
+        ).distinct().order_by(
+            odr(db_cte.c[self.order_col])
+        ).all()
 
     def get_labels(self, opts: List[List[Any]]) -> List[Dict[str, Any]]:
 
@@ -165,4 +170,15 @@ class DBFilterMulti(DBFilter):
             'value': dict(row)[self.db_col]
         } for row in opts]
 
+
+class DBFilterText(DBFilter):
+    """filter to a text string"""
+    NO_OPTIONS = True
+    def __init__(self, db_col: str, group: str, pre_str='%', post_str='%'):
+        super().__init__(db_col, group)
+        self.pre_str = pre_str
+        self.post_str = post_str
+
+    def db_filter(self, tbl: Table):
+        return tbl.columns[self.db_col].like(f'{self.pre_str}{self.value}{self.post_str}')
 

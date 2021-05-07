@@ -71,6 +71,7 @@ class TradeTracker:
             strategy=self._strategy
         )
         self._trades.append(trade)
+        self._trade_followers[trade.id] = TradeFollower()
         self.active_trade = trade
 
     @staticmethod
@@ -219,6 +220,19 @@ class TradeTracker:
                 # update cached order status and size matched values
                 tf.order_trackers[order.id].status = order.status
                 tf.order_trackers[order.id].matched = order.size_matched
+
+    def log_close(self, publish_time: datetime):
+        for trade in self._trades:
+            for order in trade.orders:
+                self.log_update(
+                    msg_type=MessageTypes.MSG_MARKET_CLOSE,
+                    msg_attrs={
+                        'runner_status': order.runner_status,
+                        'order_id': str(order.id)
+                    },
+                    dt=publish_time,
+                    order=order,
+                )
 
     def log_update(
             self,

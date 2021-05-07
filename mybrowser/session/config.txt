@@ -28,8 +28,10 @@ max_rows = 100
 
 [CONFIG_PATHS]
 ; can use relative paths here
-feature = ../plot_configs/feature
-plot = ../plot_configs/plot
+feature_src = ../plot_configs/src/feature
+feature_out = ../plot_configs/out/feature
+plot_src = ../plot_configs/src/plot
+plot_out = ../plot_configs/out/plot
 
 [PLOT_CONFIG]
 default_offset = 00:03:00

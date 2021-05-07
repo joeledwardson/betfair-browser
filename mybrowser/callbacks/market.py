@@ -14,26 +14,6 @@ counter = myutils.mydash.Intermediary()
 def cb_market(app, shn: Session):
     @app.callback(
         output=[
-            Output('input-strategy-select', 'value'),
-            Output('input-strategy-select', 'options'),
-        ],
-        inputs=[
-            Input('input-strategy-clear', 'n_clicks'),
-            Input('input-strategy-select', 'value'),
-        ],
-    )
-    def strategy_callback(n_clicks, *flt_args):
-        clear = myutils.mydash.triggered_id() == 'input-strategy-clear'
-
-        shn.flt_upsrt(clear, *flt_args)
-        cte = shn.flt_ctesrt()
-
-        vals = shn.flt_valssrt()
-        opts = shn.flt_optssrt(cte)
-        return vals + opts
-
-    @app.callback(
-        output=[
             Output('market-query-status', 'children'),
             Output('table-market-session', 'data'),
             Output('table-market-session', "selected_cells"),
@@ -49,6 +29,7 @@ def cb_market(app, shn: Session):
             Output('input-country-code', 'value'),
             Output('input-venue', 'value'),
             Output('input-date', 'value'),
+            Output('input-mkt-id', 'value'),
 
             Output('input-sport-type', 'options'),
             Output('input-mkt-type', 'options'),
@@ -57,13 +38,18 @@ def cb_market(app, shn: Session):
             Output('input-country-code', 'options'),
             Output('input-venue', 'options'),
             Output('input-date', 'options'),
+
+            Output('input-strategy-select', 'value'),
+            Output('input-strategy-select', 'options'),
         ],
         inputs=[
             Input('input-mkt-clear', 'n_clicks'),
+            Input('input-strategy-clear', 'n_clicks'),
             Input('table-market-session', 'sort_mode'),
-            Input('input-strategy-select', 'value'),
             Input('btn-db-refresh', 'n_clicks'),
+            Input('btn-db-upload', 'n_clicks'),
 
+            Input('input-strategy-select', 'value'),
             Input('input-sport-type', 'value'),
             Input('input-mkt-type', 'value'),
             Input('input-bet-type', 'value'),
@@ -71,30 +57,48 @@ def cb_market(app, shn: Session):
             Input('input-country-code', 'value'),
             Input('input-venue', 'value'),
             Input('input-date', 'value'),
+            Input('input-mkt-id', 'value')
         ],
         states=[
             State('table-market-session', 'active_cell')
         ]
     )
     def mkt_intermediary(
-            n_clicks,
+            mkt_clear,
+            strategy_clear,
             sort_mode,
+            db_refresh,
+            db_upload,
             strategy_id,
-            refresh,
             *args
     ):
-        clear = myutils.mydash.triggered_id() == 'input-mkt-clear'
+        btn_id = myutils.mydash.triggered_id()
 
-        shn.flt_upmkt(clear, *args)
+        # upload market & strategy cache if "upload" button clicked
+        if btn_id == 'btn-db-upload':
+            shn.betting_db.scan_mkt_cache()
+            shn.betting_db.scan_strat_cache()
+
+        # update strategy filters and selectable options
+        shn.flt_upsrt(btn_id == 'input-strategy-clear', strategy_id)
+        strat_cte = shn.flt_ctesrt()
+        strat_vals = shn.flt_valssrt()
+        strat_opts = shn.flt_optssrt(strat_cte)
+
+        # update market filters and selectable options
+        shn.flt_upmkt(btn_id == 'input-mkt-clear', *args)
         cte = shn.flt_ctemkt(strategy_id)
+        vals = shn.flt_valsmkt()
+        opts = shn.flt_optsmkt(cte)
+
+        # query db with filtered CTE to generate table rows for display
         tbl_rows = shn.flt_tbl(cte)
         for r in tbl_rows:
             r['id'] = r['market_id']  # assign 'id' so market ID set in row ID read in callbacks
-        vals = shn.flt_valsmkt()
-        opts = shn.flt_optsmkt(cte)
+
+        # generate status string of markets/strategies available and strategy selected
         n = shn.betting_db.session.query(cte).count()
         ns = shn.betting_db.session.query(shn.betting_db.tables['strategymeta']).count()
-
         q_sts = [
             html.Div(f'Showing {len(tbl_rows)} of {n} available, {ns} strategies available'),
             html.Div(
@@ -103,6 +107,7 @@ def cb_market(app, shn: Session):
             )
         ]
 
+        # combine all outputs together
         return [
             q_sts,  # table query status
             tbl_rows,  # set market table row data
@@ -111,7 +116,7 @@ def cb_market(app, shn: Session):
             0,  # reset current page back to first page
             '',  # loading output
             counter.next()  # intermediary counter value
-        ] + vals + opts
+        ] + vals + opts + strat_vals + strat_opts
 
     @app.callback(
         Output("right-side-bar", "className"),
@@ -121,6 +126,7 @@ def cb_market(app, shn: Session):
         ],
     )
     def toggle_classname(n1, n2):
+        # CSS class toggles sidebar
         if myutils.mydash.triggered_id() == 'btn-session-filter':
             return "right-not-collapsed"
         else:

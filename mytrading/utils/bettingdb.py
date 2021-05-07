@@ -9,9 +9,10 @@ from sqlalchemy.orm import Session
 from sqlalchemy.sql.schema import Table
 from sqlalchemy.ext.automap import automap_base
 from sqlalchemy.dialects.postgresql import base as psqlbase
+from sqlalchemy.dialects.postgresql import json as psqljson
 from queue import Queue
 import logging
-from typing import Optional, Dict, List
+from typing import Optional, Dict, List, Callable
 import keyring
 from os import path
 import os
@@ -22,6 +23,8 @@ import json
 import sys
 from myutils.myregistrar import MyRegistrar
 from ..exceptions import DBException
+from ..strategy.tradetracker import TradeTracker
+from ..strategy.messages import MessageTypes
 
 active_logger = logging.getLogger(__name__)
 active_logger.setLevel(logging.INFO)
@@ -67,6 +70,16 @@ def prc_dt_from_str(data):
 @db_processors.register_element
 def prc_dt_to_str(data):
     return data.isoformat()
+
+
+@db_processors.register_element
+def prc_json_encode(data):
+    return json.dumps(data)
+
+
+@db_processors.register_element
+def prc_json_decode(data):
+    return json.loads(data)
 
 
 class DBBase:
@@ -145,7 +158,8 @@ class DBBase:
 
     def insert_row(self, tbl_name: str, data: Dict):
         active_logger.info(f'inserting row of information into table "{tbl_name}"')
-        active_logger.info(f'keys passed are: {yaml.dump(list(data.keys()))}')
+        active_logger.info(f'keys passed are:\n'
+                           f'{yaml.dump([str(k) for k in data.keys()])}')
         self._process_columns(data, tbl_name, self.col_prcs, 'process_in')
         row = self.Base.classes[tbl_name](**data)
         self.session.add(row)
@@ -165,23 +179,22 @@ class DBBase:
 
 class DBCache(DBBase):
 
-    FILE_DICT = 'ROW_DICT_VALUES'
+    # FILE_DICT = 'ROW_DICT_VALUES'
 
-    def __init__(self, cache_root, cache_processors=None, dict_tables=None, **kwargs):
+    def __init__(self, cache_root, cache_processors=None, **kwargs):
         super().__init__(**kwargs)
         self.cache_root = path.abspath(path.expandvars(cache_root))
         self.cache_prcs = cache_processors or dict()
-        self.dict_tbls = dict_tables or list()
+        # self.dict_tbls = dict_tables or list()
+
+    def cache_tbl(self, tbl_nm) -> str:
+        return path.join(self.cache_root, tbl_nm)
 
     def cache_dir(self, tbl_nm: str, pkey_flts: Dict) -> str:
-        return path.join(
-            self.cache_root,
-            tbl_nm,
-            *pkey_flts.values()
-        )
+        return path.join(self.cache_tbl(tbl_nm), *pkey_flts.values())
 
-    def cache_dict_path(self, tbl_nm: str, pkey_flts: Dict) -> str:
-        return path.join(self.cache_dir(tbl_nm, pkey_flts), self.FILE_DICT)
+    # def cache_dict_path(self, tbl_nm: str, pkey_flts: Dict) -> str:
+    #     return path.join(self.cache_dir(tbl_nm, pkey_flts), self.FILE_DICT)
 
     def cache_col(self, tbl_nm: str, pkey_flts: Dict, col: str) -> str:
         return path.join(self.cache_dir(tbl_nm, pkey_flts), col)
@@ -197,8 +210,7 @@ class DBCache(DBBase):
             active_logger.info(f'removing cache dir: "{p}"')
             os.rmdir(p)
 
-    def read_to_cache(self, tbl_nm: str, pkey_flts: Dict, ):
-        active_logger.info(f'reading table "{tbl_nm}" row to cache with filters "{pkey_flts}"')
+    def write_to_cache(self, tbl_nm: str, pkey_flts: Dict, data: Dict):
         self._validate_pkeys(tbl_nm, pkey_flts)
         self._validate_tbl(tbl_nm)
         d = self.cache_dir(tbl_nm, pkey_flts)
@@ -207,21 +219,28 @@ class DBCache(DBBase):
             active_logger.info('path already exists, exiting...')
             return
         os.makedirs(d, exist_ok=True)
-        data = self.read_row(tbl_nm, pkey_flts)
         self._process_columns(data, tbl_nm, self.cache_prcs, 'process_out')
         for k in pkey_flts.keys():
-            data.pop(k)
-        if tbl_nm in self.dict_tbls:
-            p = path.join(d, self.FILE_DICT)
-            active_logger.info(f'table "{tbl_nm}" specified to write as dict format, writing to "{p}"')
-            with open(p, 'w') as f:
-                f.write(yaml.dump(data))
-        else:
-            for col in data.keys():
-                p = path.join(d, col)
+            data.pop(k, None)
+        # if tbl_nm in self.dict_tbls:
+        #     p = self.cache_dict_path(tbl_nm, pkey_flts)
+        #     active_logger.info(f'table "{tbl_nm}" specified to write as dict format, writing to "{p}"')
+        #     with open(p, 'w') as f:
+        #         f.write(yaml.dump(data))
+        # else:
+        for col in data.keys():
+            if data[col] is None:
+                active_logger.warning(f'column "{col}" value is none, skipping')
+            else:
+                p = self.cache_col(tbl_nm, pkey_flts, col)
                 active_logger.info(f'writing column "{col}" to file: "{p}"')
                 with open(p, 'w') as f:
                     f.write(data[col])
+
+    def read_to_cache(self, tbl_nm: str, pkey_flts: Dict):
+        active_logger.info(f'reading table "{tbl_nm}" row to cache with filters "{pkey_flts}"')
+        data = self.read_row(tbl_nm, pkey_flts)
+        self.write_to_cache(tbl_nm, pkey_flts, data)
 
     def insert_from_cache(self, tbl_nm, pkey_flts: Dict):
         active_logger.info(f'insert row to table "{tbl_nm}" from cache with filters "{pkey_flts}"')
@@ -232,30 +251,64 @@ class DBCache(DBBase):
         if not path.isdir(d):
             raise DBException(f'expected to be directory: "{d}"')
         data = pkey_flts.copy()
-        if tbl_nm in self.FILE_DICT:
-            p = path.join(d, self.FILE_DICT)
-            active_logger.info(f'table "{tbl_nm}" specified to read as dict format, reading from "{p}"')
-            with open(p, 'r') as f:
-                fdata = yaml.load(f.read(), yaml.FullLoader)
-                if type(fdata) is not dict:
-                    raise DBException(f'expected table "{tbl_nm}" data values read to be dict')
-                data.update(fdata)
-        else:
-            _, _, files = next(os.walk(d))
-            self._validate_cols(tbl_nm, files)  # files should match column names
-            for fnm in files:
-                fp = path.join(d, fnm)
-                active_logger.info(f'reading column data from file: "{fp}"')
-                with open(fp, 'r') as f:
-                    data[fnm] = f.read()
+        # if tbl_nm in self.dict_tbls:
+        #     p = self.cache_dict_path(tbl_nm, pkey_flts)
+        #     active_logger.info(f'table "{tbl_nm}" specified to read as dict format, reading from "{p}"')
+        #     with open(p, 'r') as f:
+        #         fdata = yaml.load(f.read(), yaml.FullLoader)
+        #         if type(fdata) is not dict:
+        #             raise DBException(f'expected table "{tbl_nm}" data values read to be dict')
+        #         data.update(fdata)
+        # else:
+        _, _, files = next(os.walk(d))
+        self._validate_cols(tbl_nm, files)  # files should match column names
+        for fnm in files:
+            fp = self.cache_col(tbl_nm, pkey_flts, fnm)
+            active_logger.info(f'reading column data from file: "{fp}"')
+            with open(fp, 'r') as f:
+                data[fnm] = f.read()
         self._process_columns(data, tbl_nm, self.cache_prcs, 'process_in')
         self.insert_row(tbl_nm, data)
 
+    def _cache_pkeys(self, tbl_nm: str):
+        """
+        get list of primary key filters from nested dirs in cache
+        """
+        pkey_names = tuple(x.name for x in self.tables[tbl_nm].primary_key)
+        def _get_pkeys(_dir: str, _base_pkey: Dict, _lvl) -> List:
+            if not path.isdir(_dir):
+                return []
+            _, dirnames, _ = next(os.walk(_dir))
+            return [_base_pkey | {pkey_names[_lvl]: d} for d in dirnames]
 
-DICT_TABLES = [
-    'marketmeta',
-    'strategymeta'
-]
+        lvl = 0
+        flts = [{}]
+        while lvl < len(pkey_names):
+            flts_out = []
+            for f in flts:
+                d = self.cache_dir(tbl_nm, f)
+                flts_out += _get_pkeys(d, f, lvl)
+            flts = flts_out
+            lvl += 1
+        return flts
+
+    def scan_cache(self, tbl_nm: str, post_insert: Optional[Callable[[str, Dict], None]] = None):
+        tbl_root = self.cache_tbl(tbl_nm)
+        active_logger.info(f'scanning for cached rows for table "{tbl_nm}" to insert in "{tbl_root}"')
+        flts = self._cache_pkeys(tbl_nm)
+        for pkey_filters in flts:
+            if self.row_exist(tbl_nm, pkey_filters):
+                active_logger.info(f'row "{pkey_filters}" already exists in database, skipping...')
+            else:
+                self.insert_from_cache(tbl_nm, pkey_filters)
+                if post_insert is not None:
+                    post_insert(tbl_nm, pkey_filters)
+
+#
+# DICT_TABLES = [
+#     'marketmeta',
+#     'strategymeta'
+# ]
 
 DB_PROCESSORS = {
     psqlbase.BYTEA: {
@@ -266,6 +319,14 @@ DB_PROCESSORS = {
             'prc_decompress',
         ]
     },
+    psqljson.JSON: {
+        'process_in': [
+            'prc_json_encode',
+        ],
+        'process_out': [
+            'prc_json_decode'
+        ]
+    }
 }
 
 CACHE_PROCESSORS = {
@@ -291,6 +352,14 @@ CACHE_PROCESSORS = {
         ],
         'process_out': [
             'prc_td_to_float'
+        ]
+    },
+    psqljson.JSON: {
+        'process_in': [
+            'prc_json_decode',
+        ],
+        'process_out': [
+            'prc_json_encode'
         ]
     }
 }
@@ -323,7 +392,7 @@ class BettingDB(DBCache):
         super().__init__(
             cache_root=cache_root,
             cache_processors=cache_processors or CACHE_PROCESSORS,
-            dict_tables=dict_tables or DICT_TABLES,
+            # dict_tables=dict_tables or DICT_TABLES,
             db_lang=db_lang,
             db_engine=db_engine,
             db_user=db_user,
@@ -395,12 +464,12 @@ class BettingDB(DBCache):
 
     def insert_market_meta(self, market_id: str):
         active_logger.info(f'creating metadata database entry for market "{market_id}"')
-        self.read_to_cache('marketstream', {'market_id': market_id})
-        d = self.cache_dir('marketstream', {'market_id': market_id})
-        stream_path = path.join(d, 'stream_updates')
+        pkey_flts = {'market_id': market_id}
+        self.read_to_cache('marketstream', pkey_flts)
+        stream_path = self.cache_col('marketstream', pkey_flts, 'stream_updates')
         bk = self.get_first_book(stream_path)
         cat = None
-        cat_path = path.join(d, 'catalogue')
+        cat_path = self.cache_col('marketstream', pkey_flts, 'catalogue')
         if path.exists(cat_path):
             if path.getsize(cat_path):
                 with open(cat_path, 'r') as f:
@@ -423,17 +492,59 @@ class BettingDB(DBCache):
         meta_data = self.get_meta(bk, cat)
         self.insert_row('marketmeta', meta_data)
 
-    def scan_mkt_caches(self):
-        stream_root = path.join(self.cache_root, 'marketstream')
-        active_logger.info(f'scanning for cached markets to insert in "{stream_root}"')
-        _, dirnames, _ = next(os.walk(stream_root))
-        for market_id in dirnames:
-            pkey_filter = {'market_id': market_id}
-            if self.row_exist('marketstream', pkey_filter):
-                active_logger.info(f'market "{market_id}" already exists in database, skipping...')
-            else:
-                self.insert_from_cache('marketstream', pkey_filter)
-                self.insert_market_meta(market_id)
+    def scan_mkt_cache(self):
+        """
+        scan marketstream cache files - insert into database if not exist and add corresponding marketmeta and runner rows
+        """
+        def mkt_post_insert(tbl_name, pkey_flts):
+            if tbl_name != 'marketstream':
+                raise DBException(f'expected "marketstream" table')
+            self.insert_market_meta(pkey_flts['market_id'])
+        self.scan_cache('marketstream', mkt_post_insert)
+
+    def insert_strategy_runners(self, pkey_filters):
+        p = self.cache_col('strategyupdates', pkey_filters, 'strategy_updates')
+        if not path.isfile(p):
+            raise DBException(f'expected strategy update file at "{p}"')
+        df = TradeTracker.get_order_updates(p)
+        active_logger.info(f'found {df.shape[0]} order updates in file "{p}"')
+        if df.shape[0]:
+            df = df[df['msg_type'] == MessageTypes.MSG_MARKET_CLOSE.name]
+            df['profit'] = [TradeTracker.dict_order_profit(o) for o in df['order_info']]
+            runner_profits = df.groupby(df['selection_id'])['profit'].sum().to_dict()
+            for k, v in runner_profits.items():
+                self.insert_row('strategyrunners', pkey_filters | {
+                    'runner_id': k,
+                    'profit': v
+                })
+
+    def scan_strat_cache(self):
+        """
+        scan strategy cache files - insert into database if not exist
+        """
+        def strat_post_insert(tbl_nm, pkey_flts):
+            self.insert_strategy_runners(pkey_flts)
+
+        self.scan_cache('strategymeta')
+        self.scan_cache('strategyupdates', strat_post_insert)
+
+    @property
+    def market_meta_cols(self):
+        return self.tables['marketmeta'].columns
+
+    def market_update_paths(self, mkt_filters, limit=200):
+        rows = self.session.query(
+            self.tables['marketmeta'].columns['market_id']
+        ).filter(*mkt_filters).limit(limit).all()
+        update_paths = []
+        for row in rows:
+            mkt_flt = dict(row)
+            self.read_to_cache('marketstream', mkt_flt)
+            p = self.cache_col('marketstream', mkt_flt, 'stream_updates')
+            if not path.isfile(p):
+                raise DBException(f'expected file at stream update path: "{p}"')
+            update_paths.append(p)
+        return update_paths
 
     def runner_rows(self, market_id, strategy_id):
         """
@@ -460,7 +571,7 @@ class BettingDB(DBCache):
             rn.columns['market_id'] == market_id
         ).all()
 
-    def lost_ids(self, t1: Table, t2, id_col: str):
+    def _lost_ids(self, t1: Table, t2, id_col: str):
         """
         get a query for where table `t1` has rows that are not reflected in table `t2`, joined by a column with name
         specified by `id_col`. table `t2` can be a 1-to-1 mapping of rows from `t1` or 1 to many.
@@ -486,19 +597,23 @@ class BettingDB(DBCache):
         mkt_met = self.tables['marketmeta']
         mkt_run = self.tables['marketrunners']
 
+        # market stream/meta row counts
         n_mkt = self.session.query(mkt_stm).count()
         active_logger.info(f'{n_mkt} market stream rows')
         n_met = self.session.query(mkt_met).count()
         active_logger.info(f'{n_met} market meta rows')
 
-        q = self.lost_ids(mkt_stm, mkt_met, 'market_id')
+        # market stream rows without corresponding market meta row
+        q = self._lost_ids(mkt_stm, mkt_met, 'market_id')
         for row in q.all():
             active_logger.error(f'market "{row[0]}" does not have a meta row')
 
+        # market runner meta row count
         nrun = self.session.query(mkt_run).count()
         active_logger.info(f'{nrun} market runner rows')
 
-        q = self.lost_ids(mkt_stm, mkt_run, 'market_id')
+        # market stream rows without any corresponding runner rows
+        q = self._lost_ids(mkt_stm, mkt_run, 'market_id')
         for row in q.all():
             active_logger.error(f'market "{row[0]}" does not have any runner rows')
 
@@ -506,17 +621,22 @@ class BettingDB(DBCache):
         srt_run = self.tables['strategyrunners']
         srt_udt = self.tables['strategyupdates']
 
+        # strategy meta & strategy market update row counts
         n_srtmet = self.session.query(srt_met).count()
         active_logger.info(f'{n_srtmet} strategy meta rows found')
         n_srtudt = self.session.query(srt_udt).count()
         active_logger.info(f'{n_srtudt} strategy market update rows found')
 
-        q = self.lost_ids(srt_met, srt_udt, 'strategy_id')
+        # strategy meta rows without any strategy update rows
+        q = self._lost_ids(srt_met, srt_udt, 'strategy_id')
         for row in q.all():
-            active_logger.error(f'strategy {row[0]} does not have any market updates')
+            active_logger.error(f'strategy "{row[0]}" does not have any market updates')
 
+        # strategy runner row count
         n_srtrun = self.session.query(srt_run).count()
         active_logger.info(f'{n_srtrun} strategy runner rows found')
-        q = self.lost_ids(srt_met, srt_run, 'strategy_id')
+
+        # strategy meta rows without any strategy runner rows
+        q = self._lost_ids(srt_met, srt_run, 'strategy_id')
         for row in q.all():
-            active_logger.error(f'strategy {row[0]} does not have any runner rows')
+            active_logger.error(f'strategy "{row[0]}" does not have any runner rows')

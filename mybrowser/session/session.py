@@ -16,17 +16,19 @@ import yaml
 import json
 from json.decoder import JSONDecodeError
 import importlib.resources as pkg_resources
+import importlib
 
 
 import mytrading.exceptions
 import mytrading.process
-from mybrowser.session.dbfilter import DBFilter, DBFilterJoin, DBFilterDate, DBFilterMulti
+from mybrowser.session import dbfilter as dbf
 from mytrading.strategy import messages as msgs
 from mytrading import utils as trutils
 from mytrading.utils import bettingdb as bdb
 from mytrading.strategy import tradetracker
 from mytrading import visual as figlib
 from mytrading.strategy import feature as ftrutils
+from mytrading import configs as cfgs
 from myutils import mytiming, generic
 from myutils.myregistrar import MyRegistrar
 
@@ -41,63 +43,69 @@ class SessionException(Exception):
 class DBFilters:
 
     def filters_values(self, group):
-        return [flt.value for flt in DBFilter.reg[group]]
+        return [flt.value for flt in dbf.DBFilter.reg[group]]
 
     def filters_labels(self, group, db, cte):
         return [
             flt.get_labels(flt.get_options(db, cte))
-            for flt in DBFilter.reg[group]
+            for flt in dbf.DBFilter.reg[group]
+            if not hasattr(flt, 'NO_OPTIONS')
         ]
 
     def update_filters(self, group, clear, *args):
-        assert len(args) == len(DBFilter.reg[group])
-        for val, flt in zip(args, DBFilter.reg[group]):
+        assert len(args) == len(dbf.DBFilter.reg[group])
+        for val, flt in zip(args, dbf.DBFilter.reg[group]):
             flt.set_value(val, clear)
 
     def __init__(self, mkt_dt_fmt, strat_sel_fmt):
         self.filters = [
-            DBFilterJoin(
+            dbf.DBFilterJoin(
                 "sport_id",
                 'MARKETFILTERS',
                 join_tbl_name='sportids',
                 join_id_col='sport_id',
                 join_name_col='sport_name'
             ),
-            DBFilter(
+            dbf.DBFilter(
                 "market_type",
                 'MARKETFILTERS'
             ),
-            DBFilter(
+            dbf.DBFilter(
                 "betting_type",
                 'MARKETFILTERS'
             ),
-            DBFilter(
+            dbf.DBFilter(
                 'format',
                 'MARKETFILTERS'
             ),
-            DBFilterJoin(
+            dbf.DBFilterJoin(
                 "country_code",
                 'MARKETFILTERS',
                 join_tbl_name='countrycodes',
                 join_id_col='alpha_2_code',
                 join_name_col='name'
             ),
-            DBFilter(
+            dbf.DBFilter(
                 "venue",
                 'MARKETFILTERS'
             ),
-            DBFilterDate(
+            dbf.DBFilterDate(
                 "market_time",
                 'MARKETFILTERS',
                 mkt_dt_fmt
             ),
+            dbf.DBFilterText(
+                'market_id',
+                'MARKETFILTERS'
+            ),
 
-            DBFilterMulti(
+            dbf.DBFilterMulti(
                 'strategy_id',
                 'STRATEGYFILTERS',
                 fmt_spec=strat_sel_fmt,
                 order_col='exec_time',
                 is_desc=True,
+                cols=['strategy_id', 'exec_time', 'name']
             )
         ]
 
@@ -224,13 +232,26 @@ class Session:
         """
         load feature and plot configurations from directory to dicts
         """
+        # regenerate feature/plot configs (do at runtime so can reload lib)
+        importlib.reload(cfgs)
+        cfgs.ConfigGenerator(
+            self.config['CONFIG_PATHS']['feature_src'],
+            self.config['CONFIG_PATHS']['feature_out'],
+            cfgs.reg_features
+        ).reload()
+        cfgs.ConfigGenerator(
+            self.config['CONFIG_PATHS']['plot_src'],
+            self.config['CONFIG_PATHS']['plot_out'],
+            cfgs.reg_plots
+        ).reload()
+
         # get feature configs
-        feature_dir = path.abspath(self.config['CONFIG_PATHS']['feature'])
+        feature_dir = path.abspath(self.config['CONFIG_PATHS']['feature_out'])
         active_logger.info(f'getting feature configurations from:\n-> {feature_dir}"')
         self.ftr_fcfgs = self.ftr_readf(feature_dir)
 
         # get plot configurations
-        plot_dir = path.abspath(self.config['CONFIG_PATHS']['plot'])
+        plot_dir = path.abspath(self.config['CONFIG_PATHS']['plot_out'])
         active_logger.info(f'getting plot configurations from:\n-> {plot_dir}"')
         self.ftr_pcfgs = self.ftr_readf(plot_dir)
 
@@ -582,7 +603,7 @@ class Session:
 
         conditions = [
             f.db_filter(meta)
-            for f in DBFilter.reg['MARKETFILTERS'] if f.value
+            for f in dbf.DBFilter.reg['MARKETFILTERS'] if f.value
         ]
         q = q.filter(*conditions)
         return q.cte()
@@ -595,7 +616,7 @@ class Session:
         meta = db.tables['strategymeta']
         conditions = [
             f.db_filter(meta)
-            for f in DBFilter.reg['STRATEGYFILTERS'] if f.value
+            for f in dbf.DBFilter.reg['STRATEGYFILTERS'] if f.value
         ]
         q = db.session.query(meta).filter(*conditions)
         return q.cte()

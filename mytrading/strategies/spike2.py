@@ -7,13 +7,14 @@ from datetime import datetime, timedelta, timezone
 from typing import Dict, List, Optional
 from flumine.order.order import BetfairOrder
 from betfairlightweight.resources.bettingresources import MarketBook, RunnerBook
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from betfairlightweight.resources import MarketBook
 from flumine.markets.market import Market
 from flumine.order.order import OrderStatus
 from flumine.order.ordertype import LimitOrder, OrderTypes
 from functools import partial
 
+from ..configs import feature_configs_spike
 from ..process import closest_tick, tick_spread, LTICKS_DECODED
 from ..strategy.messages import register_formatter
 from ..strategy.runnerhandler import RunnerHandler
@@ -38,11 +39,12 @@ class SpikeStateTypes(Enum):
 
 @dataclass
 class SpikeData:
-    best_back: float
-    best_lay: float
-    ltp: float
-    ltp_min: float
-    ltp_max: float
+    best_back: float = 0
+    best_lay: float = 0
+    spread: int = 0
+    ltp: float = 0
+    ltp_min: float = 0
+    ltp_max: float = 0
 
     def get_window_price(self, side):
         """
@@ -97,6 +99,7 @@ class SpikeData:
         return(
                 self.best_back and
                 self.best_lay and
+                self.spread and
                 self.ltp and
                 self.ltp_min and
                 self.ltp_max
@@ -137,7 +140,7 @@ class SpikeRunnerHandler(RunnerHandler):
         self.previous_min_index: int = 0
 
         self.first_runner: bool = False
-        self.spike_data = SpikeData(best_back=0, best_lay=0, ltp=0, ltp_min=0, ltp_max=0)
+        self.spike_data = SpikeData()
         
 
 class MySpikeStrategy(MyFeatureStrategy):
@@ -180,7 +183,12 @@ class MySpikeStrategy(MyFeatureStrategy):
         self.enable_lay = enable_lay
 
         # generate feature configuration dict
-        self.features_config: dict = get_spike_feature_configs(**features_kwargs)
+        self.features_config: dict = feature_configs_spike(**features_kwargs)
+
+    def _feature_holder_create(
+            self, mkt: Market, mbk: MarketBook, rbk: RunnerBook, runner_index: int
+    ) -> FeatureHolder:
+        return FeatureHolder.gen_ftrs(self.features_config)
 
     def _runner_handler_create(
             self,
@@ -283,11 +291,17 @@ class MySpikeStrategy(MyFeatureStrategy):
         )
 
     def _trade_machine_run(self, mkt: Market, mbk: MarketBook, rbk: RunnerBook, runner_index: int):
-        rh = self.market_handlers[mkt.market_id].runner_handlers[rbk.selection_id]
+        rh: SpikeRunnerHandler = self.market_handlers[mkt.market_id].runner_handlers[rbk.selection_id]
         # get ID for shortest runner from LTPs
         ltps = get_ltps(mbk)
+        rh.spike_data.ltp_max = rh.features['tvlad'].sub_features['dif'].sub_features['max'].last_value()
+        rh.spike_data.ltp_min = rh.features['tvlad'].sub_features['dif'].sub_features['min'].last_value()
+        rh.spike_data.spread = rh.features['spread'].sub_features['smp'].sub_features['avg'].last_value()
+        rh.spike_data.ltp = rh.features['ltp'].last_value()
+        rh.spike_data.best_back = rh.features['best back'].last_value()
+        rh.spike_data.best_lay = rh.features['best lay'].last_value()
         rh.first_runner = next(iter(ltps.keys()), 0)
-        rh.trade_machine.run(mkt, runner_index, rh)
+        rh.trade_machine.run(market=mkt, runner_index=runner_index, runner_handler=rh)
 
 
 class SpikeTradeStateIdle(basestates.TradeStateIdle):
@@ -308,6 +322,9 @@ class SpikeTradeStateIdle(basestates.TradeStateIdle):
         trade_tracker = runner_handler.trade_tracker
         market_book = market.market_book
 
+        if not runner_handler.first_runner:
+            return False
+
         if not spike_data.validate_spike_data():
             return False
 
@@ -315,7 +332,7 @@ class SpikeTradeStateIdle(basestates.TradeStateIdle):
             return False
 
         window_spread = tick_spread(spike_data.ltp_min, spike_data.ltp_max, check_values=False)
-        ladder_spread = tick_spread(spike_data.best_back, spike_data.best_lay, check_values=False)
+        ladder_spread = spike_data.spread
 
         if ladder_spread <= self.ladder_spread_max and window_spread >= self.window_spread_min:
             trade_tracker.log_update(
@@ -394,7 +411,7 @@ class SpikeTradeStateMonitorWindows(basestates.TradeStateBase):
             },
             display_odds=price
         )
-        market.place_order(runner_handler.back_order)
+        market.place_order(order)
 
     def _process_replace(
             self,
@@ -517,22 +534,23 @@ class SpikeTradeStateMonitorWindows(basestates.TradeStateBase):
             ]
 
         # compute max/min boundary values
-        boundary_top_value = spike_data.bound_top()
+        boundary_top_value = spike_data.bound_top()  # max of back/lay/ltp
         boundary_top_tick = closest_tick(boundary_top_value, return_index=True)
         top_tick = min(len(LTICKS_DECODED) - 1, boundary_top_tick + self.tick_offset)
-        top_value = LTICKS_DECODED[top_tick]
+        top_value = LTICKS_DECODED[top_tick]  # top of window with margin
 
-        boundary_bottom_value = spike_data.bound_bottom()
+        boundary_bottom_value = spike_data.bound_bottom()  # min of back/lay/ltp
         boundary_bottom_tick = closest_tick(boundary_bottom_value, return_index=True)
         bottom_tick = max(0, boundary_bottom_tick - self.tick_offset)
-        bottom_value = LTICKS_DECODED[bottom_tick]
+        bottom_value = LTICKS_DECODED[bottom_tick]  # bottom of window with margin
 
         # check if breached window
         if self._process_breach(runner_handler, market):
             return self.next_state
 
         window_spread = tick_spread(spike_data.ltp_min, spike_data.ltp_max, check_values=False)
-        ladder_spread = tick_spread(spike_data.best_back, spike_data.best_lay, check_values=False)
+        # TODO - check ladder spread?
+        ladder_spread = 0  # tick_spread(spike_data.best_back, spike_data.best_lay, check_values=False)
 
         # check back/lay spread is still within tolerance and ltp min/max spread is above tolerance
         if not(ladder_spread <= self.ladder_spread_max and window_spread >= self.window_spread_min):
@@ -551,7 +569,7 @@ class SpikeTradeStateMonitorWindows(basestates.TradeStateBase):
                 basestates.TradeStateTypes.IDLE,
             ]
 
-        # create back order if doesn't exist
+        # create back order  if doesn't exist
         if runner_handler.back_order is None:
             self._place_window_order('BACK', runner_handler, top_value, market)
 
@@ -560,10 +578,11 @@ class SpikeTradeStateMonitorWindows(basestates.TradeStateBase):
             self._place_window_order('LAY', runner_handler, bottom_value, market)
 
         # check if need periodic update
-        periodic_update = False
         if (market_book.publish_time - self.update_timestamp).total_seconds() >= self.update_s:
             self.update_timestamp = market_book.publish_time
             periodic_update = True
+        else:
+            periodic_update = False
 
         # cancel back order if price moved so can be replaced next call
         pr = partial(

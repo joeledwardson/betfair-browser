@@ -168,7 +168,6 @@ class MarketHandler:
         """
         update `allow` flag instance, denoting if close enough to start of race based on market book timestamp
         """
-
         self.flag_allow.update(
             market_book.publish_time >=
             (market_book.market_definition.market_time - timedelta(seconds=pre_seconds))
@@ -206,6 +205,7 @@ class MyFeatureStrategy(MyBaseStrategy):
             cutoff_seconds: int,
             pre_seconds: int,
             feature_seconds: int,
+            historic: bool,
             db_kwargs: Optional[Dict] = None,
             oc_td: Optional[timedelta] = None,
             **kwargs,
@@ -218,15 +218,16 @@ class MyFeatureStrategy(MyBaseStrategy):
         self.strategy_name = name
         self.market_handlers: Dict[str, MarketHandler] = dict()
         self._db = bettingdb.BettingDB(**(db_kwargs or {}))
-        if self.client.EXCHANGE == clients.ExchangeType.SIMULATED:
+        self.historic = historic
+        if historic:
             active_logger.info('client is historic, using recorded user data "UserDataLoader"')
             self._usr_data = UserDataLoader(self._db, oc_td)
         else:
             active_logger.info('client is live, using streaming user data "UserData')
             self._usr_data = UserDataStreamer(self._db, oc_td)
 
-    def _strat_meta_path(self, strategy_id):
-        return self._db.cache_dict_path('strategymeta', {'strategy_id': str(strategy_id)})
+    # def _strat_meta_path(self, strategy_id):
+    #     return self._db.cache_dict_path('strategymeta', {'strategy_id': str(strategy_id)})
 
     def _strat_updt_path(self, strategy_id, market_id):
         return self._db.cache_col(
@@ -241,15 +242,18 @@ class MyFeatureStrategy(MyBaseStrategy):
     def strategy_write_info(self, init_kwargs):
         """write strategy information to file"""
         info = {
+            'type': 'simulated' if self.historic else 'live',
             'name': self.__class__.__name__,
-            'kwargs': init_kwargs
+            'exec_time': datetime.utcnow(),
+            'info': init_kwargs
         }
-        meta_path = self._strat_meta_path(str(self.strategy_id))
-        active_logger.info(f'writing strategy info to file: "{meta_path}')
-        d, _ = path.split(meta_path)
-        os.makedirs(d)
-        with open(meta_path, 'w') as f:
-            f.write(yaml.dump(info))
+        self._db.write_to_cache('strategymeta', {'strategy_id': str(self.strategy_id)}, info)
+        # meta_path = self._strat_meta_path(str(self.strategy_id))
+        # active_logger.info(f'writing strategy info to file: "{meta_path}')
+        # d, _ = path.split(meta_path)
+        # os.makedirs(d)
+        # with open(meta_path, 'w') as f:
+        #     f.write(yaml.dump(info))
 
     def _trade_machine_allow(
             self,
@@ -424,19 +428,10 @@ class MyFeatureStrategy(MyBaseStrategy):
         if mh.closed:
             active_logger.warning(f'market ID "{market.market_id}" already closed')
             return
+        active_logger.info(f'market ID "{market.market_id}", closed')
         # set marked closed flag
         mh.closed = True
         # loop runners -> trades -> orders
         for selection_id, rh in mh.runner_handlers.items():
-            for trade in rh.trade_tracker.trades:
-                for order in trade.orders:
-                    rh.trade_tracker.log_update(
-                        msg_type=MessageTypes.MSG_MARKET_CLOSE,
-                        msg_attrs={
-                            'runner_status': order.runner_status,
-                            'order_id': str(order.id)
-                        },
-                        dt=market_book.publish_time,
-                        order=order,
-                    )
+            rh.trade_tracker.log_close(market_book.publish_time)
         del mh.runner_handlers

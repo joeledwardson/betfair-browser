@@ -18,7 +18,7 @@ def header():
                 color='primary'
             ),
             width='auto',
-            className='p-0'
+            className='p-1'
         ),
         dbc.Col(
             dbc.Button(
@@ -27,7 +27,18 @@ def header():
                 n_clicks=0,
                 color='primary'
             ),
-            width='auto'
+            width='auto',
+            className='p-1'
+        ),
+        dbc.Col(
+            dbc.Button(
+                html.I(className="fas fa-arrow-circle-up"),
+                id="btn-db-upload",
+                n_clicks=0,
+                color='primary'
+            ),
+            width='auto',
+            className='p-1'
         ),
         dbc.Col(),
         dbc.Col(
@@ -84,6 +95,11 @@ def mkt_filters(multi, filter_margins):
             id='input-date',
             placeholder='Market date...',
             multi=multi,
+            className=filter_margins
+        ),
+        dcc.Input(
+            id='input-mkt-id',
+            placeholder='Market ID filter...',
             className=filter_margins
         ),
         dbc.Button(
