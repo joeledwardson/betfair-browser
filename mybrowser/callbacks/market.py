@@ -30,6 +30,8 @@ def cb_market(app, shn: Session):
             Output('input-venue', 'value'),
             Output('input-date', 'value'),
             Output('input-mkt-id', 'value'),
+            Output('toast-db-market', 'is_open'),
+            Output('toast-db-market', 'children'),
 
             Output('input-sport-type', 'options'),
             Output('input-mkt-type', 'options'),
@@ -48,6 +50,7 @@ def cb_market(app, shn: Session):
             Input('table-market-session', 'sort_mode'),
             Input('btn-db-refresh', 'n_clicks'),
             Input('btn-db-upload', 'n_clicks'),
+            Input('btn-db-reconnect', 'n_clicks'),
 
             Input('input-strategy-select', 'value'),
             Input('input-sport-type', 'value'),
@@ -69,10 +72,18 @@ def cb_market(app, shn: Session):
             sort_mode,
             db_refresh,
             db_upload,
+            db_reconnect,
             strategy_id,
             *args
     ):
         btn_id = myutils.mydash.triggered_id()
+
+        toast_open = True
+        toast_msg = 'Market stuff'
+
+        # reconnect to database if button pressed
+        if btn_id == 'btn-db-reconnect':
+            shn.rl_db()
 
         # upload market & strategy cache if "upload" button clicked
         if btn_id == 'btn-db-upload':
@@ -80,25 +91,25 @@ def cb_market(app, shn: Session):
             shn.betting_db.scan_strat_cache()
 
         # update strategy filters and selectable options
-        shn.flt_upsrt(btn_id == 'input-strategy-clear', strategy_id)
-        strat_cte = shn.flt_ctesrt()
-        strat_vals = shn.flt_valssrt()
-        strat_opts = shn.flt_optssrt(strat_cte)
+        strat_clear = btn_id in ['input-strategy-clear', 'btn-db-reconnect']
+        shn.filters_strat.update_filters(clear=strat_clear, args=[strategy_id])
+        strat_cte = shn.betting_db.filters_strat_cte(shn.filters_strat)
+        strat_vals = shn.filters_strat.filters_values()
+        strat_lbls = shn.betting_db.filters_labels(shn.filters_strat, strat_cte)
 
         # update market filters and selectable options
-        shn.flt_upmkt(btn_id == 'input-mkt-clear', *args)
-        cte = shn.flt_ctemkt(strategy_id)
-        vals = shn.flt_valsmkt()
-        opts = shn.flt_optsmkt(cte)
-
-        # query db with filtered CTE to generate table rows for display
-        tbl_rows = shn.flt_tbl(cte)
+        mkt_clear = btn_id in ['input-mkt-clear', 'btn-db-reconnect']
+        shn.filters_mkt.update_filters(clear=mkt_clear, args=args)
+        cte = shn.betting_db.filters_mkt_cte(strategy_id, shn.filters_mkt)
+        vals = shn.filters_mkt.filters_values()
+        lbls = shn.betting_db.filters_labels(shn.filters_mkt, cte)
+        tbl_rows = shn.filters_mkt_tbl(cte)  # query db with filtered CTE to generate table rows for display
         for r in tbl_rows:
             r['id'] = r['market_id']  # assign 'id' so market ID set in row ID read in callbacks
 
         # generate status string of markets/strategies available and strategy selected
-        n = shn.betting_db.session.query(cte).count()
-        ns = shn.betting_db.session.query(shn.betting_db.tables['strategymeta']).count()
+        n = shn.betting_db.cte_count(cte)
+        ns = shn.betting_db.strategy_count()
         q_sts = [
             html.Div(f'Showing {len(tbl_rows)} of {n} available, {ns} strategies available'),
             html.Div(
@@ -115,8 +126,10 @@ def cb_market(app, shn: Session):
             None,  # clear selected cell
             0,  # reset current page back to first page
             '',  # loading output
-            counter.next()  # intermediary counter value
-        ] + vals + opts + strat_vals + strat_opts
+            counter.next(),  # intermediary counter value
+            toast_open,
+            toast_msg
+        ] + vals + lbls + strat_vals + strat_lbls
 
     @app.callback(
         Output("right-side-bar", "className"),

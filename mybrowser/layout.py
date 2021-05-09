@@ -53,7 +53,6 @@ def hidden_elements(n_odr_rows, n_tmr_rows):
         ),
 
         dbc.Toast(
-            "Feature & plot configurations reloaded",
             id="toast-fcfgs",
             header="Configurations",
             is_open=False,
@@ -62,6 +61,16 @@ def hidden_elements(n_odr_rows, n_tmr_rows):
             duration=3000,
             # top: 66 positions the toast below the navbar
             style={"position": "fixed", "top": 66, "right": 10, "width": 350},
+        ),
+
+        dbc.Toast(
+            id="toast-db-market",
+            header="Market Database",
+            is_open=False,
+            dismissable=True,
+            icon="info",
+            duration=3000,
+            style={"position": "fixed", "top": 76, "right": 10, "width": 350},
         ),
 
         dbc.Modal([

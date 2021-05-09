@@ -4,7 +4,7 @@ verify_ssl = true
 name = "pypi"
 
 [packages]
-sqlalchemy = "*"
+sqlalchemy = "==1.4.14"
 betfairlightweight = "*"
 flumine = "*"
 keyring = "*"
@@ -22,6 +22,8 @@ pyyaml = "*"
 pytimeparse = "*"
 flask-caching = "*"
 dash-bootstrap-components = "*"
+dateparser = "*"
+sqlalchemy-filters = "*"
 
 [dev-packages]
 

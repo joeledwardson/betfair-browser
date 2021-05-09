@@ -16,6 +16,7 @@ def cb_configs(app, shn: Session):
             Output('input-plot-config', 'options'),
             Output('intermediary-featureconfigs', 'children'),
             Output('toast-fcfgs', 'is_open'),
+            Output('toast-fcfgs', 'children')
         ],
         inputs=[
             Input('button-feature-config', 'n_clicks'),
@@ -37,9 +38,11 @@ def cb_configs(app, shn: Session):
             'value': v,
         } for v in shn.ftr_pcfgs.keys()]
 
+        msg = f'{len(shn.ftr_fcfgs)} feature configs and {len(shn.ftr_pcfgs)} plot configs loaded'
         return [
             feature_options,
             plot_options,
             counter.next(),
-            True
+            True,
+            msg
         ]

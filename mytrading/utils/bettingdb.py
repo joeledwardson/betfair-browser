@@ -4,15 +4,20 @@ from betfairlightweight.resources.streamingresources import MarketDefinition
 from betfairlightweight.resources.bettingresources import MarketCatalogue, MarketBook
 from betfairlightweight.streaming.listener import StreamListener
 from betfairlightweight import APIClient
+import sqlalchemy
+from sqlalchemy.sql.selectable import CTE
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session
 from sqlalchemy.sql.schema import Table
 from sqlalchemy.ext.automap import automap_base
 from sqlalchemy.dialects.postgresql import base as psqlbase
 from sqlalchemy.dialects.postgresql import json as psqljson
+from sqlalchemy.sql.functions import sum as sql_sum
+from sqlalchemy_filters.filters import Operator as SqlOperator
+from sqlalchemy.orm.query import Query
 from queue import Queue
 import logging
-from typing import Optional, Dict, List, Callable
+from typing import Optional, Dict, List, Callable, Any
 import keyring
 from os import path
 import os
@@ -25,6 +30,7 @@ from myutils.myregistrar import MyRegistrar
 from ..exceptions import DBException
 from ..strategy.tradetracker import TradeTracker
 from ..strategy.messages import MessageTypes
+from .dbfilter import DBFilter, DBFilterHandler
 
 active_logger = logging.getLogger(__name__)
 active_logger.setLevel(logging.INFO)
@@ -169,6 +175,8 @@ class DBBase:
         active_logger.info(f'reading row from table "{tbl_nm}" with filter "{pkey_flts}"')
         self._validate_tbl(tbl_nm)
         self._validate_pkeys(tbl_nm, pkey_flts)
+        if not self.row_exist(tbl_nm, pkey_flts):
+            raise DBException(f'row in table "{tbl_nm}" with filters "{pkey_flts}" does not exist')
         row = self.session.query(self.tables[tbl_nm]).filter(
             *[self.tables[tbl_nm].columns[k] == v for k, v in pkey_flts.items()]
         ).first()
@@ -179,22 +187,16 @@ class DBBase:
 
 class DBCache(DBBase):
 
-    # FILE_DICT = 'ROW_DICT_VALUES'
-
     def __init__(self, cache_root, cache_processors=None, **kwargs):
         super().__init__(**kwargs)
         self.cache_root = path.abspath(path.expandvars(cache_root))
         self.cache_prcs = cache_processors or dict()
-        # self.dict_tbls = dict_tables or list()
 
     def cache_tbl(self, tbl_nm) -> str:
         return path.join(self.cache_root, tbl_nm)
 
     def cache_dir(self, tbl_nm: str, pkey_flts: Dict) -> str:
         return path.join(self.cache_tbl(tbl_nm), *pkey_flts.values())
-
-    # def cache_dict_path(self, tbl_nm: str, pkey_flts: Dict) -> str:
-    #     return path.join(self.cache_dir(tbl_nm, pkey_flts), self.FILE_DICT)
 
     def cache_col(self, tbl_nm: str, pkey_flts: Dict, col: str) -> str:
         return path.join(self.cache_dir(tbl_nm, pkey_flts), col)
@@ -222,12 +224,6 @@ class DBCache(DBBase):
         self._process_columns(data, tbl_nm, self.cache_prcs, 'process_out')
         for k in pkey_flts.keys():
             data.pop(k, None)
-        # if tbl_nm in self.dict_tbls:
-        #     p = self.cache_dict_path(tbl_nm, pkey_flts)
-        #     active_logger.info(f'table "{tbl_nm}" specified to write as dict format, writing to "{p}"')
-        #     with open(p, 'w') as f:
-        #         f.write(yaml.dump(data))
-        # else:
         for col in data.keys():
             if data[col] is None:
                 active_logger.warning(f'column "{col}" value is none, skipping')
@@ -251,15 +247,6 @@ class DBCache(DBBase):
         if not path.isdir(d):
             raise DBException(f'expected to be directory: "{d}"')
         data = pkey_flts.copy()
-        # if tbl_nm in self.dict_tbls:
-        #     p = self.cache_dict_path(tbl_nm, pkey_flts)
-        #     active_logger.info(f'table "{tbl_nm}" specified to read as dict format, reading from "{p}"')
-        #     with open(p, 'r') as f:
-        #         fdata = yaml.load(f.read(), yaml.FullLoader)
-        #         if type(fdata) is not dict:
-        #             raise DBException(f'expected table "{tbl_nm}" data values read to be dict')
-        #         data.update(fdata)
-        # else:
         _, _, files = next(os.walk(d))
         self._validate_cols(tbl_nm, files)  # files should match column names
         for fnm in files:
@@ -304,11 +291,6 @@ class DBCache(DBBase):
                 if post_insert is not None:
                     post_insert(tbl_nm, pkey_filters)
 
-#
-# DICT_TABLES = [
-#     'marketmeta',
-#     'strategymeta'
-# ]
 
 DB_PROCESSORS = {
     psqlbase.BYTEA: {
@@ -365,7 +347,18 @@ CACHE_PROCESSORS = {
 }
 
 
-class BettingDB(DBCache):
+def apply_filters(tbl: Table, q: Query, filters_spec: List[Dict]) -> Query:
+    """sqlalchemy_filters `apply_filters` function doesn't work with Sqlalchemy V1.14 so i've bodged it myself until
+    they sort it out"""
+    conditions = [
+        SqlOperator.OPERATORS[f['op']](tbl.columns[f['field']], f['value'])
+        for f in filters_spec
+    ]
+    return q.filter(*conditions)
+
+
+# TODO - add strategy deleter
+class BettingDB:
     """
     Betting database handler
     Manages session that connects to remote SQL ase for querying
@@ -378,7 +371,6 @@ class BettingDB(DBCache):
             self,
             cache_root=r'%USERPROFILE%\Documents\_bf_cache',
             cache_processors=None,
-            dict_tables=None,
             db_lang="postgresql",
             db_engine="psycopg2",
             db_user="better",
@@ -389,10 +381,9 @@ class BettingDB(DBCache):
             keyring_pwd_user='betting',
             col_processors=None,
     ):
-        super().__init__(
+        self._dbc = DBCache(
             cache_root=cache_root,
             cache_processors=cache_processors or CACHE_PROCESSORS,
-            # dict_tables=dict_tables or DICT_TABLES,
             db_lang=db_lang,
             db_engine=db_engine,
             db_user=db_user,
@@ -402,6 +393,9 @@ class BettingDB(DBCache):
             db_pwd=keyring.get_password(keyring_pwd_service, keyring_pwd_user),
             col_processors=col_processors or DB_PROCESSORS
         )
+
+    def close(self):
+        self._dbc.session.close()
 
     @staticmethod
     def get_meta(first_book: MarketBook, cat: MarketCatalogue = None) -> Dict:
@@ -465,11 +459,11 @@ class BettingDB(DBCache):
     def insert_market_meta(self, market_id: str):
         active_logger.info(f'creating metadata database entry for market "{market_id}"')
         pkey_flts = {'market_id': market_id}
-        self.read_to_cache('marketstream', pkey_flts)
-        stream_path = self.cache_col('marketstream', pkey_flts, 'stream_updates')
+        self._dbc.read_to_cache('marketstream', pkey_flts)
+        stream_path = self._dbc.cache_col('marketstream', pkey_flts, 'stream_updates')
         bk = self.get_first_book(stream_path)
         cat = None
-        cat_path = self.cache_col('marketstream', pkey_flts, 'catalogue')
+        cat_path = self._dbc.cache_col('marketstream', pkey_flts, 'catalogue')
         if path.exists(cat_path):
             if path.getsize(cat_path):
                 with open(cat_path, 'r') as f:
@@ -484,26 +478,16 @@ class BettingDB(DBCache):
             names = {r.selection_id: r.runner_name for r in cat.runners}
         for runner_id, name in names.items():
             active_logger.info(f'creating row for market "{market_id}", runner "{runner_id}", name "{name}"')
-            self.insert_row('marketrunners', {
+            self._dbc.insert_row('marketrunners', {
                 'market_id': market_id,
                 'runner_id': runner_id,
                 'runner_name': name
             })
         meta_data = self.get_meta(bk, cat)
-        self.insert_row('marketmeta', meta_data)
-
-    def scan_mkt_cache(self):
-        """
-        scan marketstream cache files - insert into database if not exist and add corresponding marketmeta and runner rows
-        """
-        def mkt_post_insert(tbl_name, pkey_flts):
-            if tbl_name != 'marketstream':
-                raise DBException(f'expected "marketstream" table')
-            self.insert_market_meta(pkey_flts['market_id'])
-        self.scan_cache('marketstream', mkt_post_insert)
+        self._dbc.insert_row('marketmeta', meta_data)
 
     def insert_strategy_runners(self, pkey_filters):
-        p = self.cache_col('strategyupdates', pkey_filters, 'strategy_updates')
+        p = self._dbc.cache_col('strategyupdates', pkey_filters, 'strategy_updates')
         if not path.isfile(p):
             raise DBException(f'expected strategy update file at "{p}"')
         df = TradeTracker.get_order_updates(p)
@@ -513,10 +497,20 @@ class BettingDB(DBCache):
             df['profit'] = [TradeTracker.dict_order_profit(o) for o in df['order_info']]
             runner_profits = df.groupby(df['selection_id'])['profit'].sum().to_dict()
             for k, v in runner_profits.items():
-                self.insert_row('strategyrunners', pkey_filters | {
+                self._dbc.insert_row('strategyrunners', pkey_filters | {
                     'runner_id': k,
                     'profit': v
                 })
+
+    def scan_mkt_cache(self):
+        """
+        scan marketstream cache files - insert into database if not exist and add corresponding marketmeta and runner rows
+        """
+        def mkt_post_insert(tbl_name, pkey_flts):
+            if tbl_name != 'marketstream':
+                raise DBException(f'expected "marketstream" table')
+            self.insert_market_meta(pkey_flts['market_id'])
+        self._dbc.scan_cache('marketstream', mkt_post_insert)
 
     def scan_strat_cache(self):
         """
@@ -525,33 +519,82 @@ class BettingDB(DBCache):
         def strat_post_insert(tbl_nm, pkey_flts):
             self.insert_strategy_runners(pkey_flts)
 
-        self.scan_cache('strategymeta')
-        self.scan_cache('strategyupdates', strat_post_insert)
+        self._dbc.scan_cache('strategymeta')
+        self._dbc.scan_cache('strategyupdates', strat_post_insert)
 
-    @property
-    def market_meta_cols(self):
-        return self.tables['marketmeta'].columns
+    def write_strat_info(self, strategy_id, type: str, name: str, exec_time: datetime, info: dict):
+        data = {
+            'type': type,
+            'name': name,
+            'exec_time': exec_time,
+            'info': info
+        }
+        self._dbc.write_to_cache(
+            tbl_nm='strategymeta',
+            pkey_flts={
+                'strategy_id': str(strategy_id)
+            },
+            data=data
+        )
 
-    def market_update_paths(self, mkt_filters, limit=200):
-        rows = self.session.query(
-            self.tables['marketmeta'].columns['market_id']
-        ).filter(*mkt_filters).limit(limit).all()
+    def path_mkt_usr_updates(self, market_id) -> str:
+        return self._dbc.cache_col(
+            tbl_nm='marketstream',
+            pkey_flts={
+                'market_id': market_id
+            },
+            col='user_data'
+        )
+
+    def path_mkt_cat(self, market_id) -> str:
+        return self._dbc.cache_col(
+            tbl_nm='marketstream',
+            pkey_flts={
+                'market_id': market_id
+            },
+            col='catalogue',
+        )
+
+    def path_mkt_updates(self, market_id) -> str:
+        return self._dbc.cache_col(
+            tbl_nm='marketstream',
+            pkey_flts={
+                'market_id': market_id
+            },
+            col='stream_updates',
+        )
+
+    def path_strat_updates(self, market_id, strategy_id) -> str:
+        return self._dbc.cache_col(
+            tbl_nm='strategyupdates',
+            pkey_flts={
+                'strategy_id': str(strategy_id),
+                'market_id': market_id
+            },
+            col='strategy_updates'
+        )
+
+    def paths_market_updates(self, mkt_filters: List[Dict], limit=200):
+        tbl = self._dbc.tables['marketmeta']
+        q = self._dbc.session.query(tbl)
+        q_flt = apply_filters(tbl, q, mkt_filters)
+        rows = q_flt.limit(limit).all()
         update_paths = []
         for row in rows:
-            mkt_flt = dict(row)
-            self.read_to_cache('marketstream', mkt_flt)
-            p = self.cache_col('marketstream', mkt_flt, 'stream_updates')
+            mkt_flt = {'market_id': row.market_id}
+            self._dbc.read_to_cache('marketstream', mkt_flt)
+            p = self._dbc.cache_col('marketstream', mkt_flt, 'stream_updates')
             if not path.isfile(p):
                 raise DBException(f'expected file at stream update path: "{p}"')
             update_paths.append(p)
         return update_paths
 
-    def runner_rows(self, market_id, strategy_id):
+    def rows_runners(self, market_id, strategy_id) -> List[Dict]:
         """
         get filters rows of runners, joined with profit column from strategy
         """
-        sr = self.tables['strategyrunners']
-        cte_strat = self.session.query(
+        sr = self._dbc.tables['strategyrunners']
+        cte_strat = self._dbc.session.query(
             sr.columns['runner_id'],
             sr.columns['profit'].label('runner_profit')
         ).filter(
@@ -559,8 +602,8 @@ class BettingDB(DBCache):
             sr.columns['market_id'] == market_id
         ).cte()
 
-        rn = self.tables['marketrunners']
-        return self.session.query(
+        rn = self._dbc.tables['marketrunners']
+        rows = self._dbc.session.query(
             rn,
             cte_strat.c['runner_profit'],
         ).join(
@@ -570,6 +613,80 @@ class BettingDB(DBCache):
         ).filter(
             rn.columns['market_id'] == market_id
         ).all()
+        return [dict(row) for row in rows]
+
+    def rows_market(self, cte, col_names, max_rows) -> List[Dict]:
+        cols = [cte.c[nm] for nm in col_names]
+        rows = self._dbc.session.query(*cols).limit(max_rows).all()
+        return [dict(row) for row in rows]
+
+    def filters_labels(self, filters: DBFilterHandler, cte) -> List[List[Dict[str, Any]]]:
+        return filters.filters_labels(self._dbc.session, self._dbc.tables, cte)
+
+    def cte_count(self, cte: CTE) -> int:
+        return self._dbc.session.query(cte).count()
+
+    def strategy_count(self) -> int:
+        return self._dbc.session.query(self._dbc.tables['strategymeta']).count()
+
+    def filters_strat_cte(self, strat_filters: DBFilterHandler) -> CTE:
+        """
+        get filtered database strategy common table expression (CTE)
+        """
+        strat_meta = self._dbc.tables['strategymeta']
+        q = self._dbc.session.query(strat_meta).filter(
+            *strat_filters.filters_conditions(strat_meta)
+        )
+        return q.cte()
+
+    def filters_mkt_cte(self, strategy_id, mkt_filters: DBFilterHandler) -> CTE:
+        meta = self._dbc.tables['marketmeta']
+        sr = self._dbc.tables['strategyrunners']
+
+        if strategy_id:
+            strat_cte = self._dbc.session.query(
+                sr.columns['market_id'],
+                sql_sum(sr.columns['profit']).label('market_profit')
+            ).filter(
+                sr.columns['strategy_id'] == strategy_id
+            ).group_by(
+                sr.columns['market_id']
+            ).cte()
+
+            q = self._dbc.session.query(
+                meta,
+                strat_cte.c['market_profit']
+            ).join(
+                strat_cte,
+                meta.columns['market_id'] == strat_cte.c['market_id']
+            )
+        else:
+            q = self._dbc.session.query(
+                meta,
+                sqlalchemy.null().label('market_profit')
+            )
+
+        q = q.filter(*mkt_filters.filters_conditions(meta))
+        return q.cte()
+
+    def cache_strat_updates(self, strategy_id, market_id):
+        pkey_flts = {
+            'strategy_id': str(strategy_id),
+            'market_id': market_id
+        }
+        self._dbc.read_to_cache('strategyupdates', pkey_flts)
+
+    def cache_strat_meta(self, strategy_id):
+        pkey_flt = {'strategy_id': strategy_id}
+        self._dbc.read_to_cache('strategymeta', pkey_flt)
+
+    def cache_mkt_stream(self, market_id):
+        pkey_flt = {'market_id': market_id}
+        self._dbc.read_to_cache('marketstream', pkey_flt)
+
+    def read_mkt_meta(self, market_id) -> Dict:
+        pkey_flt = {'market_id': market_id}
+        return self._dbc.read_row('marketmeta', pkey_flt)
 
     def _lost_ids(self, t1: Table, t2, id_col: str):
         """
@@ -579,11 +696,11 @@ class BettingDB(DBCache):
         E.g. if `t1` had an id column of 'sample_id_col' and some values [1,2,3], and `t2` had hundreds of rows but
         only with 'sample_id_col' equal to 1 or 2, then the function would return the 'sample_id_col' value of 3
         """
-        cte = self.session.query(
+        cte = self._dbc.session.query(
             t2.columns[id_col]
         ).group_by(t2.columns[id_col]).cte()
 
-        return self.session.query(
+        return self._dbc.session.query(
             t1.columns[id_col],
             cte.c[id_col]
         ).join(
@@ -593,14 +710,14 @@ class BettingDB(DBCache):
         ).filter(cte.c[id_col] == None)
 
     def health_check(self):
-        mkt_stm = self.tables['marketstream']
-        mkt_met = self.tables['marketmeta']
-        mkt_run = self.tables['marketrunners']
+        mkt_stm = self._dbc.tables['marketstream']
+        mkt_met = self._dbc.tables['marketmeta']
+        mkt_run = self._dbc.tables['marketrunners']
 
         # market stream/meta row counts
-        n_mkt = self.session.query(mkt_stm).count()
+        n_mkt = self._dbc.session.query(mkt_stm).count()
         active_logger.info(f'{n_mkt} market stream rows')
-        n_met = self.session.query(mkt_met).count()
+        n_met = self._dbc.session.query(mkt_met).count()
         active_logger.info(f'{n_met} market meta rows')
 
         # market stream rows without corresponding market meta row
@@ -609,7 +726,7 @@ class BettingDB(DBCache):
             active_logger.error(f'market "{row[0]}" does not have a meta row')
 
         # market runner meta row count
-        nrun = self.session.query(mkt_run).count()
+        nrun = self._dbc.session.query(mkt_run).count()
         active_logger.info(f'{nrun} market runner rows')
 
         # market stream rows without any corresponding runner rows
@@ -617,14 +734,14 @@ class BettingDB(DBCache):
         for row in q.all():
             active_logger.error(f'market "{row[0]}" does not have any runner rows')
 
-        srt_met = self.tables['strategymeta']
-        srt_run = self.tables['strategyrunners']
-        srt_udt = self.tables['strategyupdates']
+        srt_met = self._dbc.tables['strategymeta']
+        srt_run = self._dbc.tables['strategyrunners']
+        srt_udt = self._dbc.tables['strategyupdates']
 
         # strategy meta & strategy market update row counts
-        n_srtmet = self.session.query(srt_met).count()
+        n_srtmet = self._dbc.session.query(srt_met).count()
         active_logger.info(f'{n_srtmet} strategy meta rows found')
-        n_srtudt = self.session.query(srt_udt).count()
+        n_srtudt = self._dbc.session.query(srt_udt).count()
         active_logger.info(f'{n_srtudt} strategy market update rows found')
 
         # strategy meta rows without any strategy update rows
@@ -633,7 +750,7 @@ class BettingDB(DBCache):
             active_logger.error(f'strategy "{row[0]}" does not have any market updates')
 
         # strategy runner row count
-        n_srtrun = self.session.query(srt_run).count()
+        n_srtrun = self._dbc.session.query(srt_run).count()
         active_logger.info(f'{n_srtrun} strategy runner rows found')
 
         # strategy meta rows without any strategy runner rows

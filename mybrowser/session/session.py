@@ -5,10 +5,8 @@ import os
 from typing import List, Dict, Optional
 import pandas as pd
 import logging
-from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.sql.functions import sum as sql_sum
 import sqlalchemy
-import importlib
 import sys
 from datetime import datetime
 from configparser import ConfigParser
@@ -21,10 +19,9 @@ import importlib
 
 import mytrading.exceptions
 import mytrading.process
-from mybrowser.session import dbfilter as dbf
 from mytrading.strategy import messages as msgs
 from mytrading import utils as trutils
-from mytrading.utils import bettingdb as bdb
+from mytrading.utils import bettingdb as bdb, dbfilter as dbf
 from mytrading.strategy import tradetracker
 from mytrading import visual as figlib
 from mytrading.strategy import feature as ftrutils
@@ -40,86 +37,65 @@ class SessionException(Exception):
     pass
 
 
-class DBFilters:
-
-    def filters_values(self, group):
-        return [flt.value for flt in dbf.DBFilter.reg[group]]
-
-    def filters_labels(self, group, db, cte):
-        return [
-            flt.get_labels(flt.get_options(db, cte))
-            for flt in dbf.DBFilter.reg[group]
-            if not hasattr(flt, 'NO_OPTIONS')
-        ]
-
-    def update_filters(self, group, clear, *args):
-        assert len(args) == len(dbf.DBFilter.reg[group])
-        for val, flt in zip(args, dbf.DBFilter.reg[group]):
-            flt.set_value(val, clear)
-
-    def __init__(self, mkt_dt_fmt, strat_sel_fmt):
-        self.filters = [
-            dbf.DBFilterJoin(
-                "sport_id",
-                'MARKETFILTERS',
-                join_tbl_name='sportids',
-                join_id_col='sport_id',
-                join_name_col='sport_name'
-            ),
-            dbf.DBFilter(
-                "market_type",
-                'MARKETFILTERS'
-            ),
-            dbf.DBFilter(
-                "betting_type",
-                'MARKETFILTERS'
-            ),
-            dbf.DBFilter(
-                'format',
-                'MARKETFILTERS'
-            ),
-            dbf.DBFilterJoin(
-                "country_code",
-                'MARKETFILTERS',
-                join_tbl_name='countrycodes',
-                join_id_col='alpha_2_code',
-                join_name_col='name'
-            ),
-            dbf.DBFilter(
-                "venue",
-                'MARKETFILTERS'
-            ),
-            dbf.DBFilterDate(
-                "market_time",
-                'MARKETFILTERS',
-                mkt_dt_fmt
-            ),
-            dbf.DBFilterText(
-                'market_id',
-                'MARKETFILTERS'
-            ),
-
-            dbf.DBFilterMulti(
-                'strategy_id',
-                'STRATEGYFILTERS',
-                fmt_spec=strat_sel_fmt,
-                order_col='exec_time',
-                is_desc=True,
-                cols=['strategy_id', 'exec_time', 'name']
-            )
-        ]
+def get_mkt_filters(mkt_dt_fmt):
+    return [
+        dbf.DBFilterJoin(
+            "sport_id",
+            join_tbl_name='sportids',
+            join_id_col='sport_id',
+            join_name_col='sport_name'
+        ),
+        dbf.DBFilter(
+            "market_type",
+        ),
+        dbf.DBFilter(
+            "betting_type",
+        ),
+        dbf.DBFilter(
+            'format',
+        ),
+        dbf.DBFilterJoin(
+            "country_code",
+            join_tbl_name='countrycodes',
+            join_id_col='alpha_2_code',
+            join_name_col='name'
+        ),
+        dbf.DBFilter(
+            "venue",
+        ),
+        dbf.DBFilterDate(
+            "market_time",
+            mkt_dt_fmt
+        ),
+        dbf.DBFilterText(
+            'market_id',
+        )
+    ]
 
 
-def get_formatters(config) -> MyRegistrar:
+def get_strat_filters(strat_sel_fmt):
+    return [
+        dbf.DBFilterMulti(
+            'strategy_id',
+            fmt_spec=strat_sel_fmt,
+            order_col='exec_time',
+            is_desc=True,
+            cols=['strategy_id', 'exec_time', 'name']
+        )
+    ]
+
+
+def get_formatters(dt_format) -> MyRegistrar:
     formatters = MyRegistrar()
 
     @formatters.register_element
     def format_datetime(dt: datetime):
-        return dt.strftime(config['FORMATTERS_CONFIG']['dt_format'])
+        return dt.strftime(dt_format)
 
     return formatters
 
 
+# TODO - recreate bettingdb function
 class Session:
 
     MODULES = ['myutils', 'mytrading']
@@ -143,12 +119,15 @@ class Session:
         active_logger.info(f'configuration end')
 
         self.config: ConfigParser = config  # parsed configuration
-        self.tbl_formatters = get_formatters(config)  # registrar of table formatters
+        self.tbl_formatters = get_formatters(config['FORMATTERS_CONFIG']['dt_format'])  # registrar of table formatters
         self.api_handler = trutils.APIHandler()   # API client instance
-        self.db_filters = DBFilters(
-            config['MARKET_FILTER']['mkt_date_format'],
-            config['MARKET_FILTER']['strategy_sel_format']
-        )  # market database filters
+
+        self._flts_mkt = dbf.DBFilterHandler(
+            get_mkt_filters(config['MARKET_FILTER']['mkt_date_format'])
+        )  # db market filters
+        self._flts_strat = dbf.DBFilterHandler(
+            get_strat_filters(config['MARKET_FILTER']['strategy_sel_format'])
+        )  # db strategy filters
 
         self.log_nwarn = 0  # number of logger warnings
         self.log_elements = list()  # logging elements
@@ -160,10 +139,10 @@ class Session:
         self.mkt_rnrs: Dict[int, Dict] = {}  # market runners information, indexed by runner ID
 
         # betting database instance
-        db_kwargs = {}
+        self._db_kwargs = {}
         if config.has_section('DB_CONFIG'):
-            db_kwargs = config['DB_CONFIG']
-        self.betting_db = bdb.BettingDB(**db_kwargs)
+            self._db_kwargs = config['DB_CONFIG']
+        self.betting_db = bdb.BettingDB(**self._db_kwargs)
 
         # feature-plot configurations
         self.ftr_fcfgs = dict()  # feature configurations
@@ -187,6 +166,12 @@ class Session:
                 importlib.reload(sys.modules[k])
                 active_logger.debug(f'reloaded library {k}')
         active_logger.info('libraries reloaded')
+
+    def rl_db(self):
+        """reload database instance"""
+        self.betting_db.close()
+        del self.betting_db
+        self.betting_db = bdb.BettingDB(**self._db_kwargs)
 
     @staticmethod
     def ftr_readf(config_dir: str) -> Dict:
@@ -316,25 +301,18 @@ class Session:
 
         # check strategy valid if one is selected, when writing info to cache
         if strategy_id:
-            strat_filters = {
-                'strategy_id': strategy_id,
-                'market_id': market_id
-            }
-            if not self.betting_db.row_exist('strategyupdates', strat_filters):
-                raise SessionException(f'strategy selected "{strategy_id}" not found in db')
-            self.betting_db.read_to_cache('strategyupdates', strat_filters)
-            self.betting_db.read_to_cache('strategymeta', {'strategy_id': strategy_id})
+            self.betting_db.cache_strat_updates(strategy_id, market_id)
+            self.betting_db.cache_strat_meta(strategy_id)
 
-        mkt_filters = {'market_id': market_id}
-        self.betting_db.read_to_cache('marketstream', mkt_filters)
-        p = self.betting_db.cache_col('marketstream', mkt_filters, 'stream_updates')
+        self.betting_db.cache_mkt_stream(market_id)
+        p = self.betting_db.path_mkt_updates(market_id)
         q = self.api_handler.get_historical(p)
         record_list = list(q.queue)
         if not len(record_list):
             raise SessionException(f'record list is empty')
 
-        rows = self.betting_db.runner_rows(market_id, strategy_id)
-        meta = self.betting_db.read_row('marketmeta', mkt_filters)
+        rows = self.betting_db.rows_runners(market_id, strategy_id)
+        meta = self.betting_db.read_mkt_meta(market_id)
 
         start_odds = mytrading.process.get_starting_odds(record_list)
         drows = [dict(r) for r in rows]
@@ -434,12 +412,7 @@ class Session:
         return df.sort_values(by=['date'])
 
     def odr_prft(self, selection_id) -> pd.DataFrame:
-
-        flt = {
-            'strategy_id': self.mkt_sid,
-            'market_id': self.mkt_info['market_id']
-        }
-        p = self.betting_db.cache_col('strategyupdates', flt, 'strategy_updates')
+        p = self.betting_db.path_strat_updates(self.mkt_info['market_id'], self.mkt_sid)
         active_logger.info(f'reading strategy market cache file:\n-> {p}')
         if not path.isfile(p):
             raise SessionException(f'order file does not exist')
@@ -488,11 +461,7 @@ class Session:
         # get orders dataframe (or None)
         orders = None
         if self.mkt_sid:
-            flt = {
-                'strategy_id': self.mkt_sid,
-                'market_id': self.mkt_info['market_id']
-            }
-            p = self.betting_db.cache_col('strategyupdates', flt, 'strategy_updates')
+            p = self.betting_db.path_strat_updates(self.mkt_info['market_id'], self.mkt_sid)
             if not path.exists(p):
                 raise SessionException(f'could not find cached strategy market file:\n-> "{p}"')
 
@@ -533,106 +502,20 @@ class Session:
         )
         fig.show()
 
-    def flt_upmkt(self, clear, *flt_args):
-        """
-        update database market filters
-        """
-        self.db_filters.update_filters('MARKETFILTERS', clear, *flt_args)
+    @property
+    def filters_mkt(self):
+        return self._flts_mkt
 
-    def flt_upsrt(self, clear, *flt_args):
-        """
-        update database strategy filters
-        """
-        self.db_filters.update_filters('STRATEGYFILTERS', clear, *flt_args)
+    @property
+    def filters_strat(self):
+        return self._flts_strat
 
-    def flt_valsmkt(self):
-        """
-        database market filters values
-        """
-        return self.db_filters.filters_values('MARKETFILTERS')
-
-    def flt_optsmkt(self, cte):
-        """
-        database market filters options
-        """
-        return self.db_filters.filters_labels('MARKETFILTERS', self.betting_db, cte)
-
-    def flt_valssrt(self):
-        """
-        database strategy filters values
-        """
-        return self.db_filters.filters_values('STRATEGYFILTERS')
-
-    def flt_optssrt(self, cte):
-        """
-        database strategy filters options
-        """
-        return self.db_filters.filters_labels('STRATEGYFILTERS', self.betting_db, cte)
-
-    def flt_ctemkt(self, strategy_id):
-        """
-        get filtered database market common table expression (CTE)
-        """
-
-        db = self.betting_db
-        meta = self.betting_db.tables['marketmeta']
-        sr = db.tables['strategyrunners']
-
-        if strategy_id:
-            strat_cte = db.session.query(
-                sr.columns['market_id'],
-                sql_sum(sr.columns['profit']).label('market_profit')
-            ).filter(
-                sr.columns['strategy_id'] == strategy_id
-            ).group_by(
-                sr.columns['market_id']
-            ).cte()
-
-            q = db.session.query(
-                meta,
-                strat_cte.c['market_profit']
-            ).join(
-                strat_cte,
-                meta.columns['market_id'] == strat_cte.c['market_id']
-            )
-        else:
-            q = self.betting_db.session.query(
-                meta,
-                sqlalchemy.null().label('market_profit')
-            )
-
-        conditions = [
-            f.db_filter(meta)
-            for f in dbf.DBFilter.reg['MARKETFILTERS'] if f.value
-        ]
-        q = q.filter(*conditions)
-        return q.cte()
-
-    def flt_ctesrt(self):
-        """
-        get filtered database strategy common table expression (CTE)
-        """
-        db = self.betting_db
-        meta = db.tables['strategymeta']
-        conditions = [
-            f.db_filter(meta)
-            for f in dbf.DBFilter.reg['STRATEGYFILTERS'] if f.value
-        ]
-        q = db.session.query(meta).filter(*conditions)
-        return q.cte()
-
-    def flt_tbl(self, cte):
-
+    def filters_mkt_tbl(self, cte):
         col_names = list(self.config['TABLE_COLS'].keys()) + ['market_profit']
-        cols = [cte.c[nm] for nm in col_names]
-
-        fmt_config = self.config['TABLE_FORMATTERS']
         max_rows = int(self.config['DB']['max_rows'])
-        q_final = self.betting_db.session.query(*cols).limit(max_rows)
-        q_result = q_final.all()
-        tbl_rows = [dict(r) for r in q_result]
+        fmt_config = self.config['TABLE_FORMATTERS']
+        tbl_rows = self.betting_db.rows_market(cte, col_names, max_rows)
         for i, row in enumerate(tbl_rows):
-
             # apply custom formatting to table row values
             for k, v in row.items():
                 if k in fmt_config:

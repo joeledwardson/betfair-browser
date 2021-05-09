@@ -21,7 +21,7 @@ class UserDataBase:
         self._oc_td = oc_td
 
     def _p_cache(self, market_id) -> str:
-        return self._db.cache_col('marketstream', {'market_id': market_id}, 'user_data')
+        return self._db.path_mkt_usr_updates(market_id)
 
     def get_user_data(self, market: Market, market_book: MarketBook) -> Optional[Dict]:
         raise NotImplementedError

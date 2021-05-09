@@ -76,11 +76,7 @@ class MyRecorderStrategy(BaseStrategy):
         market_id = market_book.market_id
         if market_id not in self.catalogue_paths and market.market_catalogue:
             # get cache path, create dir if not exist
-            p = self.db.cache_col(
-                'marketstream',
-                {'market_id': market_id},
-                'catalogue',
-            )
+            p = self.db.path_mkt_cat(market_id)
             d, _ = path.split(p)
             os.makedirs(d, exist_ok=True)
             # store catalogue
@@ -91,11 +87,7 @@ class MyRecorderStrategy(BaseStrategy):
 
         if market_id not in self.market_paths:
             # get cache path, create dir if not exist
-            p = self.db.cache_col(
-                'marketstream',
-                {'market_id': market_id},
-                'stream_updates'
-            )
+            p = self.db.path_mkt_updates(market_id)
             d, _ = path.split(p)
             os.makedirs(d, exist_ok=True)
             # set path var
@@ -226,34 +218,15 @@ class MyFeatureStrategy(MyBaseStrategy):
             active_logger.info('client is live, using streaming user data "UserData')
             self._usr_data = UserDataStreamer(self._db, oc_td)
 
-    # def _strat_meta_path(self, strategy_id):
-    #     return self._db.cache_dict_path('strategymeta', {'strategy_id': str(strategy_id)})
-
-    def _strat_updt_path(self, strategy_id, market_id):
-        return self._db.cache_col(
-            tbl_nm='strategyupdates',
-            pkey_flts={
-                'strategy_id': str(strategy_id),
-                'market_id': market_id
-            },
-            col='strategy_updates'
-        )
-
     def strategy_write_info(self, init_kwargs):
         """write strategy information to file"""
-        info = {
-            'type': 'simulated' if self.historic else 'live',
-            'name': self.__class__.__name__,
-            'exec_time': datetime.utcnow(),
-            'info': init_kwargs
-        }
-        self._db.write_to_cache('strategymeta', {'strategy_id': str(self.strategy_id)}, info)
-        # meta_path = self._strat_meta_path(str(self.strategy_id))
-        # active_logger.info(f'writing strategy info to file: "{meta_path}')
-        # d, _ = path.split(meta_path)
-        # os.makedirs(d)
-        # with open(meta_path, 'w') as f:
-        #     f.write(yaml.dump(info))
+        self._db.write_strat_info(
+            strategy_id=self.strategy_id,
+            type='simulated' if self.historic else 'live',
+            name=self.__class__.__name__,
+            exec_time=datetime.utcnow(),
+            info=init_kwargs,
+        )
 
     def _trade_machine_allow(
             self,
@@ -367,7 +340,7 @@ class MyFeatureStrategy(MyBaseStrategy):
         - if first time market is received then `market_initialisation()` is called
         """
         # check if market has been initialised
-        udt_path = self._strat_updt_path(self.strategy_id, market.market_id)
+        udt_path = self._db.path_strat_updates(market.market_id, self.strategy_id)
         if market.market_id not in self.market_handlers:
             d, _ = path.split(udt_path)
             os.makedirs(d)

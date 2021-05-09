@@ -40,6 +40,16 @@ def header():
             width='auto',
             className='p-1'
         ),
+        dbc.Col(
+            dbc.Button(
+                html.I(className="fas fa-database"),
+                id="btn-db-reconnect",
+                n_clicks=0,
+                color='primary'
+            ),
+            width='auto',
+            className='p-1'
+        ),
         dbc.Col(),
         dbc.Col(
             dcc.Loading(

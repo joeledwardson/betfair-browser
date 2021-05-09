@@ -1,9 +1,11 @@
 from typing import Dict, List, Any
 from sqlalchemy import func, cast, Date, desc, asc, Table
+from sqlalchemy.orm import Session
 from sqlalchemy.sql.functions import coalesce
 from sqlalchemy.sql import cte
+from sqlalchemy.sql.expression import ColumnElement
 from datetime import date, datetime
-from mytrading.utils import bettingdb as bdb
+from ..exceptions import DBException
 
 
 class DBFilter:
@@ -11,23 +13,16 @@ class DBFilter:
     database filter for a column of a table
     designed to present a list of options with values that correspond to database value, and labels that can be
     customised for display
-
-    all instances are registered to a dictionary in lists according to 'group' specified on initialisation
     """
 
     reg: Dict[str, List] = {}
 
-    def __init__(self, db_col: str, group: str):
+    def __init__(self, db_col: str):
         """
         set db_col to the name of the database column on which it will apply a filter
-        group is the text name of the group to register the instance to
         """
         self.db_col = db_col
         self.value = None
-        self.group = group
-        if group not in DBFilter.reg:
-            DBFilter.reg[group] = []
-        DBFilter.reg[group].append(self)
 
     def set_value(self, value, clear: bool):
         """
@@ -38,18 +33,18 @@ class DBFilter:
         else:
             self.value = value
 
-    def db_filter(self, tbl: Table):
+    def db_filter(self, tbl: Table) -> ColumnElement:
         """
         return a SQLAlchemy filter of the specified column at initialisation of the table passed as 'tbl' filtered to
         the stored value
         """
         return tbl.columns[self.db_col] == self.value
 
-    def get_options(self, db: bdb.BettingDB, db_cte: cte) -> List[List[Any]]:
+    def get_options(self, session: Session, tables, db_cte: cte) -> List[List[Any]]:
         """
         get a list of distinct values from database
         """
-        return db.session.query(db_cte.c[self.db_col]).distinct().all()
+        return session.query(db_cte.c[self.db_col]).distinct().all()
 
     def get_labels(self, opts: List[List[Any]]) -> List[Dict[str, Any]]:
         """
@@ -66,8 +61,8 @@ class DBFilterDate(DBFilter):
     Date specific type of database filter, can set format of date printed as label
     """
 
-    def __init__(self, db_col, group, dt_fmt):
-        super().__init__(db_col, group)
+    def __init__(self, db_col, dt_fmt):
+        super().__init__(db_col)
         self.dt_fmt = dt_fmt
 
     def set_value(self, value, clear):
@@ -81,12 +76,12 @@ class DBFilterDate(DBFilter):
     def db_filter(self, meta):
         return cast(meta.columns[self.db_col], Date) == self.value
 
-    def get_options(self, db, db_cte):
+    def get_options(self, session: Session, tables, db_cte: cte) -> List[List[Any]]:
         """
         get options starting from most recent date first
         """
         date_col = cast(db_cte.c[self.db_col], Date)
-        return db.session.query(date_col).distinct().order_by(desc(date_col)).all()
+        return session.query(date_col).distinct().order_by(desc(date_col)).all()
 
     def get_labels(self, opts):
         """
@@ -104,16 +99,16 @@ class DBFilterJoin(DBFilter):
     whose table is `join_tbl_name` and whose name is `join_id_col`. `join_name_col` specified the column in the other
     table that is used to present in labels.
     """
-    def __init__(self, db_col, group, join_tbl_name, join_id_col, join_name_col):
-        super().__init__(db_col, group)
+    def __init__(self, db_col, join_tbl_name, join_id_col, join_name_col):
+        super().__init__(db_col)
         self.join_tbl_name = join_tbl_name
         self.join_id_col = join_id_col
         self.join_name_col = join_name_col
         self.output_col = 'TEMP_OUTPUT_NAME'
 
-    def get_options(self, db: bdb.BettingDB, db_cte: cte):
-        join_tbl = db.tables[self.join_tbl_name]
-        q = db.session.query(
+    def get_options(self, session: Session, tables, db_cte: cte) -> List[List[Any]]:
+        join_tbl = tables[self.join_tbl_name]
+        q = session.query(
             db_cte.c[self.db_col],
             coalesce(
                 join_tbl.columns[self.join_name_col],
@@ -142,14 +137,14 @@ class DBFilterMulti(DBFilter):
     would mean for a sample row where 'sport_name'='football' and 'sport_time'='13:00'
     the output label would be 'football, 13:00'
     """
-    def __init__(self, db_col: str, group: str, fmt_spec, order_col, is_desc: bool, cols: List[str]):
-        super().__init__(db_col, group)
+    def __init__(self, db_col: str, fmt_spec, order_col, is_desc: bool, cols: List[str]):
+        super().__init__(db_col)
         self.fmt_spec = fmt_spec
         self.order_col = order_col
         self.is_desc = desc if is_desc else asc
         self.cols = cols
 
-    def get_options(self, db: bdb.BettingDB, db_cte: cte) -> List[List[Any]]:
+    def get_options(self, session: Session, tables, db_cte: cte) -> List[List[Any]]:
         """
         get a list of distinct values from database
         """
@@ -157,7 +152,7 @@ class DBFilterMulti(DBFilter):
             odr = desc
         else:
             odr = asc
-        return db.session.query(
+        return session.query(
             *(db_cte.c[col] for col in self.cols)
         ).distinct().order_by(
             odr(db_cte.c[self.order_col])
@@ -174,11 +169,39 @@ class DBFilterMulti(DBFilter):
 class DBFilterText(DBFilter):
     """filter to a text string"""
     NO_OPTIONS = True
-    def __init__(self, db_col: str, group: str, pre_str='%', post_str='%'):
-        super().__init__(db_col, group)
+
+    def __init__(self, db_col: str, pre_str='%', post_str='%'):
+        super().__init__(db_col)
         self.pre_str = pre_str
         self.post_str = post_str
 
     def db_filter(self, tbl: Table):
         return tbl.columns[self.db_col].like(f'{self.pre_str}{self.value}{self.post_str}')
 
+
+class DBFilterHandler:
+
+    def __init__(self, db_filters: List[DBFilter]):
+        self._db_filters = db_filters
+
+    def filters_values(self) -> List[Any]:
+        return [flt.value for flt in self._db_filters]
+
+    def filters_labels(self, session, tables, cte) -> List[List[Dict[str, Any]]]:
+        return [
+            flt.get_labels(flt.get_options(session, tables, cte))
+            for flt in self._db_filters
+            if not hasattr(flt, 'NO_OPTIONS')
+        ]
+
+    def update_filters(self, clear, args):
+        if len(args) != len(self._db_filters):
+            raise DBException(f'args has len {len(args)}, expected {len(self._db_filters)}')
+        for val, flt in zip(args, self._db_filters):
+            flt.set_value(val, clear)
+
+    def filters_conditions(self, tbl):
+        return [
+            f.db_filter(tbl)
+            for f in self._db_filters if f.value
+        ]
