@@ -5,8 +5,6 @@ import os
 from typing import List, Dict, Optional
 import pandas as pd
 import logging
-from sqlalchemy.sql.functions import sum as sql_sum
-import sqlalchemy
 import sys
 from datetime import datetime
 from configparser import ConfigParser
@@ -26,8 +24,8 @@ from mytrading.strategy import tradetracker
 from mytrading import visual as figlib
 from mytrading.strategy import feature as ftrutils
 from mytrading import configs as cfgs
-from myutils import mytiming, generic
-from myutils.myregistrar import MyRegistrar
+from myutils import mytiming, mygeneric
+from myutils import myregistrar as myreg
 
 active_logger = logging.getLogger(__name__)
 active_logger.setLevel(logging.INFO)
@@ -85,8 +83,8 @@ def get_strat_filters(strat_sel_fmt):
     ]
 
 
-def get_formatters(dt_format) -> MyRegistrar:
-    formatters = MyRegistrar()
+def get_formatters(dt_format) -> myreg.MyRegistrar:
+    formatters = myreg.MyRegistrar()
 
     @formatters.register_element
     def format_datetime(dt: datetime):
@@ -95,7 +93,7 @@ def get_formatters(dt_format) -> MyRegistrar:
     return formatters
 
 
-# TODO - recreate bettingdb function
+# TODO - add strategy configuration loader and operator
 class Session:
 
     MODULES = ['myutils', 'mytrading']
@@ -327,7 +325,7 @@ class Session:
         self.mkt_sid = strategy_id
         self.mkt_records = record_list
         self.mkt_info = dict(meta)
-        self.mkt_rnrs = generic.dict_sort(rinf, key=lambda item:item[1]['start_odds'])
+        self.mkt_rnrs = mygeneric.dict_sort(rinf, key=lambda item:item[1]['start_odds'])
 
     def mkt_clr(self):
         self.mkt_info = {}

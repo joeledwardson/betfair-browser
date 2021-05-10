@@ -1,5 +1,4 @@
-class RegistrarException(Exception):
-    pass
+from .exceptions import RegistrarException
 
 
 class MyRegistrar:

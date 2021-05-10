@@ -21,6 +21,8 @@ def cb_market(app, shn: Session):
             Output('table-market-session', 'page_current'),
             Output('loading-out-session', 'children'),
             Output('intermediary-session-market', 'children'),
+            Output('toast-db-market', 'is_open'),
+            Output('toast-db-market', 'children'),
 
             Output('input-sport-type', 'value'),
             Output('input-mkt-type', 'value'),
@@ -30,8 +32,6 @@ def cb_market(app, shn: Session):
             Output('input-venue', 'value'),
             Output('input-date', 'value'),
             Output('input-mkt-id', 'value'),
-            Output('toast-db-market', 'is_open'),
-            Output('toast-db-market', 'children'),
 
             Output('input-sport-type', 'options'),
             Output('input-mkt-type', 'options'),
@@ -47,6 +47,7 @@ def cb_market(app, shn: Session):
         inputs=[
             Input('input-mkt-clear', 'n_clicks'),
             Input('input-strategy-clear', 'n_clicks'),
+            Input('btn-strategy-delete', 'n_clicks'),
             Input('table-market-session', 'sort_mode'),
             Input('btn-db-refresh', 'n_clicks'),
             Input('btn-db-upload', 'n_clicks'),
@@ -67,31 +68,42 @@ def cb_market(app, shn: Session):
         ]
     )
     def mkt_intermediary(
-            mkt_clear,
-            strategy_clear,
+            n_mkt_clear,
+            n_strat_clear,
+            n_strat_del,
             sort_mode,
-            db_refresh,
-            db_upload,
-            db_reconnect,
+            n_db_refresh,
+            n_db_upload,
+            n_db_reconnect,
             strategy_id,
             *args
     ):
         btn_id = myutils.mydash.triggered_id()
 
         toast_open = True
-        toast_msg = 'Market stuff'
+        toast_msg = 'Updated markets from database'
+
+        # delete strategy if requested
+        if btn_id == 'btn-strategy-delete':
+            if not strategy_id:
+                toast_msg = 'must select strategy first'
+            else:
+                n0, n1, n2 = shn.betting_db.strategy_delete(strategy_id)
+                toast_msg = f'removed {n0} runners, {n1} markets, {n2} meta strategy rows'
 
         # reconnect to database if button pressed
         if btn_id == 'btn-db-reconnect':
             shn.rl_db()
+            toast_msg = 'reconnected to database'
 
         # upload market & strategy cache if "upload" button clicked
         if btn_id == 'btn-db-upload':
-            shn.betting_db.scan_mkt_cache()
-            shn.betting_db.scan_strat_cache()
+            n_mkt = len(shn.betting_db.scan_mkt_cache())
+            n_strat = len(shn.betting_db.scan_strat_cache())
+            toast_msg = f'found {n_mkt} new markets and {n_strat} new strategies in cache'
 
         # update strategy filters and selectable options
-        strat_clear = btn_id in ['input-strategy-clear', 'btn-db-reconnect']
+        strat_clear = btn_id in ['input-strategy-clear', 'btn-db-reconnect', 'btn-strategy-delete']
         shn.filters_strat.update_filters(clear=strat_clear, args=[strategy_id])
         strat_cte = shn.betting_db.filters_strat_cte(shn.filters_strat)
         strat_vals = shn.filters_strat.filters_values()
@@ -100,6 +112,9 @@ def cb_market(app, shn: Session):
         # update market filters and selectable options
         mkt_clear = btn_id in ['input-mkt-clear', 'btn-db-reconnect']
         shn.filters_mkt.update_filters(clear=mkt_clear, args=args)
+        # clear strategy ID variable used in market filtering if "clear strategy" button clicked
+        if strat_clear:
+            strategy_id = None
         cte = shn.betting_db.filters_mkt_cte(strategy_id, shn.filters_mkt)
         vals = shn.filters_mkt.filters_values()
         lbls = shn.betting_db.filters_labels(shn.filters_mkt, cte)
@@ -130,6 +145,18 @@ def cb_market(app, shn: Session):
             toast_open,
             toast_msg
         ] + vals + lbls + strat_vals + strat_lbls
+
+    @app.callback(
+        Output('btn-strategy-delete', 'disabled'),
+        [
+            Input('input-strategy-select', 'value'),
+        ]
+    )
+    def strategy_delete_enable(strategy_id):
+        if strategy_id:
+            return False
+        else:
+            return True
 
     @app.callback(
         Output("right-side-bar", "className"),

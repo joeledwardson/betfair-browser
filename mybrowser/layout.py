@@ -70,7 +70,7 @@ def hidden_elements(n_odr_rows, n_tmr_rows):
             dismissable=True,
             icon="info",
             duration=3000,
-            style={"position": "fixed", "top": 76, "right": 10, "width": 350},
+            style={"position": "fixed", "top": 76, "right": 10, "width": 350, 'background': 'RGB(255, 255, 255)'},
         ),
 
         dbc.Modal([

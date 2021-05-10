@@ -14,7 +14,7 @@ import re
 from queue import Queue
 import sys
 
-from myutils.generic import dgetattr
+from myutils.mygeneric import dgetattr
 from ..process import bf_dt
 from .bettingdb import BettingDB
 

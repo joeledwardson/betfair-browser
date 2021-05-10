@@ -1,4 +1,5 @@
 from typing import Dict, List, Any
+from sqlalchemy.engine.row import Row
 from sqlalchemy import func, cast, Date, desc, asc, Table
 from sqlalchemy.orm import Session
 from sqlalchemy.sql.functions import coalesce
@@ -40,13 +41,13 @@ class DBFilter:
         """
         return tbl.columns[self.db_col] == self.value
 
-    def get_options(self, session: Session, tables, db_cte: cte) -> List[List[Any]]:
+    def get_options(self, session: Session, tables, db_cte: cte) -> List[Row]:
         """
         get a list of distinct values from database
         """
         return session.query(db_cte.c[self.db_col]).distinct().all()
 
-    def get_labels(self, opts: List[List[Any]]) -> List[Dict[str, Any]]:
+    def get_labels(self, opts: List[Row]) -> List[Dict[str, Any]]:
         """
         get a list of dicts with 'label' and 'value' set (in accordance to plotly dash datatable)
         """
@@ -76,14 +77,14 @@ class DBFilterDate(DBFilter):
     def db_filter(self, meta):
         return cast(meta.columns[self.db_col], Date) == self.value
 
-    def get_options(self, session: Session, tables, db_cte: cte) -> List[List[Any]]:
+    def get_options(self, session: Session, tables, db_cte: cte) -> List[Row]:
         """
         get options starting from most recent date first
         """
         date_col = cast(db_cte.c[self.db_col], Date)
         return session.query(date_col).distinct().order_by(desc(date_col)).all()
 
-    def get_labels(self, opts):
+    def get_labels(self, opts: List[Row]) -> List[Dict[str, Any]]:
         """
         format labels with datetime format passed to constructor
         """
@@ -106,7 +107,7 @@ class DBFilterJoin(DBFilter):
         self.join_name_col = join_name_col
         self.output_col = 'TEMP_OUTPUT_NAME'
 
-    def get_options(self, session: Session, tables, db_cte: cte) -> List[List[Any]]:
+    def get_options(self, session: Session, tables, db_cte: cte) -> List[Row]:
         join_tbl = tables[self.join_tbl_name]
         q = session.query(
             db_cte.c[self.db_col],
@@ -121,7 +122,7 @@ class DBFilterJoin(DBFilter):
         ).distinct()
         return q.all()
 
-    def get_labels(self, opts):
+    def get_labels(self, opts: List[Row]) -> List[Dict[str, Any]]:
         return [{
             'label': dict(row)[self.output_col],
             'value': dict(row)[self.db_col]
@@ -144,7 +145,7 @@ class DBFilterMulti(DBFilter):
         self.is_desc = desc if is_desc else asc
         self.cols = cols
 
-    def get_options(self, session: Session, tables, db_cte: cte) -> List[List[Any]]:
+    def get_options(self, session: Session, tables, db_cte: cte) -> List[Row]:
         """
         get a list of distinct values from database
         """
@@ -158,7 +159,7 @@ class DBFilterMulti(DBFilter):
             odr(db_cte.c[self.order_col])
         ).all()
 
-    def get_labels(self, opts: List[List[Any]]) -> List[Dict[str, Any]]:
+    def get_labels(self, opts: List[Row]) -> List[Dict[str, Any]]:
 
         return [{
             'label': self.fmt_spec.format(**dict(row)),

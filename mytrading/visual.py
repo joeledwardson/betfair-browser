@@ -15,7 +15,7 @@ from .exceptions import FigureException, FigureDataProcessorException, FigurePos
 from .strategy.messages import format_message, MessageTypes
 from mytrading.process.ticks import LTICKS_DECODED
 from .process import closest_tick
-from myutils import generic
+from myutils import mygeneric
 
 
 active_logger = logging.getLogger(__name__)
@@ -512,7 +512,7 @@ class FeatureFigure:
                     'yaxis' in trace and
                     trace['yaxis'] == 'y' and
                     len(trace['y']) and
-                    generic.constructor_verify(trace['y'][0], float)
+                    mygeneric.constructor_verify(trace['y'][0], float)
             )
 
         # get primary yaxis maximum and minimum values by getting max/min of each trace

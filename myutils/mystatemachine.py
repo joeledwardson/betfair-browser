@@ -2,13 +2,10 @@ import queue
 import logging
 from enum import Enum
 from typing import Dict, List
+from .exceptions import StateMachineException
 
 active_logger = logging.getLogger(__name__)
 active_logger.setLevel(logging.INFO)
-
-
-class StateMachineException(Exception):
-    pass
 
 
 class State:

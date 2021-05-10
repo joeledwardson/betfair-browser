@@ -17,7 +17,7 @@ from sqlalchemy_filters.filters import Operator as SqlOperator
 from sqlalchemy.orm.query import Query
 from queue import Queue
 import logging
-from typing import Optional, Dict, List, Callable, Any
+from typing import Optional, Dict, List, Callable, Any, Tuple
 import keyring
 from os import path
 import os
@@ -130,13 +130,16 @@ class DBBase:
                 f'error writing cache, table primary keys "{tbl_pkeys}" does not match specified "{flt_pkeys}"'
             )
 
+    def apply_basic_filters(self, tbl_nm: str, pkey_flts: Dict) -> Query:
+        return self.session.query(self.tables[tbl_nm]).filter(
+            *[self.tables[tbl_nm].columns[k] == v for k, v in pkey_flts.items()]
+        )
+
     def row_exist(self, tbl_nm: str, pkey_flts: Dict) -> bool:
         """
         Determine if row(s) exist in database for a given table
         """
-        return self.session.query(self.tables[tbl_nm]).filter(
-            *[self.tables[tbl_nm].columns[k] == v for k, v in pkey_flts.items()]
-        ).count() >= 1
+        return self.apply_basic_filters(tbl_nm, pkey_flts).count() >= 1
 
     def _value_processors(self, value, tbl_name, col, prcs, prc_type):
         col_type = type(self.tables[tbl_name].columns[col].type)
@@ -171,18 +174,34 @@ class DBBase:
         self.session.add(row)
         self.session.commit()
 
-    def read_row(self, tbl_nm: str, pkey_flts: Dict) -> Dict:
-        active_logger.info(f'reading row from table "{tbl_nm}" with filter "{pkey_flts}"')
+    def read_rows(self, tbl_nm: str, pkey_flts: Dict) -> List[Dict]:
+        active_logger.info(f'reading rows from table "{tbl_nm}" with filter "{pkey_flts}"')
         self._validate_tbl(tbl_nm)
         self._validate_pkeys(tbl_nm, pkey_flts)
         if not self.row_exist(tbl_nm, pkey_flts):
             raise DBException(f'row in table "{tbl_nm}" with filters "{pkey_flts}" does not exist')
-        row = self.session.query(self.tables[tbl_nm]).filter(
-            *[self.tables[tbl_nm].columns[k] == v for k, v in pkey_flts.items()]
-        ).first()
-        row_data = {str(k): v for k, v in dict(row).items()}  # convert sqlalchemy key objects to str for yaml
-        self._process_columns(row_data, tbl_nm, self.col_prcs, 'process_out')
-        return row_data
+
+        sql_rows = self.apply_basic_filters(tbl_nm, pkey_flts).all()
+        rows = []
+        for row in sql_rows:
+            row_dict = {
+                str(k): v
+                for k, v in dict(row).items()
+            }  # convert sqlalchemy key objects to str for yaml
+            self._process_columns(row_dict, tbl_nm, self.col_prcs, 'process_out')
+            rows.append(row_dict)
+        return rows
+
+    def read_row(self, tbl_nm: str, pkey_flts: Dict) -> Dict:
+        rows = self.read_rows(tbl_nm, pkey_flts)
+        if len(rows) != 1:
+            raise DBException(f'expected 1 row from table "{tbl_nm}" with filters "{pkey_flts}", got {len(rows)}')
+        return rows[0]
+
+    def delete_rows(self, tbl_nm: str, pkey_flts: Dict) -> int:
+        active_logger.info(f'deleting rows from table "{tbl_nm}" with filters: "{pkey_flts}"')
+        q = self.apply_basic_filters(tbl_nm, pkey_flts)
+        return q.delete(synchronize_session='fetch')
 
 
 class DBCache(DBBase):
@@ -279,17 +298,20 @@ class DBCache(DBBase):
             lvl += 1
         return flts
 
-    def scan_cache(self, tbl_nm: str, post_insert: Optional[Callable[[str, Dict], None]] = None):
+    def scan_cache(self, tbl_nm: str, post_insert: Optional[Callable[[str, Dict], None]] = None) -> List[Dict]:
         tbl_root = self.cache_tbl(tbl_nm)
         active_logger.info(f'scanning for cached rows for table "{tbl_nm}" to insert in "{tbl_root}"')
         flts = self._cache_pkeys(tbl_nm)
+        added_pkeys = []
         for pkey_filters in flts:
             if self.row_exist(tbl_nm, pkey_filters):
                 active_logger.info(f'row "{pkey_filters}" already exists in database, skipping...')
             else:
                 self.insert_from_cache(tbl_nm, pkey_filters)
+                added_pkeys.append(pkey_filters)
                 if post_insert is not None:
                     post_insert(tbl_nm, pkey_filters)
+        return added_pkeys
 
 
 DB_PROCESSORS = {
@@ -357,7 +379,6 @@ def apply_filters(tbl: Table, q: Query, filters_spec: List[Dict]) -> Query:
     return q.filter(*conditions)
 
 
-# TODO - add strategy deleter
 class BettingDB:
     """
     Betting database handler
@@ -502,7 +523,7 @@ class BettingDB:
                     'profit': v
                 })
 
-    def scan_mkt_cache(self):
+    def scan_mkt_cache(self) -> List[Dict]:
         """
         scan marketstream cache files - insert into database if not exist and add corresponding marketmeta and runner rows
         """
@@ -510,17 +531,18 @@ class BettingDB:
             if tbl_name != 'marketstream':
                 raise DBException(f'expected "marketstream" table')
             self.insert_market_meta(pkey_flts['market_id'])
-        self._dbc.scan_cache('marketstream', mkt_post_insert)
+        return self._dbc.scan_cache('marketstream', mkt_post_insert)
 
-    def scan_strat_cache(self):
+    def scan_strat_cache(self) -> List[Dict]:
         """
         scan strategy cache files - insert into database if not exist
         """
         def strat_post_insert(tbl_nm, pkey_flts):
             self.insert_strategy_runners(pkey_flts)
 
-        self._dbc.scan_cache('strategymeta')
+        added_keys = self._dbc.scan_cache('strategymeta')
         self._dbc.scan_cache('strategyupdates', strat_post_insert)
+        return added_keys
 
     def write_strat_info(self, strategy_id, type: str, name: str, exec_time: datetime, info: dict):
         data = {
@@ -628,6 +650,25 @@ class BettingDB:
 
     def strategy_count(self) -> int:
         return self._dbc.session.query(self._dbc.tables['strategymeta']).count()
+
+    def strategy_delete(self, strategy_id) -> Tuple[int, int ,int]:
+        strategy_id = str(strategy_id)
+        active_logger.info(f'attempting to delete strategy: "{strategy_id}"')
+        pkey_flt = {'strategy_id': strategy_id}
+        if not self._dbc.row_exist('strategymeta', pkey_flt):
+            raise DBException(f'strategy does not exist, using filters: "{pkey_flt}"')
+        if not strategy_id:
+            raise DBException(f'trying to delete strategy where ID passed is blank!')
+        rows = self._dbc.read_rows('strategymeta', pkey_flt)
+        if len(rows) != 1:
+            raise DBException(f'expected 1 strategy meta row with filter: "{pkey_flt}"')
+        n_runners = self._dbc.delete_rows('strategyrunners', pkey_flt)
+        active_logger.info(f'deleted {n_runners} rows from "strategyrunners" table')
+        n_mkts = self._dbc.delete_rows('strategyupdates', pkey_flt)
+        active_logger.info(f'deleted {n_mkts} rows from "strategyupdates" table')
+        n_meta = self._dbc.delete_rows('strategymeta', pkey_flt)
+        active_logger.info(f'deleted {n_meta} rows from "strategymeta" table')
+        return n_meta, n_mkts, n_runners
 
     def filters_strat_cte(self, strat_filters: DBFilterHandler) -> CTE:
         """

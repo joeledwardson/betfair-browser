@@ -16,7 +16,7 @@ from ..exceptions import TradeStateException
 from .tradetracker import TradeTracker
 from .messages import MessageTypes
 from .runnerhandler import RunnerHandler
-from myutils import statemachine as stm
+from myutils import mystatemachine as stm
 
 
 order_error_states = [

@@ -18,8 +18,8 @@ def testfunction(a):
 ```
 If this is imported
 ```python
-from myutils import generic
-help(generic.testfunction)
+from myutils import mygeneric
+help(mygeneric.testfunction)
 ```
 It would print something like
 > Help on function testfunction in module myutils.generic:

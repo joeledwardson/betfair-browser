@@ -5,7 +5,7 @@ import pytz
 import logging
 import pandas as pd
 from typing import List, Dict
-
+from .exceptions import TimingException
 
 active_logger = logging.getLogger(__name__)
 _function_timings = {}
@@ -86,10 +86,6 @@ def tomorrow(tz=None):
     return today(tz) + timedelta(days=1)
 
 
-class TimerError(Exception):
-    """A custom exception used to report errors in use of Timer class"""
-
-
 class MyTimer:
     """
     timer that can be started and stopped, with elapsed property denoted time passed since start
@@ -103,21 +99,21 @@ class MyTimer:
 
     def start(self):
         if self._running is True:
-            raise TimerError('Tried to start timer when already running')
+            raise TimingException('Tried to start timer when already running')
 
         self._running = True
         self._start_time = time.perf_counter()
 
     def stop(self):
         if self._running is False:
-            raise TimerError('Tried to stop timer when already running')
+            raise TimingException('Tried to stop timer when already running')
 
         self._running = False
         self._elapsed_time += (time.perf_counter() - self._start_time)
 
     def reset(self):
         if self._running is True:
-            raise TimerError('Tried to reset timer when running')
+            raise TimingException('Tried to reset timer when running')
 
         self._elapsed_time = 0.0
 

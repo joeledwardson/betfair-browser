@@ -50,6 +50,16 @@ def header():
             width='auto',
             className='p-1'
         ),
+        dbc.Col(
+            dbc.Button(
+                html.I(className="fas fa-trash"),
+                id="btn-strategy-delete",
+                n_clicks=0,
+                color='danger'
+            ),
+            width='auto',
+            className='p-1'
+        ),
         dbc.Col(),
         dbc.Col(
             dcc.Loading(
