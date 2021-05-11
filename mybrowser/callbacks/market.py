@@ -49,6 +49,7 @@ def cb_market(app, shn: Session):
             Input('input-strategy-clear', 'n_clicks'),
             Input('btn-strategy-delete', 'n_clicks'),
             Input('table-market-session', 'sort_mode'),
+            Input('btn-cache-clear', 'n_clicks'),
             Input('btn-db-refresh', 'n_clicks'),
             Input('btn-db-upload', 'n_clicks'),
             Input('btn-db-reconnect', 'n_clicks'),
@@ -72,6 +73,7 @@ def cb_market(app, shn: Session):
             n_strat_clear,
             n_strat_del,
             sort_mode,
+            n_cache_clear,
             n_db_refresh,
             n_db_upload,
             n_db_reconnect,
@@ -83,13 +85,18 @@ def cb_market(app, shn: Session):
         toast_open = True
         toast_msg = 'Updated markets from database'
 
+        # wipe cache if requested
+        if btn_id == 'btn-cache-clear':
+            n_files, n_dirs = shn.betting_db.wipe_cache()
+            toast_msg = f'Cleared {n_files} files and {n_dirs} dirs from cache'
+
         # delete strategy if requested
         if btn_id == 'btn-strategy-delete':
             if not strategy_id:
                 toast_msg = 'must select strategy first'
             else:
                 n0, n1, n2 = shn.betting_db.strategy_delete(strategy_id)
-                toast_msg = f'removed {n0} runners, {n1} markets, {n2} meta strategy rows'
+                toast_msg = f'removed {n0} strategy meta, {n1} markets, {n2} runners'
 
         # reconnect to database if button pressed
         if btn_id == 'btn-db-reconnect':

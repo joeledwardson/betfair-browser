@@ -1,4 +1,7 @@
 from __future__ import annotations
+
+import shutil
+
 import betfairlightweight
 from betfairlightweight.resources.streamingresources import MarketDefinition
 from betfairlightweight.resources.bettingresources import MarketCatalogue, MarketBook
@@ -26,6 +29,8 @@ import zlib
 import yaml
 import json
 import sys
+import dateparser
+
 from myutils.myregistrar import MyRegistrar
 from ..exceptions import DBException
 from ..strategy.tradetracker import TradeTracker
@@ -36,6 +41,11 @@ active_logger = logging.getLogger(__name__)
 active_logger.setLevel(logging.INFO)
 
 db_processors = MyRegistrar()
+
+
+@db_processors.register_element
+def prc_str_to_dt(data):
+    return dateparser.parse(data, settings={'DATE_ORDER': 'DMY'})  # use UK day-month-year instead of US month-day-year
 
 
 @db_processors.register_element
@@ -201,7 +211,9 @@ class DBBase:
     def delete_rows(self, tbl_nm: str, pkey_flts: Dict) -> int:
         active_logger.info(f'deleting rows from table "{tbl_nm}" with filters: "{pkey_flts}"')
         q = self.apply_basic_filters(tbl_nm, pkey_flts)
-        return q.delete(synchronize_session='fetch')
+        ret = q.delete(synchronize_session='fetch')
+        self.session.commit()
+        return ret
 
 
 class DBCache(DBBase):
@@ -209,6 +221,11 @@ class DBCache(DBBase):
     def __init__(self, cache_root, cache_processors=None, **kwargs):
         super().__init__(**kwargs)
         self.cache_root = path.abspath(path.expandvars(cache_root))
+        if not path.isdir(self.cache_root):
+            active_logger.info(f'creating cache root directory at: "{self.cache_root}"')
+            os.makedirs(self.cache_root)
+        else:
+            active_logger.info(f'existing cache root directory found at: "{self.cache_root}"')
         self.cache_prcs = cache_processors or dict()
 
     def cache_tbl(self, tbl_nm) -> str:
@@ -313,6 +330,17 @@ class DBCache(DBBase):
                     post_insert(tbl_nm, pkey_filters)
         return added_pkeys
 
+    def wipe_cache(self) -> Tuple[int, int]:
+        active_logger.info(f'clearing cache root at "{self.cache_root}"')
+        _, dirnames, filenames = next(os.walk(self.cache_root))
+        for fnm in filenames:
+            p = path.join(self.cache_root, fnm)
+            os.remove(p)
+        for dnm in dirnames:
+            p = path.join(self.cache_root, dnm)
+            shutil.rmtree(p)
+        return len(filenames), len(dirnames)
+
 
 DB_PROCESSORS = {
     psqlbase.BYTEA: {
@@ -368,8 +396,16 @@ CACHE_PROCESSORS = {
     }
 }
 
+FILTER_SPEC_PROCESSORS = {
+    psqlbase.TIMESTAMP: {
+        'processors': [
+            'prc_str_to_dt'
+        ]
+    }
+}
 
-def apply_filters(tbl: Table, q: Query, filters_spec: List[Dict]) -> Query:
+
+def apply_filter_spec(tbl: Table, q: Query, filters_spec: List[Dict]) -> Query:
     """sqlalchemy_filters `apply_filters` function doesn't work with Sqlalchemy V1.14 so i've bodged it myself until
     they sort it out"""
     conditions = [
@@ -523,6 +559,9 @@ class BettingDB:
                     'profit': v
                 })
 
+    def wipe_cache(self) -> Tuple[int, int]:
+        return self._dbc.wipe_cache()
+
     def scan_mkt_cache(self) -> List[Dict]:
         """
         scan marketstream cache files - insert into database if not exist and add corresponding marketmeta and runner rows
@@ -596,10 +635,22 @@ class BettingDB:
             col='strategy_updates'
         )
 
-    def paths_market_updates(self, mkt_filters: List[Dict], limit=200):
+    def paths_market_updates(self, filter_spec: List[Dict], limit=200):
+        for flt in filter_spec:
+            if 'value' not in flt:
+                raise DBException(f'expected "value" in fitler spec dict: "{flt}"')
+            if 'field' not in flt:
+                raise DBException(f'expected "field" in fitler spec dict: "{flt}"')
+            flt['value'] = self._dbc._value_processors(
+                value=flt['value'],
+                tbl_name='marketmeta',
+                col=flt['field'],
+                prcs=FILTER_SPEC_PROCESSORS,
+                prc_type='processors'
+            )
         tbl = self._dbc.tables['marketmeta']
         q = self._dbc.session.query(tbl)
-        q_flt = apply_filters(tbl, q, mkt_filters)
+        q_flt = apply_filter_spec(tbl, q, filter_spec)
         rows = q_flt.limit(limit).all()
         update_paths = []
         for row in rows:

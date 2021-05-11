@@ -16,8 +16,12 @@ KEY_COMPARE = 'cmp'
 
 class ConfigGenerator:
     def __init__(self, cfg_dir: str, out_dir, reg: MyRegistrar):
-        self._cfg_dir = cfg_dir
-        self._out_dir = out_dir
+        self._cfg_dir = path.abspath(path.expandvars(cfg_dir))
+        if not path.isdir(self._cfg_dir):
+            raise FeatureConfigException(f'configuration dir "{self._cfg_dir}" is not a directory')
+        self._out_dir = path.abspath(path.expandvars(out_dir))
+        if not path.isdir(self._out_dir):
+            raise FeatureConfigException(f'output dir "{self._out_dir}" is not a directory')
         self._reg = reg
 
     def reload(self):

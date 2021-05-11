@@ -7,6 +7,29 @@ import myutils.mydash
 from .layouts import market, runners, configs, orders, timings, logger, INTERMEDIARIES
 
 
+class ToastHandler:
+
+    top = 0
+
+    @classmethod
+    def get_toast(cls, toast_id, header, icon='info'):
+        # cls.top += 20
+        return dbc.Toast(
+            id=toast_id,
+            header=header,
+            is_open=False,
+            dismissable=True,
+            icon=icon,
+            duration=3000,
+            style={
+                "position": "fixed",
+                "top": cls.top,
+                "right": 200,
+                "width": 350
+            },
+        )
+
+
 def hidden_elements(n_odr_rows, n_tmr_rows):
     return [
 
@@ -52,26 +75,8 @@ def hidden_elements(n_odr_rows, n_tmr_rows):
             id='modal-libs',
         ),
 
-        dbc.Toast(
-            id="toast-fcfgs",
-            header="Configurations",
-            is_open=False,
-            dismissable=True,
-            icon="info",
-            duration=3000,
-            # top: 66 positions the toast below the navbar
-            style={"position": "fixed", "top": 66, "right": 10, "width": 350},
-        ),
-
-        dbc.Toast(
-            id="toast-db-market",
-            header="Market Database",
-            is_open=False,
-            dismissable=True,
-            icon="info",
-            duration=3000,
-            style={"position": "fixed", "top": 76, "right": 10, "width": 350, 'background': 'RGB(255, 255, 255)'},
-        ),
+        ToastHandler.get_toast('toast-fcfgs', 'Configurations'),
+        ToastHandler.get_toast('toast-db-market', 'Market Database'),
 
         dbc.Modal([
             dbc.ModalHeader('Feature/plot configurations reloaded'),
@@ -176,6 +181,7 @@ def left_col(filter_margins, dflt_offset, mkt_tbl_cols, n_mkt_rows):
 
         html.Div([
             market.header(),
+            market.mkt_buttons(),
             market.query_status(),
             market.mkt_table(mkt_tbl_cols, n_mkt_rows)
         ], className='shadow h-100 p-4')],

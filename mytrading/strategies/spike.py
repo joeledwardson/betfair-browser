@@ -23,6 +23,7 @@ from ..strategy.trademachine import RunnerTradeMachine
 from ..strategy.strategy import MyFeatureStrategy
 from ..strategy.feature import FeatureHolder
 from ..strategy.tradetracker import TradeTracker
+from ..strategy import strategies_reg
 from ..process import get_ltps
 
 MIN_BET_AMOUNT = 2
@@ -143,6 +144,7 @@ class SpikeRunnerHandler(RunnerHandler):
         self.spike_data = SpikeData()
         
 
+@strategies_reg.register_element
 class MySpikeStrategy(MyFeatureStrategy):
     """
     Trades spikes above & below LTP window max and minimums

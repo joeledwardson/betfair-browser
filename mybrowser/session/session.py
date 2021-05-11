@@ -229,12 +229,12 @@ class Session:
         ).reload()
 
         # get feature configs
-        feature_dir = path.abspath(self.config['CONFIG_PATHS']['feature_out'])
+        feature_dir = path.abspath(path.expandvars(self.config['CONFIG_PATHS']['feature_out']))
         active_logger.info(f'getting feature configurations from:\n-> {feature_dir}"')
         self.ftr_fcfgs = self.ftr_readf(feature_dir)
 
         # get plot configurations
-        plot_dir = path.abspath(self.config['CONFIG_PATHS']['plot_out'])
+        plot_dir = path.abspath(path.expandvars(self.config['CONFIG_PATHS']['plot_out']))
         active_logger.info(f'getting plot configurations from:\n-> {plot_dir}"')
         self.ftr_pcfgs = self.ftr_readf(plot_dir)
 

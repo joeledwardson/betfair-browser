@@ -22,40 +22,10 @@ def header():
         ),
         dbc.Col(
             dbc.Button(
-                html.I(className="fas fa-sync-alt"),
-                id="btn-db-refresh",
-                n_clicks=0,
-                color='primary'
-            ),
-            width='auto',
-            className='p-1'
-        ),
-        dbc.Col(
-            dbc.Button(
-                html.I(className="fas fa-arrow-circle-up"),
-                id="btn-db-upload",
-                n_clicks=0,
-                color='primary'
-            ),
-            width='auto',
-            className='p-1'
-        ),
-        dbc.Col(
-            dbc.Button(
                 html.I(className="fas fa-database"),
                 id="btn-db-reconnect",
                 n_clicks=0,
                 color='primary'
-            ),
-            width='auto',
-            className='p-1'
-        ),
-        dbc.Col(
-            dbc.Button(
-                html.I(className="fas fa-trash"),
-                id="btn-strategy-delete",
-                n_clicks=0,
-                color='danger'
             ),
             width='auto',
             className='p-1'
@@ -70,6 +40,41 @@ def header():
         )],
         align='center'
     )
+
+
+def mkt_buttons():
+    return dbc.Row([
+        dbc.Col(
+            dbc.Button(
+                ['Reload', html.I(className="fas fa-sync-alt ml-2")],
+                id="btn-db-refresh",
+                n_clicks=0,
+                color='primary'
+            ),
+            width='auto',
+            className='pr-1'
+        ),
+        dbc.Col(
+            dbc.Button(
+                ['Upload Cache', html.I(className="fas fa-arrow-circle-up ml-2")],
+                id="btn-db-upload",
+                n_clicks=0,
+                color='primary'
+            ),
+            width='auto',
+            className='p-1'
+        ),
+        dbc.Col(
+            dbc.Button(
+                ['Clear Cache', html.I(className="fas fa-trash ml-2")],
+                id="btn-cache-clear",
+                n_clicks=0,
+                color='warning'
+            ),
+            width='auto',
+            className='p-1'
+        ),
+    ], align='center', no_gutters=True)
 
 
 def mkt_filters(multi, filter_margins):
@@ -124,7 +129,7 @@ def mkt_filters(multi, filter_margins):
         ),
         dbc.Button(
             id='input-mkt-clear',
-            children='clear',
+            children='Clear',
             className=filter_margins
         )
     ]
@@ -168,7 +173,18 @@ def strat_filters(filter_margins):
         ),
         dbc.Button(
             id='input-strategy-clear',
-            children='clear',
+            children='Clear',
             className=filter_margins
-        )
+        ),
+
+        # dbc.Col(
+        dbc.Button(
+            ['Delete Strategy', html.I(className="fas fa-trash ml-2")],
+            id="btn-strategy-delete",
+            n_clicks=0,
+            color='danger'
+        ),
+        #     width='auto',
+        #     className='p-1'
+        # ),
     ]
