@@ -3,7 +3,7 @@ import logging
 
 from ..process import get_best_price
 from .feature import FeatureHolder
-from .messages import MessageTypes
+from mytrading.strategy.messages import MessageTypes
 from .tradetracker import TradeTracker
 
 active_logger = logging.getLogger(__name__)

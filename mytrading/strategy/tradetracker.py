@@ -1,3 +1,4 @@
+from __future__ import annotations
 from flumine.order.order import BetfairOrder, OrderStatus
 from flumine.order.trade import Trade, TradeStatus
 from flumine.order.ordertype import LimitOrder
@@ -12,7 +13,7 @@ from os import path
 import json
 from dataclasses import dataclass, field
 
-from .messages import MessageTypes, format_message
+from mytrading.strategy.messages import MessageTypes, format_message
 from ..exceptions import TradeTrackerException
 from ..process import get_order_profit
 
@@ -102,7 +103,18 @@ class TradeTracker:
         return info
 
     @staticmethod
-    def get_order_updates(file_path) -> pd.DataFrame:
+    def get_runner_profits(updates_path: str) -> Dict:
+        df = TradeTracker.get_order_updates(updates_path)
+        active_logger.info(f'found {df.shape[0]} order updates in file "{updates_path}"')
+        if df.shape[0]:
+            df = df[df['msg_type'] == MessageTypes.MSG_MARKET_CLOSE.name]
+            df['profit'] = [TradeTracker.dict_order_profit(o) for o in df['order_info']]
+            return df.groupby(df['selection_id'])['profit'].sum().to_dict()
+        else:
+            return dict()
+
+    @staticmethod
+    def get_order_updates(file_path: str) -> pd.DataFrame:
         """get `TradeTracker` data written to file in dataframe format, with index set as `pt` converted to datetimes if
         fail, return None"""
         if not path.isfile(file_path):

@@ -1,8 +1,10 @@
 from typing import List, Dict, Optional
 from myutils.myregistrar import MyRegistrar
+from myutils import mydict
 import os, yaml
 from os import path
 from .exceptions import FeatureConfigException
+
 
 reg_plots = MyRegistrar()
 reg_features = MyRegistrar()
@@ -15,6 +17,15 @@ KEY_COMPARE = 'cmp'
 
 
 class ConfigGenerator:
+    CONFIG_SPEC = {
+        'name': {
+            'type': str
+        },
+        'kwargs': {
+            'type': dict
+        }
+    }
+
     def __init__(self, cfg_dir: str, out_dir, reg: MyRegistrar):
         self._cfg_dir = path.abspath(path.expandvars(cfg_dir))
         if not path.isdir(self._cfg_dir):
@@ -31,16 +42,9 @@ class ConfigGenerator:
             with open(p_in, 'r') as f:
                 data = f.read()
             file_cfg = yaml.load(data, yaml.FullLoader)
-            if 'name' not in file_cfg:
-                raise FeatureConfigException(f'"name" not found in config path "{p_in}"')
-            if 'kwargs' not in file_cfg:
-                raise FeatureConfigException(f'"kwargs" not found in config path "{p_in}"')
-            if type(file_cfg['kwargs']) is not dict:
-                raise FeatureConfigException(f'"kwargs" item in "{p_in}" not dict')
-            reg_nm = file_cfg.pop('name')
-            reg_kwargs = file_cfg.pop('kwargs')
-            if file_cfg:
-                raise FeatureConfigException(f'"{p_in}" contains known keys: {file_cfg}')
+            mydict.validate_config(file_cfg, self.CONFIG_SPEC)
+            reg_nm = file_cfg['name']
+            reg_kwargs = file_cfg['kwargs']
             ftr_cfg = self._reg[reg_nm](**reg_kwargs)
             p_out = path.join(self._out_dir, fn)
             with open(p_out, 'w') as f:

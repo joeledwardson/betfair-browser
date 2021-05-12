@@ -1,5 +1,5 @@
 from enum import Enum
-from typing import List, Dict, Union
+from typing import List, Union
 from datetime import datetime, timedelta
 from flumine.controls.clientcontrols import MaxTransactionCount
 
@@ -7,14 +7,13 @@ from flumine import BaseStrategy
 from flumine.markets.market import Market
 from flumine.order.order import BetfairOrder, OrderStatus
 from flumine.order.ordertype import LimitOrder, OrderTypes
-from flumine.order.trade import Trade, TradeStatus
-from betfairlightweight.resources.bettingresources import MarketBook, RunnerBook
+from flumine.order.trade import TradeStatus
+from betfairlightweight.resources.bettingresources import RunnerBook
 
 from ..process import MatchBetSums, get_order_profit, get_side_operator, get_side_ladder, side_invert, closest_tick, \
     LTICKS_DECODED
 from ..exceptions import TradeStateException
-from .tradetracker import TradeTracker
-from .messages import MessageTypes
+from mytrading.strategy.messages import MessageTypes
 from .runnerhandler import RunnerHandler
 from myutils import mystatemachine as stm
 

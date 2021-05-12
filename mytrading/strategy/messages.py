@@ -1,10 +1,10 @@
 from enum import Enum
 from typing import Dict, Callable
 import logging
-from ..exceptions import MessagerException
+from mytrading.exceptions import MessagerException
 
 active_logger = logging.getLogger(__name__)
-message_formatters: Dict[Enum, Callable] = {}
+message_formatters: Dict[str, Callable] = {}
 
 
 def format_message(msg_type: str, msg_attrs: Dict) -> str:

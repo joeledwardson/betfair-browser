@@ -2,11 +2,9 @@ from __future__ import annotations
 
 import shutil
 
-import betfairlightweight
 from betfairlightweight.resources.streamingresources import MarketDefinition
 from betfairlightweight.resources.bettingresources import MarketCatalogue, MarketBook
 from betfairlightweight.streaming.listener import StreamListener
-from betfairlightweight import APIClient
 import sqlalchemy
 from sqlalchemy.sql.selectable import CTE
 from sqlalchemy import create_engine
@@ -33,9 +31,7 @@ import dateparser
 
 from myutils.myregistrar import MyRegistrar
 from ..exceptions import DBException
-from ..strategy.tradetracker import TradeTracker
-from ..strategy.messages import MessageTypes
-from .dbfilter import DBFilter, DBFilterHandler
+from .dbfilter import DBFilterHandler
 
 active_logger = logging.getLogger(__name__)
 active_logger.setLevel(logging.INFO)
@@ -543,21 +539,22 @@ class BettingDB:
         meta_data = self.get_meta(bk, cat)
         self._dbc.insert_row('marketmeta', meta_data)
 
-    def insert_strategy_runners(self, pkey_filters):
+    def insert_strategy_runners(self, pkey_filters, profit_func: Callable[[str], Dict]):
         p = self._dbc.cache_col('strategyupdates', pkey_filters, 'strategy_updates')
         if not path.isfile(p):
             raise DBException(f'expected strategy update file at "{p}"')
-        df = TradeTracker.get_order_updates(p)
-        active_logger.info(f'found {df.shape[0]} order updates in file "{p}"')
-        if df.shape[0]:
-            df = df[df['msg_type'] == MessageTypes.MSG_MARKET_CLOSE.name]
-            df['profit'] = [TradeTracker.dict_order_profit(o) for o in df['order_info']]
-            runner_profits = df.groupby(df['selection_id'])['profit'].sum().to_dict()
-            for k, v in runner_profits.items():
-                self._dbc.insert_row('strategyrunners', pkey_filters | {
-                    'runner_id': k,
-                    'profit': v
-                })
+        runner_profits = profit_func(p)
+        # df = TradeTracker.get_order_updates(p)
+        # active_logger.info(f'found {df.shape[0]} order updates in file "{p}"')
+        # if df.shape[0]:
+        #     df = df[df['msg_type'] == MessageTypes.MSG_MARKET_CLOSE.name]
+        #     df['profit'] = [TradeTracker.dict_order_profit(o) for o in df['order_info']]
+        #     runner_profits = df.groupby(df['selection_id'])['profit'].sum().to_dict()
+        for k, v in runner_profits.items():
+            self._dbc.insert_row('strategyrunners', pkey_filters | {
+                'runner_id': k,
+                'profit': v
+            })
 
     def wipe_cache(self) -> Tuple[int, int]:
         return self._dbc.wipe_cache()
@@ -572,12 +569,12 @@ class BettingDB:
             self.insert_market_meta(pkey_flts['market_id'])
         return self._dbc.scan_cache('marketstream', mkt_post_insert)
 
-    def scan_strat_cache(self) -> List[Dict]:
+    def scan_strat_cache(self, profit_func: Callable[[str], Dict]) -> List[Dict]:
         """
         scan strategy cache files - insert into database if not exist
         """
         def strat_post_insert(tbl_nm, pkey_flts):
-            self.insert_strategy_runners(pkey_flts)
+            self.insert_strategy_runners(pkey_flts, profit_func)
 
         added_keys = self._dbc.scan_cache('strategymeta')
         self._dbc.scan_cache('strategyupdates', strat_post_insert)

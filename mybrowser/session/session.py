@@ -17,15 +17,16 @@ import importlib
 
 import mytrading.exceptions
 import mytrading.process
-from mytrading.strategy import messages as msgs
 from mytrading import utils as trutils
 from mytrading.utils import bettingdb as bdb, dbfilter as dbf
-from mytrading.strategy import tradetracker
-from mytrading import visual as figlib
+from mytrading import strategy as strat
+from mytrading.strategy import tradetracker, messages as msgs
 from mytrading.strategy import feature as ftrutils
+from mytrading import visual as figlib
 from mytrading import configs as cfgs
 from myutils import mytiming, mygeneric
 from myutils import myregistrar as myreg
+from myutils import mydict
 
 active_logger = logging.getLogger(__name__)
 active_logger.setLevel(logging.INFO)
@@ -146,6 +147,25 @@ class Session:
         self.ftr_fcfgs = dict()  # feature configurations
         self.ftr_pcfgs = dict()  # plot configurations
 
+        # strategy run configs
+        self._strat_dir = path.abspath(path.expandvars(config['CONFIG_PATHS']['strategy_dir']))
+        self._strat_cfgs = dict()
+        self.strat_update()
+
+    def strat_update(self) -> Dict:
+        self._strat_cfgs = mydict.load_yaml_confs(self._strat_dir)
+        return self._strat_cfgs
+
+    def strat_run(self, cfg_name):
+        if cfg_name not in self._strat_cfgs:
+            raise SessionException(f'strateyg config name "{cfg_name}" not found')
+        cfg = self._strat_cfgs[cfg_name]
+        strat.run_strategy(cfg, True, self.betting_db)
+
+    @property
+    def strat_cfg_names(self) -> List:
+        return list(self._strat_cfgs.keys())
+
     @classmethod
     def cfg_local(cls):
         active_logger.info(f'reading configuration from default "{cls.CFG_LOCAL_FILE}"...')
@@ -174,40 +194,8 @@ class Session:
     @staticmethod
     def ftr_readf(config_dir: str) -> Dict:
         """get dictionary of (configuration file name without ext => config dict) directory of yaml files"""
-
-        # check directory is set
-        if type(config_dir) is not str:
-            raise SessionException(f'directory "{config_dir}" is not a string')
-
-        # check actually exists
-        if not path.isdir(config_dir):
-            raise SessionException(f'directory "{config_dir}" does not exist!')
-
-        # dict of configs to return
-        configs = dict()
-
-        # get files in directory
-        _, _, files = next(os.walk(config_dir))
-
-        # loop files
-        for file_name in files:
-
-            # get file path and name without ext
-            file_path = path.join(config_dir, file_name)
-            name, ext = path.splitext(file_name)
-            if ext != '.yaml':
-                continue
-
-            with open(file_path) as f:
-                # The FullLoader parameter handles the conversion from YAML
-                # scalar values to Python the dictionary format
-                cfg = yaml.load(f, Loader=yaml.FullLoader)
-
-            # check config successfully parsed
-            if cfg is not None:
-                configs[name] = cfg
-
-        active_logger.info(f'{len(configs)} valid configuration files found from {len(files)} files')
+        configs = mydict.load_yaml_confs(config_dir)
+        active_logger.info(f'{len(configs)} valid configuration files found')
         active_logger.info(f'feature configs: {list(configs.keys())}')
         return configs
 

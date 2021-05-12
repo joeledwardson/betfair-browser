@@ -1,4 +1,4 @@
-from .messages import MessageTypes
+from mytrading.strategy.messages import MessageTypes
 from myutils import mystatemachine as stm
 from flumine.markets.market import Market
 import logging

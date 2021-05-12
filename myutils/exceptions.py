@@ -13,3 +13,7 @@ class StateMachineException(MyUtilsException):
 class TimingException(MyUtilsException):
     """A custom exception used to report errors in use of Timer class"""
     pass
+
+
+class DictException(MyUtilsException):
+    pass

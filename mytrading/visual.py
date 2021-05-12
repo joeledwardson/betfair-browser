@@ -12,8 +12,8 @@ from plotly import graph_objects as go
 from plotly.subplots import make_subplots
 
 from .exceptions import FigureException, FigureDataProcessorException, FigurePostProcessException
-from .strategy.messages import format_message, MessageTypes
-from mytrading.process.ticks import LTICKS_DECODED
+from mytrading.strategy.messages import format_message, MessageTypes
+from .process.ticks import LTICKS_DECODED
 from .process import closest_tick
 from myutils import mygeneric
 

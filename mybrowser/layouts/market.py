@@ -188,3 +188,19 @@ def strat_filters(filter_margins):
         #     className='p-1'
         # ),
     ]
+
+
+def strat_buttons(filter_margins):
+    return [
+        dcc.Dropdown(
+            id='input-strategy-run',
+            placeholder='Strategy config...',
+            className=filter_margins
+        ),
+        dbc.Button(
+            ['Run Strategy', html.I(className="fas fa-play-circle ml-2")],
+            id="btn-strategy-run",
+            n_clicks=0,
+            color='info'
+        ),
+    ]

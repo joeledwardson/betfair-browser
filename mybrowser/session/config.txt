@@ -32,6 +32,7 @@ feature_src = %%USERPROFILE%%/OneDrive/betfair/pythonbetfair/configurations/feat
 feature_out = %%USERPROFILE%%/OneDrive/betfair/pythonbetfair/configurations/feature_plot_out/feature
 plot_src = %%USERPROFILE%%/OneDrive/betfair/pythonbetfair/configurations/feature_plot_src/plot
 plot_out = %%USERPROFILE%%/OneDrive/betfair/pythonbetfair/configurations/feature_plot_out/plot
+strategy_dir = %%USERPROFILE%%/OneDrive/betfair/pythonbetfair/configurations/strategy_confs
 
 [PLOT_CONFIG]
 default_offset = 00:03:00

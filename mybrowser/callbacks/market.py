@@ -4,6 +4,7 @@ import dash_html_components as html
 import myutils.mydash
 import logging
 from ..session import Session
+from mytrading.strategy import tradetracker as tt
 
 active_logger = logging.getLogger(__name__)
 active_logger.setLevel(logging.INFO)
@@ -106,7 +107,7 @@ def cb_market(app, shn: Session):
         # upload market & strategy cache if "upload" button clicked
         if btn_id == 'btn-db-upload':
             n_mkt = len(shn.betting_db.scan_mkt_cache())
-            n_strat = len(shn.betting_db.scan_strat_cache())
+            n_strat = len(shn.betting_db.scan_strat_cache(tt.TradeTracker.get_runner_profits))
             toast_msg = f'found {n_mkt} new markets and {n_strat} new strategies in cache'
 
         # update strategy filters and selectable options

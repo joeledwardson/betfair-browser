@@ -5,7 +5,6 @@ from os import path
 import os
 from typing import Optional, Dict
 import logging
-import yaml
 
 from betfairlightweight.resources import MarketBook, RunnerBook
 from flumine import clients, BaseStrategy
@@ -17,7 +16,6 @@ from ..utils import bettingdb
 from .feature import FeatureHolder
 from .trademachine import RunnerTradeMachine
 from .tradestates import TradeStateTypes
-from .messages import MessageTypes
 from .tradetracker import TradeTracker
 from .runnerhandler import RunnerHandler
 from myutils.mytiming import EdgeDetector, timing_register

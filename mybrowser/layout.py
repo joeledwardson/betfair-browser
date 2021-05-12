@@ -204,9 +204,11 @@ def right_col(filter_margins, n_run_rows):
                 [
                     *market.mkt_filters(multi=False, filter_margins=filter_margins),
                     html.Hr(className='ml-0 mr-0'),
-                    *market.strat_filters(filter_margins)
+                    *market.strat_filters(filter_margins),
+                    html.Hr(className='ml-0 mr-0'),
+                    *market.strat_buttons(filter_margins)
                 ],
-                className='d-flex flex-column pr-2'
+                className='d-flex flex-column pr-2 overflow-auto'
             )],
             className='d-flex flex-column h-100 p-3'
         ),
