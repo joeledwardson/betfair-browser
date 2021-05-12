@@ -94,7 +94,6 @@ def get_formatters(dt_format) -> myreg.MyRegistrar:
     return formatters
 
 
-# TODO - add strategy configuration loader and operator
 class Session:
 
     MODULES = ['myutils', 'mytrading']
@@ -160,7 +159,7 @@ class Session:
         if cfg_name not in self._strat_cfgs:
             raise SessionException(f'strateyg config name "{cfg_name}" not found')
         cfg = self._strat_cfgs[cfg_name]
-        strat.run_strategy(cfg, True, self.betting_db)
+        return strat.run_strategy(cfg, True, self.betting_db)
 
     @property
     def strat_cfg_names(self) -> List:

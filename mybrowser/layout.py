@@ -77,6 +77,7 @@ def hidden_elements(n_odr_rows, n_tmr_rows):
 
         ToastHandler.get_toast('toast-fcfgs', 'Configurations'),
         ToastHandler.get_toast('toast-db-market', 'Market Database'),
+        ToastHandler.get_toast('toast-strat-reload', 'Strategy Configs'),
 
         dbc.Modal([
             dbc.ModalHeader('Feature/plot configurations reloaded'),

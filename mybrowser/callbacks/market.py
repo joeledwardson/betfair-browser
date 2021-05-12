@@ -54,8 +54,10 @@ def cb_market(app, shn: Session):
             Input('btn-db-refresh', 'n_clicks'),
             Input('btn-db-upload', 'n_clicks'),
             Input('btn-db-reconnect', 'n_clicks'),
+            Input('btn-strategy-run', 'n_clicks'),
 
             Input('input-strategy-select', 'value'),
+
             Input('input-sport-type', 'value'),
             Input('input-mkt-type', 'value'),
             Input('input-bet-type', 'value'),
@@ -65,8 +67,8 @@ def cb_market(app, shn: Session):
             Input('input-date', 'value'),
             Input('input-mkt-id', 'value')
         ],
-        states=[
-            State('table-market-session', 'active_cell')
+        state=[
+            State('input-strategy-run', 'value')
         ]
     )
     def mkt_intermediary(
@@ -78,13 +80,26 @@ def cb_market(app, shn: Session):
             n_db_refresh,
             n_db_upload,
             n_db_reconnect,
+            n_strat_run,
             strategy_id,
-            *args
+            m0, m1, m2, m3, m4, m5, m6, m7,
+            strategy_run_val
     ):
+        flt_market_args = [m0, m1, m2, m3, m4, m5, m6, m7]
         btn_id = myutils.mydash.triggered_id()
 
         toast_open = True
         toast_msg = 'Updated markets from database'
+
+        # run new strategy if requested
+        if btn_id == 'btn-strategy-run':
+            shn.strat_update()  # update configurations first
+            if strategy_run_val is None:
+                toast_msg = 'cannot run strategy without selecting one'
+            else:
+                strategy_id = str(shn.strat_run(strategy_run_val))
+                toast_msg = f'created new strategy "{strategy_id}'
+                shn.betting_db.scan_strat_cache(tt.TradeTracker.get_runner_profits)  # upload strategy from cache
 
         # wipe cache if requested
         if btn_id == 'btn-cache-clear':
@@ -119,7 +134,7 @@ def cb_market(app, shn: Session):
 
         # update market filters and selectable options
         mkt_clear = btn_id in ['input-mkt-clear', 'btn-db-reconnect']
-        shn.filters_mkt.update_filters(clear=mkt_clear, args=args)
+        shn.filters_mkt.update_filters(clear=mkt_clear, args=flt_market_args)
         # clear strategy ID variable used in market filtering if "clear strategy" button clicked
         if strat_clear:
             strategy_id = None
@@ -154,17 +169,30 @@ def cb_market(app, shn: Session):
             toast_msg
         ] + vals + lbls + strat_vals + strat_lbls
 
-    @app.callback(
-        Output('btn-strategy-delete', 'disabled'),
-        [
-            Input('input-strategy-select', 'value'),
+    @app.callback([
+        Output('input-strategy-run', 'options'),
+        Output('toast-strat-reload', 'is_open'),
+        Output('toast-strat-reload', 'children')
+    ], Input('btn-strategies-reload', 'n_clicks'))
+    def strategy_run_reload(n_reload):
+        n_confs = len(shn.strat_update())
+        options = [{
+            'label': v,
+            'value': v
+        } for v in shn.strat_cfg_names]
+        return [
+            options,
+            True,
+            f'loaded {n_confs} strategy configs'
         ]
-    )
+
+    @app.callback(Output('btn-strategy-run', 'disabled'), Input('input-strategy-run', 'value'))
+    def strategy_run_enable(strategy_run_select):
+        return strategy_run_select is None
+
+    @app.callback(Output('btn-strategy-delete', 'disabled'), Input('input-strategy-select', 'value'))
     def strategy_delete_enable(strategy_id):
-        if strategy_id:
-            return False
-        else:
-            return True
+        return strategy_id is None
 
     @app.callback(
         Output("right-side-bar", "className"),

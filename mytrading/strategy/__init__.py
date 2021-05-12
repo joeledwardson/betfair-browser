@@ -3,6 +3,7 @@ import yaml
 import logging
 from myutils import myregistrar as myreg
 from myutils import mydict
+from uuid import UUID
 from ..exceptions import MyStrategyException
 from ..utils import BettingDB
 from .strategy import BackTestClientNoMin
@@ -25,7 +26,7 @@ STRATEGY_CONFIG_SPEC = {
 }
 
 
-def run_strategy(cfg: Dict, historic: bool, db: BettingDB) -> float:
+def run_strategy(cfg: Dict, historic: bool, db: BettingDB) -> UUID:
     mydict.validate_config(cfg, STRATEGY_CONFIG_SPEC)
     nm = cfg['name']
     kwargs = cfg['info']
@@ -47,10 +48,11 @@ def run_strategy(cfg: Dict, historic: bool, db: BettingDB) -> float:
     framework = FlumineBacktest(client=client)
     framework.add_strategy(strategy_obj)
     framework.run()
+    return strategy_obj.strategy_id
 
-    total_profit = 0
-    for market in framework.markets:
-        market_profit = sum(o.simulated.profit for o in market.blotter)
-        total_profit += market_profit
-    return total_profit
+    # total_profit = 0
+    # for market in framework.markets:
+    #     market_profit = sum(o.simulated.profit for o in market.blotter)
+    #     total_profit += market_profit
+    # return total_profit
 

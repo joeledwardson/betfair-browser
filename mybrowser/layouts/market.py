@@ -172,21 +172,16 @@ def strat_filters(filter_margins):
             className=filter_margins
         ),
         dbc.Button(
+            'Clear',
             id='input-strategy-clear',
-            children='Clear',
             className=filter_margins
         ),
-
-        # dbc.Col(
         dbc.Button(
             ['Delete Strategy', html.I(className="fas fa-trash ml-2")],
             id="btn-strategy-delete",
             n_clicks=0,
             color='danger'
         ),
-        #     width='auto',
-        #     className='p-1'
-        # ),
     ]
 
 
@@ -198,9 +193,17 @@ def strat_buttons(filter_margins):
             className=filter_margins
         ),
         dbc.Button(
+            'Reload configs...',
+            id='btn-strategies-reload',
+            n_clicks=0,
+            color='info',
+            className=filter_margins
+        ),
+        dbc.Button(
             ['Run Strategy', html.I(className="fas fa-play-circle ml-2")],
             id="btn-strategy-run",
             n_clicks=0,
-            color='info'
+            color='primary',
+            className=filter_margins
         ),
     ]
