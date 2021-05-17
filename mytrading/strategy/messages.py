@@ -62,6 +62,7 @@ class MessageTypes(Enum):
     MSG_LAY_EMPTY = 'lay empty'
     MSG_BACK_EMPTY = 'back empty'
     MSG_PRICE_INVALID = 'price invalid'
+    MSG_CANCEL_ID_FAIL = 'cannot cancel'
 
 
 @register_formatter(MessageTypes.MSG_LAY_EMPTY)
@@ -200,3 +201,9 @@ def formatter(attrs: Dict) -> str:
 @register_formatter(MessageTypes.MSG_PRICE_INVALID)
 def formatter(attrs: Dict) -> str:
     return f'price is not a valid tick: "{attrs.get("price")}"'
+
+
+@register_formatter(MessageTypes.MSG_CANCEL_ID_FAIL)
+def foramtter(attrs: Dict) -> str:
+    return f'cannot cancel order "{attrs.get("order_id")}", bet_id is None'
+

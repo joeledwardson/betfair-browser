@@ -1,3 +1,4 @@
+import uuid
 from functools import partial
 from betfairlightweight.resources.bettingresources import MarketBook
 from os import path
@@ -13,6 +14,7 @@ import json
 from json.decoder import JSONDecodeError
 import importlib.resources as pkg_resources
 import importlib
+import threading
 
 
 import mytrading.exceptions
@@ -149,17 +151,48 @@ class Session:
         # strategy run configs
         self._strat_dir = path.abspath(path.expandvars(config['CONFIG_PATHS']['strategy_dir']))
         self._strat_cfgs = dict()
+        self._strat_lock = threading.Lock()
+        self._strat_mkt_count = 0
+        self._strat_running = False
+        self._strat_obj: Optional[strat.MyFeatureStrategy] = None
         self.strat_update()
 
     def strat_update(self) -> Dict:
         self._strat_cfgs = mydict.load_yaml_confs(self._strat_dir)
         return self._strat_cfgs
 
-    def strat_run(self, cfg_name):
+    @property
+    def strat_n_done(self) -> int:
+        with self._strat_lock:
+            if self._strat_running:
+                return len([mh for mh in self._strat_obj.market_handlers.values() if mh.closed])
+            else:
+                return 0
+
+    @property
+    def strat_mkt_count(self) -> int:
+        return self._strat_mkt_count
+
+    @property
+    def strat_running(self) -> bool:
+        with self._strat_lock:
+            return self._strat_running
+
+    def strat_run(self, cfg_name) -> uuid.UUID:
         if cfg_name not in self._strat_cfgs:
-            raise SessionException(f'strateyg config name "{cfg_name}" not found')
+            raise SessionException(f'strategy config name "{cfg_name}" not found')
         cfg = self._strat_cfgs[cfg_name]
-        return strat.run_strategy(cfg, True, self.betting_db)
+        with self._strat_lock:
+            self._strat_obj = strat.hist_strat_create(cfg, self.betting_db)
+            strat_id = self._strat_obj.strategy_id
+            self._strat_running = True
+            self._strat_mkt_count = len(self._strat_obj.market_filter['markets'])
+        strat.hist_strat_run(self._strat_obj)
+        with self._strat_lock:
+            self._strat_running = False
+            self._strat_obj = None
+            self._strat_mkt_count = 0
+        return strat_id
 
     @property
     def strat_cfg_names(self) -> List:

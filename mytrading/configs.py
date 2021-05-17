@@ -233,6 +233,9 @@ def feature_configs_spike(
                                 'min': {
                                     'name': 'RFTVLadMin',
                                     'kwargs': ltp_win_kwargs(ltp_window_sampling_ms, ltp_window_sampling_count)
+                                },
+                                'spread': {
+                                    'name': 'RFTVLadSpread'
                                 }
                             }
                         }

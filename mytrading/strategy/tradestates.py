@@ -183,7 +183,17 @@ class TradeStateBin(TradeStateIntermediary):
                     pass
                 else:
                     # cancel order (flumine checks order is EXECUTABLE before cancelling or throws error)
-                    market.cancel_order(order)
+                    # also check bet ID is valid before cancelling
+                    if order.bet_id is None:
+                        trk.log_update(
+                            msg_type=MessageTypes.MSG_CANCEL_ID_FAIL,
+                            dt=market.market_book.publish_time,
+                            msg_attrs={
+                                'order_id': order.id,
+                            }
+                        )
+                    else:
+                        market.cancel_order(order)
                 done = False
 
         return done

@@ -127,6 +127,8 @@ class MarketHandler:
         # market closed
         self.closed = False
 
+        self.path_features = ''
+
     def update_flag_feature(self, market_book: MarketBook, feature_seconds):
         """
         update `feature` flag instance, denoting if features should be processed yet
@@ -197,6 +199,7 @@ class MyFeatureStrategy(MyBaseStrategy):
             pre_seconds: int,
             feature_seconds: int,
             historic: bool,
+            store_features: bool = False,
             db_kwargs: Optional[Dict] = None,
             oc_td: Optional[timedelta] = None,
             **kwargs,
@@ -210,6 +213,7 @@ class MyFeatureStrategy(MyBaseStrategy):
         self.market_handlers: Dict[str, MarketHandler] = dict()
         self._db = bettingdb.BettingDB(**(db_kwargs or {}))
         self.historic = historic
+        self.store_features = store_features
         if historic:
             active_logger.info('client is historic, using recorded user data "UserDataLoader"')
             self._usr_data = UserDataLoader(self._db, oc_td)
@@ -289,9 +293,28 @@ class MyFeatureStrategy(MyBaseStrategy):
             feature.out_cache.clear()
             for sub_ftr in feature.sub_features.items():
                 feature.out_cache.clear()
+
+        lines = []
+        def _add(feature):
+            while len(feature.out_cache):
+                dt, val = feature.out_cache.popleft()
+                lines.append(json.dumps({
+                    'selection_id': selection_id,
+                    'dt': dt.isoformat(),
+                    'ftr_identifier': feature.ftr_identifier,
+                    'value': val
+                }) + '\n')
+            for sub_feature in feature.sub_features.values():
+                _add(sub_feature)
+
+        func = _add if self.store_features else _dump
         for feature in mh.runner_handlers[selection_id].features.values():
             feature.process_runner(mb, runner_index)
-            _dump(feature)
+            func(feature)
+        if self.store_features:
+            with open(mh.path_features, 'a') as f:
+                f.writelines(lines)
+
 
     def _user_data_process(self, mb: MarketBook, mkt: Market, mh: MarketHandler):
         user_data = self._usr_data.get_user_data(mkt, mb)
@@ -343,7 +366,9 @@ class MyFeatureStrategy(MyBaseStrategy):
         if market.market_id not in self.market_handlers:
             d, _ = path.split(udt_path)
             os.makedirs(d)
-            self.market_handlers[market.market_id] = self._market_handler_create(market, market_book)
+            _mh = self._market_handler_create(market, market_book)
+            _mh.path_features = self._db.path_strat_features(market.market_id, self.strategy_id)
+            self.market_handlers[market.market_id] = _mh
 
         # check market not closed
         mh = self.market_handlers[market.market_id]

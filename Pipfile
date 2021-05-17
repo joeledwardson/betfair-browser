@@ -24,6 +24,7 @@ flask-caching = "*"
 dash-bootstrap-components = "*"
 dateparser = "*"
 sqlalchemy-filters = "*"
+dash-extensions = "*"
 
 [dev-packages]
 

@@ -6,7 +6,7 @@ from myutils import mydict
 from uuid import UUID
 from ..exceptions import MyStrategyException
 from ..utils import BettingDB
-from .strategy import BackTestClientNoMin
+from .strategy import BackTestClientNoMin, MyFeatureStrategy
 from flumine import FlumineBacktest
 
 strategies_reg = myreg.MyRegistrar()
@@ -26,13 +26,13 @@ STRATEGY_CONFIG_SPEC = {
 }
 
 
-def run_strategy(cfg: Dict, historic: bool, db: BettingDB) -> UUID:
+def hist_strat_create(cfg: Dict, db: BettingDB) -> MyFeatureStrategy:
     mydict.validate_config(cfg, STRATEGY_CONFIG_SPEC)
     nm = cfg['name']
     kwargs = cfg['info']
     filter_spec = cfg['market_filter_spec']
     paths = db.paths_market_updates(filter_spec=filter_spec)
-    kwargs['historic'] = historic
+    kwargs['historic'] = True
     kwargs['market_filter'] = {
         'markets': paths
     }
@@ -41,18 +41,16 @@ def run_strategy(cfg: Dict, historic: bool, db: BettingDB) -> UUID:
     except TypeError as e:
         raise MyStrategyException(f'could not create strategy "{nm}": "{e}"')
     strategy_obj.strategy_write_info(kwargs)
-    active_logger.info(f'running strategy "{nm}" with args:\n'
+    active_logger.info(f'creating strategy "{nm}" with args:\n'
                        f'{yaml.dump(kwargs, sort_keys=False)}')
+    return strategy_obj
 
+
+def hist_strat_run(strategy_obj: MyFeatureStrategy):
     client = BackTestClientNoMin(transaction_limit=None)
     framework = FlumineBacktest(client=client)
     framework.add_strategy(strategy_obj)
     framework.run()
-    return strategy_obj.strategy_id
 
-    # total_profit = 0
-    # for market in framework.markets:
-    #     market_profit = sum(o.simulated.profit for o in market.blotter)
-    #     total_profit += market_profit
-    # return total_profit
+
 

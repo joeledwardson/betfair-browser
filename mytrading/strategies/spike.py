@@ -1,7 +1,6 @@
 """
 Trade based on back/lay/ltp trend using regression
 """
-import logging
 from enum import Enum
 from datetime import datetime
 from typing import Dict, Optional
@@ -16,7 +15,7 @@ from functools import partial
 
 from ..configs import feature_configs_spike
 from ..process import closest_tick, tick_spread, LTICKS_DECODED
-from mytrading.strategy.messages import register_formatter
+from mytrading.strategy.messages import register_formatter, MessageTypes as BaseMessageTypes
 from ..strategy.runnerhandler import RunnerHandler
 from ..strategy import tradestates as basestates
 from ..strategy.trademachine import RunnerTradeMachine
@@ -27,15 +26,10 @@ from ..strategy import strategies_reg
 from ..process import get_ltps
 
 MIN_BET_AMOUNT = 2
-active_logger = logging.getLogger(__name__)
-active_logger.setLevel(logging.INFO)
 
 
 class SpikeStateTypes(Enum):
     SPIKE_STATE_MONITOR = 'monitor window orders'
-    SPIKE_STATE_BOUNCE = 'wait for bounce back'
-    SPIKE_STATE_HEDGE = 'hedging'
-    SPIKE_STATE_HEDGE_WAIT = 'waiting for hedge to complete'
 
 
 @dataclass
@@ -46,55 +40,7 @@ class SpikeData:
     ltp: float = 0
     ltp_min: float = 0
     ltp_max: float = 0
-
-    def get_window_price(self, side):
-        """
-        get hedging price for opening trade whose side specified by `side` parameter
-        If open trade side is 'BACK', get rounded down ltp window minimum value
-        If open trade side is 'LAY', get rounded up ltp window maximum value
-        """
-        # validate spike data
-        if not self.validate_spike_data():
-            return 0
-
-        if side == 'BACK':
-            price = self.ltp_min
-            return closest_tick(price, return_index=False, round_down=True)
-        else:
-            price = self.ltp_max
-            return closest_tick(price, return_index=False, round_up=True)
-
-    def get_window_price_mk2(self, side):
-        """
-        get hedging price for opening trade whose side specified by `side` parameter
-        If open trade side is 'BACK', get maximum of (rounded down ltp window minimum value) and (best lay - offset tick)
-        If open trade side is 'LAY', get minimum of (rounded up ltp window maximum value) and (best back + offset tick)
-        """
-        # validate spike data
-        if not self.validate_spike_data():
-            return 0
-
-        if side == 'BACK':
-            price = self.ltp_min
-            ltp_min_rounded = closest_tick(price, return_index=False, round_down=True)
-            lay_tick = closest_tick(self.best_lay, return_index=True)
-            lay_tick = max(lay_tick - 1, 0)
-            lay_val = LTICKS_DECODED[lay_tick]
-            return max(ltp_min_rounded, lay_val)
-
-        else:
-            price = self.ltp_max
-            ltp_max_rounded = closest_tick(price, return_index=False, round_up=True)
-            back_tick = closest_tick(self.best_back, return_index=True)
-            back_tick = min(back_tick + 1, len(LTICKS_DECODED) - 1)
-            back_val = LTICKS_DECODED[back_tick]
-            return min(ltp_max_rounded, back_val)
-
-    def bound_top(self):
-        return max(self.ltp, self.ltp_max, self.best_back, self.best_lay)
-
-    def bound_bottom(self):
-        return min(self.ltp, self.ltp_min, self.best_back, self.best_lay)
+    ltp_tick_spread: float = 0
 
     def validate_spike_data(self):
         return(
@@ -103,7 +49,8 @@ class SpikeData:
                 self.spread and
                 self.ltp and
                 self.ltp_min and
-                self.ltp_max
+                self.ltp_max and
+                self.ltp_tick_spread
         )
 
 
@@ -114,6 +61,7 @@ class SpikeMessageTypes(Enum):
     SPIKE_MSG_PRICE_REPLACE = 'replacing price'
     SPIKE_MSG_BREACHED = 'spike reached'
     SPIKE_MSG_SPREAD_FAIL = 'spread validation fail'
+    SPIKE_MSG_PERIODIC = 'periodic update'
 
 
 class SpikeRunnerHandler(RunnerHandler):
@@ -133,12 +81,9 @@ class SpikeRunnerHandler(RunnerHandler):
         # side of book which spike order has money matched
         self.side_matched: str = ''
 
-        # ltp at point of spike
-        self.spike_ltp: float = 0
-
         # track previous state minimum/max odds of which offset applied to place spike orders
-        self.previous_max_index: int = 0
-        self.previous_min_index: int = 0
+        self.prev_boundary_top_tick: int = 0
+        self.prev_boundary_bottom_tick: int = 0
 
         self.first_runner: bool = False
         self.spike_data = SpikeData()
@@ -238,7 +183,7 @@ class MySpikeStrategy(MyFeatureStrategy):
                         enable_lay=self.enable_lay,
                         name=SpikeStateTypes.SPIKE_STATE_MONITOR,
                         next_state=[
-                            basestates.TradeStateTypes.PENDING,
+                            basestates.TradeStateTypes.BIN,
                             basestates.TradeStateTypes.WAIT,
                             basestates.TradeStateTypes.HEDGE_SELECT,
                         ]
@@ -246,10 +191,6 @@ class MySpikeStrategy(MyFeatureStrategy):
                     basestates.TradeStateWait(
                         wait_ms=self.spike_wait_ms,
                     ),
-                    # SpikeTradeStateBounce(
-                    #     name=SpikeStateTypes.SPIKE_STATE_BOUNCE,
-                    #     wait_ms=self.spike_wait_ms,
-                    # ),
                     basestates.TradeStateHedgeSelect(
                         next_state=basestates.TradeStateTypes.HEDGE_QUEUE_PLACE,
                     ),
@@ -267,15 +208,6 @@ class MySpikeStrategy(MyFeatureStrategy):
                     basestates.TradeStateHedgeWaitTake(
                         hedge_place_state=basestates.TradeStateTypes.HEDGE_TAKE_PLACE,
                     ),
-                    # SpikeTradeStateHedge(
-                    #     name=SpikeStateTypes.SPIKE_STATE_HEDGE,
-                    #     next_state=SpikeStateTypes.SPIKE_STATE_HEDGE_WAIT,
-                    #     min_hedge_price=self.min_hedge_price,
-                    # ),
-                    # SpikeTradeStateHedgeWait(
-                    #     name=SpikeStateTypes.SPIKE_STATE_HEDGE_WAIT,
-                    #     next_state=basestates.TradeStateTypes.CLEANING,
-                    # ),
                     basestates.TradeStateBin(
                         all_trade_orders=True,
                     ),
@@ -283,9 +215,6 @@ class MySpikeStrategy(MyFeatureStrategy):
                         all_trade_orders=True,
                     ),
                     basestates.TradeStateClean(),
-                    # basestates.TradeStateWait(
-                    #     wait_ms=self.spike_wait_ms
-                    # ),
                 ]
             },
             initial_state=basestates.TradeStateCreateTrade.name,
@@ -298,6 +227,7 @@ class MySpikeStrategy(MyFeatureStrategy):
         ltps = get_ltps(mbk)
         rh.spike_data.ltp_max = rh.features['tvlad'].sub_features['dif'].sub_features['max'].last_value()
         rh.spike_data.ltp_min = rh.features['tvlad'].sub_features['dif'].sub_features['min'].last_value()
+        rh.spike_data.ltp_tick_spread = rh.features['tvlad'].sub_features['dif'].sub_features['spread'].last_value()
         rh.spike_data.spread = rh.features['spread'].sub_features['smp'].sub_features['avg'].last_value()
         rh.spike_data.ltp = rh.features['ltp'].last_value()
         rh.spike_data.best_back = rh.features['best back'].last_value()
@@ -333,7 +263,7 @@ class SpikeTradeStateIdle(basestates.TradeStateIdle):
         if not (spike_data.best_lay <= self.max_odds and spike_data.best_back <= self.max_odds):
             return False
 
-        window_spread = tick_spread(spike_data.ltp_min, spike_data.ltp_max, check_values=False)
+        window_spread = spike_data.ltp_tick_spread
         ladder_spread = spike_data.spread
 
         if ladder_spread <= self.ladder_spread_max and window_spread >= self.window_spread_min:
@@ -382,13 +312,21 @@ class SpikeTradeStateMonitorWindows(basestates.TradeStateBase):
         self.update_timestamp = datetime.now()
         self.enable_lay = enable_lay
 
+        self.pending_cancel_back = False
+        self.pending_cancel_lay = False
+
     def enter(self, market: Market, runner_index: int, runner_handler: SpikeRunnerHandler):
         market_book = market.market_book
         runner_handler.back_order = None
         runner_handler.lay_order = None
         self.update_timestamp = market_book.publish_time
 
-    def _place_window_order(self, side: str, runner_handler: SpikeRunnerHandler, price: float, market: Market):
+        self.pending_cancel_back = False
+        self.pending_cancel_lay = False
+
+    def _place_window_order(
+            self, side: str, runner_handler: SpikeRunnerHandler, price: float, market: Market
+    ) -> BetfairOrder:
         trade_tracker = runner_handler.trade_tracker
         market_book = market.market_book
 
@@ -399,10 +337,6 @@ class SpikeTradeStateMonitorWindows(basestates.TradeStateBase):
                 size=self.stake_size
             )
         )
-        if side == 'BACK':
-            runner_handler.back_order = order
-        else:
-            runner_handler.lay_order = order
         trade_tracker.log_update(
             msg_type=SpikeMessageTypes.SPIKE_MSG_CREATE,
             dt=market_book.publish_time,
@@ -410,58 +344,27 @@ class SpikeTradeStateMonitorWindows(basestates.TradeStateBase):
                 'side': side,
                 'price': price,
                 'size': self.stake_size,
+                'order_id': order.id,
             },
             display_odds=price
         )
         market.place_order(order)
+        return order
 
-    def _process_replace(
-            self,
-            runner_handler: SpikeRunnerHandler,
-            side: str,
-            boundary_tick,
-            window_tick,
-            window_val,
-            period_update: bool,
-            market: Market
+    def _log_msg_replace(
+            self, trade_tracker: TradeTracker, publish_time: datetime, side, old_price, new_price, order_id
     ):
-        trade_tracker = runner_handler.trade_tracker
-        market_book = market.market_book
-
-        # check back price moved
-        if side == 'BACK':
-            price = runner_handler.back_order.order_type.price
-        else:
-            price = runner_handler.lay_order.order_type.price
-        proceed = False
-
-        # check if upper boundary is within limit to update
-        price_tick = closest_tick(price, return_index=True)
-        if abs(boundary_tick - price_tick) <= self.tick_trigger:
-            proceed = True
-        elif price_tick != window_tick and period_update:
-            proceed = True
-
-        # proceed with order replacement if timer exceeded or price drifted
-        if proceed:
-            trade_tracker.log_update(
-                msg_type=SpikeMessageTypes.SPIKE_MSG_PRICE_REPLACE,
-                dt=market_book.publish_time,
-                msg_attrs={
-                    'side': side,
-                    'old_price': price,
-                    'new_price': window_val
-                },
-                display_odds=window_val,
-            )
-
-            # cancel order
-            if side == 'BACK':
-                market.cancel_order(runner_handler.back_order)
-                runner_handler.back_order = None
-            else:
-                market.cancel_order(runner_handler.lay_order)
-                runner_handler.lay_order = None
+        trade_tracker.log_update(
+            msg_type=SpikeMessageTypes.SPIKE_MSG_PRICE_REPLACE,
+            dt=publish_time,
+            msg_attrs={
+                'side': side,
+                'old_price': old_price,
+                'new_price': new_price,
+                'order_id': order_id,
+            },
+            display_odds=new_price,
+        )
 
     def _process_breach(self, runner_handler: SpikeRunnerHandler, market: Market) -> bool:
         trade_tracker = runner_handler.trade_tracker
@@ -479,7 +382,7 @@ class SpikeTradeStateMonitorWindows(basestates.TradeStateBase):
             # BACK side matched indicator for hedging state to read
             runner_handler.side_matched = 'BACK'
             # get previous tick from BACK side
-            old_tick = runner_handler.previous_max_index
+            old_tick = runner_handler.prev_boundary_top_tick
             breach = True
 
         elif any([
@@ -489,19 +392,10 @@ class SpikeTradeStateMonitorWindows(basestates.TradeStateBase):
             # LAY side matched indicator for hedging state to read
             runner_handler.side_matched = 'LAY'
             # get previous tick from LAY side
-            old_tick = runner_handler.previous_min_index
+            old_tick = runner_handler.prev_boundary_bottom_tick
             breach = True
 
         if breach:
-            # cancel remaining from both sides if orders exist
-            if runner_handler.back_order and runner_handler.back_order.status == OrderStatus.EXECUTABLE:
-                market.cancel_order(runner_handler.back_order)
-            if runner_handler.lay_order and runner_handler.lay_order.status == OrderStatus.EXECUTABLE:
-                market.cancel_order(market, runner_handler.lay_order)
-
-            # set spike ltp for hedging state to read
-            runner_handler.spike_ltp = spike_data.ltp
-
             # record tick difference
             ltp_tick = closest_tick(spike_data.ltp, return_index=True)
             tick_diff = ltp_tick - old_tick if old_tick else -1
@@ -517,6 +411,27 @@ class SpikeTradeStateMonitorWindows(basestates.TradeStateBase):
                 }
             )
         return breach
+
+    def _cancel(self, rh: RunnerHandler, order_nm: str, mkt: Market, side: str, price, new_price):
+        order = getattr(rh, order_nm)
+        if order.bet_id is None:
+            rh.trade_tracker.log_update(
+                msg_type=BaseMessageTypes.MSG_CANCEL_ID_FAIL,
+                dt=mkt.market_book.publish_time,
+                msg_attrs={
+                    'order_id': order.id,
+                }
+            )
+            return True
+        else:
+            self._log_msg_replace(rh.trade_tracker, mkt.market_book.publish_time,
+                                  side=side,
+                                  old_price=price,
+                                  new_price=new_price,
+                                  order_id=order.id)
+            mkt.cancel_order(order)
+            setattr(rh, order_nm, None)
+            return False
 
     def run(self, market: Market, runner_index: int, runner_handler: SpikeRunnerHandler):
         spike_data = runner_handler.spike_data
@@ -536,12 +451,12 @@ class SpikeTradeStateMonitorWindows(basestates.TradeStateBase):
             ]
 
         # compute max/min boundary values
-        boundary_top_value = spike_data.bound_top()  # max of back/lay/ltp
+        boundary_top_value = max(spike_data.ltp, spike_data.best_back, spike_data.best_lay)  # max of back/lay/ltp
         boundary_top_tick = closest_tick(boundary_top_value, return_index=True)
         top_tick = min(len(LTICKS_DECODED) - 1, boundary_top_tick + self.tick_offset)
         top_value = LTICKS_DECODED[top_tick]  # top of window with margin
 
-        boundary_bottom_value = spike_data.bound_bottom()  # min of back/lay/ltp
+        boundary_bottom_value = min(spike_data.ltp, spike_data.best_back, spike_data.best_lay)  # min of back/lay/ltp
         boundary_bottom_tick = closest_tick(boundary_bottom_value, return_index=True)
         bottom_tick = max(0, boundary_bottom_tick - self.tick_offset)
         bottom_value = LTICKS_DECODED[bottom_tick]  # bottom of window with margin
@@ -550,19 +465,16 @@ class SpikeTradeStateMonitorWindows(basestates.TradeStateBase):
         if self._process_breach(runner_handler, market):
             return self.next_state
 
-        window_spread = tick_spread(spike_data.ltp_min, spike_data.ltp_max, check_values=False)
         # TODO - check ladder spread?
-        ladder_spread = 0  # tick_spread(spike_data.best_back, spike_data.best_lay, check_values=False)
-
         # check back/lay spread is still within tolerance and ltp min/max spread is above tolerance
-        if not(ladder_spread <= self.ladder_spread_max and window_spread >= self.window_spread_min):
+        if not(0 <= self.ladder_spread_max and spike_data.ltp_tick_spread >= self.window_spread_min):
             trade_tracker.log_update(
                 msg_type=SpikeMessageTypes.SPIKE_MSG_SPREAD_FAIL,
                 dt=market_book.publish_time,
                 msg_attrs={
-                    'ladder_spread': ladder_spread,
+                    'ladder_spread': spike_data.spread,
                     'ladder_spread_max': self.ladder_spread_max,
-                    'window_spread': window_spread,
+                    'window_spread': spike_data.ltp_tick_spread,
                     'window_spread_min': self.window_spread_min,
                 }
             )
@@ -573,61 +485,44 @@ class SpikeTradeStateMonitorWindows(basestates.TradeStateBase):
 
         # create back order  if doesn't exist
         if runner_handler.back_order is None:
-            self._place_window_order('BACK', runner_handler, top_value, market)
+            runner_handler.back_order = self._place_window_order('BACK', runner_handler, top_value, market)
 
         # create lay order if doesn't exist
         if runner_handler.lay_order is None and self.enable_lay:
-            self._place_window_order('LAY', runner_handler, bottom_value, market)
+            runner_handler.lay_order = self._place_window_order('LAY', runner_handler, bottom_value, market)
 
         # check if need periodic update
         if (market_book.publish_time - self.update_timestamp).total_seconds() >= self.update_s:
             self.update_timestamp = market_book.publish_time
+            trade_tracker.log_update(
+                msg_type=SpikeMessageTypes.SPIKE_MSG_PERIODIC,
+                dt=market_book.publish_time,
+                msg_attrs={'periodic_s': self.update_s}
+            )
             periodic_update = True
         else:
             periodic_update = False
 
         # cancel back order if price moved so can be replaced next call
-        pr = partial(
-            self._process_replace, runner_handler=runner_handler, period_update=periodic_update, market=market
-        )
-        if runner_handler.back_order is not None and runner_handler.back_order.status == OrderStatus.EXECUTABLE:
-            pr(side='BACK', boundary_tick=boundary_top_tick, window_tick=top_tick, window_val=top_value)
+        price = runner_handler.back_order.order_type.price
+        price_move = price < top_value or (price > top_value and periodic_update)
+        if price_move or self.pending_cancel_back:
+            self.pending_cancel_back = self._cancel(runner_handler, 'back_order', market, 'BACK', price, top_value)
 
-        # cancel lay order if price moved so can be replaced next cal
-        if runner_handler.lay_order is not None and runner_handler.lay_order.status == OrderStatus.EXECUTABLE:
-            pr(side='LAY', boundary_tick=boundary_bottom_tick, window_tick=bottom_tick, window_val=bottom_value)
+        # cancel lay order if price moved
+        price = runner_handler.lay_order.order_type.price
+        price_move = price > bottom_value or (price < bottom_value and periodic_update)
+        if (price_move or self.pending_cancel_lay) and self.enable_lay:
+            self.pending_cancel_lay = self._cancel(runner_handler, 'lay_order', market, 'LAY', price, bottom_value)
 
         # update previous state boundary max/mins
-        runner_handler.previous_min_index = boundary_bottom_tick
-        runner_handler.previous_max_index = boundary_top_tick
+        runner_handler.prev_boundary_bottom_tick = boundary_bottom_tick
+        runner_handler.prev_boundary_top_tick = boundary_top_tick
 
 
-class SpikeTradeStateHedge(basestates.TradeStateHedgePlaceBase):
-    def get_hedge_price(
-            self, market: Market, runner_index: int, runner_handler: SpikeRunnerHandler, outstanding_profit: float
-    ) -> float:
-        spike_data = runner_handler.spike_data
-        return spike_data.get_window_price_mk2('BACK' if runner_handler.side_matched == 'LAY' else 'LAY')
-
-
-class SpikeTradeStateHedgeWait(basestates.TradeStateHedgeWaitBase):
-    def price_moved(self, market: Market, runner_index: int, runner_handler: SpikeRunnerHandler) -> float:
-        spike_data = runner_handler.spike_data
-        return spike_data.get_window_price_mk2('BACK' if runner_handler.side_matched == 'LAY' else 'LAY')
-
-
-class SpikeTradeStateBounce(basestates.TradeStateWait):
-    def run(self, market: Market, runner_index: int, runner_handler: SpikeRunnerHandler):
-        market_book = market.market_book
-        spike_data = runner_handler.spike_data
-        if (market_book.publish_time - self.start_time) >= self.td:
-            return True
-        elif not spike_data.validate_spike_data():
-            return True
-        elif runner_handler.side_matched == 'LAY' and spike_data.best_back > runner_handler.spike_ltp:
-            return True
-        elif runner_handler.side_matched == 'BACK' and spike_data.best_lay < runner_handler.spike_ltp:
-            return True
+@register_formatter(SpikeMessageTypes.SPIKE_MSG_PERIODIC)
+def formatter(attrs: Dict) -> str:
+    return f'periodic update after "{attrs.get("periodic_s")}"s'
 
 
 @register_formatter(SpikeMessageTypes.SPIKE_MSG_START)
@@ -643,7 +538,8 @@ def formatter(attrs: Dict) -> str:
 
 @register_formatter(SpikeMessageTypes.SPIKE_MSG_CREATE)
 def formatter(attrs: Dict) -> str:
-    return f'placing opening "{attrs.get("side")}" order at {attrs.get("price", 0):.2f} for ' \
+    return f'placing opening "{attrs.get("side")}" order "{attrs.get("order_id")}" ' \
+           f'at {attrs.get("price", 0):.2f} for ' \
            f'£{attrs.get("size", 0):.2f}'
 
 
@@ -661,7 +557,7 @@ def formatter(attrs: Dict) -> str:
 
 @register_formatter(SpikeMessageTypes.SPIKE_MSG_PRICE_REPLACE)
 def formatter(attrs: Dict) -> str:
-    return f'replacing order on "{attrs.get("side")}" side from {attrs.get("old_price", 0):.2f} to new price '\
+    return f'replacing order "{attrs.get("order_id")}" on "{attrs.get("side")}" side from {attrs.get("old_price", 0):.2f} to new price '\
            f'{attrs.get("new_price", 0):.2f}'
 
 

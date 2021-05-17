@@ -6,7 +6,7 @@ import myutils.mydash
 
 from .layouts import market, runners, configs, orders, timings, logger, INTERMEDIARIES
 
-
+# TODO - sidebar nav which expands on hover - make sidebars come in from the right but positioned on page
 class ToastHandler:
 
     top = 0
@@ -94,6 +94,12 @@ def hidden_elements(n_odr_rows, n_tmr_rows):
         # hidden divs for intermediary output components
         *[myutils.mydash.hidden_div(x) for x in INTERMEDIARIES],
 
+        dcc.Interval(
+            id='interval-component',
+            interval=1 * 1000,  # in milliseconds
+            n_intervals=0
+        )
+
     ]
 
 
@@ -116,18 +122,17 @@ def header():
             className='p-1'
         ),
         dbc.Col([
-                dbc.Button(
-                    html.I(className="fas fa-envelope-open-text"),
-                    id='button-log',
-                    color='info'
-                ),
-                html.Div(
-                    dbc.Badge(id='log-warns', color="danger", className='p-2'),
-                    id='msg-alert-box',
-                    className='right-corner-box',
-                    hidden=True
-                )
-            ],
+            dbc.Button(
+                html.I(className="fas fa-envelope-open-text"),
+                id='button-log',
+                color='info'
+            ),
+            html.Div(
+                dbc.Badge(id='log-warns', color="danger", className='p-2'),
+                id='msg-alert-box',
+                className='right-corner-box',
+                hidden=True
+            )],
             width='auto',
             className='p-1'
         )],
@@ -137,6 +142,15 @@ def header():
 
     return dbc.Row([
         dbc.Col(
+            html.Div(
+                dbc.Progress(
+                    id='header-progress-bar',
+                    striped=True,
+                    animated=True,
+                ),
+                id='progress-container-div',
+                hidden=True,
+            ),
             width=3
         ),
         dbc.Col(

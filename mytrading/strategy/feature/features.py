@@ -55,6 +55,7 @@ class RFBase:
         self.inside_window = cache_insidewindow
 
         self.sub_features: Dict[str, RFBase] = {}
+        # TODO - use config validator here
         if sub_features_config:
             if type(sub_features_config) is not dict:
                 raise FeatureException(
@@ -243,6 +244,15 @@ class RFTVLadMin(_RFTVLadDifFunc):
     def lad_func(self, tvs):
         v = min([x['price'] for x in tvs])
         return v
+
+
+@ftrs_reg.register_element
+class RFTVLadSpread(_RFTVLadDifFunc):
+    """tick spread between min/max of traded vol difference"""
+    def lad_func(self, tvs):
+        v_max = max([x['price'] for x in tvs])
+        v_min = min([x['price'] for x in tvs])
+        return tick_spread(v_min, v_max, check_values=False)
 
 
 @ftrs_reg.register_element

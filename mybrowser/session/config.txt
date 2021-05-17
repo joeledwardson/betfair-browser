@@ -28,10 +28,10 @@ max_rows = 100
 
 [CONFIG_PATHS]
 ; can use relative paths here
-feature_src = %%USERPROFILE%%/OneDrive/betfair/pythonbetfair/configurations/feature_plot_src/feature
-feature_out = %%USERPROFILE%%/OneDrive/betfair/pythonbetfair/configurations/feature_plot_out/feature
-plot_src = %%USERPROFILE%%/OneDrive/betfair/pythonbetfair/configurations/feature_plot_src/plot
-plot_out = %%USERPROFILE%%/OneDrive/betfair/pythonbetfair/configurations/feature_plot_out/plot
+feature_src = %%USERPROFILE%%/OneDrive/betfair/pythonbetfair/configurations/feature_src
+feature_out = %%USERPROFILE%%/OneDrive/betfair/pythonbetfair/configurations/feature_out
+plot_src = %%USERPROFILE%%/OneDrive/betfair/pythonbetfair/configurations/plot_src
+plot_out = %%USERPROFILE%%/OneDrive/betfair/pythonbetfair/configurations/plot_out
 strategy_dir = %%USERPROFILE%%/OneDrive/betfair/pythonbetfair/configurations/strategy_confs
 
 [PLOT_CONFIG]

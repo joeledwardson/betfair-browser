@@ -25,7 +25,7 @@ def run_browser(debug: bool, config_path=None):
     if sys.version_info < (3, 9):
         raise ImportError('Python version needs to be 3.9 or higher!')
 
-    app = dash.Dash(__name__, external_stylesheets=[dbc.themes.BOOTSTRAP, FA])
+    app = dash.Dash(__name__, title='Betfair Browser', update_title=None, external_stylesheets=[dbc.themes.BOOTSTRAP, FA])
 
     if config_path:
         config = ConfigParser()

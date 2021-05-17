@@ -15,6 +15,28 @@ counter = myutils.mydash.Intermediary()
 def cb_market(app, shn: Session):
     @app.callback(
         output=[
+            Output('progress-container-div', 'hidden'),
+            Output('header-progress-bar', 'children'),
+            Output('header-progress-bar', 'value')
+        ],
+        inputs=[
+            Input('interval-component', 'n_intervals')
+        ]
+    )
+    def int_callback(n_intervals):
+        if not shn.strat_running:
+            return True, None, None
+        else:
+            n_mkts = shn.strat_mkt_count
+            n_done = shn.strat_n_done
+            return (
+                False,
+                f'{n_done}/{n_mkts}',
+                max(n_done/n_mkts*100, 10)  # minimum width is 20% so can see text
+            )
+
+    @app.callback(
+        output=[
             Output('market-query-status', 'children'),
             Output('table-market-session', 'data'),
             Output('table-market-session', "selected_cells"),

@@ -622,6 +622,16 @@ class BettingDB:
             col='stream_updates',
         )
 
+    def path_strat_features(self, market_id, strategy_id) -> str:
+        return self._dbc.cache_col(
+            tbl_nm='strategyupdates',
+            pkey_flts={
+                'strategy_id': str(strategy_id),
+                'market_id': market_id,
+            },
+            col='strategy_features'
+        )
+
     def path_strat_updates(self, market_id, strategy_id) -> str:
         return self._dbc.cache_col(
             tbl_nm='strategyupdates',
