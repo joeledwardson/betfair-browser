@@ -96,6 +96,7 @@ def get_formatters(dt_format) -> myreg.MyRegistrar:
     return formatters
 
 
+# TODO  - split strategy into strategy config and market filter configs
 class Session:
 
     MODULES = ['myutils', 'mytrading']

@@ -642,6 +642,7 @@ class BettingDB:
             col='strategy_updates'
         )
 
+    # TODO - use configuration validator here
     def paths_market_updates(self, filter_spec: List[Dict], limit=200):
         for flt in filter_spec:
             if 'value' not in flt:

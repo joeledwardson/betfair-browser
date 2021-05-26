@@ -201,7 +201,7 @@ class MyFeatureStrategy(MyBaseStrategy):
             historic: bool,
             store_features: bool = False,
             db_kwargs: Optional[Dict] = None,
-            oc_td: Optional[timedelta] = None,
+            oc_seconds: Optional[int] = None,
             **kwargs,
     ):
         super().__init__(**kwargs)
@@ -214,6 +214,7 @@ class MyFeatureStrategy(MyBaseStrategy):
         self._db = bettingdb.BettingDB(**(db_kwargs or {}))
         self.historic = historic
         self.store_features = store_features
+        oc_td = timedelta(seconds=oc_seconds) if oc_seconds else None
         if historic:
             active_logger.info('client is historic, using recorded user data "UserDataLoader"')
             self._usr_data = UserDataLoader(self._db, oc_td)
