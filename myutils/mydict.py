@@ -50,10 +50,9 @@ def validate_config(cfg: Dict, cfg_spec: Dict):
             if not exist:
                 raise DictException(f'expected key "{k}" in configuration dict as per config spec: "{cfg_spec}"')
         if exist:
-            exp_typ = spec['type']
-            val_typ = type(val)
-            if val_typ is not exp_typ:
-                raise DictException(f'expected key "{k}" value to be type "{exp_typ}", got "{val_typ}"')
+            # if 'type' in spec:
+            if not isinstance(val, spec['type']):
+                raise DictException(f'expected key "{k}" value to be type "{spec["type"]}", got "{type(val)}"')
     if _cfg:
         raise DictException(f'configuration dictionary has unexpected values: "{_cfg}"')
 

@@ -10,11 +10,21 @@ import statistics
 from mytrading.exceptions import FeatureException
 from mytrading.process import get_best_price, closest_tick, tick_spread, traded_runner_vol, get_record_tv_diff
 from mytrading.process.ticks import LTICKS_DECODED
-from myutils import mytiming, myregistrar
+from myutils import mytiming, myregistrar, mydict
 
 
 ftrs_reg = myregistrar.MyRegistrar()
 active_logger = logging.getLogger(__name__)
+
+SUB_FEATURE_CONFIG_SPEC = {
+    'name': {
+        'type': str,
+    },
+    'kwargs': {
+        'type': dict,
+        'optional': True,
+    }
+}
 
 
 class RFBase:
@@ -55,32 +65,28 @@ class RFBase:
         self.inside_window = cache_insidewindow
 
         self.sub_features: Dict[str, RFBase] = {}
-        # TODO - use config validator here
         if sub_features_config:
             if type(sub_features_config) is not dict:
                 raise FeatureException(
                     f'error in feature "{self.ftr_identifier}", sub features config is not dict'
                 )
-            for k, v in sub_features_config.items():
-                if type(v) is not dict:
+            for sub_nm, sub_cfg in sub_features_config.items():
+                if type(sub_cfg) is not dict:
                     raise FeatureException(
-                        f'error in feature "{self.ftr_identifier}", sub-feature "{k}" value is not dict'
+                        f'error in feature "{self.ftr_identifier}", sub-feature "{sub_nm}" value is not dict'
                     )
-                if 'name' not in v:
-                    raise FeatureException(
-                        f'error in feature "{self.ftr_identifier}", sub-feature "{k}", no name element in dict'
-                    )
-                feature_class = ftrs_reg[v['name']]
-                feature_kwargs = v.get('kwargs', {})
+                mydict.validate_config(sub_cfg, SUB_FEATURE_CONFIG_SPEC)
+                feature_class = ftrs_reg[sub_cfg['name']]
+                feature_kwargs = sub_cfg.get('kwargs', {})
                 try:
-                    self.sub_features[k] = feature_class(
+                    self.sub_features[sub_nm] = feature_class(
                         parent=self,
                         **feature_kwargs,
-                        ftr_identifier=k,  # use dictionary name as feature name
+                        ftr_identifier=sub_nm,  # use dictionary name as feature name
                     )
                 except TypeError as e:
                     raise FeatureException(
-                        f'error in feature "{self.ftr_identifier}", sub-feature "{k}": {e}'
+                        f'error in feature "{self.ftr_identifier}", sub-feature "{sub_nm}": {e}'
                     )
         self._user_data = None
 

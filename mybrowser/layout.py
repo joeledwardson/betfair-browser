@@ -200,7 +200,8 @@ def left_col(filter_margins, dflt_offset, mkt_tbl_cols, n_mkt_rows):
             market.query_status(),
             market.mkt_table(mkt_tbl_cols, n_mkt_rows)
         ], className='shadow h-100 p-4')],
-        width=6,
+        width='auto',
+        # width=6,
         className='p-4'
     )
 
@@ -241,7 +242,8 @@ def right_col(filter_margins, n_run_rows):
             runners.market_info(),
             runners.table(n_run_rows)
         ], className='shadow h-100 p-4')],
-        width=6,
+        # width=6,
+        width='auto',
         className='p-4'
     )
 
@@ -260,6 +262,9 @@ def get_layout(
         *hidden_elements(n_odr_rows, n_tmr_rows),
         header(),
         dbc.Row([
+            dbc.Col([
+                html.Div('pls')
+            ], className='ml-2 mr-0'),
             left_col(filter_margins, dflt_offset, mkt_tbl_cols, n_mkt_rows),
             right_col(filter_margins, n_run_rows)
         ], no_gutters=True, className='flex-row flex-grow-1')],

@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import shutil
-
 from betfairlightweight.resources.streamingresources import MarketDefinition
 from betfairlightweight.resources.bettingresources import MarketCatalogue, MarketBook
 from betfairlightweight.streaming.listener import StreamListener
@@ -29,14 +28,14 @@ import json
 import sys
 import dateparser
 
-from myutils.myregistrar import MyRegistrar
+from myutils import mydict, myregistrar
 from ..exceptions import DBException
 from .dbfilter import DBFilterHandler
 
 active_logger = logging.getLogger(__name__)
 active_logger.setLevel(logging.INFO)
 
-db_processors = MyRegistrar()
+db_processors = myregistrar.MyRegistrar()
 
 
 @db_processors.register_element
@@ -400,7 +399,20 @@ FILTER_SPEC_PROCESSORS = {
     }
 }
 
+MARKET_FILTER_SPEC = {
+    'value': {
+        'type': object,
+    },
+    'field': {
+        'type': str,
+    },
+    'op': {
+        'type': str,
+    }
+}
 
+
+# TODO - move configuration to github location
 def apply_filter_spec(tbl: Table, q: Query, filters_spec: List[Dict]) -> Query:
     """sqlalchemy_filters `apply_filters` function doesn't work with Sqlalchemy V1.14 so i've bodged it myself until
     they sort it out"""
@@ -544,12 +556,6 @@ class BettingDB:
         if not path.isfile(p):
             raise DBException(f'expected strategy update file at "{p}"')
         runner_profits = profit_func(p)
-        # df = TradeTracker.get_order_updates(p)
-        # active_logger.info(f'found {df.shape[0]} order updates in file "{p}"')
-        # if df.shape[0]:
-        #     df = df[df['msg_type'] == MessageTypes.MSG_MARKET_CLOSE.name]
-        #     df['profit'] = [TradeTracker.dict_order_profit(o) for o in df['order_info']]
-        #     runner_profits = df.groupby(df['selection_id'])['profit'].sum().to_dict()
         for k, v in runner_profits.items():
             self._dbc.insert_row('strategyrunners', pkey_filters | {
                 'runner_id': k,
@@ -642,13 +648,9 @@ class BettingDB:
             col='strategy_updates'
         )
 
-    # TODO - use configuration validator here
     def paths_market_updates(self, filter_spec: List[Dict], limit=200):
         for flt in filter_spec:
-            if 'value' not in flt:
-                raise DBException(f'expected "value" in fitler spec dict: "{flt}"')
-            if 'field' not in flt:
-                raise DBException(f'expected "field" in fitler spec dict: "{flt}"')
+            mydict.validate_config(flt, MARKET_FILTER_SPEC)
             flt['value'] = self._dbc._value_processors(
                 value=flt['value'],
                 tbl_name='marketmeta',
