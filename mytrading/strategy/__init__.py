@@ -8,6 +8,8 @@ from ..exceptions import MyStrategyException
 from ..utils import BettingDB
 from .strategy import BackTestClientNoMin, MyFeatureStrategy
 from flumine import FlumineBacktest
+from betfairlightweight.filters import streaming_market_filter
+
 
 strategies_reg = myreg.MyRegistrar()
 active_logger = logging.getLogger(__name__)

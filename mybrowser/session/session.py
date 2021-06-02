@@ -190,6 +190,7 @@ class Session:
         strat.hist_strat_run(self._strat_obj)
         with self._strat_lock:
             self._strat_running = False
+            del self._strat_obj
             self._strat_obj = None
             self._strat_mkt_count = 0
         return strat_id
