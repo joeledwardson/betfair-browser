@@ -14,6 +14,7 @@ LEVEL_COLORS = {
     'ERROR': 'bg-danger',
     'CRITICAL': 'bg-danger'
 }
+MAX_ELEMENTS = 1000
 
 
 def cb_logs(app, shn: Session):
@@ -41,6 +42,7 @@ def cb_logs(app, shn: Session):
                 log_item['txt'],
                 className='m-0 ' + LEVEL_COLORS.get(lvl, '')
             ))
+            shn.log_elements = shn.log_elements[:MAX_ELEMENTS]
 
         if myutils.mydash.triggered_id() == 'modal-close-log':
             shn.log_nwarn = 0
