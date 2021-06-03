@@ -20,8 +20,6 @@ from myutils import mystatemachine as stm
 
 order_error_states = [
     OrderStatus.EXPIRED,
-    OrderStatus.VOIDED,
-    OrderStatus.LAPSED,
     OrderStatus.VIOLATION
 ]
 order_pending_states = [

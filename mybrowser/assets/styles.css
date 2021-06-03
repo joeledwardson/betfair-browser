@@ -24,7 +24,7 @@ html, body {
 
     top: 0;
     height: 100%;
-    position: absolute;
+    position: fixed;
     width: 23rem;
     margin-top: 0;
     margin-bottom: 0;
