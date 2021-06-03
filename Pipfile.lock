@@ -333,11 +333,11 @@
         },
         "flumine": {
             "hashes": [
-                "sha256:2fcfd5513d856b8dedaa34937d4a89e41525b2f752a99e007683815ee2f72bce",
-                "sha256:77e93a858987af49ad0013799451e6117dd071f582c00106f488638d75f909d4"
+                "sha256:6453493cc50e002b6d127a2f9e6ed4da703f6c756c7fdeaba7daea634e564221",
+                "sha256:fbb7aa424ffacff5c31d0609605d5f3bc19f2c7630b5576e2607a2ac986867f4"
             ],
             "index": "pypi",
-            "version": "==1.19.1"
+            "version": "==1.19.4"
         },
         "future": {
             "hashes": [
@@ -427,11 +427,11 @@
         },
         "ipython": {
             "hashes": [
-                "sha256:a171caa3d3d4c819a1c0742e3abecfd5a2b8ab525ca1c9f114b40b76b0679ab1",
-                "sha256:f86788eef439891438af3498525094cc2acbdbea4f2aa2f8895782d4ff471341"
+                "sha256:9bc24a99f5d19721fb8a2d1408908e9c0520a17fff2233ffe82620847f17f1b6",
+                "sha256:d513e93327cf8657d6467c81f1f894adc125334ffe0e4ddd1abbb1c78d828703"
             ],
             "markers": "python_version >= '3.7'",
-            "version": "==7.24.0"
+            "version": "==7.24.1"
         },
         "ipython-genutils": {
             "hashes": [

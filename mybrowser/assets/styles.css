@@ -17,19 +17,12 @@ html, body {
 }
 
 /* collapsible right hand bar overlay screen that transitions onto page when margin-right set to 0 */
-#right-side-bar {
-    right: 0;
-    margin-right: -23rem;
+#right-side-bar{
+    margin-right: -20rem;
+    width: 20rem;
     transition: margin-right 0.4s ease-in-out 0.1s;
-
-    top: 0;
     height: 100%;
-    position: fixed;
-    width: 23rem;
-    margin-top: 0;
-    margin-bottom: 0;
-    background: #e0e0e0;
-    z-index: 1;
+    background: #ee9ca7;
 }
 
 /* class used to bring right sidebar into view */

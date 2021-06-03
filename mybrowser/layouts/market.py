@@ -169,7 +169,8 @@ def strat_filters(filter_margins):
         dcc.Dropdown(
             id='input-strategy-select',
             placeholder='Strategy...',
-            className=filter_margins
+            className=filter_margins,
+            optionHeight=60,
         ),
         dbc.Button(
             'Clear',

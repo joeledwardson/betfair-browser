@@ -170,9 +170,8 @@ def header():
     )
 
 
-def left_col(filter_margins, dflt_offset, mkt_tbl_cols, n_mkt_rows):
-
-    filter_bar = html.Div(
+def plot_filter_div(filter_margins, dflt_offset):
+    return html.Div(
         html.Div(
             [
                 dbc.Row([
@@ -188,27 +187,19 @@ def left_col(filter_margins, dflt_offset, mkt_tbl_cols, n_mkt_rows):
         id='left-side-bar'
     )
 
-    # left column container
-    return dbc.Col([
 
-        # filter bar
-        filter_bar,
+def mkt_div(mkt_tbl_cols, n_mkt_rows):
 
-        html.Div([
-            market.header(),
-            market.mkt_buttons(),
-            market.query_status(),
-            market.mkt_table(mkt_tbl_cols, n_mkt_rows)
-        ], className='shadow h-100 p-4')],
-        # width='auto',
-        width=6,
-        className='p-4'
-    )
+    return html.Div([
+        market.header(),
+        market.mkt_buttons(),
+        market.query_status(),
+        market.mkt_table(mkt_tbl_cols, n_mkt_rows)
+    ], className='flex-grow-1 p-3')
 
 
-def right_col(filter_margins, n_run_rows):
-
-    filter_bar = html.Div(
+def market_filter_div(filter_margins):
+    return html.Div(
         html.Div([
             dbc.Row([
                 dbc.Col(html.H2('Market Filters')),
@@ -228,14 +219,14 @@ def right_col(filter_margins, n_run_rows):
             )],
             className='d-flex flex-column h-100 p-3'
         ),
-        id='right-side-bar'
+        id='right-side-bar',
     )
+
+
+def runners_div(n_run_rows):
 
     # right column container
     return dbc.Col([
-        # filter bar
-        filter_bar,
-
         html.Div([
             runners.header(),
             runners.inputs(),
@@ -244,8 +235,44 @@ def right_col(filter_margins, n_run_rows):
         ], className='shadow h-100 p-4')],
         width=6,
         # width='auto',
-        className='p-4'
+        className='p-4',
+        style={
+            'display': 'none',
+        }
     )
+
+
+nav = html.Div([
+    html.I(className='fas fa-horse fa-lg'),
+    html.Hr(),
+    dbc.Nav(
+        [
+            dbc.NavLink(
+                [html.I(className="fas fa-home mr-2"), html.Span("Home")],
+                href="/",
+                active="exact",
+            ),
+            dbc.NavLink(
+                [
+                    html.I(className="fas fa-calendar-alt mr-2"),
+                    html.Span("Calendar"),
+                ],
+                href="/calendar",
+                active="exact",
+            ),
+            dbc.NavLink(
+                [
+                    html.I(className="fas fa-envelope-open-text mr-2"),
+                    html.Span("Messages"),
+                ],
+                href="/messages",
+                active="exact",
+            ),
+        ],
+        vertical=True,
+        pills=True,
+    )
+])
 
 
 def get_layout(
@@ -259,15 +286,21 @@ def get_layout(
 ) -> html.Div:
     # container
     return html.Div([
-        *hidden_elements(n_odr_rows, n_tmr_rows),
-        header(),
-        dbc.Row([
-            # dbc.Col([
-            #     html.Div('pls')
-            # ], className='ml-2 mr-0'),
-            left_col(filter_margins, dflt_offset, mkt_tbl_cols, n_mkt_rows),
-            right_col(filter_margins, n_run_rows)
-        ], no_gutters=True, className='flex-row flex-grow-1')],
-        id='bf-container',
-        className='d-flex flex-column'
-    )
+        html.Div(hidden_elements(n_odr_rows, n_tmr_rows)),
+        html.Div([
+            header(),
+            html.Div([
+                plot_filter_div(filter_margins, dflt_offset),
+                html.Div(nav, style={
+                    # 'width': '5rem',
+                    'background-color': '#feeffe',
+                }, className='h-100'),
+                mkt_div(mkt_tbl_cols, n_mkt_rows),
+                market_filter_div(filter_margins),
+                runners_div(n_run_rows)
+            ], className='d-flex flex-row flex-grow-2 overflow-hidden')],
+            # ], no_gutters=True, className='flex-row flex-grow-1')],
+            id='bf-container',
+            className='d-flex flex-column'
+        )
+    ])
