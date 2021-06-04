@@ -16,6 +16,15 @@ html, body {
     background-color: #feeffe;
  }
 
+#toast-holder {
+    bottom: 1rem;
+    left: 1rem;
+    position: absolute;
+    display: flex;
+    flex-direction: column-reverse;
+    justify-content: flex-start;
+}
+
 .y-scroll {
     overflow-y: auto;
     overflow-x: hidden;

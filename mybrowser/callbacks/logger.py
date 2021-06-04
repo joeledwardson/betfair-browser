@@ -1,5 +1,6 @@
 from dash.dependencies import Output, Input, State
 import dash_html_components as html
+import dash_bootstrap_components as dbc
 
 import myutils.mydash
 from .. import log_q
@@ -22,15 +23,20 @@ def cb_logs(app, shn: Session):
         output=[
             Output('logger-box', 'children'),
             Output('msg-alert-box', 'hidden'),
-            Output('log-warns', 'children')
+            Output('log-warns', 'children'),
+            Output('toast-holder', 'children')
         ],
         inputs=[
             Input(x, 'children') for x in INTERMEDIARIES
         ] + [
             Input("modal-close-log", "n_clicks")
+        ],
+        state=[
+            State('toast-holder', 'children')
         ]
     )
     def log_update(*args):
+        toasts = args[-1]
 
         # update log list, add to bottom of list as display is reversed
         while not log_q.empty():
@@ -52,7 +58,26 @@ def cb_logs(app, shn: Session):
         else:
             hide_warn = True
 
-        return shn.log_elements, hide_warn, str(shn.log_nwarn)
+        toasts = list() if not toasts else toasts
+        while shn.notif_exist():
+            new_notif = shn.notif_pop()
+            toasts.append(
+                html.Div(dbc.Toast(
+                    [html.P(new_notif.msg_content, className="mb-0")],
+                    header=new_notif.msg_header,
+                    icon=new_notif.msg_type.value,
+                    duration=5000,
+                    is_open=True,
+                    dismissable=True,
+                ))
+            )
+
+        return [
+            shn.log_elements,
+            hide_warn,
+            str(shn.log_nwarn),
+            toasts
+        ]
 
     @app.callback(
         output=Output("modal-logs", "is_open"),

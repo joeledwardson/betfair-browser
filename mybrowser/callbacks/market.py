@@ -5,13 +5,14 @@ import dash_html_components as html
 from typing import List, Dict, Any, Optional
 from myutils import mydash
 import logging
-from ..session import Session
+from ..session import Session, Notification as Notif, NotificationType as NType
 from mytrading.strategy import tradetracker as tt
 
 active_logger = logging.getLogger(__name__)
 active_logger.setLevel(logging.INFO)
 
 counter = mydash.Intermediary()
+strat_counter = mydash.Intermediary()
 
 
 def cb_market(app, shn: Session):
@@ -46,8 +47,6 @@ def cb_market(app, shn: Session):
             Output('table-market-session', 'page_current'),
             Output('loading-out-session', 'children'),
             Output('intermediary-session-market', 'children'),
-            Output('toast-db-market', 'is_open'),
-            Output('toast-db-market', 'children'),
 
             Output('input-sport-type', 'value'),
             Output('input-mkt-type', 'value'),
@@ -111,43 +110,42 @@ def cb_market(app, shn: Session):
     ):
         flt_market_args = [m0, m1, m2, m3, m4, m5, m6, m7]
         btn_id = mydash.triggered_id()
-
-        toast_open = True
-        toast_msg = 'Updated markets from database'
+        shn.notif_post(Notif(NType.INFO, 'Market Database', 'Updated markets'))
 
         # run new strategy if requested
         if btn_id == 'btn-strategy-run':
             shn.strat_update()  # update configurations first
             if strategy_run_val is None:
-                toast_msg = 'cannot run strategy without selecting one'
+                shn.notif_post(Notif(NType.WARNING, 'Strategy', 'cannot run strategy without selecting one'))
             else:
                 strategy_id = str(shn.strat_run(strategy_run_val))
-                toast_msg = f'created new strategy "{strategy_id}'
+                shn.notif_post(Notif(NType.INFO, 'Strategy', f'created new strategy "{strategy_id}"'))
                 shn.betting_db.scan_strat_cache(tt.TradeTracker.get_runner_profits)  # upload strategy from cache
 
         # wipe cache if requested
         if btn_id == 'btn-cache-clear':
             n_files, n_dirs = shn.betting_db.wipe_cache()
-            toast_msg = f'Cleared {n_files} files and {n_dirs} dirs from cache'
+            shn.notif_post(Notif(NType.INFO, 'Cache', f'Cleared {n_files} files and {n_dirs} dirs from cache'))
 
         # delete strategy if requested
         if btn_id == 'btn-strategy-delete':
             if not strategy_id:
-                toast_msg = 'must select strategy first'
+                shn.notif_post(Notif(NType.INFO, 'Strategy', 'must select strategy first'))
             else:
                 n0, n1, n2 = shn.betting_db.strategy_delete(strategy_id)
-                toast_msg = f'removed {n0} strategy meta, {n1} markets, {n2} runners'
+                shn.notif_post(Notif(NType.INFO, 'Strategy', f'removed {n0} strategy meta, {n1} markets, {n2} runners'))
 
         # reconnect to database if button pressed
         if btn_id == 'btn-db-reconnect':
             shn.rl_db()
-            toast_msg = 'reconnected to database'
+            shn.notif_post(Notif(NType.INFO, 'Database', 'reconnected to database'))
 
         # upload market & strategy cache if "upload" button clicked
         if btn_id == 'btn-db-upload':
             n_mkt = len(shn.betting_db.scan_mkt_cache())
             n_strat = len(shn.betting_db.scan_strat_cache(tt.TradeTracker.get_runner_profits))
-            toast_msg = f'found {n_mkt} new markets and {n_strat} new strategies in cache'
+            shn.notif_post(Notif(NType.INFO, 'Cache', f'found {n_mkt} new markets in cache'))
+            shn.notif_post(Notif(NType.INFO, 'Cache', f'found {n_strat} new strategies in cache'))
 
         # update strategy filters and selectable options
         strat_clear = btn_id in ['input-strategy-clear', 'btn-db-reconnect', 'btn-strategy-delete']
@@ -189,25 +187,27 @@ def cb_market(app, shn: Session):
             0,  # reset current page back to first page
             '',  # loading output
             counter.next(),  # intermediary counter value
-            toast_open,
-            toast_msg
         ] + vals + lbls + strat_vals + strat_lbls
 
-    @app.callback([
-        Output('input-strategy-run', 'options'),
-        Output('toast-strat-reload', 'is_open'),
-        Output('toast-strat-reload', 'children')
-    ], Input('btn-strategies-reload', 'n_clicks'))
+    @app.callback(
+        [
+            Output('input-strategy-run', 'options'),
+            Output('intermediary-strat-reload', 'children')
+        ],
+        Input('btn-strategies-reload', 'n_clicks')
+    )
     def strategy_run_reload(n_reload):
         n_confs = len(shn.strat_update())
+        shn.notif_post(Notif(NType.INFO, 'Strategy Configs', f'loaded {n_confs} strategy configs'))
+
         options = [{
             'label': v,
             'value': v
         } for v in shn.strat_cfg_names]
+
         return [
             options,
-            True,
-            f'loaded {n_confs} strategy configs'
+            strat_counter.next()
         ]
 
     @app.callback(Output('btn-strategy-run', 'disabled'), Input('input-strategy-run', 'value'))

@@ -1,3 +1,4 @@
+import queue
 import uuid
 from functools import partial
 from betfairlightweight.resources.bettingresources import MarketBook
@@ -13,7 +14,8 @@ from json.decoder import JSONDecodeError
 import importlib.resources as pkg_resources
 import importlib
 import threading
-
+from dataclasses import dataclass
+from enum import Enum
 
 import mytrading.exceptions
 import mytrading.process
@@ -91,6 +93,22 @@ def get_formatters(dt_format) -> myreg.MyRegistrar:
     return formatters
 
 
+class NotificationType(Enum):
+    PRIMARY = "primary"
+    SECONDARY = "secondary"
+    SUCCESS = "success"
+    WARNING = "warning"
+    DANGER = "danger"
+    INFO = "info"
+
+
+@dataclass
+class Notification:
+    msg_type: NotificationType
+    msg_header: str
+    msg_content: str
+
+
 # TODO  - split strategy into strategy config and market filter configs
 class Session:
 
@@ -152,6 +170,18 @@ class Session:
         self._strat_running = False
         self._strat_obj: Optional[strat.MyFeatureStrategy] = None
         self.strat_update()
+
+        # notification queue
+        self._notification_queue: queue.Queue[Notification] = queue.Queue()
+
+    def notif_post(self, new_notification: Notification):
+        self._notification_queue.put(new_notification)
+
+    def notif_exist(self) -> bool:
+        return not self._notification_queue.empty()
+
+    def notif_pop(self) -> Notification:
+        return self._notification_queue.get()
 
     def strat_update(self) -> Dict:
         self._strat_cfgs = mydict.load_yaml_confs(self._strat_dir)

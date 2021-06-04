@@ -4,6 +4,7 @@ INTERMEDIARIES = [
     'intermediary-figure',
     'intermediary-libs',
     'intermediary-orders',
-    'intermediary-runners'
+    'intermediary-runners',
+    'intermediary-strat-reload'
 ]
 

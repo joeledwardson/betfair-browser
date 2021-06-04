@@ -9,7 +9,7 @@ from .layouts import market, runners, configs, orders, timings, logger, INTERMED
 # TODO - sidebar nav which expands on hover - make sidebars come in from the right but positioned on page
 class ToastHandler:
 
-    top = 0
+    top = 50
 
     @classmethod
     def get_toast(cls, toast_id, header, icon='info'):
@@ -20,12 +20,12 @@ class ToastHandler:
             is_open=False,
             dismissable=True,
             icon=icon,
-            duration=3000,
+            duration=360000,
             style={
                 "position": "fixed",
                 "top": cls.top,
-                "right": 200,
-                "width": 350
+                "right": 50,
+                # "width": 350
             },
         )
 
@@ -75,9 +75,6 @@ def hidden_elements(n_odr_rows, n_tmr_rows):
             id='modal-libs',
         ),
 
-        ToastHandler.get_toast('toast-fcfgs', 'Configurations'),
-        ToastHandler.get_toast('toast-db-market', 'Market Database'),
-        ToastHandler.get_toast('toast-strat-reload', 'Strategy Configs'),
 
         dbc.Modal([
             dbc.ModalHeader('Feature/plot configurations reloaded'),
@@ -300,16 +297,22 @@ def get_layout(
     return html.Div([
         dcc.Location(id="url"),
         html.Div(hidden_elements(n_odr_rows, n_tmr_rows)),
-        html.Div([
-            header(),
-            html.Div([
-                nav,
-                market_div(mkt_tbl_cols, n_mkt_rows),
-                runners_div(n_run_rows),
-                timings_div(n_tmr_rows),
-                market_filter_div(filter_margins),
-                plot_filter_div(filter_margins, dflt_offset),
-            ], className='d-flex flex-row flex-grow-1 overflow-hidden')],
+        html.Div(
+            [
+                header(),
+                html.Div(
+                    [
+                        nav,
+                        market_div(mkt_tbl_cols, n_mkt_rows),
+                        runners_div(n_run_rows),
+                        timings_div(n_tmr_rows),
+                        market_filter_div(filter_margins),
+                        plot_filter_div(filter_margins, dflt_offset),
+                    ],
+                    className='d-flex flex-row flex-grow-1 overflow-hidden'
+                ),
+                html.Div(id='toast-holder'),
+            ],
             id='bf-container',
             className='d-flex flex-column'
         )
