@@ -1,7 +1,9 @@
+from __future__ import annotations
 from dash.dependencies import Output, Input, State
 import dash_html_components as html
 
-import myutils.mydash
+from typing import List, Dict, Any, Optional
+from myutils import mydash
 import logging
 from ..session import Session
 from mytrading.strategy import tradetracker as tt
@@ -9,7 +11,7 @@ from mytrading.strategy import tradetracker as tt
 active_logger = logging.getLogger(__name__)
 active_logger.setLevel(logging.INFO)
 
-counter = myutils.mydash.Intermediary()
+counter = mydash.Intermediary()
 
 
 def cb_market(app, shn: Session):
@@ -108,7 +110,7 @@ def cb_market(app, shn: Session):
             strategy_run_val
     ):
         flt_market_args = [m0, m1, m2, m3, m4, m5, m6, m7]
-        btn_id = myutils.mydash.triggered_id()
+        btn_id = mydash.triggered_id()
 
         toast_open = True
         toast_msg = 'Updated markets from database'
@@ -217,15 +219,18 @@ def cb_market(app, shn: Session):
         return strategy_id is None
 
     @app.callback(
-        Output("right-side-bar", "className"),
+        Output("container-filters-market", "className"),
         [
             Input("btn-session-filter", "n_clicks"),
             Input("btn-right-close", "n_clicks")
         ],
+        State("container-filters-market", "className")
     )
-    def toggle_classname(n1, n2):
+    def toggle_classname(n1, n2, class_names: str):
         # CSS class toggles sidebar
-        if myutils.mydash.triggered_id() == 'btn-session-filter':
-            return "right-not-collapsed"
+        classes = mydash.CSSClassHandler(class_names)
+        if mydash.triggered_id() == 'btn-session-filter':
+            return str(classes + "right-not-collapsed")
         else:
-            return ""
+            return str(classes - "right-not-collapsed")
+

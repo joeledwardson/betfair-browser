@@ -11,44 +11,28 @@ html, body {
     overflow-x: hidden; /* stop right sidebar from scrolling page */
 }
 
+ #nav-bar {
+    width: 5rem;
+    background-color: #feeffe;
+ }
+
 .y-scroll {
     overflow-y: auto;
     overflow-x: hidden;
 }
 
 /* collapsible right hand bar overlay screen that transitions onto page when margin-right set to 0 */
-#right-side-bar{
+.right-side-bar{
     margin-right: -20rem;
     width: 20rem;
     transition: margin-right 0.4s ease-in-out 0.1s;
     height: 100%;
-    background: #ee9ca7;
+    background: #feeffe;
 }
 
 /* class used to bring right sidebar into view */
 .right-not-collapsed {
     margin-right: 0 !important;
-}
-
-/* collapsible left hand bar overlay screen which transitions onto page when margin-left set to 0 */
-#left-side-bar {
-    left: 0;
-    margin-left: -23rem;
-    transition: margin-left 0.4s ease-in-out 0.1s;
-
-    top: 0;
-    height: 100%;
-    position: absolute;
-    width: 23rem;
-    margin-top: 0;
-    margin-bottom: 0;
-    background: #e0e0e0;
-    z-index: 1;
-}
-
-/* class used to bring left sidebar into view */
-.left-not-collapsed {
-    margin-left: 0 !important;
 }
 
 /* decrease opacity for disabled buttons so obvious cannot click them */

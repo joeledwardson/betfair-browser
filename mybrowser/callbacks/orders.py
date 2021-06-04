@@ -3,8 +3,8 @@ import logging
 import traceback
 
 import myutils.mydash
-from ..session import Session, SessionException
-
+from ..session import Session
+from ..exceptions import SessionException
 
 active_logger = logging.getLogger(__name__)
 counter = myutils.mydash.Intermediary()

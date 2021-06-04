@@ -43,15 +43,15 @@ def hidden_elements(n_odr_rows, n_tmr_rows):
             size="xl"
         ),
 
-        dbc.Modal([
-            dbc.ModalHeader('Timings'),
-            dbc.ModalBody(timings.table(n_tmr_rows)),
-            dbc.ModalFooter(
-                dbc.Button('Close', id='modal-close-timings', className='ml-auto')
-            )],
-            id='modal-timings',
-            size='xl'
-        ),
+        # dbc.Modal([
+        #     dbc.ModalHeader('Timings'),
+        #     dbc.ModalBody(timings.table(n_tmr_rows)),
+        #     dbc.ModalFooter(
+        #         dbc.Button('Close', id='modal-close-timings', className='ml-auto')
+        #     )],
+        #     id='modal-timings',
+        #     size='xl'
+        # ),
 
         dbc.Modal([
             dbc.ModalHeader("Log"),
@@ -184,18 +184,19 @@ def plot_filter_div(filter_margins, dflt_offset):
             ],
             className='d-flex flex-column h-100 p-3'
         ),
-        id='left-side-bar'
+        className='right-side-bar',
+        id='container-filters-plot'
     )
 
 
-def mkt_div(mkt_tbl_cols, n_mkt_rows):
-
+def market_div(mkt_tbl_cols, n_mkt_rows):
     return html.Div([
+        html.Div(id='mkt-pls'),
         market.header(),
         market.mkt_buttons(),
         market.query_status(),
         market.mkt_table(mkt_tbl_cols, n_mkt_rows)
-    ], className='flex-grow-1 p-3')
+    ], className='flex-grow-1 shadow m-4 p-2', id='container-market')
 
 
 def market_filter_div(filter_margins):
@@ -219,60 +220,71 @@ def market_filter_div(filter_margins):
             )],
             className='d-flex flex-column h-100 p-3'
         ),
-        id='right-side-bar',
+        className='right-side-bar',
+        id='container-filters-market'
     )
 
 
 def runners_div(n_run_rows):
+    return html.Div([
+        runners.header(),
+        runners.inputs(),
+        runners.market_info(),
+        runners.table(n_run_rows)
+    ], className='flex-grow-1 p-3', id='container-runners')
 
-    # right column container
-    return dbc.Col([
-        html.Div([
-            runners.header(),
-            runners.inputs(),
-            runners.market_info(),
-            runners.table(n_run_rows)
-        ], className='shadow h-100 p-4')],
-        width=6,
-        # width='auto',
-        className='p-4',
-        style={
-            'display': 'none',
-        }
+
+def timings_div(n_tmr_rows):
+    return html.Div(
+        timings.table(n_tmr_rows),
+        id='container-timings',
+        className='shadow m-4 p-3 flex-grow-1'
     )
 
 
 nav = html.Div([
-    html.I(className='fas fa-horse fa-lg'),
-    html.Hr(),
+    # html.I(className='fas fa-horse fa-lg'),
+    # html.Hr(),
     dbc.Nav(
         [
             dbc.NavLink(
-                [html.I(className="fas fa-home mr-2"), html.Span("Home")],
+                [
+                    html.I(className="fas fa-horse"),
+                    html.Span("")
+                ],
                 href="/",
                 active="exact",
             ),
             dbc.NavLink(
                 [
-                    html.I(className="fas fa-calendar-alt mr-2"),
-                    html.Span("Calendar"),
+                    html.I(className="fas fa-chess-king"),
+                    html.Span(""),
                 ],
-                href="/calendar",
+                href="/strategy",
                 active="exact",
             ),
             dbc.NavLink(
                 [
-                    html.I(className="fas fa-envelope-open-text mr-2"),
-                    html.Span("Messages"),
+                    html.I(className="fas fa-running"),
+                    html.Span(""),
                 ],
-                href="/messages",
+                href="/runners",
+                active="exact",
+            ),
+            dbc.NavLink(
+                [
+                    html.I(className="fas fa-clock"),
+                    html.Span(""),
+                ],
+                href="/timings",
                 active="exact",
             ),
         ],
         vertical=True,
         pills=True,
+        className='align-items-center h-100 pt-2'
     )
-])
+], id='nav-bar')
 
 
 def get_layout(
@@ -286,20 +298,18 @@ def get_layout(
 ) -> html.Div:
     # container
     return html.Div([
+        dcc.Location(id="url"),
         html.Div(hidden_elements(n_odr_rows, n_tmr_rows)),
         html.Div([
             header(),
             html.Div([
-                plot_filter_div(filter_margins, dflt_offset),
-                html.Div(nav, style={
-                    # 'width': '5rem',
-                    'background-color': '#feeffe',
-                }, className='h-100'),
-                mkt_div(mkt_tbl_cols, n_mkt_rows),
+                nav,
+                market_div(mkt_tbl_cols, n_mkt_rows),
+                runners_div(n_run_rows),
+                timings_div(n_tmr_rows),
                 market_filter_div(filter_margins),
-                runners_div(n_run_rows)
-            ], className='d-flex flex-row flex-grow-2 overflow-hidden')],
-            # ], no_gutters=True, className='flex-row flex-grow-1')],
+                plot_filter_div(filter_margins, dflt_offset),
+            ], className='d-flex flex-row flex-grow-1 overflow-hidden')],
             id='bf-container',
             className='d-flex flex-column'
         )

@@ -2,14 +2,12 @@ import uuid
 from functools import partial
 from betfairlightweight.resources.bettingresources import MarketBook
 from os import path
-import os
 from typing import List, Dict, Optional
 import pandas as pd
 import logging
 import sys
 from datetime import datetime
 from configparser import ConfigParser
-import yaml
 import json
 from json.decoder import JSONDecodeError
 import importlib.resources as pkg_resources
@@ -19,6 +17,7 @@ import threading
 
 import mytrading.exceptions
 import mytrading.process
+from mybrowser.exceptions import SessionException
 from mytrading import utils as trutils
 from mytrading.utils import bettingdb as bdb, dbfilter as dbf
 from mytrading import strategy as strat
@@ -32,10 +31,6 @@ from myutils import mydict
 
 active_logger = logging.getLogger(__name__)
 active_logger.setLevel(logging.INFO)
-
-
-class SessionException(Exception):
-    pass
 
 
 def get_mkt_filters(mkt_dt_fmt):

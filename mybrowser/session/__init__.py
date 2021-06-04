@@ -1,1 +1,2 @@
-from .session import Session, SessionException
+from .session import Session
+from ..exceptions import SessionException

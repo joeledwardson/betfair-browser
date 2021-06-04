@@ -9,8 +9,8 @@ import traceback
 import mytrading.exceptions
 import myutils.mydash
 from myutils import mytiming
-from ..session import Session, SessionException
-
+from ..session import Session
+from ..exceptions import SessionException
 
 # override visual logger with custom logger
 active_logger = logging.getLogger(__name__)
@@ -113,10 +113,10 @@ def cb_fig(app, shn: Session):
         mytiming.clear_timing_register()
         return ret
 
-    @app.callback(
-        Output('modal-timings', 'is_open'),
-        [Input('button-timings', 'n_clicks'), Input('modal-close-timings', 'n_clicks')]
-    )
-    def modal_timings(n1, n2):
-        return myutils.mydash.triggered_id() == 'button-timings'
+    # @app.callback(
+    #     Output('modal-timings', 'is_open'),
+    #     [Input('button-timings', 'n_clicks'), Input('modal-close-timings', 'n_clicks')]
+    # )
+    # def modal_timings(n1, n2):
+    #     return myutils.mydash.triggered_id() == 'button-timings'
 

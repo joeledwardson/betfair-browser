@@ -41,6 +41,7 @@ def run_browser(debug: bool, config_path=None):
     callbacks.cb_libs(app, session)
     callbacks.cb_configs(app, session)
     callbacks.cb_fig(app, session)
+    callbacks.cb_display(app)
 
     app.layout = get_layout(
         n_odr_rows=int(session.config['TABLE']['orders_rows']),

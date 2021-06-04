@@ -83,15 +83,15 @@ def inputs():
             width='auto',
             className='p-1'
         ),
-        dbc.Col(
-            dbc.Button(
-                ['Timings', html.I(className='fas fa-hourglass ml-2')],
-                id='button-timings',
-                color='primary'
-            ),
-            width='auto',
-            className='p-1'
-        ),
+        # dbc.Col(
+        #     dbc.Button(
+        #         ['Timings', html.I(className='fas fa-hourglass ml-2')],
+        #         id='button-timings',
+        #         color='primary'
+        #     ),
+        #     width='auto',
+        #     className='p-1'
+        # ),
         dbc.Col(),
         dbc.Col(
             dcc.Loading(

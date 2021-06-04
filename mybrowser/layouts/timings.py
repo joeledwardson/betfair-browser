@@ -11,21 +11,20 @@ def header():
 
 def table(n_rows):
     # function timings table
-    return html.Div(
-        DataTable(
-            id='table-timings',
-            style_cell={
-                'textAlign': 'left',
-            },
-            columns=[{
-                'name': x,
-                'id': x
-            } for x in [
-                'Function',
-                'Count',
-                'Mean',
-            ]],
-            page_size=n_rows,
-        ),
+    return DataTable(
+        id='table-timings',
+        style_cell={
+            'textAlign': 'left',
+        },
+        columns=[{
+            'name': x,
+            'id': x
+        } for x in [
+            'Function',
+            'Count',
+            'Mean',
+        ]],
+        page_size=n_rows,
     )
+
 

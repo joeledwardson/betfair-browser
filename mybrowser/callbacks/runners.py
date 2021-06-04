@@ -3,7 +3,7 @@ import dash_html_components as html
 import logging
 import traceback
 
-import myutils.mydash
+from myutils import mydash
 from ..session import Session
 from mytrading import exceptions as trdexp
 from sqlalchemy.exc import SQLAlchemyError
@@ -12,7 +12,7 @@ from sqlalchemy.exc import SQLAlchemyError
 active_logger = logging.getLogger(__name__)
 active_logger.setLevel(logging.INFO)
 
-counter = myutils.mydash.Intermediary()
+counter = mydash.Intermediary()
 
 
 def cb_runners(app, shn: Session):
@@ -79,7 +79,7 @@ def cb_runners(app, shn: Session):
             return ret
 
         # market clear
-        if myutils.mydash.triggered_id() == 'button-mkt-bin':
+        if mydash.triggered_id() == 'button-mkt-bin':
             active_logger.info(f'clearing market')
             return ret
 
@@ -114,17 +114,18 @@ def cb_runners(app, shn: Session):
         return ret
 
     @app.callback(
-        Output("left-side-bar", "className"),
+        Output("container-filters-plot", "className"),
         [
             Input("btn-runners-filter", "n_clicks"),
             Input("btn-left-close", "n_clicks")
         ],
+        State("container-filters-plot", "className")
     )
-    def toggle_classname(n1, n2):
-        if myutils.mydash.triggered_id() == 'btn-runners-filter':
-            return "left-not-collapsed"
+    def toggle_classname(n1, n2, css_classes):
+        if mydash.triggered_id() == 'btn-runners-filter':
+            return str(mydash.CSSClassHandler(css_classes) + 'right-not-collapsed')
         else:
-            return ""
+            return str(mydash.CSSClassHandler(css_classes) - 'right-not-collapsed')
 
     @app.callback(
         output=[

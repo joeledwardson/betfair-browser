@@ -75,6 +75,7 @@ class MatchBetSums:
         # selection loss profit is (lay stakes - back stakes)
         return (self.back_profits - self.lay_exposure) - (self.lay_stakes - self.back_stakes)
 
+    @staticmethod
     def get_match_bet_sums(trade: Trade) -> MatchBetSums:
         """Get match bet sums from all orders in trade"""
         back_stakes = sum([o.size_matched for o in trade.orders if o.side == 'BACK'])
