@@ -1,5 +1,7 @@
 from dash.dependencies import Output, Input, State
 import dash_html_components as html
+import logging
+from myutils import mydash
 
 from .configs import cb_configs
 from .figure import cb_fig
@@ -11,13 +13,18 @@ from .runners import cb_runners
 from ..exceptions import UrlException
 
 
+active_logger = logging.getLogger(__name__)
+active_logger.setLevel(logging.INFO)
+
+
 def cb_display(app):
     outputs = [
         Output("container-market", "hidden"),
         Output("container-filters-market", "hidden"),
         Output("container-runners", "hidden"),
         Output("container-filters-plot", "hidden"),
-        Output("container-timings", "hidden")
+        Output("container-timings", "hidden"),
+        Output("container-logs", "hidden")
     ]
 
     # set the content according to the current pathname
@@ -29,6 +36,8 @@ def cb_display(app):
             displays = ["container-runners", "container-filters-plot"]
         elif pathname == "/timings":
             displays = ["container-timings"]
+        elif pathname == "/logs":
+            displays = ["container-logs"]
         else:
             displays = list()
 

@@ -234,15 +234,18 @@ class Session:
         return config
 
     @classmethod
-    def rl_mods(cls):
+    def rl_mods(cls) -> int:
         """
         reload all modules within 'mytrading' or 'myutils'
         """
+        n = 0
         for k in list(sys.modules.keys()):
             if any([m in k for m in cls.MODULES]):
                 importlib.reload(sys.modules[k])
                 active_logger.debug(f'reloaded library {k}')
+                n += 1
         active_logger.info('libraries reloaded')
+        return n
 
     def rl_db(self):
         """reload database instance"""

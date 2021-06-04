@@ -17,6 +17,13 @@ market_type = Market Type
 market_time = Market Time
 venue = Venue
 
+[STRATEGY_TABLE_COLS]
+strategy_id = Strategy ID
+type = Type
+name = Name
+exec_time = Execution Time
+date_added = Date Added
+
 [FORMATTERS_CONFIG]
 dt_format = %%Y-%%m-%%d %%H:%%M
 

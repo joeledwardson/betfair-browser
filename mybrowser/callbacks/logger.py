@@ -29,14 +29,15 @@ def cb_logs(app, shn: Session):
         inputs=[
             Input(x, 'children') for x in INTERMEDIARIES
         ] + [
-            Input("modal-close-log", "n_clicks")
+            Input("url", "pathname")
         ],
         state=[
-            State('toast-holder', 'children')
+            State('toast-holder', 'children'),
         ]
     )
     def log_update(*args):
         toasts = args[-1]
+        pathname = args[-2]
 
         # update log list, add to bottom of list as display is reversed
         while not log_q.empty():
@@ -50,13 +51,14 @@ def cb_logs(app, shn: Session):
             ))
             shn.log_elements = shn.log_elements[:MAX_ELEMENTS]
 
-        if myutils.mydash.triggered_id() == 'modal-close-log':
+        if pathname == "/logs":
             shn.log_nwarn = 0
-
-        if shn.log_nwarn > 0:
-            hide_warn = False
-        else:
             hide_warn = True
+        else:
+            if shn.log_nwarn > 0:
+                hide_warn = False
+            else:
+                hide_warn = True
 
         toasts = list() if not toasts else toasts
         while shn.notif_exist():
@@ -78,18 +80,5 @@ def cb_logs(app, shn: Session):
             str(shn.log_nwarn),
             toasts
         ]
-
-    @app.callback(
-        output=Output("modal-logs", "is_open"),
-        inputs=[
-            Input("button-log", "n_clicks"),
-            Input("modal-close-log", "n_clicks")
-        ]
-    )
-    def toggle_modal(n1, n2):
-        if myutils.mydash.triggered_id() == 'button-log':
-            return True
-        else:
-            return False
 
 

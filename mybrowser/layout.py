@@ -6,29 +6,6 @@ import myutils.mydash
 
 from .layouts import market, runners, configs, orders, timings, logger, INTERMEDIARIES
 
-# TODO - sidebar nav which expands on hover - make sidebars come in from the right but positioned on page
-class ToastHandler:
-
-    top = 50
-
-    @classmethod
-    def get_toast(cls, toast_id, header, icon='info'):
-        # cls.top += 20
-        return dbc.Toast(
-            id=toast_id,
-            header=header,
-            is_open=False,
-            dismissable=True,
-            icon=icon,
-            duration=360000,
-            style={
-                "position": "fixed",
-                "top": cls.top,
-                "right": 50,
-                # "width": 350
-            },
-        )
-
 
 def hidden_elements(n_odr_rows, n_tmr_rows):
     return [
@@ -41,51 +18,6 @@ def hidden_elements(n_odr_rows, n_tmr_rows):
             )],
             id="modal-orders",
             size="xl"
-        ),
-
-        # dbc.Modal([
-        #     dbc.ModalHeader('Timings'),
-        #     dbc.ModalBody(timings.table(n_tmr_rows)),
-        #     dbc.ModalFooter(
-        #         dbc.Button('Close', id='modal-close-timings', className='ml-auto')
-        #     )],
-        #     id='modal-timings',
-        #     size='xl'
-        # ),
-
-        dbc.Modal([
-            dbc.ModalHeader("Log"),
-            dbc.ModalBody(logger.log_box()),
-            dbc.ModalFooter(
-                dbc.Button("Close", id="modal-close-log", className="ml-auto")
-            )],
-            id="modal-logs",
-            size='xl',
-        ),
-
-        dbc.Modal([
-            dbc.ModalHeader('Libraries reloaded'),
-            dbc.ModalFooter(
-                dbc.Button(
-                    "Close",
-                    id="modal-close-libs",
-                    className='ml-auto'
-                )
-            )],
-            id='modal-libs',
-        ),
-
-
-        dbc.Modal([
-            dbc.ModalHeader('Feature/plot configurations reloaded'),
-            dbc.ModalFooter(
-                dbc.Button(
-                    "Close",
-                    id="modal-close-fcfgs",
-                    className='ml-auto'
-                )
-            )],
-            id='modal-fcfgs',
         ),
 
         # hidden divs for intermediary output components
@@ -115,21 +47,6 @@ def header():
                 id='button-libs',
                 color='info'
             ),
-            width='auto',
-            className='p-1'
-        ),
-        dbc.Col([
-            dbc.Button(
-                html.I(className="fas fa-envelope-open-text"),
-                id='button-log',
-                color='info'
-            ),
-            html.Div(
-                dbc.Badge(id='log-warns', color="danger", className='p-2'),
-                id='msg-alert-box',
-                className='right-corner-box',
-                hidden=True
-            )],
             width='auto',
             className='p-1'
         )],
@@ -187,13 +104,15 @@ def plot_filter_div(filter_margins, dflt_offset):
 
 
 def market_div(mkt_tbl_cols, n_mkt_rows):
-    return html.Div([
-        html.Div(id='mkt-pls'),
-        market.header(),
-        market.mkt_buttons(),
-        market.query_status(),
-        market.mkt_table(mkt_tbl_cols, n_mkt_rows)
-    ], className='flex-grow-1 shadow m-4 p-2', id='container-market')
+    return html.Div(
+        [
+            market.header(),
+            market.mkt_buttons(),
+            market.query_status(),
+            market.mkt_table(mkt_tbl_cols, n_mkt_rows)
+        ],
+        className='flex-grow-1 shadow m-4 p-4', id='container-market'
+    )
 
 
 def market_filter_div(filter_margins):
@@ -228,20 +147,45 @@ def runners_div(n_run_rows):
         runners.inputs(),
         runners.market_info(),
         runners.table(n_run_rows)
-    ], className='flex-grow-1 p-3', id='container-runners')
+    ], className='flex-grow-1 shadow m-4 p-4', id='container-runners')
 
 
 def timings_div(n_tmr_rows):
     return html.Div(
-        timings.table(n_tmr_rows),
+        [
+            html.H2('Timings'),
+            timings.table(n_tmr_rows)
+        ],
         id='container-timings',
-        className='shadow m-4 p-3 flex-grow-1'
+        className='shadow m-4 p-4 flex-grow-1'
+    )
+
+
+def log_div():
+    return html.Div(
+        html.Div(
+            [
+                html.H2('Python Log'),
+                logger.log_box()
+            ],
+            className='d-flex flex-column h-100'
+        ),
+        className='flex-grow-1 shadow m-4 p-4',
+        id='container-logs'
+    )
+
+
+def strat_div():
+    return html.Div(
+        [
+            html.H2('Strategies')
+        ],
+        className='flex-grow-1 shadow m-4 p-4',
+        id='container-strat'
     )
 
 
 nav = html.Div([
-    # html.I(className='fas fa-horse fa-lg'),
-    # html.Hr(),
     dbc.Nav(
         [
             dbc.NavLink(
@@ -276,6 +220,21 @@ nav = html.Div([
                 href="/timings",
                 active="exact",
             ),
+            dbc.NavLink(
+                [
+                    html.I(className="fas fas fa-envelope-open-text"),
+                    html.Span(""),
+                    html.Div(
+                        dbc.Badge(id='log-warns', color="danger", className='p-2'),
+                        id='msg-alert-box',
+                        className='right-corner-box',
+                        hidden=True
+                    )
+                ],
+                href="/logs",
+                active="exact",
+                className='position-relative'
+            ),
         ],
         vertical=True,
         pills=True,
@@ -303,6 +262,7 @@ def get_layout(
                 html.Div(
                     [
                         nav,
+                        log_div(),
                         market_div(mkt_tbl_cols, n_mkt_rows),
                         runners_div(n_run_rows),
                         timings_div(n_tmr_rows),

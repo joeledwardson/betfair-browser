@@ -698,6 +698,7 @@ class BettingDB:
         ).all()
         return [dict(row) for row in rows]
 
+    # TODO - add custom asc/desc database filtering option
     def rows_market(self, cte, col_names, max_rows) -> List[Dict]:
         cols = [cte.c[nm] for nm in col_names]
         rows = self._dbc.session.query(*cols).limit(max_rows).all()
