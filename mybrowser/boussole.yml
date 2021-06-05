@@ -1,0 +1,6 @@
+EXCLUDES: []
+LIBRARY_PATHS: ["bootstrap-5.0.1/scss"]
+OUTPUT_STYLES: nested
+SOURCES_PATH: scss
+SOURCE_COMMENTS: false
+TARGET_PATH: assets

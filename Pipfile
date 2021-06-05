@@ -25,6 +25,7 @@ dash-bootstrap-components = "*"
 dateparser = "*"
 sqlalchemy-filters = "*"
 dash-extensions = "*"
+boussole = "*"
 
 [dev-packages]
 

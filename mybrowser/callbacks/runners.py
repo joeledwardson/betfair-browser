@@ -4,9 +4,9 @@ import logging
 import traceback
 
 from myutils import mydash
-from ..session import Session
 from mytrading import exceptions as trdexp
 from sqlalchemy.exc import SQLAlchemyError
+from ..session import Session, Notification as Notif, NotificationType as NType
 
 
 active_logger = logging.getLogger(__name__)
@@ -17,7 +17,10 @@ counter = mydash.Intermediary()
 
 def cb_runners(app, shn: Session):
     @app.callback(
-        output=Output('button-runners', 'disabled'),
+        output=[
+            Output('button-runners', 'disabled'),
+            Output('nav-runners', 'disabled')
+        ],
         inputs=[
             Input('table-market-session', 'active_cell'),
         ],
@@ -27,8 +30,8 @@ def cb_runners(app, shn: Session):
         if active_cell is not None:
             if 'row_id' in active_cell:
                 if active_cell['row_id']:
-                    return False
-        return True
+                    return False, False
+        return True, True
 
     @app.callback(
         output=[
@@ -81,19 +84,23 @@ def cb_runners(app, shn: Session):
         # market clear
         if mydash.triggered_id() == 'button-mkt-bin':
             active_logger.info(f'clearing market')
+            shn.notif_post(Notif(NType.INFO, 'Market', 'Cleared market'))
             return ret
 
         if not cell:
             active_logger.warning(f'no active cell to get market')
+            shn.notif_post(Notif(NType.WARNING, 'Market', 'No active cell to get market'))
             return ret
 
         market_id = cell['row_id']
         if not market_id:
             active_logger.warning(f'row ID is blank')
+            shn.notif_post(Notif(NType.WARNING, 'Market', 'row ID is blank'))
             return ret
         try:
             shn.mkt_load(market_id, strategy_id)
             shn.mkt_lginf()
+            shn.notif_post(Notif(NType.INFO, 'Market', f'Loaded market "{market_id}" with strategy "{strategy_id}"'))
         except (trdexp.MyTradingException, SQLAlchemyError) as e:
             active_logger.warning(f'failed to load market: {e}\n{traceback.format_exc()}')
             shn.mkt_clr()

@@ -48,6 +48,7 @@ def cb_market(app, shn: Session):
             Output('table-market-session', 'page_current'),
             Output('loading-out-session', 'children'),
             Output('intermediary-session-market', 'children'),
+            Output('market-sorter', 'value'),
 
             Output('input-sport-type', 'value'),
             Output('input-mkt-type', 'value'),
@@ -73,13 +74,14 @@ def cb_market(app, shn: Session):
             Input('input-mkt-clear', 'n_clicks'),
             Input('input-strategy-clear', 'n_clicks'),
             Input('btn-strategy-delete', 'n_clicks'),
-            Input('table-market-session', 'sort_mode'),
             Input('btn-cache-clear', 'n_clicks'),
             Input('btn-db-refresh', 'n_clicks'),
             Input('btn-db-upload', 'n_clicks'),
             Input('btn-db-reconnect', 'n_clicks'),
             Input('btn-strategy-run', 'n_clicks'),
-            Input('demo-dropdown', 'value'),
+
+            Input('market-sorter', 'value'),
+            Input('btn-sort-clear', 'n_clicks'),
 
             Input('input-strategy-select', 'value'),
 
@@ -100,13 +102,13 @@ def cb_market(app, shn: Session):
             n_mkt_clear,
             n_strat_clear,
             n_strat_del,
-            sort_mode,
             n_cache_clear,
             n_db_refresh,
             n_db_upload,
             n_db_reconnect,
             n_strat_run,
-            dropdown_value,
+            market_sorter,
+            n_sort_clear,
             strategy_id,
             m0, m1, m2, m3, m4, m5, m6, m7,
             strategy_run_val
@@ -166,8 +168,10 @@ def cb_market(app, shn: Session):
         cte = shn.betting_db.filters_mkt_cte(strategy_id, shn.filters_mkt)
         vals = shn.filters_mkt.filters_values()
         lbls = shn.betting_db.filters_labels(shn.filters_mkt, cte)
-        if dropdown_value:
-            dropdown_dict = json.loads(dropdown_value)
+        if btn_id == 'btn-sort-clear':
+            market_sorter = None
+        if market_sorter:
+            dropdown_dict = json.loads(market_sorter)
             order_col = dropdown_dict.get('db_col')
             order_asc = dropdown_dict.get('asc')
         else:
@@ -196,6 +200,7 @@ def cb_market(app, shn: Session):
             0,  # reset current page back to first page
             '',  # loading output
             counter.next(),  # intermediary counter value
+            market_sorter  # market sorter value
         ] + vals + lbls + strat_vals + strat_lbls
 
     @app.callback(

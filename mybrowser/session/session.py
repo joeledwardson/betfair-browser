@@ -110,10 +110,11 @@ class Notification:
 
 
 # TODO  - split strategy into strategy config and market filter configs
+# TODO - move configuration to github location
 class Session:
 
     MODULES = ['myutils', 'mytrading']
-    CFG_LOCAL_FILE = 'config.txt'
+    CFG_LOCAL_FILE = 'config.ini'
     FTR_DEFAULT = {
         'ltp': {'name': 'RFLTP'},
         'best_back': {'name': 'RFBck'},
@@ -559,9 +560,9 @@ class Session:
         return self._flts_strat
 
     def filters_mkt_tbl(self, cte, order_col=None, order_asc=True):
-        col_names = list(self.config['TABLE_COLS'].keys()) + ['market_profit']
+        col_names = list(self.config['MARKET_TABLE_COLS'].keys()) + ['market_profit']
         max_rows = int(self.config['DB']['max_rows'])
-        fmt_config = self.config['TABLE_FORMATTERS']
+        fmt_config = self.config['MARKET_TABLE_FORMATTERS']
         tbl_rows = self.betting_db.rows_market(cte, col_names, max_rows, order_col, order_asc)
         for i, row in enumerate(tbl_rows):
             # apply custom formatting to table row values

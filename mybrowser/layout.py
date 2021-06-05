@@ -1,9 +1,8 @@
 import dash_bootstrap_components as dbc
 import dash_html_components as html
 import dash_core_components as dcc
-
+import dash_table
 import myutils.mydash
-
 from .layouts import market, runners, configs, orders, timings, logger, INTERMEDIARIES
 
 
@@ -35,12 +34,16 @@ def hidden_elements(n_odr_rows, n_tmr_rows):
 def header():
 
     end = dbc.Row([
-        dbc.Col(
+        dbc.Col([
             dcc.Loading(
                 html.Div(id='loading-out-header'),
                 type='dot'
-            )
-        ),
+            ),
+            dcc.Loading(
+                html.Div(id='loading-out-session'),
+                type='dot'
+            ),
+        ]),
         dbc.Col(
             dbc.Button(
                 html.I(className="fas fa-book-open"),
@@ -111,7 +114,7 @@ def market_div(mkt_tbl_cols, n_mkt_rows, market_sort_options):
             market.query_status(),
             market.mkt_table(mkt_tbl_cols, n_mkt_rows)
         ],
-        className='flex-grow-1 shadow m-4 p-4', id='container-market'
+        className='flex-grow-1 shadow m-4 p-4 overflow-auto', id='container-market'
     )
 
 
@@ -147,7 +150,7 @@ def runners_div(n_run_rows):
         runners.inputs(),
         runners.market_info(),
         runners.table(n_run_rows)
-    ], className='flex-grow-1 shadow m-4 p-4', id='container-runners')
+    ], className='flex-grow-1 shadow m-4 p-4 overflow-auto', id='container-runners')
 
 
 def timings_div(n_tmr_rows):
@@ -157,7 +160,7 @@ def timings_div(n_tmr_rows):
             timings.table(n_tmr_rows)
         ],
         id='container-timings',
-        className='shadow m-4 p-4 flex-grow-1'
+        className='shadow m-4 p-4 flex-grow-1 overflow-auto'
     )
 
 
@@ -170,21 +173,47 @@ def log_div():
             ],
             className='d-flex flex-column h-100'
         ),
-        className='flex-grow-1 shadow m-4 p-4',
+        className='flex-grow-1 shadow m-4 p-4 overflow-auto',
         id='container-logs'
     )
 
 
-def strat_div():
+def strat_div(n_strat_rows, strat_cols):
+    full_strat_cols = strat_cols | {
+        'n_markets': 'Market Count',
+        'total_profit': 'Total Profit'
+    }
     return html.Div(
         [
-            html.H2('Strategies')
+            html.H2('Strategies'),
+            html.Div(
+                dash_table.DataTable(
+                    id='table-strategies',
+                    columns=[
+                        {"name": v, "id": k}
+                        for k, v in full_strat_cols.items()
+                    ],
+                    style_cell={
+                        'textAlign': 'left',
+                        'whiteSpace': 'normal',
+                        'height': 'auto',
+                        'maxWidth': 0,  # fix column widths
+                        'verticalAlign': 'middle'
+                    },
+                    style_header={
+                        'fontWeight': 'bold'
+                    },
+                    page_size=n_strat_rows,
+                ),
+                className='table-container'
+            )
         ],
-        className='flex-grow-1 shadow m-4 p-4',
+        className='flex-grow-1 shadow m-4 p-4 overflow-auto',
         id='container-strat'
     )
 
 
+# TODO - add padding
 nav = html.Div([
     dbc.Nav(
         [
@@ -195,6 +224,7 @@ nav = html.Div([
                 ],
                 href="/",
                 active="exact",
+                className='m-1'
             ),
             dbc.NavLink(
                 [
@@ -251,7 +281,9 @@ def get_layout(
         mkt_tbl_cols,
         n_mkt_rows,
         n_run_rows,
-        market_sort_options
+        market_sort_options,
+        n_strat_rows,
+        strat_tbl_cols,
 ) -> html.Div:
     # container
     return html.Div([
@@ -267,6 +299,7 @@ def get_layout(
                         market_div(mkt_tbl_cols, n_mkt_rows, market_sort_options),
                         runners_div(n_run_rows),
                         timings_div(n_tmr_rows),
+                        strat_div(n_strat_rows, strat_tbl_cols),
                         market_filter_div(filter_margins),
                         plot_filter_div(filter_margins, dflt_offset),
                     ],

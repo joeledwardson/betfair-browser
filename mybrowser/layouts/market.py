@@ -33,12 +33,27 @@ def header():
             width='auto',
             className='p-1'
         ),
+        dbc.Col(
+            dbc.NavLink(
+                [
+                    dbc.Button(
+                        html.I(className="fas fa-download"),
+                        id='button-runners',
+                        n_clicks=0,
+                        color='primary'
+                    )
+                ],
+                id="nav-runners",
+                href="/runners",
+                active="exact",
+                className='p-0'
+            ),
+            width='auto',
+            className='p-1'
+        ),
         dbc.Col(),
         dbc.Col(
-            dcc.Loading(
-                html.Div(id='loading-out-session'),
-                type='dot'
-            ),
+
             className='anchor-right',
         )],
         align='center'
@@ -98,7 +113,7 @@ def mkt_buttons(sort_options: Dict):
         ),
         dbc.Col(
             dbc.Select(
-                id='demo-dropdown',
+                id='market-sorter',
                 placeholder='Market Sort...',
                 options=options_labels,
             ),
@@ -114,7 +129,7 @@ def mkt_buttons(sort_options: Dict):
             width='auto',
             className='p-1'
         )
-    ], align='center', no_gutters=True)
+    ], align='center')
 
 
 def mkt_filters(multi, filter_margins):
@@ -184,22 +199,27 @@ def query_status():
 
 def mkt_table(tbl_cols, n_rows):
     # DB market browser
+    full_tbl_cols = tbl_cols | {'market_profit': 'Profit'}
     return dbc.Row(dbc.Col(
         dash_table.DataTable(
             id='table-market-session',
             columns=[
                 {"name": v, "id": k}
-                for k, v in (tbl_cols | {'market_profit': 'Profit'}).items()
+                for k, v in full_tbl_cols.items()
             ],
             style_cell={
                 'textAlign': 'left',
                 'whiteSpace': 'normal',
                 'height': 'auto',
-                'textOverflow': 'ellipsis',
+                'maxWidth': 0,  # fix column widths
+                'verticalAlign': 'middle'
+            },
+            style_header={
+                'fontWeight': 'bold'
             },
             page_size=n_rows,
-            sort_action="native"
-        )
+        ),
+        className='table-container'
     ))
 
 

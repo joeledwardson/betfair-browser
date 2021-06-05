@@ -23,16 +23,6 @@ def header():
         ),
         dbc.Col(
             dbc.Button(
-                children=html.I(className="fas fa-download"),
-                id='button-runners',
-                n_clicks=0,
-                color='primary'
-            ),
-            width='auto',
-            className='p-1'
-        ),
-        dbc.Col(
-            dbc.Button(
                 html.I(className='fas fa-trash'),
                 id='button-mkt-bin',
                 color='warning'
@@ -83,15 +73,6 @@ def inputs():
             width='auto',
             className='p-1'
         ),
-        # dbc.Col(
-        #     dbc.Button(
-        #         ['Timings', html.I(className='fas fa-hourglass ml-2')],
-        #         id='button-timings',
-        #         color='primary'
-        #     ),
-        #     width='auto',
-        #     className='p-1'
-        # ),
         dbc.Col(),
         dbc.Col(
             dcc.Loading(
@@ -99,7 +80,7 @@ def inputs():
                 type='dot',
                 parent_className='anchor-right'
             )
-        )], no_gutters=True, align='center'
+        )], align='center'
     ))
 
 
@@ -112,7 +93,7 @@ def table(n_rows):
     """
     get empty mydash DataTable for runner information
     """
-    return dash_table.DataTable(
+    return html.Div(dash_table.DataTable(
         id='table-runners',
         columns=[{
             'name': v, 'id': v
@@ -124,7 +105,14 @@ def table(n_rows):
         ]],
         style_cell={
             'textAlign': 'left',
+            'whiteSpace': 'normal',
+            'height': 'auto',
+            'maxWidth': 0,  # fix column widths
+            'verticalAlign': 'middle'
+        },
+        style_header={
+            'fontWeight': 'bold'
         },
         page_size=n_rows,
-        sort_action='native',
-    )
+    ), className='table-container')
+

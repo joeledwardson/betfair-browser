@@ -10,6 +10,7 @@ from .logger import cb_logs
 from .market import cb_market
 from .orders import cb_orders
 from .runners import cb_runners
+from .strategy import cb_strategy
 from ..exceptions import UrlException
 
 
@@ -24,7 +25,8 @@ def cb_display(app):
         Output("container-runners", "hidden"),
         Output("container-filters-plot", "hidden"),
         Output("container-timings", "hidden"),
-        Output("container-logs", "hidden")
+        Output("container-logs", "hidden"),
+        Output("container-strat", "hidden")
     ]
 
     # set the content according to the current pathname
@@ -38,6 +40,8 @@ def cb_display(app):
             displays = ["container-timings"]
         elif pathname == "/logs":
             displays = ["container-logs"]
+        elif pathname == "/strategy":
+            displays = ["container-strat"]
         else:
             displays = list()
 

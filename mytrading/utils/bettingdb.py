@@ -6,7 +6,7 @@ from betfairlightweight.resources.bettingresources import MarketCatalogue, Marke
 from betfairlightweight.streaming.listener import StreamListener
 import sqlalchemy
 from sqlalchemy.sql.selectable import CTE
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, func, DECIMAL
 from sqlalchemy.orm import Session
 from sqlalchemy.sql.schema import Table
 from sqlalchemy.ext.automap import automap_base
@@ -210,6 +210,13 @@ class DBBase:
         self.session.commit()
         return ret
 
+    def order_query(self, query: Query, cols, order_col: str, order_asc: bool):
+        """apply ordering based on column of cte"""
+        if order_col not in cols:
+            raise DBException(f'cannot order by column "{order_col}", does not exist in CTE')
+        order_func = sqlalchemy.asc if order_asc else sqlalchemy.desc
+        return query.order_by(order_func(cols[order_col]))
+
 
 class DBCache(DBBase):
 
@@ -412,7 +419,6 @@ MARKET_FILTER_SPEC = {
 }
 
 
-# TODO - move configuration to github location
 def apply_filter_spec(tbl: Table, q: Query, filters_spec: List[Dict]) -> Query:
     """sqlalchemy_filters `apply_filters` function doesn't work with Sqlalchemy V1.14 so i've bodged it myself until
     they sort it out"""
@@ -698,17 +704,38 @@ class BettingDB:
         ).all()
         return [dict(row) for row in rows]
 
-    # TODO - add custom asc/desc database filtering option
     def rows_market(self, cte, col_names, max_rows, order_col=None, order_asc=False) -> List[Dict]:
         cols = [cte.c[nm] for nm in col_names]
         q = self._dbc.session.query(*cols)
         if order_col is not None:
-            if order_col not in cte.c:
-                raise DBException(f'cannot order by column "{order_col}", does not exist in CTE')
-            order_func = sqlalchemy.asc if order_asc else sqlalchemy.desc
-            q = q.order_by(order_func(cte.c[order_col]))
+            q = self._dbc.order_query(q, cte, order_col, order_asc)
         rows = q.limit(max_rows).all()
         return [dict(row) for row in rows]
+
+    # TODO - implement in UI
+    def rows_strategy(self, max_rows) -> List[Dict]:
+        shn = self._dbc.session
+        sm = self._dbc.tables['strategymeta']
+        sr = self._dbc.tables['strategyrunners']
+        p_cte = shn.query(
+            sr.columns['strategy_id'],
+            func.sum(sr.columns['profit'].cast(DECIMAL)).label('total_profit')
+        ).group_by(sr.columns['strategy_id']).cte()
+        shn.query(
+            sm,
+            p_cte.c['total_profit']
+        ).join(p_cte, sm.columns['strategy_id'] == p_cte.c['strategy_id'])
+        m_cte = shn.query(sr.c['strategy_id'], sr.c['market_id']).distinct().cte()
+        m_cte = shn.query(
+            m_cte.c['strategy_id'],
+            func.count(m_cte.c['market_id']).label('market_count')
+        ).group_by(m_cte.c['strategy_id']).cte()
+        q = shn.query(sm, p_cte.c['total_profit'], m_cte.c['market_count']).join(
+            p_cte, sm.c['strategy_id'] == p_cte.c['strategy_id'], isouter=True
+        ).join(
+            m_cte, sm.c['strategy_id'] == m_cte.c['strategy_id'], isouter=True
+        )
+        return [dict(row) for row in q.limit(max_rows).all()]
 
     def filters_labels(self, filters: DBFilterHandler, cte) -> List[List[Dict[str, Any]]]:
         return filters.filters_labels(self._dbc.session, self._dbc.tables, cte)

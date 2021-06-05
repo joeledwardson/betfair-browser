@@ -41,6 +41,7 @@ def run_browser(debug: bool, config_path=None):
     callbacks.cb_libs(app, session)
     callbacks.cb_configs(app, session)
     callbacks.cb_fig(app, session)
+    callbacks.cb_strategy(app, session)
     callbacks.cb_display(app)
 
     app.layout = get_layout(
@@ -48,16 +49,17 @@ def run_browser(debug: bool, config_path=None):
         n_tmr_rows=int(session.config['TABLE']['timings_rows']),
         filter_margins=session.config['LAYOUT']['filter_margins'],
         dflt_offset=session.config['PLOT_CONFIG']['default_offset'],
-        mkt_tbl_cols=dict(session.config['TABLE_COLS']),
+        mkt_tbl_cols=dict(session.config['MARKET_TABLE_COLS']),
         n_mkt_rows=int(session.config['TABLE']['market_rows']),
         n_run_rows=int(session.config['TABLE']['runner_rows']),
-        market_sort_options=dict(session.config['MARKET_SORT_OPTIONS'])
+        market_sort_options=dict(session.config['MARKET_SORT_OPTIONS']),
+        n_strat_rows=int(session.config['TABLE']['strategy_rows']),
+        strat_tbl_cols=dict(session.config['STRATEGY_TABLE_COLS'])
     )
 
     active_logger.info(f'Dash version: {dash.__version__}')
     active_logger.info(f'Dash renderer version: {dash_renderer.__version__}')
     active_logger.info('Starting dash server...')
-    active_logger.error('sample error')
 
     # turn of dev tools prop check to disable time input error
     app.run_server(debug=debug, dev_tools_props_check=False)
