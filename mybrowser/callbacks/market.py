@@ -2,6 +2,7 @@ from __future__ import annotations
 from dash.dependencies import Output, Input, State
 import dash_html_components as html
 
+import json
 from typing import List, Dict, Any, Optional
 from myutils import mydash
 import logging
@@ -78,6 +79,7 @@ def cb_market(app, shn: Session):
             Input('btn-db-upload', 'n_clicks'),
             Input('btn-db-reconnect', 'n_clicks'),
             Input('btn-strategy-run', 'n_clicks'),
+            Input('demo-dropdown', 'value'),
 
             Input('input-strategy-select', 'value'),
 
@@ -104,6 +106,7 @@ def cb_market(app, shn: Session):
             n_db_upload,
             n_db_reconnect,
             n_strat_run,
+            dropdown_value,
             strategy_id,
             m0, m1, m2, m3, m4, m5, m6, m7,
             strategy_run_val
@@ -163,7 +166,13 @@ def cb_market(app, shn: Session):
         cte = shn.betting_db.filters_mkt_cte(strategy_id, shn.filters_mkt)
         vals = shn.filters_mkt.filters_values()
         lbls = shn.betting_db.filters_labels(shn.filters_mkt, cte)
-        tbl_rows = shn.filters_mkt_tbl(cte)  # query db with filtered CTE to generate table rows for display
+        if dropdown_value:
+            dropdown_dict = json.loads(dropdown_value)
+            order_col = dropdown_dict.get('db_col')
+            order_asc = dropdown_dict.get('asc')
+        else:
+            order_col, order_asc = None, None
+        tbl_rows = shn.filters_mkt_tbl(cte, order_col, order_asc)  # query db with filtered CTE to generate table rows for display
         for r in tbl_rows:
             r['id'] = r['market_id']  # assign 'id' so market ID set in row ID read in callbacks
 

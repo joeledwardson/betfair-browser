@@ -558,11 +558,11 @@ class Session:
     def filters_strat(self):
         return self._flts_strat
 
-    def filters_mkt_tbl(self, cte):
+    def filters_mkt_tbl(self, cte, order_col=None, order_asc=True):
         col_names = list(self.config['TABLE_COLS'].keys()) + ['market_profit']
         max_rows = int(self.config['DB']['max_rows'])
         fmt_config = self.config['TABLE_FORMATTERS']
-        tbl_rows = self.betting_db.rows_market(cte, col_names, max_rows)
+        tbl_rows = self.betting_db.rows_market(cte, col_names, max_rows, order_col, order_asc)
         for i, row in enumerate(tbl_rows):
             # apply custom formatting to table row values
             for k, v in row.items():

@@ -2,6 +2,9 @@ import dash_html_components as html
 import dash_core_components as dcc
 import dash_bootstrap_components as dbc
 import dash_table
+from typing import Dict
+import itertools
+import json
 
 
 def header():
@@ -42,7 +45,26 @@ def header():
     )
 
 
-def mkt_buttons():
+def mkt_buttons(sort_options: Dict):
+    options_labels = list(itertools.chain(*[
+        [
+            {
+                'label': f'▲ {v}',
+                'value': json.dumps({
+                    'db_col': k,
+                    'asc': True
+                })
+            },
+            {
+                'label': f'▼ {v}',
+                'value': json.dumps({
+                    'db_col': k,
+                    'asc': False
+                })
+            }
+        ]
+        for k, v in sort_options.items()
+    ]))
     return dbc.Row([
         dbc.Col(
             dbc.Button(
@@ -74,6 +96,24 @@ def mkt_buttons():
             width='auto',
             className='p-1'
         ),
+        dbc.Col(
+            dbc.Select(
+                id='demo-dropdown',
+                placeholder='Market Sort...',
+                options=options_labels,
+            ),
+            width='auto',
+            className='p-1'
+        ),
+        dbc.Col(
+            dbc.Button(
+                ['Clear Sort', html.I(className="fas fa-times-circle ml-2")],
+                id='btn-sort-clear',
+                color='info'
+            ),
+            width='auto',
+            className='p-1'
+        )
     ], align='center', no_gutters=True)
 
 

@@ -17,6 +17,10 @@ market_type = Market Type
 market_time = Market Time
 venue = Venue
 
+[MARKET_SORT_OPTIONS]
+market_id = Market ID
+market_time = Market Time
+
 [STRATEGY_TABLE_COLS]
 strategy_id = Strategy ID
 type = Type

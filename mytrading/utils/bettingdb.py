@@ -699,9 +699,15 @@ class BettingDB:
         return [dict(row) for row in rows]
 
     # TODO - add custom asc/desc database filtering option
-    def rows_market(self, cte, col_names, max_rows) -> List[Dict]:
+    def rows_market(self, cte, col_names, max_rows, order_col=None, order_asc=False) -> List[Dict]:
         cols = [cte.c[nm] for nm in col_names]
-        rows = self._dbc.session.query(*cols).limit(max_rows).all()
+        q = self._dbc.session.query(*cols)
+        if order_col is not None:
+            if order_col not in cte.c:
+                raise DBException(f'cannot order by column "{order_col}", does not exist in CTE')
+            order_func = sqlalchemy.asc if order_asc else sqlalchemy.desc
+            q = q.order_by(order_func(cte.c[order_col]))
+        rows = q.limit(max_rows).all()
         return [dict(row) for row in rows]
 
     def filters_labels(self, filters: DBFilterHandler, cte) -> List[List[Dict[str, Any]]]:

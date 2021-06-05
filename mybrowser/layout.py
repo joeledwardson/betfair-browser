@@ -103,11 +103,11 @@ def plot_filter_div(filter_margins, dflt_offset):
     )
 
 
-def market_div(mkt_tbl_cols, n_mkt_rows):
+def market_div(mkt_tbl_cols, n_mkt_rows, market_sort_options):
     return html.Div(
         [
             market.header(),
-            market.mkt_buttons(),
+            market.mkt_buttons(market_sort_options),
             market.query_status(),
             market.mkt_table(mkt_tbl_cols, n_mkt_rows)
         ],
@@ -250,7 +250,8 @@ def get_layout(
         dflt_offset,
         mkt_tbl_cols,
         n_mkt_rows,
-        n_run_rows
+        n_run_rows,
+        market_sort_options
 ) -> html.Div:
     # container
     return html.Div([
@@ -263,7 +264,7 @@ def get_layout(
                     [
                         nav,
                         log_div(),
-                        market_div(mkt_tbl_cols, n_mkt_rows),
+                        market_div(mkt_tbl_cols, n_mkt_rows, market_sort_options),
                         runners_div(n_run_rows),
                         timings_div(n_tmr_rows),
                         market_filter_div(filter_margins),

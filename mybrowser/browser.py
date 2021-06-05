@@ -50,7 +50,8 @@ def run_browser(debug: bool, config_path=None):
         dflt_offset=session.config['PLOT_CONFIG']['default_offset'],
         mkt_tbl_cols=dict(session.config['TABLE_COLS']),
         n_mkt_rows=int(session.config['TABLE']['market_rows']),
-        n_run_rows=int(session.config['TABLE']['runner_rows'])
+        n_run_rows=int(session.config['TABLE']['runner_rows']),
+        market_sort_options=dict(session.config['MARKET_SORT_OPTIONS'])
     )
 
     active_logger.info(f'Dash version: {dash.__version__}')
