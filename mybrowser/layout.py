@@ -270,7 +270,6 @@ def strat_div(n_strat_rows, strat_cols):
                         width='auto',
                         className='p-1'
                     ),
-                    dbc.Button("Open modal", id="open"),
                 ], align='center'),
                 dbc.Row([
                     dbc.Col(

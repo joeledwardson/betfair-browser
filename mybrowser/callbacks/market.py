@@ -73,7 +73,6 @@ def cb_market(app, shn: Session):
         inputs=[
             Input('input-mkt-clear', 'n_clicks'),
             Input('input-strategy-clear', 'n_clicks'),
-            Input('btn-strategy-delete', 'n_clicks'),
             Input('btn-cache-clear', 'n_clicks'),
             Input('btn-db-refresh', 'n_clicks'),
             Input('btn-db-upload', 'n_clicks'),
@@ -101,7 +100,6 @@ def cb_market(app, shn: Session):
     def mkt_intermediary(
             n_mkt_clear,
             n_strat_clear,
-            n_strat_del,
             n_cache_clear,
             n_db_refresh,
             n_db_upload,
@@ -133,14 +131,6 @@ def cb_market(app, shn: Session):
             shn.notif_post(Notif(NType.INFO, 'Cache', f'Cleared {n_files} files and {n_dirs} dirs from cache'))
 
         # TODO - move all strategy functions from here to strategy page
-        # delete strategy if requested
-        # if btn_id == 'btn-strategy-delete':
-        #     if not strategy_id:
-        #         shn.notif_post(Notif(NType.INFO, 'Strategy', 'must select strategy first'))
-        #     else:
-        #         n0, n1, n2 = shn.betting_db.strategy_delete(strategy_id)
-        #         shn.notif_post(Notif(NType.INFO, 'Strategy', f'removed {n0} strategy meta, {n1} markets, {n2} runners'))
-
         # reconnect to database if button pressed
         if btn_id == 'btn-db-reconnect':
             shn.rl_db()
