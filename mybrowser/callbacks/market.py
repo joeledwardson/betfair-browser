@@ -132,13 +132,14 @@ def cb_market(app, shn: Session):
             n_files, n_dirs = shn.betting_db.wipe_cache()
             shn.notif_post(Notif(NType.INFO, 'Cache', f'Cleared {n_files} files and {n_dirs} dirs from cache'))
 
+        # TODO - move all strategy functions from here to strategy page
         # delete strategy if requested
-        if btn_id == 'btn-strategy-delete':
-            if not strategy_id:
-                shn.notif_post(Notif(NType.INFO, 'Strategy', 'must select strategy first'))
-            else:
-                n0, n1, n2 = shn.betting_db.strategy_delete(strategy_id)
-                shn.notif_post(Notif(NType.INFO, 'Strategy', f'removed {n0} strategy meta, {n1} markets, {n2} runners'))
+        # if btn_id == 'btn-strategy-delete':
+        #     if not strategy_id:
+        #         shn.notif_post(Notif(NType.INFO, 'Strategy', 'must select strategy first'))
+        #     else:
+        #         n0, n1, n2 = shn.betting_db.strategy_delete(strategy_id)
+        #         shn.notif_post(Notif(NType.INFO, 'Strategy', f'removed {n0} strategy meta, {n1} markets, {n2} runners'))
 
         # reconnect to database if button pressed
         if btn_id == 'btn-db-reconnect':
@@ -224,27 +225,11 @@ def cb_market(app, shn: Session):
             strat_counter.next()
         ]
 
-    @app.callback(Output('btn-strategy-run', 'disabled'), Input('input-strategy-run', 'value'))
+    @app.callback(
+        Output('btn-strategy-run', 'disabled'),
+        Input('input-strategy-run', 'value')
+    )
     def strategy_run_enable(strategy_run_select):
         return strategy_run_select is None
 
-    @app.callback(Output('btn-strategy-delete', 'disabled'), Input('input-strategy-select', 'value'))
-    def strategy_delete_enable(strategy_id):
-        return strategy_id is None
-
-    @app.callback(
-        Output("container-filters-market", "className"),
-        [
-            Input("btn-session-filter", "n_clicks"),
-            Input("btn-right-close", "n_clicks")
-        ],
-        State("container-filters-market", "className")
-    )
-    def toggle_classname(n1, n2, class_names: str):
-        # CSS class toggles sidebar
-        classes = mydash.CSSClassHandler(class_names)
-        if mydash.triggered_id() == 'btn-session-filter':
-            return str(classes + "right-not-collapsed")
-        else:
-            return str(classes - "right-not-collapsed")
 

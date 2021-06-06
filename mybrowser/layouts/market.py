@@ -112,18 +112,30 @@ def mkt_buttons(sort_options: Dict):
             className='p-1'
         ),
         dbc.Col(
-            dbc.Select(
-                id='market-sorter',
-                placeholder='Market Sort...',
-                options=options_labels,
-            ),
+            dbc.ButtonGroup([
+                dbc.Select(
+                    id='market-sorter',
+                    placeholder='Market Sort...',
+                    options=options_labels,
+                ),
+                dbc.Button(
+                    [html.I(className="fas fa-times-circle")],
+                    id='btn-sort-clear',
+                    color='secondary'
+                ),
+            ]),
             width='auto',
             className='p-1'
         ),
+        # dbc.Col(
+        #
+        #     width='auto',
+        #     className='p-1'
+        # ),
         dbc.Col(
             dbc.Button(
-                ['Clear Sort', html.I(className="fas fa-times-circle ml-2")],
-                id='btn-sort-clear',
+                ['Clear Strategy', html.I(className="fas fa-times-circle ml-2")],
+                id='input-strategy-clear',
                 color='info'
             ),
             width='auto',
@@ -200,7 +212,7 @@ def query_status():
 def mkt_table(tbl_cols, n_rows):
     # DB market browser
     full_tbl_cols = tbl_cols | {'market_profit': 'Profit'}
-    return dbc.Row(dbc.Col(
+    return html.Div(
         dash_table.DataTable(
             id='table-market-session',
             columns=[
@@ -212,15 +224,31 @@ def mkt_table(tbl_cols, n_rows):
                 'whiteSpace': 'normal',
                 'height': 'auto',
                 'maxWidth': 0,  # fix column widths
-                'verticalAlign': 'middle'
+                'verticalAlign': 'middle',
+                'padding': '0.5rem',
+            },
+            style_data={
+                'border': 'none'
             },
             style_header={
-                'fontWeight': 'bold'
+                'fontWeight': 'bold',
+                'border': 'none'
+            },
+            # the width and height properties below are just placeholders
+            # when using fixed_rows with headers they cannot be relative or dash crashes - these are overridden in css
+            style_table={
+                'overflowY': 'auto',
+                # 'minHeight': '80vh', 'height': '80vh', 'maxHeight': '80vh',
+                # 'minWidth': '100vw', 'width': '100vw', 'maxWidth': '100vw'
             },
             page_size=n_rows,
+            # fixed_rows={
+            #     'headers': True,
+            #     'data': 0
+            # },
         ),
-        className='table-container'
-    ))
+        className='table-container flex-grow-1 overflow-hidden',
+    )
 
 
 def strat_filters(filter_margins):
@@ -232,39 +260,5 @@ def strat_filters(filter_margins):
             className=filter_margins,
             optionHeight=60,
         ),
-        dbc.Button(
-            'Clear',
-            id='input-strategy-clear',
-            className=filter_margins
-        ),
-        dbc.Button(
-            ['Delete Strategy', html.I(className="fas fa-trash ml-2")],
-            id="btn-strategy-delete",
-            n_clicks=0,
-            color='danger'
-        ),
     ]
 
-
-def strat_buttons(filter_margins):
-    return [
-        dcc.Dropdown(
-            id='input-strategy-run',
-            placeholder='Strategy config...',
-            className=filter_margins
-        ),
-        dbc.Button(
-            'Reload configs...',
-            id='btn-strategies-reload',
-            n_clicks=0,
-            color='info',
-            className=filter_margins
-        ),
-        dbc.Button(
-            ['Run Strategy', html.I(className="fas fa-play-circle ml-2")],
-            id="btn-strategy-run",
-            n_clicks=0,
-            color='primary',
-            className=filter_margins
-        ),
-    ]

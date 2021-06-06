@@ -4,18 +4,37 @@ html, body {
     padding: 0;
 }
 
-/* root container of content, 2 columns */
+/* root container of content */
 #bf-container {
     height: 100vh;
     position: relative;
     overflow-x: hidden; /* stop right sidebar from scrolling page */
 }
 
- #nav-bar {
+/* navigation bar */
+#nav-bar {
     width: 5rem;
     background-color: #feeffe;
- }
+}
 
+/* set dash table max height (requires parent element with set height) so scroll works */
+.dash-table-container {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+}
+
+/* override width and height placeholders so that dash datatable with fixed headers width and height fill container */
+/*
+.dash-spreadsheet.dash-freeze-top {
+    height: unset !important;
+    min-height: unset !important;
+    width: 100% !important;
+    min-width: unset !important;
+}
+*/
+
+/* absolute positioned element holding toast notifications in bottom left corner */
 #toast-holder {
     bottom: 1rem;
     left: 1rem;

@@ -18,23 +18,6 @@ counter = mydash.Intermediary()
 def cb_runners(app, shn: Session):
     @app.callback(
         output=[
-            Output('button-runners', 'disabled'),
-            Output('nav-runners', 'disabled')
-        ],
-        inputs=[
-            Input('table-market-session', 'active_cell'),
-        ],
-    )
-    def btn_disable(active_cell):
-        active_logger.info(f'active cell: {active_cell}')
-        if active_cell is not None:
-            if 'row_id' in active_cell:
-                if active_cell['row_id']:
-                    return False, False
-        return True, True
-
-    @app.callback(
-        output=[
             Output('table-runners', 'data'),
             Output('infobox-market', 'children'),
             Output('intermediary-runners', 'children'),

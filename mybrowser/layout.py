@@ -6,9 +6,24 @@ import myutils.mydash
 from .layouts import market, runners, configs, orders, timings, logger, INTERMEDIARIES
 
 
+def strategy_modal():
+    return dbc.Modal(
+        [
+            dbc.ModalHeader("Delete strategy?"),
+            dbc.ModalFooter([
+                dbc.Button("Yes", id="strategy-delete-yes", color='danger', className='ml-auto'),
+                dbc.Button("No", id="strategy-delete-no", color='success')
+            ]),
+        ],
+        id="strategy-delete-modal",
+    )
+
+
+# TODO - move all loading bars to top
 def hidden_elements(n_odr_rows, n_tmr_rows):
     return [
-
+        strategy_modal(),
+        # TODO - make orders its own page
         dbc.Modal([
             dbc.ModalHeader("Orders"),
             dbc.ModalBody(orders.table(n_odr_rows)),
@@ -108,13 +123,17 @@ def plot_filter_div(filter_margins, dflt_offset):
 
 def market_div(mkt_tbl_cols, n_mkt_rows, market_sort_options):
     return html.Div(
-        [
-            market.header(),
-            market.mkt_buttons(market_sort_options),
-            market.query_status(),
-            market.mkt_table(mkt_tbl_cols, n_mkt_rows)
-        ],
-        className='flex-grow-1 shadow m-4 p-4 overflow-auto', id='container-market'
+        html.Div(
+            [
+                market.header(),
+                market.mkt_buttons(market_sort_options),
+                market.query_status(),
+                market.mkt_table(mkt_tbl_cols, n_mkt_rows)
+            ],
+            className='d-flex flex-column h-100'
+        ),
+        className='flex-grow-1 shadow m-4 p-4',
+        id='container-market'
     )
 
 
@@ -132,8 +151,6 @@ def market_filter_div(filter_margins):
                     *market.mkt_filters(multi=False, filter_margins=filter_margins),
                     html.Hr(className='ml-0 mr-0'),
                     *market.strat_filters(filter_margins),
-                    html.Hr(className='ml-0 mr-0'),
-                    *market.strat_buttons(filter_margins)
                 ],
                 className='d-flex flex-column pr-2 overflow-auto'
             )],
@@ -141,6 +158,23 @@ def market_filter_div(filter_margins):
         ),
         className='right-side-bar',
         id='container-filters-market'
+    )
+
+
+def strat_filter_div(filter_margins):
+    return html.Div(
+        html.Div(
+            [
+                dbc.Row([
+                    dbc.Col(html.H2('Strategy Filters')),
+                    dbc.Col(dbc.Button('close', id='btn-strategy-close'), width='auto'),
+                ], align='center'),
+                html.Hr(),
+            ],
+            className='d-flex flex-column h-100 p-3'
+        ),
+        className='right-side-bar',
+        id='container-filters-strategy'
     )
 
 
@@ -184,45 +218,135 @@ def strat_div(n_strat_rows, strat_cols):
         'total_profit': 'Total Profit'
     }
     return html.Div(
-        [
-            html.H2('Strategies'),
-            dbc.Row([
-                dbc.Col(
-                    dbc.Button(
-                        ['Reload', html.I(className="fas fa-sync-alt ml-2")],
-                        id="btn-strategy-refresh",
-                        n_clicks=0,
-                        color='primary'
+        html.Div(
+            [
+                dbc.Row([
+                    dbc.Col(html.H2('Strategies'), width='auto'),
+                    dbc.Col(
+                        dbc.Button(
+                            html.I(className="fas fa-filter"),
+                            id="btn-strategy-filter",
+                            n_clicks=0,
+                            color='primary'
+                        ),
+                        width='auto',
+                        className='p-1'
                     ),
-                    width='auto',
-                    className='pr-1'
+                    dbc.Col(
+                        dbc.NavLink(
+                            dbc.Button(
+                                html.I(className="fas fa-download"),
+                                id="btn-strategy-download",
+                                n_clicks=0,
+                                color='primary'
+                            ),
+                            href="/",
+                            active="exact",
+                            className='p-0',
+                            id='nav-strategy-download',
+                        ),
+                        width='auto',
+                        className='p-1'
+                    )
+                ], align='center'),
+                dbc.Row([
+                    dbc.Col(
+                        dbc.Button(
+                            ['Reload', html.I(className="fas fa-sync-alt ml-2")],
+                            id="btn-strategy-refresh",
+                            n_clicks=0,
+                            color='primary'
+                        ),
+                        width='auto',
+                        className='pr-1'
+                    ),
+                    dbc.Col(
+                        dbc.Button(
+                            ['Delete Strategy', html.I(className="fas fa-trash ml-2")],
+                            id="btn-strategy-delete",
+                            n_clicks=0,
+                            color='danger'
+                        ),
+                        width='auto',
+                        className='p-1'
+                    ),
+                    dbc.Button("Open modal", id="open"),
+                ], align='center'),
+                dbc.Row([
+                    dbc.Col(
+                        dbc.Select(
+                            id='input-strategy-run',
+                            placeholder='Strategy config...',
+                        ),
+                        width='auto',
+                        className='pr-1'
+                    ),
+                    dbc.Col(
+                        dbc.Button(
+                            'Reload configs...',
+                            id='btn-strategies-reload',
+                            n_clicks=0,
+                            color='info',
+                        ),
+                        width='auto',
+                        className='p-1'
+                    ),
+                    dbc.Col(
+                        dbc.Button(
+                            ['Run Strategy', html.I(className="fas fa-play-circle ml-2")],
+                            id="btn-strategy-run",
+                            n_clicks=0,
+                        ),
+                        width='auto',
+                        className='p-1'
+                    ),
+                ], align='center'),
+                html.Div(
+                    dash_table.DataTable(
+                        id='table-strategies',
+                        columns=[
+                            {"name": v, "id": k}
+                            for k, v in full_strat_cols.items()
+                        ],
+                        style_cell={
+                            'textAlign': 'left',
+                            'whiteSpace': 'normal',
+                            'height': 'auto',
+                            'maxWidth': 0,  # fix column widths
+                            'verticalAlign': 'middle',
+                            'padding': '0.5rem',
+                        },
+                        style_data={
+                            'border': 'none'
+                        },
+                        css=[{
+                            'selector': 'td.dash-cell',
+                            'rule': 'overflow-wrap: anywhere;'
+                        }],
+                        style_header={
+                            'fontWeight': 'bold',
+                            'border': 'none'
+                        },
+                        # the width and height properties below are just placeholders
+                        # when using fixed_rows with headers they cannot be relative or dash crashes - these are overridden in css
+                        style_table={
+                            'overflowY': 'auto',
+                            # 'minHeight': '80vh', 'height': '80vh', 'maxHeight': '80vh',
+                            # 'minWidth': '100vw', 'width': '100vw', 'maxWidth': '100vw'
+                        },
+                        # fixed_rows={
+                        #     'headers': True,
+                        #     'data': 0
+                        # },
+                        page_size=n_strat_rows,
+                    ),
+                    className='table-container flex-grow-1 overflow-hidden'
                 )
-            ], align='center'),
-            html.Div(
-                dash_table.DataTable(
-                    id='table-strategies',
-                    columns=[
-                        {"name": v, "id": k}
-                        for k, v in full_strat_cols.items()
-                    ],
-                    style_cell={
-                        'textAlign': 'left',
-                        'whiteSpace': 'normal',
-                        'padding': '0.2rem',
-                        # 'height': 'auto',
-                        'maxWidth': 0,  # fix column widths
-                        'verticalAlign': 'middle'
-                    },
-                    style_header={
-                        'fontWeight': 'bold'
-                    },
-                    page_size=n_strat_rows,
-                ),
-                className='table-container'
-            )
-        ],
-        className='flex-grow-1 shadow m-4 p-4 overflow-auto',
-        id='container-strat'
+            ],
+            className='h-100 d-flex flex-column'
+        ),
+        className='flex-grow-1 shadow m-4 p-4 overflow-hidden',
+        id='container-strategy'
     )
 
 
@@ -313,6 +437,7 @@ def get_layout(
                         runners_div(n_run_rows),
                         timings_div(n_tmr_rows),
                         strat_div(n_strat_rows, strat_tbl_cols),
+                        strat_filter_div(filter_margins),
                         market_filter_div(filter_margins),
                         plot_filter_div(filter_margins, dflt_offset),
                     ],
