@@ -22,9 +22,11 @@ def cb_strategy(app, shn: Session):
             Output('table-strategies', 'data'),
         ],
         inputs=[
-            Input('interval-component', 'n_intervals')
+            Input('btn-strategy-refresh', 'n_clicks')
         ]
     )
-    def strat_intermediary(n_intervals):
-        return []
+    def strat_intermediary(n_clicks):
+        return [
+            shn.strats_tbl_rows()
+        ]
 

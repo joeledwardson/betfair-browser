@@ -186,6 +186,18 @@ def strat_div(n_strat_rows, strat_cols):
     return html.Div(
         [
             html.H2('Strategies'),
+            dbc.Row([
+                dbc.Col(
+                    dbc.Button(
+                        ['Reload', html.I(className="fas fa-sync-alt ml-2")],
+                        id="btn-strategy-refresh",
+                        n_clicks=0,
+                        color='primary'
+                    ),
+                    width='auto',
+                    className='pr-1'
+                )
+            ], align='center'),
             html.Div(
                 dash_table.DataTable(
                     id='table-strategies',
@@ -196,7 +208,8 @@ def strat_div(n_strat_rows, strat_cols):
                     style_cell={
                         'textAlign': 'left',
                         'whiteSpace': 'normal',
-                        'height': 'auto',
+                        'padding': '0.2rem',
+                        # 'height': 'auto',
                         'maxWidth': 0,  # fix column widths
                         'verticalAlign': 'middle'
                     },

@@ -708,7 +708,7 @@ class BettingDB:
         cols = [cte.c[nm] for nm in col_names]
         q = self._dbc.session.query(*cols)
         if order_col is not None:
-            q = self._dbc.order_query(q, cte, order_col, order_asc)
+            q = self._dbc.order_query(q, cte.c, order_col, order_asc)
         rows = q.limit(max_rows).all()
         return [dict(row) for row in rows]
 
@@ -719,7 +719,7 @@ class BettingDB:
         sr = self._dbc.tables['strategyrunners']
         p_cte = shn.query(
             sr.columns['strategy_id'],
-            func.sum(sr.columns['profit'].cast(DECIMAL)).label('total_profit')
+            func.sum(sr.columns['profit']).label('total_profit')
         ).group_by(sr.columns['strategy_id']).cte()
         shn.query(
             sm,
@@ -728,9 +728,9 @@ class BettingDB:
         m_cte = shn.query(sr.c['strategy_id'], sr.c['market_id']).distinct().cte()
         m_cte = shn.query(
             m_cte.c['strategy_id'],
-            func.count(m_cte.c['market_id']).label('market_count')
+            func.count(m_cte.c['market_id']).label('n_markets')
         ).group_by(m_cte.c['strategy_id']).cte()
-        q = shn.query(sm, p_cte.c['total_profit'], m_cte.c['market_count']).join(
+        q = shn.query(sm, p_cte.c['total_profit'], m_cte.c['n_markets']).join(
             p_cte, sm.c['strategy_id'] == p_cte.c['strategy_id'], isouter=True
         ).join(
             m_cte, sm.c['strategy_id'] == m_cte.c['strategy_id'], isouter=True

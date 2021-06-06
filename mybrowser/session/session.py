@@ -402,6 +402,27 @@ class Session:
         else:
             active_logger.info(f'no inplay elements found')
 
+    def _apply_formatters(self, tbl_rows: List[Dict], fmt_config: Dict):
+        for i, row in enumerate(tbl_rows):
+            # apply custom formatting to table row values
+            for k, v in row.items():
+                if k in fmt_config:
+                    nm = fmt_config[k]
+                    f = self.tbl_formatters[nm]
+                    row[k] = f(v)
+
+    def mkt_tbl_rows(self, cte, order_col=None, order_asc=True):
+        col_names = list(self.config['MARKET_TABLE_COLS'].keys()) + ['market_profit']
+        max_rows = int(self.config['DB']['max_rows'])
+        tbl_rows = self.betting_db.rows_market(cte, col_names, max_rows, order_col, order_asc)
+        self._apply_formatters(tbl_rows, dict(self.config['MARKET_TABLE_FORMATTERS']))
+        return tbl_rows
+
+    def strats_tbl_rows(self):
+        tbl_rows = self.betting_db.rows_strategy(self.config['TABLE']['strategy_rows'])
+        self._apply_formatters(tbl_rows, dict(self.config['STRATEGY_TABLE_FORMATTERS']))
+        return tbl_rows
+
     @staticmethod
     def odr_rd(p, selection_id, mkt_dt) -> Optional[pd.DataFrame]:
         """
@@ -558,18 +579,4 @@ class Session:
     @property
     def filters_strat(self):
         return self._flts_strat
-
-    def filters_mkt_tbl(self, cte, order_col=None, order_asc=True):
-        col_names = list(self.config['MARKET_TABLE_COLS'].keys()) + ['market_profit']
-        max_rows = int(self.config['DB']['max_rows'])
-        fmt_config = self.config['MARKET_TABLE_FORMATTERS']
-        tbl_rows = self.betting_db.rows_market(cte, col_names, max_rows, order_col, order_asc)
-        for i, row in enumerate(tbl_rows):
-            # apply custom formatting to table row values
-            for k, v in row.items():
-                if k in fmt_config:
-                    nm = fmt_config[k]
-                    f = self.tbl_formatters[nm]
-                    row[k] = f(v)
-        return tbl_rows
 

@@ -176,7 +176,7 @@ def cb_market(app, shn: Session):
             order_asc = dropdown_dict.get('asc')
         else:
             order_col, order_asc = None, None
-        tbl_rows = shn.filters_mkt_tbl(cte, order_col, order_asc)  # query db with filtered CTE to generate table rows for display
+        tbl_rows = shn.mkt_tbl_rows(cte, order_col, order_asc)  # query db with filtered CTE to generate table rows for display
         for r in tbl_rows:
             r['id'] = r['market_id']  # assign 'id' so market ID set in row ID read in callbacks
 
