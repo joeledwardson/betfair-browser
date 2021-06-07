@@ -81,7 +81,6 @@ def cb_market(app, shn: Session):
 
             Input('market-sorter', 'value'),
             Input('btn-sort-clear', 'n_clicks'),
-
             Input('input-strategy-select', 'value'),
 
             Input('input-sport-type', 'value'),
@@ -94,7 +93,8 @@ def cb_market(app, shn: Session):
             Input('input-mkt-id', 'value')
         ],
         state=[
-            State('input-strategy-run', 'value')
+            State('input-strategy-run', 'value'),
+            State('table-strategies', 'active_cell')
         ]
     )
     def mkt_intermediary(
@@ -109,7 +109,8 @@ def cb_market(app, shn: Session):
             n_sort_clear,
             strategy_id,
             m0, m1, m2, m3, m4, m5, m6, m7,
-            strategy_run_val
+            strategy_run_val,
+            straegy_tbl_cell,
     ):
         flt_market_args = [m0, m1, m2, m3, m4, m5, m6, m7]
         btn_id = mydash.triggered_id()

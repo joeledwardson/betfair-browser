@@ -2,8 +2,216 @@ import dash_bootstrap_components as dbc
 import dash_html_components as html
 import dash_core_components as dcc
 import dash_table
+from dash.development.base_component import Component
+from typing import Dict, List, Any, Optional
+import copy
 import myutils.mydash
+from .exceptions import LayoutException
 from .layouts import market, runners, configs, orders, timings, logger, INTERMEDIARIES
+
+BTN_ML = 2  # left margin for button icons
+BTN_COLOR = 'primary'  # default button color
+COL_PAD = 1  # column padding
+CONT_M = 4  # container margins
+CONT_P = 4  # container padding
+SIDE_EACH_MB = 2  # bottom margin for each sidebar element
+SIDE_EACH_MX = 1  # left/right margin for each sidebar element
+SIDE_CONTENT_P = 3  # sidebar content padding
+SIDE_PR = 2  # sidebar padding right of elements
+SIDE_PL = 1
+
+EL_MAP = {
+    'header': {
+        'dash_cls': html.H2,
+    },
+    'select': {
+        'dash_cls': dcc.Dropdown,
+    },
+    'div': {
+        'dash_cls': html.Div
+    },
+    'input': {
+        'dash_cls': dbc.Input
+    }
+}
+
+def _gen_element(spec: Dict):
+    el_type = spec.pop('type')
+    el_id = spec.pop('id', None)
+    if el_type == 'button':
+        children = list()
+        btn_text = spec.pop('btn_text', None)
+        if btn_text is not None:
+            children.append(btn_text)
+        btn_icon = spec.pop('btn_icon', None)
+        btn_color = spec.pop('color', BTN_COLOR)
+        if btn_icon is not None:
+            btn_cls = btn_icon
+            if btn_text is not None:
+                btn_cls += f' ml-{BTN_ML}'
+            children.append(html.I(className=btn_cls))
+        element = dbc.Button(
+            children,
+            id=el_id,
+            n_clicks=0,
+            color=btn_color,
+        )
+    elif el_type == 'table':
+        table_cols = spec.pop('columns')
+        n_rows = spec.pop('n_rows')
+        element = html.Div(
+            dash_table.DataTable(
+                id=el_id,
+                columns=[
+                    dict(name=v, id=k)
+                    for k, v in table_cols.items()
+                ],
+                style_cell={
+                    'textAlign': 'left',
+                    'whiteSpace': 'normal',
+                    'height': 'auto',
+                    'maxWidth': 0,  # fix column widths
+                    'verticalAlign': 'middle',
+                    'padding': '0.5rem',
+                },
+                style_data={
+                    'border': 'none'
+                },
+                style_header={
+                    'fontWeight': 'bold',
+                    'border': 'none'
+                },
+                style_table={
+                    'overflowY': 'auto',
+               },
+                page_size=n_rows,
+            ),
+            className='table-container flex-grow-1 overflow-hidden'
+        )
+    elif el_type == 'stylish-select':
+        placeholder = spec.pop('placeholder')
+        options = spec.pop('select_options')
+        clear_id = spec.pop('clear_id')
+        element = dbc.ButtonGroup([
+            dbc.Select(
+                id=el_id,
+                placeholder=placeholder,
+                options=options,
+            ),
+            dbc.Button(
+                [html.I(className="fas fa-times-circle")],
+                id=clear_id,
+                color='secondary'
+            ),
+        ])
+    elif el_type == 'nav-link':
+        href = spec.pop('href')
+        btn_id = spec.pop('btn_id')
+        btn_icon = spec.pop('btn_icon')
+        element = dbc.NavLink(
+            dbc.Button(
+                html.I(className=btn_icon),
+                id=btn_id,
+                n_clicks=0,
+                color=BTN_COLOR,
+            ),
+            id=el_id,
+            href=href,
+            active='exact',
+            className='p-0'
+        )
+    elif el_type in EL_MAP:
+        dash_cls = EL_MAP[el_type]['dash_cls']
+        children = spec.pop('children', None)
+        if type(children) == list:
+            child_elements = list()
+            for child_spec in children:
+                child_elements.append(_gen_element(child_spec))
+            children = child_elements
+        if el_id:
+            element = dash_cls(id=el_id, children=children, **spec)
+        else:
+            element = dash_cls(children=children, **spec)
+        spec.clear()
+    else:
+        raise LayoutException(f'type "{el_type}" unrecognised')
+    if spec:
+        raise LayoutException(f'spec "{spec}" has unrecognised elements')
+    return element
+
+
+def generate_sidebar(spec: Dict):
+    title = spec.pop('sidebar_title')
+    sidebar_id = spec.pop('sidebar_id')
+    close_id = spec.pop('close_id')
+    sidebar_content_spec = spec.pop('content')
+    children = list()
+    for row_spec in sidebar_content_spec:
+        children.append(
+            html.Div(
+                _gen_element(row_spec),
+                className=f'mb-{SIDE_EACH_MB} mx-{SIDE_EACH_MX}'
+            )
+        )
+    return html.Div(
+        html.Div([
+            dbc.Row([
+                dbc.Col(html.H2(title)),
+                dbc.Col(dbc.Button('Close', id=close_id), width='auto')],
+                align='center'
+            ),
+            html.Hr(className='ml-0 mr-0'),
+            html.Div(
+                children,
+                className=f'd-flex flex-column pr-{SIDE_PR} overflow-auto'  # allow space for scroll bar with padding right
+            )],
+            className=f'd-flex flex-column h-100 p-{SIDE_CONTENT_P}'
+        ),
+        className='right-side-bar',
+        id=sidebar_id
+    )
+
+
+def generate_containers(spec: Dict):
+    cont_id = spec.pop('container-id')
+    cont_children = []
+    content_spec = spec.pop('content')
+    if type(content_spec) != list:
+        raise LayoutException(f'expected content to be list, instead got "{type(content_spec)}"')
+    for row_spec in content_spec:
+        if type(row_spec) == list:
+            row_children = list()
+            for i, col_spec in enumerate(row_spec):
+                row_children.append(dbc.Col(
+                    _gen_element(col_spec),
+                    width='auto',
+                    className=f'pr-{COL_PAD}' if i == 0 else f'p-{COL_PAD}'
+                ))
+            cont_children.append(dbc.Row(
+                row_children,
+                align='center'
+            ))
+        elif type(row_spec) == dict:
+            cont_children.append(_gen_element(row_spec))
+        else:
+            raise LayoutException(f'expected row spec list/dict, got "{type(row_spec)}"')
+    containers = [
+        html.Div(
+            html.Div(
+                cont_children,
+                className='d-flex flex-column h-100'
+            ),
+            className=f'flex-grow-1 shadow m-{CONT_M} p-{CONT_P}',
+            id=cont_id,
+        )
+    ]
+    sidebar_spec = spec.pop('sidebar', None)
+    if sidebar_spec is not None:
+        containers.append(
+            generate_sidebar(sidebar_spec)
+        )
+    return containers
+
 
 
 def strategy_modal():
@@ -167,6 +375,12 @@ def strat_filter_div(filter_margins):
             [
                 dbc.Row([
                     dbc.Col(html.H2('Strategy Filters')),
+                    dcc.Dropdown(
+                        id='input-strategy-select',
+                        placeholder='Strategy...',
+                        className=filter_margins,
+                        optionHeight=60,
+                    ),
                     dbc.Col(dbc.Button('close', id='btn-strategy-close'), width='auto'),
                 ], align='center'),
                 html.Hr(),
@@ -420,6 +634,7 @@ def get_layout(
         market_sort_options,
         n_strat_rows,
         strat_tbl_cols,
+        config
 ) -> html.Div:
     # container
     return html.Div([
@@ -432,12 +647,13 @@ def get_layout(
                     [
                         nav,
                         log_div(),
-                        market_div(mkt_tbl_cols, n_mkt_rows, market_sort_options),
+                        # market_div(mkt_tbl_cols, n_mkt_rows, market_sort_options),
                         runners_div(n_run_rows),
                         timings_div(n_tmr_rows),
                         strat_div(n_strat_rows, strat_tbl_cols),
+                        *generate_containers(market.market_display_spec(config)),
                         strat_filter_div(filter_margins),
-                        market_filter_div(filter_margins),
+                        # market_filter_div(filter_margins),
                         plot_filter_div(filter_margins, dflt_offset),
                     ],
                     className='d-flex flex-row flex-grow-1 overflow-hidden'

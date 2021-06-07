@@ -7,6 +7,159 @@ import itertools
 import json
 
 
+def market_display_spec(config):
+    sort_options = dict(config['MARKET_SORT_OPTIONS'])
+    n_mkt_rows = int(config['TABLE']['market_rows'])
+    mkt_tbl_cols = dict(config['MARKET_TABLE_COLS'])
+    full_tbl_cols = mkt_tbl_cols | {'market_profit': 'Profit'}
+    options_labels = list(itertools.chain(*[
+        [
+            {
+                'label': f'▲ {v}',
+                'value': json.dumps({
+                    'db_col': k,
+                    'asc': True
+                })
+            },
+            {
+                'label': f'▼ {v}',
+                'value': json.dumps({
+                    'db_col': k,
+                    'asc': False
+                })
+            }
+        ]
+        for k, v in sort_options.items()
+    ]))
+    return {
+        'container-id': 'container-market',
+        'content': [
+            [
+                {
+                    'type': 'header',
+                    'children': 'Market Browser',
+                }, {
+                    'type': 'button',
+                    'id': 'btn-session-filter',
+                    'btn_icon': 'fas fa-filter',
+                }, {
+                    'type': 'button',
+                    'id': 'btn-db-reconnect',
+                    'btn_icon': 'fas fa-database',
+                }, {
+                    'type': 'nav-link',
+                    'id': 'nav-runners',
+                    'href': '/runners',
+                    'btn_id': 'button-runners',
+                    'btn_icon': 'fas fa-download'
+                }
+            ],
+            [
+                {
+                    'type': 'button',
+                    'id': 'btn-db-refresh',
+                    'btn_icon': 'fas fa-sync-alt',
+                    'btn_text': 'Reload'
+                },
+                {
+                    'type': 'button',
+                    'id': 'btn-db-upload',
+                    'btn_icon': 'fas fa-arrow-circle-up',
+                    'btn_text': 'Upload Cache'
+                },
+                {
+                    'type': 'button',
+                    'id': 'btn-cache-clear',
+                    'btn_icon': 'fas fa-trash',
+                    'btn_text': 'Clear Cache',
+                    'color': 'warning'
+                }
+            ],
+            [
+                {
+                    'type': 'stylish-select',
+                    'id': 'market-sorter',
+                    'placeholder': 'Market Sort...',
+                    'select_options': options_labels,
+                    'clear_id': 'btn-sort-clear'
+                },
+                {
+                    'type': 'button',
+                    'id': 'input-strategy-clear',
+                    'btn_icon': 'fas fa-times-circle',
+                    'btn_text': 'Clear Strategy',
+                    'color': 'info'
+                }
+            ],
+            [
+                {
+                    'type': 'div',
+                    'id': 'market-query-status'
+                }
+            ],
+            {
+                'type': 'table',
+                'id': 'table-market-session',
+                'columns': full_tbl_cols,
+                'n_rows': n_mkt_rows
+            }
+        ],
+        'sidebar': {
+            'sidebar_id': 'container-filters-market',
+            'sidebar_title': 'Market Filters',
+            'close_id': 'btn-right-close',
+            'content': [
+                {
+                    'type': 'select',
+                    'id': 'input-sport-type',
+                    'placeholder': 'Sport...'
+                },
+                {
+                    'type': 'select',
+                    'id': 'input-mkt-type',
+                    'placeholder': 'Market type...',
+                },
+                {
+                    'type': 'select',
+                    'id': 'input-bet-type',
+                    'placeholder': 'Betting type...',
+                },
+                {
+                    'type': 'select',
+                    'id': 'input-format',
+                    'placeholder': 'Format...'
+                },
+                {
+                    'type': 'select',
+                    'id': 'input-country-code',
+                    'placeholder': 'Country...'
+                },
+                {
+                    'type': 'select',
+                    'id': 'input-venue',
+                    'placeholder': 'Venue...'
+                },
+                {
+                    'type': 'select',
+                    'id': 'input-date',
+                    'placeholder': 'Market date...'
+                },
+                {
+                    'type': 'input',
+                    'id': 'input-mkt-id',
+                    'placeholder': 'Market ID filter...',
+                },
+                {
+                    'type': 'button',
+                    'id': 'input-mkt-clear',
+                    'btn_icon': 'fas fa-times-circle',
+                    'btn_text': 'Clear Filters'
+                }
+            ]
+        }
+    }
+
+
 def header():
     return dbc.Row([
         dbc.Col(
@@ -173,8 +326,8 @@ def mkt_filters(multi, filter_margins):
         dcc.Dropdown(
             id='input-country-code',
             placeholder='Country...',
-            multi=multi,
-            optionHeight=60,
+            # multi=multi,
+            # optionHeight=60,
             className=filter_margins
         ),
         dcc.Dropdown(
@@ -189,11 +342,12 @@ def mkt_filters(multi, filter_margins):
             multi=multi,
             className=filter_margins
         ),
-        dcc.Input(
+        dbc.Input(
             id='input-mkt-id',
             placeholder='Market ID filter...',
             className=filter_margins
         ),
+
         dbc.Button(
             id='input-mkt-clear',
             children='Clear',
@@ -254,11 +408,6 @@ def mkt_table(tbl_cols, n_rows):
 def strat_filters(filter_margins):
     # strategy filters
     return [
-        dcc.Dropdown(
-            id='input-strategy-select',
-            placeholder='Strategy...',
-            className=filter_margins,
-            optionHeight=60,
-        ),
+
     ]
 

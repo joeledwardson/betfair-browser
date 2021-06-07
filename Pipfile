@@ -26,6 +26,7 @@ dateparser = "*"
 sqlalchemy-filters = "*"
 dash-extensions = "*"
 boussole = "*"
+bokeh = "*"
 
 [dev-packages]
 

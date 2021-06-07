@@ -54,7 +54,8 @@ def run_browser(debug: bool, config_path=None):
         n_run_rows=int(session.config['TABLE']['runner_rows']),
         market_sort_options=dict(session.config['MARKET_SORT_OPTIONS']),
         n_strat_rows=int(session.config['TABLE']['strategy_rows']),
-        strat_tbl_cols=dict(session.config['STRATEGY_TABLE_COLS'])
+        strat_tbl_cols=dict(session.config['STRATEGY_TABLE_COLS']),
+        config=session.config
     )
 
     active_logger.info(f'Dash version: {dash.__version__}')
