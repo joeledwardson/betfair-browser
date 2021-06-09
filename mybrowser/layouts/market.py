@@ -2,17 +2,13 @@ import dash_html_components as html
 import dash_core_components as dcc
 import dash_bootstrap_components as dbc
 import dash_table
-from typing import Dict
+from typing import Dict, List
 import itertools
 import json
 
 
-def market_display_spec(config):
-    sort_options = dict(config['MARKET_SORT_OPTIONS'])
-    n_mkt_rows = int(config['TABLE']['market_rows'])
-    mkt_tbl_cols = dict(config['MARKET_TABLE_COLS'])
-    full_tbl_cols = mkt_tbl_cols | {'market_profit': 'Profit'}
-    options_labels = list(itertools.chain(*[
+def _sort_labels(sort_options: Dict) -> List[Dict]:
+    return list(itertools.chain(*[
         [
             {
                 'label': f'▲ {v}',
@@ -31,13 +27,42 @@ def market_display_spec(config):
         ]
         for k, v in sort_options.items()
     ]))
+
+
+def market_display_spec(config):
+    sort_options = dict(config['MARKET_SORT_OPTIONS'])
+    n_mkt_rows = int(config['TABLE']['market_rows'])
+    full_tbl_cols = dict(config['MARKET_TABLE_COLS'])
+    options_labels = _sort_labels(sort_options)
     return {
         'container-id': 'container-market',
+        'header_right': [
+            {
+                'type': 'loading',
+                'id': 'loading-out-session'
+            }
+        ],
+        'header_left': [
+            {
+                'type': 'div',
+                'id': 'progress-container-div',
+                'children_spec': [
+                    {
+                        'type': 'progress',
+                        'id': 'header-progress-bar',
+                        'element_kwargs': {
+                            'striped': True,
+                            'animated': True,
+                        }
+                    }
+                ]
+            }
+        ],
         'content': [
             [
                 {
                     'type': 'header',
-                    'children': 'Market Browser',
+                    'children_spec': 'Market Browser',
                 }, {
                     'type': 'button',
                     'id': 'btn-session-filter',
@@ -147,7 +172,9 @@ def market_display_spec(config):
                 {
                     'type': 'input',
                     'id': 'input-mkt-id',
-                    'placeholder': 'Market ID filter...',
+                    'element_kwargs': {
+                        'placeholder': 'Market ID filter...',
+                    }
                 },
                 {
                     'type': 'button',

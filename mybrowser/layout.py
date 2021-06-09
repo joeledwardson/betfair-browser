@@ -1,3 +1,5 @@
+import itertools
+
 import dash_bootstrap_components as dbc
 import dash_html_components as html
 import dash_core_components as dcc
@@ -7,8 +9,9 @@ from typing import Dict, List, Any, Optional
 import copy
 import myutils.mydash
 from .exceptions import LayoutException
-from .layouts import market, runners, configs, orders, timings, logger, INTERMEDIARIES
+from .layouts import market, runners, configs, orders, timings, logger, strategy, INTERMEDIARIES
 
+LOAD_TYPE = 'dot'  # loading type
 BTN_ML = 2  # left margin for button icons
 BTN_COLOR = 'primary'  # default button color
 COL_PAD = 1  # column padding
@@ -24,21 +27,40 @@ EL_MAP = {
     'header': {
         'dash_cls': html.H2,
     },
-    'select': {
-        'dash_cls': dcc.Dropdown,
-    },
     'div': {
         'dash_cls': html.Div
     },
     'input': {
         'dash_cls': dbc.Input
+    },
+    'progress': {
+        'dash_cls': dbc.Progress
+    },
+    'input-group': {
+        'dash_cls': dbc.InputGroup
+    },
+    'input-group-addon': {
+        'dash_cls': dbc.InputGroupAddon
     }
 }
+
 
 def _gen_element(spec: Dict):
     el_type = spec.pop('type')
     el_id = spec.pop('id', None)
-    if el_type == 'button':
+    
+    def _validate_id():
+        if el_id is None:
+            raise LayoutException(f'spec "{spec}" type "{el_type}" has no ID')
+
+    if el_type == 'select':
+        _validate_id()
+        element = dcc.Dropdown(
+            id=el_id,
+            placeholder=spec.pop('placeholder', None)
+        )
+    elif el_type == 'button':
+        _validate_id()
         children = list()
         btn_text = spec.pop('btn_text', None)
         if btn_text is not None:
@@ -48,7 +70,7 @@ def _gen_element(spec: Dict):
         if btn_icon is not None:
             btn_cls = btn_icon
             if btn_text is not None:
-                btn_cls += f' ml-{BTN_ML}'
+                btn_cls += f' ml-{BTN_ML}' # add margin left to icon if text is specified
             children.append(html.I(className=btn_cls))
         element = dbc.Button(
             children,
@@ -57,6 +79,7 @@ def _gen_element(spec: Dict):
             color=btn_color,
         )
     elif el_type == 'table':
+        _validate_id()
         table_cols = spec.pop('columns')
         n_rows = spec.pop('n_rows')
         element = html.Div(
@@ -89,8 +112,9 @@ def _gen_element(spec: Dict):
             className='table-container flex-grow-1 overflow-hidden'
         )
     elif el_type == 'stylish-select':
+        _validate_id()
         placeholder = spec.pop('placeholder')
-        options = spec.pop('select_options')
+        options = spec.pop('select_options', list())
         clear_id = spec.pop('clear_id')
         element = dbc.ButtonGroup([
             dbc.Select(
@@ -105,6 +129,7 @@ def _gen_element(spec: Dict):
             ),
         ])
     elif el_type == 'nav-link':
+        _validate_id()
         href = spec.pop('href')
         btn_id = spec.pop('btn_id')
         btn_icon = spec.pop('btn_icon')
@@ -120,19 +145,26 @@ def _gen_element(spec: Dict):
             active='exact',
             className='p-0'
         )
+    elif el_type == 'loading':
+        _validate_id()
+        element = dcc.Loading(
+            html.Div(id=el_id),
+            type='dot'
+        )
     elif el_type in EL_MAP:
         dash_cls = EL_MAP[el_type]['dash_cls']
-        children = spec.pop('children', None)
+        children = spec.pop('children_spec', None)
+        user_kwargs = spec.pop('element_kwargs', dict())
         if type(children) == list:
             child_elements = list()
             for child_spec in children:
                 child_elements.append(_gen_element(child_spec))
             children = child_elements
-        if el_id:
-            element = dash_cls(id=el_id, children=children, **spec)
-        else:
-            element = dash_cls(children=children, **spec)
-        spec.clear()
+        el_kwargs = {'id': el_id} if el_id else {}
+        el_kwargs |= {'children': children}
+        el_kwargs |= EL_MAP[el_type].get('default_kwargs', dict())
+        el_kwargs |= user_kwargs
+        element = dash_cls(**el_kwargs)
     else:
         raise LayoutException(f'type "{el_type}" unrecognised')
     if spec:
@@ -254,19 +286,15 @@ def hidden_elements(n_odr_rows, n_tmr_rows):
     ]
 
 
-def header():
+def header(right_children, left_children):
 
     end = dbc.Row([
         dbc.Col([
             dcc.Loading(
                 html.Div(id='loading-out-header'),
                 type='dot'
-            ),
-            dcc.Loading(
-                html.Div(id='loading-out-session'),
-                type='dot'
-            ),
-        ]),
+            )
+        ] + right_children),
         dbc.Col(
             dbc.Button(
                 html.I(className="fas fa-book-open"),
@@ -282,15 +310,7 @@ def header():
 
     return dbc.Row([
         dbc.Col(
-            html.Div(
-                dbc.Progress(
-                    id='header-progress-bar',
-                    striped=True,
-                    animated=True,
-                ),
-                id='progress-container-div',
-                hidden=True,
-            ),
+            left_children,
             width=3
         ),
         dbc.Col(
@@ -316,7 +336,7 @@ def plot_filter_div(filter_margins, dflt_offset):
             [
                 dbc.Row([
                     dbc.Col(html.H2('Plot Config')),
-                    dbc.Col(dbc.Button('close', id='btn-left-close'), width='auto')],
+                    dbc.Col(dbc.Button('close', id='btn-plot-close'), width='auto')],
                     align='center',
                 ),
                 html.Hr(className='ml-0 mr-0'),
@@ -637,25 +657,39 @@ def get_layout(
         config
 ) -> html.Div:
     # container
+    left_header_children = list()
+    right_header_children = list()
+    _confs = [
+        market.market_display_spec(config),
+        runners.runners_config_spec(config),
+        strategy.strategy_config_spec(config)
+    ]
+    for _conf in _confs:
+        left_header_children += [_gen_element(x) for x in _conf.pop('header_left', list())]
+        right_header_children += [_gen_element(x) for x in _conf.pop('header_right', list())]
+
     return html.Div([
         dcc.Location(id="url"),
         html.Div(hidden_elements(n_odr_rows, n_tmr_rows)),
         html.Div(
             [
-                header(),
+                header(right_header_children, left_header_children),
                 html.Div(
                     [
                         nav,
                         log_div(),
                         # market_div(mkt_tbl_cols, n_mkt_rows, market_sort_options),
-                        runners_div(n_run_rows),
+                        # runners_div(n_run_rows),
                         timings_div(n_tmr_rows),
-                        strat_div(n_strat_rows, strat_tbl_cols),
-                        *generate_containers(market.market_display_spec(config)),
-                        strat_filter_div(filter_margins),
+                        # strat_div(n_strat_rows, strat_tbl_cols),
+                        # *generate_containers(runners.runners_config_spec(config)),
+                        # *generate_containers(market.market_display_spec(config)),
+                        # strat_filter_div(filter_margins),
                         # market_filter_div(filter_margins),
-                        plot_filter_div(filter_margins, dflt_offset),
-                    ],
+                        # plot_filter_div(filter_margins, dflt_offset),
+                    ] + list(itertools.chain(*[
+                        generate_containers(c) for c in _confs
+                    ])),
                     className='d-flex flex-row flex-grow-1 overflow-hidden'
                 ),
                 html.Div(id='toast-holder'),

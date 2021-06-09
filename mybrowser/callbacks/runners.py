@@ -89,12 +89,8 @@ def cb_runners(app, shn: Session):
             shn.mkt_clr()
             return ret
 
-        tbl = [{
+        tbl = [d | {
             'id': d['runner_id'],  # set row to ID for easy access in callbacks
-            'Selection ID': d['runner_id'],
-            'Name': d['runner_name'],
-            'Starting Odds':  d['start_odds'],
-            'Profit': d['runner_profit']
         } for d in shn.mkt_rnrs.values()]
 
         ret[0] = sorted(tbl, key=lambda d: d['Starting Odds'])
@@ -107,7 +103,7 @@ def cb_runners(app, shn: Session):
         Output("container-filters-plot", "className"),
         [
             Input("btn-runners-filter", "n_clicks"),
-            Input("btn-left-close", "n_clicks")
+            Input("btn-plot-close", "n_clicks")
         ],
         State("container-filters-plot", "className")
     )

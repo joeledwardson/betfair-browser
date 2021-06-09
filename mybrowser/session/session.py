@@ -360,6 +360,7 @@ class Session:
         if not len(record_list):
             raise SessionException(f'record list is empty')
 
+        # rows are returned with additional "runner_profit" column
         rows = self.betting_db.rows_runners(market_id, strategy_id)
         meta = self.betting_db.read_mkt_meta(market_id)
 
@@ -367,7 +368,7 @@ class Session:
         drows = [dict(r) for r in rows]
         rinf = {
             r['runner_id']: r | {
-                'start_odds': start_odds.get(r['runner_id'], 999)
+                'starting_odds': start_odds.get(r['runner_id'], 999)
             }
             for r in drows
         }
@@ -376,7 +377,7 @@ class Session:
         self.mkt_sid = strategy_id
         self.mkt_records = record_list
         self.mkt_info = dict(meta)
-        self.mkt_rnrs = mygeneric.dict_sort(rinf, key=lambda item:item[1]['start_odds'])
+        self.mkt_rnrs = mygeneric.dict_sort(rinf, key=lambda item:item[1]['starting_odds'])
 
     def mkt_clr(self):
         self.mkt_info = {}

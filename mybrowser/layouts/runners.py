@@ -4,6 +4,117 @@ import dash_bootstrap_components as dbc
 import dash_table
 
 
+def runners_config_spec(config):
+    full_tbl_cols = dict(config['RUNNER_TABLE_COLS'])
+    n_rows = int(config['TABLE']['runner_rows'])
+    return {
+        'container-id': 'container-runners',
+        'header_right': [
+            {
+                'type': 'loading',
+                'id': 'loading-out-runners',
+            },
+            {
+                'type': 'loading',
+                'id': 'loading-out-figure'
+            }
+        ],
+        'content': [
+            [
+                {
+                    'type': 'header',
+                    'children_spec': 'Runner Info'
+                },
+                {
+                    'type': 'button',
+                    'id': 'btn-runners-filter',
+                    'btn_icon': 'fas fa-bars'
+                },
+                {
+                    'type': 'button',
+                    'id': 'button-mkt-bin',
+                    'btn_icon': 'fas fa-trash'
+                }
+            ],
+            [
+                {
+                    'type': 'button',
+                    'id': 'button-orders',
+                    'btn_icon': 'fas fa-file-invoice-dollar',
+                    'btn_text': 'Orders'
+                },
+                {
+                    'type': 'button',
+                    'id': 'button-figure',
+                    'btn_icon': 'fas fa-chart-line',
+                    'btn_text': 'Figure',
+                },
+                {
+                    'type': 'button',
+                    'id': 'button-all-figures',
+                    'btn_icon': 'fas fa-chart-line',
+                    'btn_text': 'All Figures',
+                    'color': 'Secondary'
+                },
+            ],
+            [
+                {
+                    'type': 'div',
+                    'id': 'infobox-market'
+                }
+            ],
+            {
+                'type': 'table',
+                'id': 'table-runners',
+                'columns': full_tbl_cols,
+                'n_rows': n_rows
+            }
+        ],
+        'sidebar': {
+            'sidebar_id': 'container-filters-plot',
+            'sidebar_title': 'Plot Config',
+            'close_id': 'btn-plot-close',
+            'content': [
+                {
+                    'type': 'select',
+                    'id': 'input-feature-config',
+                    'placeholder': 'Feature config...'
+                },
+                {
+                    'type': 'select',
+                    'id': 'input-plot-config',
+                    'placeholder': 'Plot config...',
+                },
+                {
+                    'type': 'button',
+                    'id': 'button-feature-config',
+                    'btn_text': 'Reload feature configs',
+                    'btn_icon': 'fas fa-sync-alt',
+                    'color': 'info'
+                },
+                {
+                    'type': 'input-group',
+                    'children_spec': [
+                        {
+                            'type': 'input-group-addon',
+                            'children_spec': 'Input offset: ',
+                        },
+                        {
+                            'type': 'input',
+                            'id': 'input-chart-offset',
+                            'element_kwargs': {
+                                'type': 'time',
+                                'step': '1',  # forces HTML to use hours, minutes and seconds format
+                                'value': config['PLOT_CONFIG']['default_offset']
+                            }
+                        }
+                    ]
+                }
+            ]
+        }
+    }
+
+
 def header():
     # runner information header and loading bar
     return dbc.Row([
