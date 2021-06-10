@@ -66,7 +66,8 @@ def cb_display(app):
         Output("container-timings", "hidden"),
         Output("container-logs", "hidden"),
         Output("container-strategy", "hidden"),
-        Output("container-filters-strategy", "hidden")
+        Output("container-filters-strategy", "hidden"),
+        Output("container-orders", "hidden")
     ]
 
     # set the content according to the current pathname
@@ -82,6 +83,8 @@ def cb_display(app):
             displays = ["container-logs"]
         elif pathname == "/strategy":
             displays = ["container-strategy", "container-filters-strategy"]
+        elif pathname == "/orders":
+            displays = ["container-orders"]
         else:
             displays = list()
         return [False if element.component_id in displays else True for element in outputs]

@@ -73,6 +73,11 @@ nav_spec = [
     },
     {
         'type': 'element-navigation-item',
+        'href': '/orders',
+        'nav_icon': 'fas fa-file-invoice-dollar'
+    },
+    {
+        'type': 'element-navigation-item',
         'href': '/logs',
         'nav_icon': 'fas fa-envelope-open-text',
         'css_classes': 'position-relative',
@@ -143,6 +148,17 @@ def gen_table(spec: Dict) -> dbase.Component:
     table_cols = spec.pop('columns')
     n_rows = spec.pop('n_rows')
     table_id = spec.pop('id')
+    style_cell = {
+        'textAlign': 'left',
+        'whiteSpace': 'normal',
+        'height': 'auto',
+        'verticalAlign': 'middle',
+        'padding': '0.5rem',
+    }
+    if not spec.pop('no_fixed_widths', None):
+        style_cell |= {
+            'maxWidth': 0  # fix columnd widths
+        }
     return html.Div(
         dash_table.DataTable(
             id=table_id,
@@ -150,14 +166,7 @@ def gen_table(spec: Dict) -> dbase.Component:
                 dict(name=v, id=k)
                 for k, v in table_cols.items()
             ],
-            style_cell={
-                'textAlign': 'left',
-                'whiteSpace': 'normal',
-                'height': 'auto',
-                'maxWidth': 0,  # fix column widths
-                'verticalAlign': 'middle',
-                'padding': '0.5rem',
-            },
+            style_cell=style_cell,
             style_data={
                 'border': 'none'
             },
@@ -399,15 +408,15 @@ def hidden_elements(n_odr_rows, n_tmr_rows):
         _gen_element(strategy.strategy_modal()),
         # strategy_modal(),
         # TODO - make orders its own page
-        dbc.Modal([
-            dbc.ModalHeader("Orders"),
-            dbc.ModalBody(orders.table(n_odr_rows)),
-            dbc.ModalFooter(
-                dbc.Button("Close", id="modal-close-orders", className="ml-auto")
-            )],
-            id="modal-orders",
-            size="xl"
-        ),
+        # dbc.Modal([
+        #     dbc.ModalHeader("Orders"),
+        #     dbc.ModalBody(orders.table(n_odr_rows)),
+        #     dbc.ModalFooter(
+        #         dbc.Button("Close", id="modal-close-orders", className="ml-auto")
+        #     )],
+        #     id="modal-orders",
+        #     size="xl"
+        # ),
 
         # hidden divs for intermediary output components
         *[myutils.mydash.hidden_div(x) for x in INTERMEDIARIES],
@@ -808,7 +817,8 @@ def get_layout(
         market.market_display_spec(config),
         runners.runners_config_spec(config),
         strategy.strategy_config_spec(config),
-        timings.timings_config_spec(config)
+        timings.timings_config_spec(config),
+        orders.orders_config_spec(config),
     ]
     for _conf in _confs:
         left_header_children += [_gen_element(x) for x in _conf.pop('header_left', list())]

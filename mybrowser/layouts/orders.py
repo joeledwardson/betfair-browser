@@ -2,7 +2,7 @@ import dash_html_components as html
 import dash_table
 
 
-def log_config_spec(config):
+def orders_config_spec(config):
     tbl_cols = dict(config['ORDER_TABLE_COLS'])
     n_rows = int(config['TABLE']['orders_rows'])
     return {
@@ -19,6 +19,7 @@ def log_config_spec(config):
                 'id': 'table-orders',
                 'columns': tbl_cols,
                 'n_rows': n_rows,
+                'no_fixed_widths': True,
             }
         ]
     }

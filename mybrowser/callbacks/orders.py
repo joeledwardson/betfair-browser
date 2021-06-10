@@ -14,31 +14,31 @@ def cb_orders(app, shn: Session):
     @app.callback(
         output=[
             Output('table-orders', 'data'),
-            Output('modal-orders', 'is_open'),
+            # Output('modal-orders', 'is_open'),
             Output('table-orders', 'page_current'),
             Output('intermediary-orders', 'children'),
         ],
         inputs=[
             Input('button-orders', 'n_clicks'),
             Input('button-runners', 'n_clicks'),
-            Input('modal-close-orders', 'n_clicks')
+            # Input('modal-close-orders', 'n_clicks')
         ],
         state=[
             State('table-runners', 'active_cell'),
         ]
     )
-    def update_orders_table(n1, n2, n3, cell):
+    def update_orders_table(n1, n2, cell):
 
         orders_pressed = myutils.mydash.triggered_id() == 'button-orders'
         r = [
             list(),
-            False,
+            # False,
             0,  # reset selected page on open/close modal - if last page selected was page 2 and new table loaded is
             # only 1 page then table breaks
             counter.next()
         ]
-        if myutils.mydash.triggered_id() == 'modal-close-orders':
-            return r
+        # if myutils.mydash.triggered_id() == 'modal-close-orders':
+        #     return r
 
         active_logger.info(f'attempting to get orders, active cell: {cell}')
 
@@ -77,5 +77,5 @@ def cb_orders(app, shn: Session):
 
         active_logger.info(f'producing orders for {selection_id}, {df.shape[0]} results found"')
         r[0] = df.to_dict('records')
-        r[1] = True
+        # r[1] = True
         return r
