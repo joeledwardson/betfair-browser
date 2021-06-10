@@ -93,7 +93,7 @@ def cb_runners(app, shn: Session):
             'id': d['runner_id'],  # set row to ID for easy access in callbacks
         } for d in shn.mkt_rnrs.values()]
 
-        ret[0] = sorted(tbl, key=lambda d: d['Starting Odds'])
+        ret[0] = sorted(tbl, key=lambda d: d['starting_odds'])
         ret[1] = f'loaded "{market_id}"'
         ret[3] = False  # enable bin market button
         ret[4] = False  # enable plot all figures button

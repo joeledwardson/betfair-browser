@@ -8,10 +8,13 @@ from dash.development.base_component import Component
 from typing import Dict, List, Any, Optional
 import copy
 import myutils.mydash
+from myutils import myregistrar
 from .exceptions import LayoutException
 from .layouts import market, runners, configs, orders, timings, logger, strategy, INTERMEDIARIES
+import uuid
 
 LOAD_TYPE = 'dot'  # loading type
+NAV_PT = 2  # top padding of nav bar
 BTN_ML = 2  # left margin for button icons
 BTN_COLOR = 'primary'  # default button color
 COL_PAD = 1  # column padding
@@ -45,9 +48,55 @@ EL_MAP = {
 }
 
 
+nav_spec = [
+    {
+        'type': 'nav-link',
+        'href': '/',
+        'btn_icon': 'fas fa-horse',
+        'color': 'light'
+    },
+    {
+        'type': 'nav-link',
+        'href': '/strategy',
+        'btn_icon': 'fas fa-chess-king'
+    },
+    {
+        'type': 'nav-link',
+        'href': '/runners',
+        'btn_icon': 'fas fa-running',
+    },
+    {
+        'type': 'nav-link',
+        'href': '/timings',
+        'btn_icon': 'fas fa-clock'
+    },
+    {
+        'type': 'nav-link',
+        'href': '/logs',
+        'btn_icon': 'fas fa-envelope-open-text',
+        'children_spec': [
+            {
+                'type': 'div',
+                'id': 'msg-alert-box',
+                'css_classes': 'right-corner-box',
+                'hidden': True,
+                'children_spec': [
+                    {
+                        'type': 'badge',
+                        'id': 'log-warns',
+                        'color': 'danger',
+                        'css_classes': 'p-2'
+                    }
+                ]
+            }
+        ]
+    }
+]
+
 def _gen_element(spec: Dict):
     el_type = spec.pop('type')
     el_id = spec.pop('id', None)
+    css_classes = spec.pop('css_classes', '')
     
     def _validate_id():
         if el_id is None:
@@ -57,7 +106,8 @@ def _gen_element(spec: Dict):
         _validate_id()
         element = dcc.Dropdown(
             id=el_id,
-            placeholder=spec.pop('placeholder', None)
+            placeholder=spec.pop('placeholder', None),
+            className=css_classes
         )
     elif el_type == 'button':
         _validate_id()
@@ -77,9 +127,12 @@ def _gen_element(spec: Dict):
             id=el_id,
             n_clicks=0,
             color=btn_color,
+            className=css_classes
         )
     elif el_type == 'table':
         _validate_id()
+        if css_classes:
+            raise LayoutException(f'cannot override table classes with "{css_classes}"')
         table_cols = spec.pop('columns')
         n_rows = spec.pop('n_rows')
         element = html.Div(
@@ -127,42 +180,52 @@ def _gen_element(spec: Dict):
                 id=clear_id,
                 color='secondary'
             ),
-        ])
+        ], className=css_classes)
     elif el_type == 'nav-link':
-        _validate_id()
+        # _validate_id()
         href = spec.pop('href')
-        btn_id = spec.pop('btn_id')
+        btn_id = spec.pop('btn_id', None)
         btn_icon = spec.pop('btn_icon')
         element = dbc.NavLink(
-            dbc.Button(
+            [dbc.Button(
                 html.I(className=btn_icon),
-                id=btn_id,
+                id=btn_id or str(uuid.uuid4()),  # use random string if no ID
                 n_clicks=0,
                 color=BTN_COLOR,
-            ),
-            id=el_id,
+            )] + [_gen_element(x) for x in spec.pop('children_spec', list())],
+            id=el_id or str(uuid.uuid4()),
             href=href,
             active='exact',
-            className='p-0'
+            className='position-relative p-0' or css_classes
         )
     elif el_type == 'loading':
         _validate_id()
         element = dcc.Loading(
             html.Div(id=el_id),
-            type='dot'
+            type='dot',
+            className=css_classes
+        )
+    elif el_type == 'badge':
+        return dbc.Badge(
+            id=el_id or str(uuid.uuid4()),
+            color=spec.pop('color'),
+            className=css_classes
         )
     elif el_type in EL_MAP:
         dash_cls = EL_MAP[el_type]['dash_cls']
         children = spec.pop('children_spec', None)
         user_kwargs = spec.pop('element_kwargs', dict())
+        hidden = spec.pop('hidden', None)
         if type(children) == list:
             child_elements = list()
             for child_spec in children:
                 child_elements.append(_gen_element(child_spec))
             children = child_elements
         el_kwargs = {'id': el_id} if el_id else {}
+        el_kwargs |= {'hidden': hidden} if hidden else {}
         el_kwargs |= {'children': children}
         el_kwargs |= EL_MAP[el_type].get('default_kwargs', dict())
+        el_kwargs |= {'className': css_classes}
         el_kwargs |= user_kwargs
         element = dash_cls(**el_kwargs)
     else:
@@ -243,7 +306,6 @@ def generate_containers(spec: Dict):
             generate_sidebar(sidebar_spec)
         )
     return containers
-
 
 
 def strategy_modal():
@@ -584,7 +646,7 @@ def strat_div(n_strat_rows, strat_cols):
 
 
 # TODO - add padding
-nav = html.Div([
+nav_old = html.Div([
     dbc.Nav(
         [
             dbc.NavLink(
@@ -642,6 +704,15 @@ nav = html.Div([
     )
 ], id='nav-bar')
 
+nav = html.Div(
+    dbc.Nav(
+        [html.Div(_gen_element(x), className='p-1') for x in nav_spec],
+        vertical=True,
+        pills=True,
+        className=f'align-items-center h-100 pt-{NAV_PT}',
+    ),
+    id='nav-bar',
+)
 
 def get_layout(
         n_odr_rows,
@@ -660,9 +731,11 @@ def get_layout(
     left_header_children = list()
     right_header_children = list()
     _confs = [
+        logger.log_config_spec(config),
         market.market_display_spec(config),
         runners.runners_config_spec(config),
-        strategy.strategy_config_spec(config)
+        strategy.strategy_config_spec(config),
+        timings.timings_config_spec(config)
     ]
     for _conf in _confs:
         left_header_children += [_gen_element(x) for x in _conf.pop('header_left', list())]
@@ -676,11 +749,11 @@ def get_layout(
                 header(right_header_children, left_header_children),
                 html.Div(
                     [
-                        nav,
-                        log_div(),
+                        nav_old,
+                        # log_div(),
                         # market_div(mkt_tbl_cols, n_mkt_rows, market_sort_options),
                         # runners_div(n_run_rows),
-                        timings_div(n_tmr_rows),
+                        # timings_div(n_tmr_rows),
                         # strat_div(n_strat_rows, strat_tbl_cols),
                         # *generate_containers(runners.runners_config_spec(config)),
                         # *generate_containers(market.market_display_spec(config)),

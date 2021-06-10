@@ -33,7 +33,8 @@ def runners_config_spec(config):
                 {
                     'type': 'button',
                     'id': 'button-mkt-bin',
-                    'btn_icon': 'fas fa-trash'
+                    'btn_icon': 'fas fa-trash',
+                    'color': 'warning',
                 }
             ],
             [
@@ -41,7 +42,8 @@ def runners_config_spec(config):
                     'type': 'button',
                     'id': 'button-orders',
                     'btn_icon': 'fas fa-file-invoice-dollar',
-                    'btn_text': 'Orders'
+                    'btn_text': 'Orders',
+                    'color': 'info',
                 },
                 {
                     'type': 'button',
@@ -54,7 +56,6 @@ def runners_config_spec(config):
                     'id': 'button-all-figures',
                     'btn_icon': 'fas fa-chart-line',
                     'btn_text': 'All Figures',
-                    'color': 'Secondary'
                 },
             ],
             [

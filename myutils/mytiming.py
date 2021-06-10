@@ -296,11 +296,11 @@ def get_timings_summary() -> List[Dict]:
     for k, v in _function_timings.items():
         if v:
             results.append({
-                'Function': k,
-                'Count': len(v),
-                'Mean': sum(v, timedelta())/len(v),
-                'Min': min(v),
-                'Max': max(v),
+                'function': k,
+                'count': len(v),
+                'mean': sum(v, timedelta())/len(v),
+                'min': min(v),
+                'max': max(v),
             })
     return results
 
