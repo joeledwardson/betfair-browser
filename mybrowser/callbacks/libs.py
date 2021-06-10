@@ -12,7 +12,7 @@ def cb_libs(app, shn: Session):
     @app.callback(
         output=[
             Output('intermediary-libs', 'children'),
-            Output('loading-out-header', 'children')
+            Output('loading-out-libs', 'children')
         ],
         inputs=[
             Input('button-libs', 'n_clicks')

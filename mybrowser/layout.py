@@ -7,15 +7,17 @@ import dash_core_components as dcc
 import dash_table
 from dash.development.base_component import Component
 from typing import Dict, List, Any, Optional
-import copy
-import myutils.mydash
 from myutils import myregistrar
 from .exceptions import LayoutException
-from .layouts import market, runners, configs, orders, timings, logger, strategy, INTERMEDIARIES
 import uuid
 
+dash_generators = myregistrar.MyRegistrar()
+
+HEADER_PY = 2  # header top/bottom padding
+HEADER_PX = 4  # header left/right padding
 NAV_BTN_P = 0  # padding for navigation buttons
 LOAD_TYPE = 'dot'  # loading type
+NAV_P = 1  # padding around each nav object
 NAV_PT = 2  # top padding of nav bar
 BTN_ML = 2  # left margin for button icons
 BTN_COLOR = 'primary'  # default button color
@@ -26,7 +28,6 @@ SIDE_EACH_MB = 2  # bottom margin for each sidebar element
 SIDE_EACH_MX = 1  # left/right margin for each sidebar element
 SIDE_CONTENT_P = 3  # sidebar content padding
 SIDE_PR = 2  # sidebar padding right of elements
-SIDE_PL = 1
 
 EL_MAP = {
     'element-header': {
@@ -50,63 +51,9 @@ EL_MAP = {
 }
 
 
-nav_spec = [
-    {
-        'type': 'element-navigation-item',
-        'href': '/',
-        'nav_icon': 'fas fa-horse',
-    },
-    {
-        'type': 'element-navigation-item',
-        'href': '/strategy',
-        'nav_icon': 'fas fa-chess-king'
-    },
-    {
-        'type': 'element-navigation-item',
-        'href': '/runners',
-        'nav_icon': 'fas fa-running',
-    },
-    {
-        'type': 'element-navigation-item',
-        'href': '/timings',
-        'nav_icon': 'fas fa-clock'
-    },
-    {
-        'type': 'element-navigation-item',
-        'href': '/orders',
-        'nav_icon': 'fas fa-file-invoice-dollar'
-    },
-    {
-        'type': 'element-navigation-item',
-        'href': '/logs',
-        'nav_icon': 'fas fa-envelope-open-text',
-        'css_classes': 'position-relative',
-        'nav_children_spec': [
-            {
-                'type': 'element-div',
-                'id': 'msg-alert-box',
-                'css_classes': 'right-corner-box',
-                'hidden': True,
-                'children_spec': [
-                    {
-                        'type': 'element-badge',
-                        'id': 'log-warns',
-                        'color': 'danger',
-                        'css_classes': 'p-2'
-                    }
-                ]
-            }
-        ]
-    }
-]
-
-
 def _validate_id(spec):
     if spec.get('id') is None:
         raise LayoutException(f'spec "{spec}" has no ID')
-
-dash_generators = myregistrar.MyRegistrar()
-
 
 
 @dash_generators.register_named('element-select')
@@ -286,6 +233,14 @@ def gen_modal(spec: Dict) -> dbase.Component:
     ], id=modal_id)
 
 
+@dash_generators.register_named('element-periodic')
+def gen_periodic(spec: Dict) -> dbase.Component:
+    return dcc.Interval(
+        id=spec.pop('id'),
+        interval=spec.pop('interval_milliseconds')
+    )
+
+
 def _gen_element(spec: Dict):
     el_type = spec.pop('type')
     
@@ -348,7 +303,7 @@ def generate_sidebar(spec: Dict):
     )
 
 
-def generate_containers(spec: Dict):
+def generate_container(spec: Dict):
     cont_id = spec.pop('container-id')
     cont_children = []
     content_spec = spec.pop('content')
@@ -371,481 +326,77 @@ def generate_containers(spec: Dict):
             cont_children.append(_gen_element(row_spec))
         else:
             raise LayoutException(f'expected row spec list/dict, got "{type(row_spec)}"')
-    containers = [
+    return html.Div(
         html.Div(
-            html.Div(
-                cont_children,
-                className='d-flex flex-column h-100'
-            ),
-            className=f'flex-grow-1 shadow m-{CONT_M} p-{CONT_P}',
-            id=cont_id,
-        )
-    ]
-    sidebar_spec = spec.pop('sidebar', None)
-    if sidebar_spec is not None:
-        containers.append(
-            generate_sidebar(sidebar_spec)
-        )
-    return containers
-
-
-def strategy_modal():
-    return dbc.Modal(
-        [
-            dbc.ModalHeader("Delete strategy?"),
-            dbc.ModalFooter([
-                dbc.Button("Yes", id="strategy-delete-yes", color='danger', className='ml-auto'),
-                dbc.Button("No", id="strategy-delete-no", color='success')
-            ]),
-        ],
-        id="strategy-delete-modal",
+            cont_children,
+            className='d-flex flex-column h-100'
+        ),
+        className=f'flex-grow-1 shadow m-{CONT_M} p-{CONT_P}',
+        id=cont_id,
     )
 
 
-# TODO - move all loading bars to top
-def hidden_elements(n_odr_rows, n_tmr_rows):
-    return [
-        _gen_element(strategy.strategy_modal()),
-        # strategy_modal(),
-        # TODO - make orders its own page
-        # dbc.Modal([
-        #     dbc.ModalHeader("Orders"),
-        #     dbc.ModalBody(orders.table(n_odr_rows)),
-        #     dbc.ModalFooter(
-        #         dbc.Button("Close", id="modal-close-orders", className="ml-auto")
-        #     )],
-        #     id="modal-orders",
-        #     size="xl"
-        # ),
-
-        # hidden divs for intermediary output components
-        *[myutils.mydash.hidden_div(x) for x in INTERMEDIARIES],
-
-        dcc.Interval(
-            id='interval-component',
-            interval=1 * 1000,  # in milliseconds
-            n_intervals=0
-        )
-
-    ]
-
-
-def header(right_children, left_children):
-
-    end = dbc.Row([
-        dbc.Col([
-            dcc.Loading(
-                html.Div(id='loading-out-header'),
-                type='dot'
-            )
-        ] + right_children),
-        dbc.Col(
-            dbc.Button(
-                html.I(className="fas fa-book-open"),
-                id='button-libs',
-                color='info'
-            ),
-            width='auto',
-            className='p-1'
-        )],
-        align='center',
-        no_gutters=True,
-    )
-
+def generate_header(title, left_spec, right_spec):
     return dbc.Row([
         dbc.Col(
-            left_children,
+            _gen_element(left_spec),
             width=3
         ),
         dbc.Col(
             dbc.Row(
-                dbc.Col(html.H1('Betfair Browser'), width='auto'),
+                dbc.Col(html.H1(title), width='auto'),
                 justify='center',
                 align='center'
             ),
             width=6,
         ),
         dbc.Col(
-            end,
+            _gen_element(right_spec),
             width=3
         )],
         align='center',
-        className='bg-light py-2 px-4'
+        className=f'bg-light py-{HEADER_PY} px-{HEADER_PX}'
     )
 
 
-def plot_filter_div(filter_margins, dflt_offset):
+def generate_nav(nav_spec):
     return html.Div(
-        html.Div(
-            [
-                dbc.Row([
-                    dbc.Col(html.H2('Plot Config')),
-                    dbc.Col(dbc.Button('close', id='btn-plot-close'), width='auto')],
-                    align='center',
-                ),
-                html.Hr(className='ml-0 mr-0'),
-                configs.inputs(filter_margins, dflt_offset)
-            ],
-            className='d-flex flex-column h-100 p-3'
+        dbc.Nav(
+            [html.Div(_gen_element(x), className=f'p-{NAV_P}') for x in nav_spec],
+            vertical=True,
+            pills=True,
+            className=f'align-items-center h-100 pt-{NAV_PT}',
         ),
-        className='right-side-bar',
-        id='container-filters-plot'
+        id='nav-bar',
     )
 
 
-def market_div(mkt_tbl_cols, n_mkt_rows, market_sort_options):
-    return html.Div(
-        html.Div(
-            [
-                market.header(),
-                market.mkt_buttons(market_sort_options),
-                market.query_status(),
-                market.mkt_table(mkt_tbl_cols, n_mkt_rows)
-            ],
-            className='d-flex flex-column h-100'
-        ),
-        className='flex-grow-1 shadow m-4 p-4',
-        id='container-market'
-    )
+def generate_layout(layout_spec: Dict):
+    nav_spec = layout_spec.pop('navigation')
+    nav = generate_nav(nav_spec)
 
+    left_spec = layout_spec.pop('header_left')
+    right_spec = layout_spec.pop('header_right')
+    title = layout_spec.pop('header_title')
+    header = generate_header(title, left_spec, right_spec)
 
-def market_filter_div(filter_margins):
-    return html.Div(
-        html.Div([
-            dbc.Row([
-                dbc.Col(html.H2('Market Filters')),
-                dbc.Col(dbc.Button('close', id='btn-right-close'), width='auto')],
-                align='center'
-            ),
-            html.Hr(className='ml-0 mr-0'),
-            html.Div(
-                [
-                    *market.mkt_filters(multi=False, filter_margins=filter_margins),
-                    html.Hr(className='ml-0 mr-0'),
-                    *market.strat_filters(filter_margins),
-                ],
-                className='d-flex flex-column pr-2 overflow-auto'
-            )],
-            className='d-flex flex-column h-100 p-3'
-        ),
-        className='right-side-bar',
-        id='container-filters-market'
-    )
+    hidden_specs = layout_spec.pop('hidden_elements')
+    hiddens = [_gen_element(x) for x in hidden_specs]
 
+    container_specs = layout_spec.pop('containers')
+    containers = [generate_container(x) for x in container_specs]
 
-def strat_filter_div(filter_margins):
-    return html.Div(
-        html.Div(
-            [
-                dbc.Row([
-                    dbc.Col(html.H2('Strategy Filters')),
-                    dcc.Dropdown(
-                        id='input-strategy-select',
-                        placeholder='Strategy...',
-                        className=filter_margins,
-                        optionHeight=60,
-                    ),
-                    dbc.Col(dbc.Button('close', id='btn-strategy-close'), width='auto'),
-                ], align='center'),
-                html.Hr(),
-            ],
-            className='d-flex flex-column h-100 p-3'
-        ),
-        className='right-side-bar',
-        id='container-filters-strategy'
-    )
-
-
-def runners_div(n_run_rows):
-    return html.Div([
-        runners.header(),
-        runners.inputs(),
-        runners.market_info(),
-        runners.table(n_run_rows)
-    ], className='flex-grow-1 shadow m-4 p-4 overflow-auto', id='container-runners')
-
-
-def timings_div(n_tmr_rows):
-    return html.Div(
-        [
-            html.H2('Timings'),
-            timings.table(n_tmr_rows)
-        ],
-        id='container-timings',
-        className='shadow m-4 p-4 flex-grow-1 overflow-auto'
-    )
-
-
-def log_div():
-    return html.Div(
-        html.Div(
-            [
-                html.H2('Python Log'),
-                logger.log_box()
-            ],
-            className='d-flex flex-column h-100'
-        ),
-        className='flex-grow-1 shadow m-4 p-4 overflow-auto',
-        id='container-logs'
-    )
-
-
-def strat_div(n_strat_rows, strat_cols):
-    full_strat_cols = strat_cols | {
-        'n_markets': 'Market Count',
-        'total_profit': 'Total Profit'
-    }
-    return html.Div(
-        html.Div(
-            [
-                dbc.Row([
-                    dbc.Col(html.H2('Strategies'), width='auto'),
-                    dbc.Col(
-                        dbc.Button(
-                            html.I(className="fas fa-filter"),
-                            id="btn-strategy-filter",
-                            n_clicks=0,
-                            color='primary'
-                        ),
-                        width='auto',
-                        className='p-1'
-                    ),
-                    dbc.Col(
-                        dbc.NavLink(
-                            dbc.Button(
-                                html.I(className="fas fa-download"),
-                                id="btn-strategy-download",
-                                n_clicks=0,
-                                color='primary'
-                            ),
-                            href="/",
-                            active="exact",
-                            className='p-0',
-                            id='nav-strategy-download',
-                        ),
-                        width='auto',
-                        className='p-1'
-                    )
-                ], align='center'),
-                dbc.Row([
-                    dbc.Col(
-                        dbc.Button(
-                            ['Reload', html.I(className="fas fa-sync-alt ml-2")],
-                            id="btn-strategy-refresh",
-                            n_clicks=0,
-                            color='primary'
-                        ),
-                        width='auto',
-                        className='pr-1'
-                    ),
-                    dbc.Col(
-                        dbc.Button(
-                            ['Delete Strategy', html.I(className="fas fa-trash ml-2")],
-                            id="btn-strategy-delete",
-                            n_clicks=0,
-                            color='danger'
-                        ),
-                        width='auto',
-                        className='p-1'
-                    ),
-                ], align='center'),
-                dbc.Row([
-                    dbc.Col(
-                        dbc.Select(
-                            id='input-strategy-run',
-                            placeholder='Strategy config...',
-                        ),
-                        width='auto',
-                        className='pr-1'
-                    ),
-                    dbc.Col(
-                        dbc.Button(
-                            'Reload configs...',
-                            id='btn-strategies-reload',
-                            n_clicks=0,
-                            color='info',
-                        ),
-                        width='auto',
-                        className='p-1'
-                    ),
-                    dbc.Col(
-                        dbc.Button(
-                            ['Run Strategy', html.I(className="fas fa-play-circle ml-2")],
-                            id="btn-strategy-run",
-                            n_clicks=0,
-                        ),
-                        width='auto',
-                        className='p-1'
-                    ),
-                ], align='center'),
-                html.Div(
-                    dash_table.DataTable(
-                        id='table-strategies',
-                        columns=[
-                            {"name": v, "id": k}
-                            for k, v in full_strat_cols.items()
-                        ],
-                        style_cell={
-                            'textAlign': 'left',
-                            'whiteSpace': 'normal',
-                            'height': 'auto',
-                            'maxWidth': 0,  # fix column widths
-                            'verticalAlign': 'middle',
-                            'padding': '0.5rem',
-                        },
-                        style_data={
-                            'border': 'none'
-                        },
-                        css=[{
-                            'selector': 'td.dash-cell',
-                            'rule': 'overflow-wrap: anywhere;'
-                        }],
-                        style_header={
-                            'fontWeight': 'bold',
-                            'border': 'none'
-                        },
-                        # the width and height properties below are just placeholders
-                        # when using fixed_rows with headers they cannot be relative or dash crashes - these are overridden in css
-                        style_table={
-                            'overflowY': 'auto',
-                            # 'minHeight': '80vh', 'height': '80vh', 'maxHeight': '80vh',
-                            # 'minWidth': '100vw', 'width': '100vw', 'maxWidth': '100vw'
-                        },
-                        # fixed_rows={
-                        #     'headers': True,
-                        #     'data': 0
-                        # },
-                        page_size=n_strat_rows,
-                    ),
-                    className='table-container flex-grow-1 overflow-hidden'
-                )
-            ],
-            className='h-100 d-flex flex-column'
-        ),
-        className='flex-grow-1 shadow m-4 p-4 overflow-hidden',
-        id='container-strategy'
-    )
-
-
-# TODO - add padding
-nav_old = html.Div([
-    dbc.Nav(
-        [
-            dbc.NavLink(
-                [
-                    html.I(className="fas fa-horse"),
-                    html.Span("")
-                ],
-                href="/",
-                active="exact",
-                className='m-1'
-            ),
-            dbc.NavLink(
-                [
-                    html.I(className="fas fa-chess-king"),
-                    html.Span(""),
-                ],
-                href="/strategy",
-                active="exact",
-            ),
-            dbc.NavLink(
-                [
-                    html.I(className="fas fa-running"),
-                    html.Span(""),
-                ],
-                href="/runners",
-                active="exact",
-            ),
-            dbc.NavLink(
-                [
-                    html.I(className="fas fa-clock"),
-                    html.Span(""),
-                ],
-                href="/timings",
-                active="exact",
-            ),
-            dbc.NavLink(
-                [
-                    html.I(className="fas fas fa-envelope-open-text"),
-                    html.Span(""),
-                    html.Div(
-                        dbc.Badge(id='log-warns', color="danger", className='p-2'),
-                        id='msg-alert-box',
-                        className='right-corner-box',
-                        hidden=True
-                    )
-                ],
-                href="/logs",
-                active="exact",
-                className='position-relative'
-            ),
-        ],
-        vertical=True,
-        pills=True,
-        className='align-items-center h-100 pt-2'
-    )
-], id='nav-bar')
-
-nav = html.Div(
-    dbc.Nav(
-        [html.Div(_gen_element(x), className='p-1') for x in nav_spec],
-        vertical=True,
-        pills=True,
-        className=f'align-items-center h-100 pt-{NAV_PT}',
-    ),
-    id='nav-bar',
-)
-
-def get_layout(
-        n_odr_rows,
-        n_tmr_rows,
-        filter_margins,
-        dflt_offset,
-        mkt_tbl_cols,
-        n_mkt_rows,
-        n_run_rows,
-        market_sort_options,
-        n_strat_rows,
-        strat_tbl_cols,
-        config
-) -> html.Div:
-    # container
-    left_header_children = list()
-    right_header_children = list()
-    _confs = [
-        logger.log_config_spec(config),
-        market.market_display_spec(config),
-        runners.runners_config_spec(config),
-        strategy.strategy_config_spec(config),
-        timings.timings_config_spec(config),
-        orders.orders_config_spec(config),
-    ]
-    for _conf in _confs:
-        left_header_children += [_gen_element(x) for x in _conf.pop('header_left', list())]
-        right_header_children += [_gen_element(x) for x in _conf.pop('header_right', list())]
+    sidebar_specs = layout_spec.pop('sidebars')
+    sidebars = [generate_sidebar(x) for x in sidebar_specs]
 
     return html.Div([
         dcc.Location(id="url"),
-        html.Div(hidden_elements(n_odr_rows, n_tmr_rows)),
+        html.Div(hiddens),
         html.Div(
             [
-                header(right_header_children, left_header_children),
+                header,
                 html.Div(
-                    [
-                        nav,
-                        # log_div(),
-                        # market_div(mkt_tbl_cols, n_mkt_rows, market_sort_options),
-                        # runners_div(n_run_rows),
-                        # timings_div(n_tmr_rows),
-                        # strat_div(n_strat_rows, strat_tbl_cols),
-                        # *generate_containers(runners.runners_config_spec(config)),
-                        # *generate_containers(market.market_display_spec(config)),
-                        # strat_filter_div(filter_margins),
-                        # market_filter_div(filter_margins),
-                        # plot_filter_div(filter_margins, dflt_offset),
-                    ] + list(itertools.chain(*[
-                        generate_containers(c) for c in _confs
-                    ])),
+                    [nav] + containers + sidebars,
                     className='d-flex flex-row flex-grow-1 overflow-hidden'
                 ),
                 html.Div(id='toast-holder'),

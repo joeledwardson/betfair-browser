@@ -6,7 +6,8 @@ import logging
 import sys
 from configparser import ConfigParser
 
-from .layout import get_layout
+from . import layouts
+from .layout import generate_layout
 from . import callbacks
 from .session import Session
 
@@ -44,18 +45,19 @@ def run_browser(debug: bool, config_path=None):
     callbacks.cb_strategy(app, session)
     callbacks.cb_display(app)
 
-    app.layout = get_layout(
-        n_odr_rows=int(session.config['TABLE']['orders_rows']),
-        n_tmr_rows=int(session.config['TABLE']['timings_rows']),
-        filter_margins=session.config['LAYOUT']['filter_margins'],
-        dflt_offset=session.config['PLOT_CONFIG']['default_offset'],
-        mkt_tbl_cols=dict(session.config['MARKET_TABLE_COLS']),
-        n_mkt_rows=int(session.config['TABLE']['market_rows']),
-        n_run_rows=int(session.config['TABLE']['runner_rows']),
-        market_sort_options=dict(session.config['MARKET_SORT_OPTIONS']),
-        n_strat_rows=int(session.config['TABLE']['strategy_rows']),
-        strat_tbl_cols=dict(session.config['STRATEGY_TABLE_COLS']),
-        config=session.config
+    layout_spec = layouts.get_bf_layout(session.config)
+    app.layout = generate_layout(
+        # n_odr_rows=int(session.config['TABLE']['orders_rows']),
+        # n_tmr_rows=int(session.config['TABLE']['timings_rows']),
+        # filter_margins=session.config['LAYOUT']['filter_margins'],
+        # dflt_offset=session.config['PLOT_CONFIG']['default_offset'],
+        # mkt_tbl_cols=dict(session.config['MARKET_TABLE_COLS']),
+        # n_mkt_rows=int(session.config['TABLE']['market_rows']),
+        # n_run_rows=int(session.config['TABLE']['runner_rows']),
+        # market_sort_options=dict(session.config['MARKET_SORT_OPTIONS']),
+        # n_strat_rows=int(session.config['TABLE']['strategy_rows']),
+        # strat_tbl_cols=dict(session.config['STRATEGY_TABLE_COLS']),
+        layout_spec
     )
 
     active_logger.info(f'Dash version: {dash.__version__}')

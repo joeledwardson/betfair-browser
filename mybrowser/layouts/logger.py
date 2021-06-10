@@ -1,6 +1,3 @@
-import dash_html_components as html
-
-
 def log_config_spec(config):
     return {
         'container-id': 'container-logs',
@@ -18,11 +15,3 @@ def log_config_spec(config):
             }
         ]
     }
-
-
-def log_box():
-    return html.Div(
-        id='logger-box',
-        className='d-flex flex-column-reverse overflow-auto bg-light',
-        children=[],
-    )

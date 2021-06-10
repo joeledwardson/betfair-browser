@@ -1,5 +1,5 @@
 
-def strategy_modal():
+def strategy_modal_spec():
     return {
         'type': 'element-modal',
         'id': 'strategy-delete-modal',
@@ -19,6 +19,7 @@ def strategy_modal():
             }
         ]
     }
+
 
 def strategy_config_spec(config):
     full_tbl_cols = dict(config['STRATEGY_TABLE_COLS'])
@@ -86,16 +87,19 @@ def strategy_config_spec(config):
                 'n_rows': n_rows
             }
         ],
-        'sidebar': {
-            'sidebar_id': 'container-filters-strategy',
-            'sidebar_title': 'Strategy Filters',
-            'close_id': 'btn-strategy-close',
-            'content': [
-                {
-                    'type': 'element-select',
-                    'id': 'input-strategy-select',
-                    'placeholder': 'Strategy...'
-                }
-            ]
-        }
+    }
+
+
+def strategy_sidebar_spec():
+    return {
+        'sidebar_id': 'container-filters-strategy',
+        'sidebar_title': 'Strategy Filters',
+        'close_id': 'btn-strategy-close',
+        'content': [
+            {
+                'type': 'element-select',
+                'id': 'input-strategy-select',
+                'placeholder': 'Strategy...'
+            }
+        ]
     }
