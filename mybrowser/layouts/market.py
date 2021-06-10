@@ -38,17 +38,17 @@ def market_display_spec(config):
         'container-id': 'container-market',
         'header_right': [
             {
-                'type': 'loading',
+                'type': 'element-loading',
                 'id': 'loading-out-session'
             }
         ],
         'header_left': [
             {
-                'type': 'div',
+                'type': 'element-div',
                 'id': 'progress-container-div',
                 'children_spec': [
                     {
-                        'type': 'progress',
+                        'type': 'element-progress',
                         'id': 'header-progress-bar',
                         'element_kwargs': {
                             'striped': True,
@@ -61,18 +61,18 @@ def market_display_spec(config):
         'content': [
             [
                 {
-                    'type': 'header',
+                    'type': 'element-header',
                     'children_spec': 'Market Browser',
                 }, {
-                    'type': 'button',
+                    'type': 'element-button',
                     'id': 'btn-session-filter',
                     'btn_icon': 'fas fa-filter',
                 }, {
-                    'type': 'button',
+                    'type': 'element-button',
                     'id': 'btn-db-reconnect',
                     'btn_icon': 'fas fa-database',
                 }, {
-                    'type': 'nav-link',
+                    'type': 'element-navigation-button',
                     'id': 'nav-runners',
                     'href': '/runners',
                     'btn_id': 'button-runners',
@@ -81,19 +81,19 @@ def market_display_spec(config):
             ],
             [
                 {
-                    'type': 'button',
+                    'type': 'element-button',
                     'id': 'btn-db-refresh',
                     'btn_icon': 'fas fa-sync-alt',
                     'btn_text': 'Reload'
                 },
                 {
-                    'type': 'button',
+                    'type': 'element-button',
                     'id': 'btn-db-upload',
                     'btn_icon': 'fas fa-arrow-circle-up',
                     'btn_text': 'Upload Cache'
                 },
                 {
-                    'type': 'button',
+                    'type': 'element-button',
                     'id': 'btn-cache-clear',
                     'btn_icon': 'fas fa-trash',
                     'btn_text': 'Clear Cache',
@@ -102,14 +102,14 @@ def market_display_spec(config):
             ],
             [
                 {
-                    'type': 'stylish-select',
+                    'type': 'element-stylish-select',
                     'id': 'market-sorter',
                     'placeholder': 'Market Sort...',
                     'select_options': options_labels,
                     'clear_id': 'btn-sort-clear'
                 },
                 {
-                    'type': 'button',
+                    'type': 'element-button',
                     'id': 'input-strategy-clear',
                     'btn_icon': 'fas fa-times-circle',
                     'btn_text': 'Clear Strategy',
@@ -118,12 +118,12 @@ def market_display_spec(config):
             ],
             [
                 {
-                    'type': 'div',
+                    'type': 'element-div',
                     'id': 'market-query-status'
                 }
             ],
             {
-                'type': 'table',
+                'type': 'element-table',
                 'id': 'table-market-session',
                 'columns': full_tbl_cols,
                 'n_rows': n_mkt_rows
@@ -135,49 +135,49 @@ def market_display_spec(config):
             'close_id': 'btn-right-close',
             'content': [
                 {
-                    'type': 'select',
+                    'type': 'element-select',
                     'id': 'input-sport-type',
                     'placeholder': 'Sport...'
                 },
                 {
-                    'type': 'select',
+                    'type': 'element-select',
                     'id': 'input-mkt-type',
                     'placeholder': 'Market type...',
                 },
                 {
-                    'type': 'select',
+                    'type': 'element-select',
                     'id': 'input-bet-type',
                     'placeholder': 'Betting type...',
                 },
                 {
-                    'type': 'select',
+                    'type': 'element-select',
                     'id': 'input-format',
                     'placeholder': 'Format...'
                 },
                 {
-                    'type': 'select',
+                    'type': 'element-select',
                     'id': 'input-country-code',
                     'placeholder': 'Country...'
                 },
                 {
-                    'type': 'select',
+                    'type': 'element-select',
                     'id': 'input-venue',
                     'placeholder': 'Venue...'
                 },
                 {
-                    'type': 'select',
+                    'type': 'element-select',
                     'id': 'input-date',
                     'placeholder': 'Market date...'
                 },
                 {
-                    'type': 'input',
+                    'type': 'element-input',
                     'id': 'input-mkt-id',
                     'element_kwargs': {
                         'placeholder': 'Market ID filter...',
                     }
                 },
                 {
-                    'type': 'button',
+                    'type': 'element-button',
                     'id': 'input-mkt-clear',
                     'btn_icon': 'fas fa-times-circle',
                     'btn_text': 'Clear Filters'

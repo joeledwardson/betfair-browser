@@ -11,27 +11,27 @@ def runners_config_spec(config):
         'container-id': 'container-runners',
         'header_right': [
             {
-                'type': 'loading',
+                'type': 'element-loading',
                 'id': 'loading-out-runners',
             },
             {
-                'type': 'loading',
+                'type': 'element-loading',
                 'id': 'loading-out-figure'
             }
         ],
         'content': [
             [
                 {
-                    'type': 'header',
+                    'type': 'element-header',
                     'children_spec': 'Runner Info'
                 },
                 {
-                    'type': 'button',
+                    'type': 'element-button',
                     'id': 'btn-runners-filter',
                     'btn_icon': 'fas fa-bars'
                 },
                 {
-                    'type': 'button',
+                    'type': 'element-button',
                     'id': 'button-mkt-bin',
                     'btn_icon': 'fas fa-trash',
                     'color': 'warning',
@@ -39,20 +39,20 @@ def runners_config_spec(config):
             ],
             [
                 {
-                    'type': 'button',
+                    'type': 'element-button',
                     'id': 'button-orders',
                     'btn_icon': 'fas fa-file-invoice-dollar',
                     'btn_text': 'Orders',
                     'color': 'info',
                 },
                 {
-                    'type': 'button',
+                    'type': 'element-button',
                     'id': 'button-figure',
                     'btn_icon': 'fas fa-chart-line',
                     'btn_text': 'Figure',
                 },
                 {
-                    'type': 'button',
+                    'type': 'element-button',
                     'id': 'button-all-figures',
                     'btn_icon': 'fas fa-chart-line',
                     'btn_text': 'All Figures',
@@ -60,12 +60,12 @@ def runners_config_spec(config):
             ],
             [
                 {
-                    'type': 'div',
+                    'type': 'element-div',
                     'id': 'infobox-market'
                 }
             ],
             {
-                'type': 'table',
+                'type': 'element-table',
                 'id': 'table-runners',
                 'columns': full_tbl_cols,
                 'n_rows': n_rows
@@ -77,31 +77,31 @@ def runners_config_spec(config):
             'close_id': 'btn-plot-close',
             'content': [
                 {
-                    'type': 'select',
+                    'type': 'element-select',
                     'id': 'input-feature-config',
                     'placeholder': 'Feature config...'
                 },
                 {
-                    'type': 'select',
+                    'type': 'element-select',
                     'id': 'input-plot-config',
                     'placeholder': 'Plot config...',
                 },
                 {
-                    'type': 'button',
+                    'type': 'element-button',
                     'id': 'button-feature-config',
                     'btn_text': 'Reload feature configs',
                     'btn_icon': 'fas fa-sync-alt',
                     'color': 'info'
                 },
                 {
-                    'type': 'input-group',
+                    'type': 'element-input-group',
                     'children_spec': [
                         {
-                            'type': 'input-group-addon',
+                            'type': 'element-input-group-addon',
                             'children_spec': 'Input offset: ',
                         },
                         {
-                            'type': 'input',
+                            'type': 'element-input',
                             'id': 'input-chart-offset',
                             'element_kwargs': {
                                 'type': 'time',

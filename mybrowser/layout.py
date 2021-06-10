@@ -1,5 +1,6 @@
 import itertools
 
+from dash.development import base_component as dbase
 import dash_bootstrap_components as dbc
 import dash_html_components as html
 import dash_core_components as dcc
@@ -13,6 +14,7 @@ from .exceptions import LayoutException
 from .layouts import market, runners, configs, orders, timings, logger, strategy, INTERMEDIARIES
 import uuid
 
+NAV_BTN_P = 0  # padding for navigation buttons
 LOAD_TYPE = 'dot'  # loading type
 NAV_PT = 2  # top padding of nav bar
 BTN_ML = 2  # left margin for button icons
@@ -27,22 +29,22 @@ SIDE_PR = 2  # sidebar padding right of elements
 SIDE_PL = 1
 
 EL_MAP = {
-    'header': {
+    'element-header': {
         'dash_cls': html.H2,
     },
-    'div': {
+    'element-div': {
         'dash_cls': html.Div
     },
-    'input': {
+    'element-input': {
         'dash_cls': dbc.Input
     },
-    'progress': {
+    'element-progress': {
         'dash_cls': dbc.Progress
     },
-    'input-group': {
+    'element-input-group': {
         'dash_cls': dbc.InputGroup
     },
-    'input-group-addon': {
+    'element-input-group-addon': {
         'dash_cls': dbc.InputGroupAddon
     }
 }
@@ -50,39 +52,39 @@ EL_MAP = {
 
 nav_spec = [
     {
-        'type': 'nav-link',
+        'type': 'element-navigation-item',
         'href': '/',
-        'btn_icon': 'fas fa-horse',
-        'color': 'light'
+        'nav_icon': 'fas fa-horse',
     },
     {
-        'type': 'nav-link',
+        'type': 'element-navigation-item',
         'href': '/strategy',
-        'btn_icon': 'fas fa-chess-king'
+        'nav_icon': 'fas fa-chess-king'
     },
     {
-        'type': 'nav-link',
+        'type': 'element-navigation-item',
         'href': '/runners',
-        'btn_icon': 'fas fa-running',
+        'nav_icon': 'fas fa-running',
     },
     {
-        'type': 'nav-link',
+        'type': 'element-navigation-item',
         'href': '/timings',
-        'btn_icon': 'fas fa-clock'
+        'nav_icon': 'fas fa-clock'
     },
     {
-        'type': 'nav-link',
+        'type': 'element-navigation-item',
         'href': '/logs',
-        'btn_icon': 'fas fa-envelope-open-text',
-        'children_spec': [
+        'nav_icon': 'fas fa-envelope-open-text',
+        'css_classes': 'position-relative',
+        'nav_children_spec': [
             {
-                'type': 'div',
+                'type': 'element-div',
                 'id': 'msg-alert-box',
                 'css_classes': 'right-corner-box',
                 'hidden': True,
                 'children_spec': [
                     {
-                        'type': 'badge',
+                        'type': 'element-badge',
                         'id': 'log-warns',
                         'color': 'danger',
                         'css_classes': 'p-2'
@@ -93,85 +95,97 @@ nav_spec = [
     }
 ]
 
-def _gen_element(spec: Dict):
-    el_type = spec.pop('type')
-    el_id = spec.pop('id', None)
-    css_classes = spec.pop('css_classes', '')
-    
-    def _validate_id():
-        if el_id is None:
-            raise LayoutException(f'spec "{spec}" type "{el_type}" has no ID')
 
-    if el_type == 'select':
-        _validate_id()
-        element = dcc.Dropdown(
-            id=el_id,
-            placeholder=spec.pop('placeholder', None),
-            className=css_classes
-        )
-    elif el_type == 'button':
-        _validate_id()
-        children = list()
-        btn_text = spec.pop('btn_text', None)
+def _validate_id(spec):
+    if spec.get('id') is None:
+        raise LayoutException(f'spec "{spec}" has no ID')
+
+dash_generators = myregistrar.MyRegistrar()
+
+
+
+@dash_generators.register_named('element-select')
+def gen_select(spec: Dict) -> dbase.Component:
+    _validate_id(spec)
+    return dcc.Dropdown(
+        id=spec.pop('id'),
+        placeholder=spec.pop('placeholder', None),
+        className=spec.pop('css_classes', '')
+    )
+
+
+@dash_generators.register_named('element-button')
+def gen_button(spec: Dict) -> dbase.Component:
+    _validate_id(spec)
+    children = list()
+    btn_text = spec.pop('btn_text', None)
+    if btn_text is not None:
+        children.append(btn_text)
+    btn_icon = spec.pop('btn_icon', None)
+    btn_color = spec.pop('color', BTN_COLOR)
+    if btn_icon is not None:
+        btn_cls = btn_icon
         if btn_text is not None:
-            children.append(btn_text)
-        btn_icon = spec.pop('btn_icon', None)
-        btn_color = spec.pop('color', BTN_COLOR)
-        if btn_icon is not None:
-            btn_cls = btn_icon
-            if btn_text is not None:
-                btn_cls += f' ml-{BTN_ML}' # add margin left to icon if text is specified
-            children.append(html.I(className=btn_cls))
-        element = dbc.Button(
-            children,
-            id=el_id,
-            n_clicks=0,
-            color=btn_color,
-            className=css_classes
-        )
-    elif el_type == 'table':
-        _validate_id()
-        if css_classes:
-            raise LayoutException(f'cannot override table classes with "{css_classes}"')
-        table_cols = spec.pop('columns')
-        n_rows = spec.pop('n_rows')
-        element = html.Div(
-            dash_table.DataTable(
-                id=el_id,
-                columns=[
-                    dict(name=v, id=k)
-                    for k, v in table_cols.items()
-                ],
-                style_cell={
-                    'textAlign': 'left',
-                    'whiteSpace': 'normal',
-                    'height': 'auto',
-                    'maxWidth': 0,  # fix column widths
-                    'verticalAlign': 'middle',
-                    'padding': '0.5rem',
-                },
-                style_data={
-                    'border': 'none'
-                },
-                style_header={
-                    'fontWeight': 'bold',
-                    'border': 'none'
-                },
-                style_table={
-                    'overflowY': 'auto',
-               },
-                page_size=n_rows,
-            ),
-            className='table-container flex-grow-1 overflow-hidden'
-        )
-    elif el_type == 'stylish-select':
-        _validate_id()
-        placeholder = spec.pop('placeholder')
-        options = spec.pop('select_options', list())
-        clear_id = spec.pop('clear_id')
-        element = dbc.ButtonGroup([
+            btn_cls += f' ml-{BTN_ML}'  # add margin left to icon if text is specified
+        children.append(html.I(className=btn_cls))
+    return dbc.Button(
+        children,
+        id=spec.pop('id'),
+        n_clicks=0,
+        color=btn_color,
+        className=spec.pop('css_classes', '')
+    )
+
+
+@dash_generators.register_named('element-table')
+def gen_table(spec: Dict) -> dbase.Component:
+    _validate_id(spec)
+    table_cols = spec.pop('columns')
+    n_rows = spec.pop('n_rows')
+    table_id = spec.pop('id')
+    return html.Div(
+        dash_table.DataTable(
+            id=table_id,
+            columns=[
+                dict(name=v, id=k)
+                for k, v in table_cols.items()
+            ],
+            style_cell={
+                'textAlign': 'left',
+                'whiteSpace': 'normal',
+                'height': 'auto',
+                'maxWidth': 0,  # fix column widths
+                'verticalAlign': 'middle',
+                'padding': '0.5rem',
+            },
+            style_data={
+                'border': 'none'
+            },
+            style_header={
+                'fontWeight': 'bold',
+                'border': 'none'
+            },
+            style_table={
+                'overflowY': 'auto',
+            },
+            page_size=n_rows,
+        ),
+        className='table-container flex-grow-1 overflow-hidden'
+    )
+
+
+@dash_generators.register_named('element-stylish-select')
+def gen_stylish_select(spec: Dict) -> dbase.Component:
+    _validate_id(spec)
+    placeholder = spec.pop('placeholder')
+    options = spec.pop('select_options', list())
+    clear_id = spec.pop('clear_id')
+    select_id = spec.pop('id')
+    css_classes = spec.pop('css_classes', '')
+    return dbc.ButtonGroup(
+        [
             dbc.Select(
-                id=el_id,
+                id=select_id,
                 placeholder=placeholder,
                 options=options,
             ),
@@ -180,42 +194,100 @@ def _gen_element(spec: Dict):
                 id=clear_id,
                 color='secondary'
             ),
-        ], className=css_classes)
-    elif el_type == 'nav-link':
-        # _validate_id()
-        href = spec.pop('href')
-        btn_id = spec.pop('btn_id', None)
-        btn_icon = spec.pop('btn_icon')
-        element = dbc.NavLink(
-            [dbc.Button(
-                html.I(className=btn_icon),
-                id=btn_id or str(uuid.uuid4()),  # use random string if no ID
-                n_clicks=0,
-                color=BTN_COLOR,
-            )] + [_gen_element(x) for x in spec.pop('children_spec', list())],
-            id=el_id or str(uuid.uuid4()),
-            href=href,
+        ], 
+        className=css_classes
+    )
+
+
+@dash_generators.register_named('element-navigation-button')
+def gen_navigation_button(spec: Dict) -> dbase.Component:
+    _validate_id(spec)
+    href = spec.pop('href')
+    btn_id = spec.pop('btn_id', None)
+    btn_icon = spec.pop('btn_icon')
+    nav_id = spec.pop('id')
+    css_classes = spec.pop('css_classes', '')
+    return dbc.NavLink(
+        [dbc.Button(
+            html.I(className=btn_icon),
+            id=btn_id,
+            n_clicks=0,
+            color=BTN_COLOR,
+        )],
+        id=nav_id,
+        href=href,
+        active='exact',
+        className=f'p-{NAV_BTN_P}' or css_classes
+    )
+
+
+@dash_generators.register_named('element-navigation-item')
+def gen_navigation_item(spec: Dict) -> dbase.Component:
+    nav_icon = spec.pop('nav_icon')
+    css_classes = spec.pop('css_classes', '')
+    children = list()
+    if nav_icon:
+        children.append(html.I(className=nav_icon))
+    children += [_gen_element(x) for x in spec.pop('nav_children_spec', list())]
+    return dbc.NavItem(
+        dbc.NavLink(
+            children,
+            href=spec.pop('href'),
             active='exact',
-            className='position-relative p-0' or css_classes
-        )
-    elif el_type == 'loading':
-        _validate_id()
-        element = dcc.Loading(
-            html.Div(id=el_id),
-            type='dot',
-            className=css_classes
-        )
-    elif el_type == 'badge':
-        return dbc.Badge(
-            id=el_id or str(uuid.uuid4()),
-            color=spec.pop('color'),
-            className=css_classes
-        )
+        ),
+        className=css_classes
+    )
+
+
+@dash_generators.register_named('element-loading')
+def gen_navigation_item(spec: Dict) -> dbase.Component:
+    _validate_id(spec)
+    return dcc.Loading(
+        html.Div(id=spec.pop('id')),
+        type=LOAD_TYPE,
+        className=spec.pop('css_classes', '')
+    )
+
+
+@dash_generators.register_named('element-badge')
+def gen_navigation_item(spec: Dict) -> dbase.Component:
+    return dbc.Badge(
+        id=spec.pop('id', None) or str(uuid.uuid4()),
+        color=spec.pop('color', None),
+        className=spec.pop('css_classes', '')
+    )
+
+
+@dash_generators.register_named('element-modal')
+def gen_modal(spec: Dict) -> dbase.Component:
+    modal_id = spec.pop('id')
+    header_spec = spec.pop('header_spec')
+    header_children = _gen_element(header_spec) if type(header_spec) == list else header_spec
+    footer_spec = spec.pop('footer_spec')
+    footer_children = list()
+    for i, child_spec in enumerate(footer_spec):
+        if i == 0:
+            css_classes = child_spec.get('css_classes', '')
+            css_classes += ' ml-auto'
+            child_spec['css_classes'] = css_classes
+        footer_children.append(_gen_element(child_spec))
+    return dbc.Modal([
+        dbc.ModalHeader(header_children),
+        dbc.ModalFooter(footer_children)
+    ], id=modal_id)
+
+
+def _gen_element(spec: Dict):
+    el_type = spec.pop('type')
+    
+    if el_type in dash_generators:
+        element = dash_generators[el_type](spec)
     elif el_type in EL_MAP:
         dash_cls = EL_MAP[el_type]['dash_cls']
         children = spec.pop('children_spec', None)
         user_kwargs = spec.pop('element_kwargs', dict())
         hidden = spec.pop('hidden', None)
+        el_id = spec.pop('id', None)
         if type(children) == list:
             child_elements = list()
             for child_spec in children:
@@ -223,13 +295,13 @@ def _gen_element(spec: Dict):
             children = child_elements
         el_kwargs = {'id': el_id} if el_id else {}
         el_kwargs |= {'hidden': hidden} if hidden else {}
-        el_kwargs |= {'children': children}
+        el_kwargs |= {'children': children, 'className': spec.pop('css_classes', '')}
         el_kwargs |= EL_MAP[el_type].get('default_kwargs', dict())
-        el_kwargs |= {'className': css_classes}
         el_kwargs |= user_kwargs
         element = dash_cls(**el_kwargs)
     else:
         raise LayoutException(f'type "{el_type}" unrecognised')
+
     if spec:
         raise LayoutException(f'spec "{spec}" has unrecognised elements')
     return element
@@ -324,7 +396,8 @@ def strategy_modal():
 # TODO - move all loading bars to top
 def hidden_elements(n_odr_rows, n_tmr_rows):
     return [
-        strategy_modal(),
+        _gen_element(strategy.strategy_modal()),
+        # strategy_modal(),
         # TODO - make orders its own page
         dbc.Modal([
             dbc.ModalHeader("Orders"),
@@ -749,7 +822,7 @@ def get_layout(
                 header(right_header_children, left_header_children),
                 html.Div(
                     [
-                        nav_old,
+                        nav,
                         # log_div(),
                         # market_div(mkt_tbl_cols, n_mkt_rows, market_sort_options),
                         # runners_div(n_run_rows),

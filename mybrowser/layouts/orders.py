@@ -10,12 +10,12 @@ def log_config_spec(config):
         'content': [
             [
                 {
-                    'type': 'header',
+                    'type': 'element-header',
                     'children_spec': 'Order Profits'
                 },
             ],
             {
-                'type': 'table',
+                'type': 'element-table',
                 'id': 'table-orders',
                 'columns': tbl_cols,
                 'n_rows': n_rows,
