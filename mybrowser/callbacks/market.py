@@ -40,6 +40,13 @@ def cb_market(app, shn: Session):
             )
 
     @app.callback(
+        output=Output('market-sorter', 'value'),
+        inputs=Input('btn-sort-clear', 'n_clicks'),
+    )
+    def market_sort_clear(n_clicks):
+        return None
+
+    @app.callback(
         output=[
             Output('market-query-status', 'children'),
             Output('table-market-session', 'data'),
@@ -48,7 +55,6 @@ def cb_market(app, shn: Session):
             Output('table-market-session', 'page_current'),
             Output('loading-out-session', 'children'),
             Output('intermediary-session-market', 'children'),
-            Output('market-sorter', 'value'),
 
             Output('input-sport-type', 'value'),
             Output('input-mkt-type', 'value'),
@@ -65,10 +71,7 @@ def cb_market(app, shn: Session):
             Output('input-format', 'options'),
             Output('input-country-code', 'options'),
             Output('input-venue', 'options'),
-            Output('input-date', 'options'),
-
-            Output('input-strategy-select', 'value'),
-            Output('input-strategy-select', 'options'),
+            Output('input-date', 'options')
         ],
         inputs=[
             Input('input-mkt-clear', 'n_clicks'),
@@ -78,10 +81,8 @@ def cb_market(app, shn: Session):
             Input('btn-db-upload', 'n_clicks'),
             Input('btn-db-reconnect', 'n_clicks'),
             Input('btn-strategy-run', 'n_clicks'),
-
             Input('market-sorter', 'value'),
-            Input('btn-sort-clear', 'n_clicks'),
-            Input('input-strategy-select', 'value'),
+            Input('btn-strategy-download', 'n_clicks'),
 
             Input('input-sport-type', 'value'),
             Input('input-mkt-type', 'value'),
@@ -106,11 +107,10 @@ def cb_market(app, shn: Session):
             n_db_reconnect,
             n_strat_run,
             market_sorter,
-            n_sort_clear,
-            strategy_id,
+            n_strat_download,
             m0, m1, m2, m3, m4, m5, m6, m7,
             strategy_run_val,
-            straegy_tbl_cell,
+            strategy_tbl_cell,
     ):
         flt_market_args = [m0, m1, m2, m3, m4, m5, m6, m7]
         btn_id = mydash.triggered_id()
@@ -145,19 +145,25 @@ def cb_market(app, shn: Session):
             shn.notif_post(Notif(NType.INFO, 'Cache', f'found {n_strat} new strategies in cache'))
 
         # update strategy filters and selectable options
-        strat_clear = btn_id in ['input-strategy-clear', 'btn-db-reconnect', 'btn-strategy-delete']
-        shn.filters_strat.update_filters(clear=strat_clear, args=[strategy_id])
-        strat_cte = shn.betting_db.filters_strat_cte(shn.filters_strat)
-        strat_vals = shn.filters_strat.filters_values()
-        strat_lbls = shn.betting_db.filters_labels(shn.filters_strat, strat_cte)
+        if btn_id == 'btn-strategy-download':
+            if 'row_id' not in strategy_tbl_cell:
+                shn.notif_post(Notif(NType.WARNING, 'Strategy', 'no row ID found in strategy cell'))
+                shn.active_strat_set(None)
+            else:
+                shn.active_strat_set(strategy_tbl_cell['row_id'])
+        # clear strategy ID variable used in market filtering if "clear strategy" button clicked
+        if btn_id in ['input-strategy-clear', 'btn-db-reconnect', 'btn-strategy-delete']:
+            shn.active_strat_set(None)
+        # shn.filters_strat.update_filters(clear=strat_clear, args=[shn.active_strat_get()])
+        # strat_cte = shn.betting_db.filters_strat_cte(shn.filters_strat)
+        # strat_vals = shn.filters_strat.filters_values()
+        # strat_lbls = shn.betting_db.filters_labels(shn.filters_strat, strat_cte)
 
         # update market filters and selectable options
         mkt_clear = btn_id in ['input-mkt-clear', 'btn-db-reconnect']
         shn.filters_mkt.update_filters(clear=mkt_clear, args=flt_market_args)
-        # clear strategy ID variable used in market filtering if "clear strategy" button clicked
-        if strat_clear:
-            strategy_id = None
-        cte = shn.betting_db.filters_mkt_cte(strategy_id, shn.filters_mkt)
+
+        cte = shn.betting_db.filters_mkt_cte(shn.active_strat_get(), shn.filters_mkt)
         vals = shn.filters_mkt.filters_values()
         lbls = shn.betting_db.filters_labels(shn.filters_mkt, cte)
         if btn_id == 'btn-sort-clear':
@@ -168,9 +174,11 @@ def cb_market(app, shn: Session):
             order_asc = dropdown_dict.get('asc')
         else:
             order_col, order_asc = None, None
-        tbl_rows = shn.mkt_tbl_rows(cte, order_col, order_asc)  # query db with filtered CTE to generate table rows for display
+        # query db with filtered CTE to generate table rows for display
+        tbl_rows = shn.mkt_tbl_rows(cte, order_col, order_asc)
+        # assign 'id' so market ID set in row ID read in callbacks
         for r in tbl_rows:
-            r['id'] = r['market_id']  # assign 'id' so market ID set in row ID read in callbacks
+            r['id'] = r['market_id']
 
         # generate status string of markets/strategies available and strategy selected
         n = shn.betting_db.cte_count(cte)
@@ -178,8 +186,8 @@ def cb_market(app, shn: Session):
         q_sts = [
             html.Div(f'Showing {len(tbl_rows)} of {n} available, {ns} strategies available'),
             html.Div(
-                f'strategy ID={strategy_id}'
-                if strategy_id is not None else 'no strategy selected'
+                f'strategy ID: {shn.active_strat_get()}'
+                if shn.active_strat_get() is not None else 'No strategy selected'
             )
         ]
 
@@ -192,8 +200,8 @@ def cb_market(app, shn: Session):
             0,  # reset current page back to first page
             '',  # loading output
             counter.next(),  # intermediary counter value
-            market_sorter  # market sorter value
-        ] + vals + lbls + strat_vals + strat_lbls
+            # market_sorter  # market sorter value
+        ] + vals + lbls
 
     @app.callback(
         [

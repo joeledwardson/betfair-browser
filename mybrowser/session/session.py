@@ -172,6 +172,9 @@ class Session:
         self._strat_obj: Optional[strat.MyFeatureStrategy] = None
         self.strat_update()
 
+        # selected strategy
+        self._active_strat = None
+
         # notification queue
         self._notification_queue: queue.Queue[Notification] = queue.Queue()
 
@@ -183,6 +186,12 @@ class Session:
 
     def notif_pop(self) -> Notification:
         return self._notification_queue.get()
+
+    def active_strat_get(self):
+        return self._active_strat
+
+    def active_strat_set(self, strategy_id):
+        self._active_strat = strategy_id
 
     def strat_update(self) -> Dict:
         self._strat_cfgs = mydict.load_yaml_confs(self._strat_dir)

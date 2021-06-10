@@ -96,10 +96,10 @@ def strategy_sidebar_spec():
         'sidebar_title': 'Strategy Filters',
         'close_id': 'btn-strategy-close',
         'content': [
-            {
-                'type': 'element-select',
-                'id': 'input-strategy-select',
-                'placeholder': 'Strategy...'
-            }
+            # {
+            #     'type': 'element-select',
+            #     'id': 'input-strategy-select',
+            #     'placeholder': 'Strategy...'
+            # }
         ]
     }

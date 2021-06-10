@@ -22,7 +22,6 @@ def cb_configs(app, shn: Session):
         ]
     )
     def update_files_table(n_clicks):
-
         try:
             shn.ftr_update()
         except SessionException as e:

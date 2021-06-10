@@ -33,10 +33,9 @@ def cb_runners(app, shn: Session):
         ],
         state=[
             State('table-market-session', 'active_cell'),
-            State('input-strategy-select', 'value')
         ],
     )
-    def runners_pressed(btn_rn, btn_clr, cell, strategy_id):
+    def runners_pressed(btn_rn, btn_clr, cell):
         """
         update runners table and market information table, based on when "get runners" button is clicked
         update data in runners table, and active file indicator when runners button pressed
@@ -81,9 +80,11 @@ def cb_runners(app, shn: Session):
             shn.notif_post(Notif(NType.WARNING, 'Market', 'row ID is blank'))
             return ret
         try:
-            shn.mkt_load(market_id, strategy_id)
+            shn.mkt_load(market_id, shn.active_strat_get())
             shn.mkt_lginf()
-            shn.notif_post(Notif(NType.INFO, 'Market', f'Loaded market "{market_id}" with strategy "{strategy_id}"'))
+            shn.notif_post(Notif(
+                NType.INFO, 'Market', f'Loaded market "{market_id}" with strategy "{shn.active_strat_get()}"'
+            ))
         except (trdexp.MyTradingException, SQLAlchemyError) as e:
             active_logger.warning(f'failed to load market: {e}\n{traceback.format_exc()}')
             shn.mkt_clr()

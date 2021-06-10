@@ -46,19 +46,7 @@ def run_browser(debug: bool, config_path=None):
     callbacks.cb_display(app)
 
     layout_spec = layouts.get_bf_layout(session.config)
-    app.layout = generate_layout(
-        # n_odr_rows=int(session.config['TABLE']['orders_rows']),
-        # n_tmr_rows=int(session.config['TABLE']['timings_rows']),
-        # filter_margins=session.config['LAYOUT']['filter_margins'],
-        # dflt_offset=session.config['PLOT_CONFIG']['default_offset'],
-        # mkt_tbl_cols=dict(session.config['MARKET_TABLE_COLS']),
-        # n_mkt_rows=int(session.config['TABLE']['market_rows']),
-        # n_run_rows=int(session.config['TABLE']['runner_rows']),
-        # market_sort_options=dict(session.config['MARKET_SORT_OPTIONS']),
-        # n_strat_rows=int(session.config['TABLE']['strategy_rows']),
-        # strat_tbl_cols=dict(session.config['STRATEGY_TABLE_COLS']),
-        layout_spec
-    )
+    app.layout = generate_layout(layout_spec)
 
     active_logger.info(f'Dash version: {dash.__version__}')
     active_logger.info(f'Dash renderer version: {dash_renderer.__version__}')
