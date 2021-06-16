@@ -27,6 +27,8 @@ sqlalchemy-filters = "*"
 dash-extensions = "*"
 boussole = "*"
 bokeh = "*"
+dash-cytoscape = "*"
+pyside2 = "*"
 
 [dev-packages]
 

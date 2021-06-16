@@ -7,7 +7,7 @@ from typing import List, Dict, Optional
 import pandas as pd
 import logging
 import sys
-from datetime import datetime
+from datetime import datetime, timedelta
 from configparser import ConfigParser
 import json
 from json.decoder import JSONDecodeError
@@ -83,12 +83,16 @@ def get_strat_filters(strat_sel_fmt):
     ]
 
 
-def get_formatters(dt_format) -> myreg.MyRegistrar:
+def get_formatters(config) -> myreg.MyRegistrar:
     formatters = myreg.MyRegistrar()
 
     @formatters.register_element
     def format_datetime(dt: datetime):
-        return dt.strftime(dt_format)
+        return dt.strftime(config['FORMATTERS_CONFIG']['dt_format'])
+
+    @formatters.register_element
+    def format_timedelta(td: timedelta):
+        return mytiming.format_timedelta(td=td, fmt=config['FORMATTERS_CONFIG']['td_format'])
 
     return formatters
 
@@ -134,7 +138,7 @@ class Session:
         active_logger.info(f'configuration end')
 
         self.config: ConfigParser = config  # parsed configuration
-        self.tbl_formatters = get_formatters(config['FORMATTERS_CONFIG']['dt_format'])  # registrar of table formatters
+        self.tbl_formatters = get_formatters(config)  # registrar of table formatters
         self.api_handler = trutils.APIHandler()   # API client instance
 
         self._flts_mkt = dbf.DBFilterHandler(
@@ -340,13 +344,24 @@ class Session:
         if not tms:
             active_logger.warning('no timings on which to produce table')
             return list()
-        tms = sorted(tms, key=lambda v: v['Mean'], reverse=True)
-        td_fmt = self.config['TIMING_CONFIG']['str_format']
-        f = partial(mytiming.format_timedelta, fmt=td_fmt)
+        # TODO - make this work
+        sort_col = self.config['TIMINGS_TABLE_SORT']['key']
+        sort_reverse = self.config.getboolean('TIMINGS_TABLE_SORT', 'reverse')
+        tms = sorted(tms, key=lambda v: v[sort_col], reverse=sort_reverse)
+        # self.config['format_timedelta']
+        # f = partial(mytiming.format_timedelta, fmt=td_fmt)
+        tbl_cols = dict(self.config['TIMINGS_TABLE_COLS'])
         tms = [{
-            k: f(v) if k == 'Mean' else v
-            for k, v in t.items() if k in ['Function', 'Count', 'Mean']
+            k: v
+            for k, v in t.items() if k in tbl_cols.keys()
         } for t in tms]
+        timings_formatters = dict(self.config['TIMINGS_TABLE_FORMATTERS'])
+        for row in tms:
+            for col_id in row.keys():
+                if col_id in timings_formatters.keys():
+                    val = row[col_id]
+                    formatter = self.tbl_formatters[timings_formatters[col_id]]
+                    row[col_id] = formatter(val)
         return tms
 
     def tms_clr(self):

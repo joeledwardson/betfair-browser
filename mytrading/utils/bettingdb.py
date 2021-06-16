@@ -353,14 +353,16 @@ DB_PROCESSORS = {
             'prc_decompress',
         ]
     },
-    psqljson.JSON: {
-        'process_in': [
-            'prc_json_encode',
-        ],
-        'process_out': [
-            'prc_json_decode'
-        ]
-    }
+    # sqlalchemy automatically converts JSON to/from dictionary objects
+
+    # psqljson.JSON: {
+    #     'process_in': [
+    #         'prc_json_encode',
+    #     ],
+    #     'process_out': [
+    #         'prc_json_decode'
+    #     ]
+    # }
 }
 
 CACHE_PROCESSORS = {
