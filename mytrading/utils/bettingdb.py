@@ -721,10 +721,6 @@ class BettingDB:
             sr.columns['strategy_id'],
             func.sum(sr.columns['profit'].cast(DECIMAL)).label('total_profit')
         ).group_by(sr.columns['strategy_id']).cte()
-        shn.query(
-            sm,
-            p_cte.c['total_profit']
-        ).join(p_cte, sm.columns['strategy_id'] == p_cte.c['strategy_id'])
         m_cte = shn.query(sr.c['strategy_id'], sr.c['market_id']).distinct().cte()
         m_cte = shn.query(
             m_cte.c['strategy_id'],
