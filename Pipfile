@@ -29,6 +29,10 @@ boussole = "*"
 bokeh = "*"
 dash-cytoscape = "*"
 pyside2 = "*"
+typing-inspect = "*"
+pytojsonschema = "*"
+pytoschema = "*"
+pydantic = "*"
 
 [dev-packages]
 

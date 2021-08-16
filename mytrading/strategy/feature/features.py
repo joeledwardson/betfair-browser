@@ -1,4 +1,5 @@
-from __future__ import annotations
+# cant use future annotations or it doesnt work with dict/list
+# from __future__ import annotations
 from betfairlightweight.resources.bettingresources import MarketBook
 import numpy as np
 from typing import Dict, Optional, Any
@@ -35,18 +36,18 @@ class RFBase:
     def __init__(
             self,
             sub_features_config: Optional[Dict] = None,
-            parent: Optional[RFBase] = None,
-            ftr_identifier=None,
-            cache_count=2,
-            cache_secs=None,
-            cache_insidewindow=None,
+            parent: Optional[Any] = None,
+            ftr_identifier: str = None,
+            cache_count: int = 2,
+            cache_secs: Optional[float] = None,
+            cache_insidewindow: Optional[bool] = None,
     ):
         """by default store cache of 2 values using `cache_count`. If cache seconds `cache_secs` is specified this
         takes priority over `cache_count` by indicating number of seconds prior to cache values. In this case,
         `cache_insidewindow` determines whether first cache value in queue should be inside the time window or
         outside"""
 
-        self.parent = parent
+        self.parent: Optional[RFBase] = parent
         self.selection_id: int = None
         if ftr_identifier:
             self.ftr_identifier = ftr_identifier
