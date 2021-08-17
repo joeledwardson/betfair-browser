@@ -1,8 +1,8 @@
 # cant use future annotations or it doesnt work with dict/list
-# from __future__ import annotations
+from __future__ import annotations
 from betfairlightweight.resources.bettingresources import MarketBook
 import numpy as np
-from typing import Dict, Optional, Any
+from typing import Dict, Optional, Any, Union
 from datetime import datetime, timedelta
 import logging
 from collections import deque
@@ -35,9 +35,9 @@ class RFBase:
     """
     def __init__(
             self,
-            sub_features_config: Optional[Dict] = None,
+            sub_features_config: Optional[Dict[str, 'RFBase']] = None,
             parent: Optional[Any] = None,
-            ftr_identifier: str = None,
+            ftr_identifier: Optional[str] = None,
             cache_count: int = 2,
             cache_secs: Optional[float] = None,
             cache_insidewindow: Optional[bool] = None,
@@ -179,7 +179,7 @@ class RFMvAvg(RFChild):
 @ftrs_reg.register_element
 class RFSample(RFChild):
     """sample values to periodic timestamps with most recent value"""
-    def __init__(self, periodic_ms, **kwargs):
+    def __init__(self, periodic_ms: float, **kwargs):
         super().__init__(**kwargs)
         self.periodic_ms = periodic_ms
         self.last_timestamp: datetime = None
