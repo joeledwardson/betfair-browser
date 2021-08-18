@@ -1,5 +1,5 @@
 # cant use future annotations or it doesnt work with dict/list
-from __future__ import annotations
+# from __future__ import annotations
 from betfairlightweight.resources.bettingresources import MarketBook
 import numpy as np
 from typing import Dict, Optional, Any, Union
@@ -7,11 +7,13 @@ from datetime import datetime, timedelta
 import logging
 from collections import deque
 import statistics
+import pydantic
+from dataclasses import dataclass, field, InitVar
 
 from mytrading.exceptions import FeatureException
 from mytrading.process import get_best_price, closest_tick, tick_spread, traded_runner_vol, get_record_tv_diff
 from mytrading.process.ticks import LTICKS_DECODED
-from myutils import mytiming, myregistrar, mydict
+from myutils import mytiming, myregistrar, mydict, pyschema
 
 
 ftrs_reg = myregistrar.MyRegistrar()
@@ -28,31 +30,56 @@ SUB_FEATURE_CONFIG_SPEC = {
 }
 
 
-class RFBase:
+def reg_feature(cls: type):
+    return ftrs_reg.register_element(cls)
+
+
+@reg_feature
+class RFBase(pydantic.BaseModel):
     """
     base class for runner features that can hold child features specified by `sub_features_config`, dictionary of
     (child feature identifier => child feature constructor kwargs)
+
+    by default store cache of 2 values using `cache_count`. If cache seconds `cache_secs` is specified this
+    takes priority over `cache_count` by indicating number of seconds prior to cache values. In this case,
+    `cache_insidewindow` determines whether first cache value in queue should be inside the time window or
+    outside
     """
+    sub_features_config: Optional[Dict] = None
+    custom_ftr_identifier: Optional[str] = None
+    cache_count: int = pydantic.Field(default=2, description="number of caching points")
+    cache_secs: Optional[float] = None
+    cache_insidewindow: Optional[bool] = None
+
+    class Config:
+        underscore_attrs_are_private = True
+        extra = 'forbid'
+        arbitrary_types_allowed = True
+        validate_all = False
+        orm_mode = True
+        validate_assignment = False
+
     def __init__(
             self,
-            sub_features_config: Optional[Dict[str, 'RFBase']] = None,
-            parent: Optional[Any] = None,
-            ftr_identifier: Optional[str] = None,
-            cache_count: int = 2,
-            cache_secs: Optional[float] = None,
-            cache_insidewindow: Optional[bool] = None,
+            parent: Optional['RFBase'] = None,
+            **kwargs
     ):
-        """by default store cache of 2 values using `cache_count`. If cache seconds `cache_secs` is specified this
-        takes priority over `cache_count` by indicating number of seconds prior to cache values. In this case,
-        `cache_insidewindow` determines whether first cache value in queue should be inside the time window or
-        outside"""
-
+        super().__init__(**kwargs)
+            # parent: Optional['RFBase'] = None,
+    #         sub_features_config: Optional[Dict] = None,
+    #         ftr_identifier: Optional[str] = None,
+    #         cache_count: int = 2,
+    #         cache_secs: Optional[float] = None,
+    #         cache_insidewindow: Optional[bool] = None,
+    # ):
         self.parent: Optional[RFBase] = parent
-        self.selection_id: int = None
-        if ftr_identifier:
-            self.ftr_identifier = ftr_identifier
-        else:
-            self.ftr_identifier = self.__class__.__name__
+        self.selection_id: Optional[int] = None
+
+        self.ftr_identifier: str = self.custom_ftr_identifier or self.__class__.__name__
+        # if ftr_identifier:
+        #     self.ftr_identifier = ftr_identifier
+        # else:
+        #     self.ftr_identifier = self.__class__.__name__
         if self.parent:
             self.ftr_identifier = '.'.join([
                 self.parent.ftr_identifier,
@@ -61,9 +88,10 @@ class RFBase:
 
         self._values_cache = deque()
         self.out_cache = deque()
-        self.cache_count = cache_count
-        self.cache_secs = cache_secs
-        self.inside_window = cache_insidewindow
+        # self.cache_count = cache_count
+        # self.cache_secs = cache_secs
+        # self.inside_window = cache_insidewindow
+        sub_features_config = self.sub_features_config
 
         self.sub_features: Dict[str, RFBase] = {}
         if sub_features_config:
@@ -101,7 +129,7 @@ class RFBase:
             if len(self._values_cache):
                 dt = self._values_cache[-1][0]
                 dtw = dt - timedelta(seconds=self.cache_secs)
-                idx = 0 if self.inside_window else 1
+                idx = 0 if self.cache_insidewindow else 1
                 while len(self._values_cache) > idx:
                     if self._values_cache[idx][0] >= dtw:
                         break
@@ -154,21 +182,25 @@ class RFBase:
         return self._values_cache[-1][1] if len(self._values_cache) else None
 
 
-@ftrs_reg.register_element
+@reg_feature
 class RFChild(RFBase):
     """
     feature that must be used as a sub-feature to existing feature
     """
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        if kwargs.get('parent') is None:
+    def __init__(
+            self,
+            parent: Optional[RFBase] = None,
+            **kwargs
+    ):
+        super().__init__(parent, **kwargs)
+        if parent is None:
             raise FeatureException(f'sub-feature has not received "parent" argument')
 
     def _get_value(self, new_book: MarketBook, runner_index):
         return self.parent.last_value()
 
 
-@ftrs_reg.register_element
+@reg_feature
 class RFMvAvg(RFChild):
     """moving average of parent values"""
     def _get_value(self, new_book: MarketBook, runner_index):
@@ -176,13 +208,13 @@ class RFMvAvg(RFChild):
             return statistics.mean([v[1] for v in self.parent._values_cache])
 
 
-@ftrs_reg.register_element
+@reg_feature
 class RFSample(RFChild):
     """sample values to periodic timestamps with most recent value"""
-    def __init__(self, periodic_ms: float, **kwargs):
+    periodic_ms: float
+    def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self.periodic_ms = periodic_ms
-        self.last_timestamp: datetime = None
+        self.last_timestamp: Optional[datetime] = None
 
     def race_initializer(self, selection_id: int, first_book: MarketBook):
         super().race_initializer(selection_id, first_book)
@@ -195,14 +227,14 @@ class RFSample(RFChild):
             self._publish_update(new_book, runner_index, self.last_timestamp)
 
 
-@ftrs_reg.register_element
+@reg_feature
 class RFTVLad(RFBase):
     """traded volume ladder"""
     def _get_value(self, new_book: MarketBook, runner_index):
         return new_book.runners[runner_index].ex.traded_volume or None
 
 
-@ftrs_reg.register_element
+@reg_feature
 class RFTVLadDif(RFChild):
     """child feature of `RFTVLad`, computes difference in parent current traded volume ladder and first in cache"""
     def __init__(self, **kwargs):
@@ -237,7 +269,7 @@ class _RFTVLadDifFunc(RFChild):
         raise NotImplementedError
 
 
-@ftrs_reg.register_element
+@reg_feature
 class RFTVLadMax(_RFTVLadDifFunc):
     """maximum of traded volume difference ladder over cached values"""
     def lad_func(self, tvs):
@@ -245,7 +277,7 @@ class RFTVLadMax(_RFTVLadDifFunc):
         return v
 
 
-@ftrs_reg.register_element
+@reg_feature
 class RFTVLadMin(_RFTVLadDifFunc):
     """minimum of traded volume difference ladder over cached values"""
     def lad_func(self, tvs):
@@ -253,7 +285,7 @@ class RFTVLadMin(_RFTVLadDifFunc):
         return v
 
 
-@ftrs_reg.register_element
+@reg_feature
 class RFTVLadSpread(_RFTVLadDifFunc):
     """tick spread between min/max of traded vol difference"""
     def lad_func(self, tvs):
@@ -262,7 +294,7 @@ class RFTVLadSpread(_RFTVLadDifFunc):
         return tick_spread(v_min, v_max, check_values=False)
 
 
-@ftrs_reg.register_element
+@reg_feature
 class RFTVLadTot(_RFTVLadDifFunc):
     """total new traded volume money"""
     def lad_func(self, tvs):
@@ -270,13 +302,13 @@ class RFTVLadTot(_RFTVLadDifFunc):
         return v
 
 
-@ftrs_reg.register_element
+@reg_feature
 class RFBkSplit(RFBase):
     """
     traded volume since previous update that is above current best back price
     """
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
         self.previous_best_back = None
         self.previous_best_lay = None
         self.previous_ladder = dict()
@@ -304,22 +336,20 @@ class RFBkSplit(RFBase):
         return value
 
 
-@ftrs_reg.register_element
+@reg_feature
 class RFLTP(RFBase):
     """Last traded price of runner"""
     def _get_value(self, new_book: MarketBook, runner_index):
         return new_book.runners[runner_index].last_price_traded
 
 
-@ftrs_reg.register_element
+@reg_feature
 class RFWOM(RFBase):
     """
     Weight of money (difference of available-to-lay to available-to-back)
     applied to `wom_ticks` number of ticks on BACK and LAY sides of the book
     """
-    def __init__(self, wom_ticks, **kwargs):
-        super().__init__(**kwargs)
-        self.wom_ticks = wom_ticks
+    wom_ticks: int
 
     def _get_value(self, new_book: MarketBook, runner_index):
         atl = new_book.runners[runner_index].ex.available_to_lay
@@ -333,14 +363,14 @@ class RFWOM(RFBase):
             return None
 
 
-@ftrs_reg.register_element
+@reg_feature
 class RFBck(RFBase):
     """Best available back price of runner"""
     def _get_value(self, new_book: MarketBook, runner_index):
         return get_best_price(new_book.runners[runner_index].ex.available_to_back)
 
 
-@ftrs_reg.register_element
+@reg_feature
 class RFLay(RFBase):
     """
     Best available lay price of runner
@@ -349,7 +379,7 @@ class RFLay(RFBase):
         return get_best_price(new_book.runners[runner_index].ex.available_to_lay)
 
 
-@ftrs_reg.register_element
+@reg_feature
 class RFLadSprd(RFBase):
     """
     tick spread between best lay and best back - defaults to 1000 if cannot find best back or lay
@@ -363,33 +393,29 @@ class RFLadSprd(RFBase):
             return len(LTICKS_DECODED)
 
 
-@ftrs_reg.register_element
+@reg_feature
 class RFLadBck(RFBase):
     """
     best available price-sizes on back side within specified number of elements of best price
     """
-    def __init__(self, n_elements, *args, **kwargs):
-        self.n_elements = n_elements
-        super().__init__(*args, **kwargs)
+    n_elements: int
 
     def _get_value(self, new_book: MarketBook, runner_index):
         return new_book.runners[runner_index].ex.available_to_back[:self.n_elements]
 
 
-@ftrs_reg.register_element
+@reg_feature
 class RFLadLay(RFBase):
     """
     best available price-sizes on lay side within specified number of elements of best price
     """
-    def __init__(self, n_elements, *args, **kwargs):
-        self.n_elements = n_elements
-        super().__init__(*args, **kwargs)
+    n_elements: int
 
     def _get_value(self, new_book: MarketBook, runner_index):
         return new_book.runners[runner_index].ex.available_to_lay[:self.n_elements]
 
 
-@ftrs_reg.register_element
+@reg_feature
 class RFMaxDif(RFChild):
     """maximum difference of parent cache values"""
     def _get_value(self, new_book: MarketBook, runner_index):
@@ -399,18 +425,18 @@ class RFMaxDif(RFChild):
             return 0
 
 
-@ftrs_reg.register_element
+@reg_feature
 class RFTVTot(RFBase):
     """total traded volume of runner"""
     def _get_value(self, new_book: MarketBook, runner_index):
         return traded_runner_vol(new_book.runners[runner_index])
 
 
-@ftrs_reg.register_element
+@reg_feature
 class RFIncSum(RFChild):
     """incrementally sum parent values"""
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
         self._sum = 0
 
     def _get_value(self, new_book: MarketBook, runner_index):
@@ -418,21 +444,21 @@ class RFIncSum(RFChild):
         return self._sum
 
 
-@ftrs_reg.register_element
+@reg_feature
 class RFSum(RFChild):
     """sum parent cache values"""
     def _get_value(self, new_book: MarketBook, runner_index):
         return sum(v[1] for v in self.parent._values_cache)
 
 
-@ftrs_reg.register_element
+@reg_feature
 class RFTick(RFChild):
     """convert parent to tick value"""
     def _get_value(self, new_book: MarketBook, runner_index):
         return closest_tick(self.parent._values_cache[-1][1], return_index=True)
 
 
-@ftrs_reg.register_element
+@reg_feature
 class RFDif(RFChild):
     """compare parent most recent value to first value in cache"""
     def _get_value(self, new_book: MarketBook, runner_index):
