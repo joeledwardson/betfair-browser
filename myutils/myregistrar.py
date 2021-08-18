@@ -35,3 +35,9 @@ class MyRegistrar:
 
     def __contains__(self, item):
         return item in self._reg
+
+    def items(self):
+        return self._reg.items()
+
+    def values(self):
+        return self._reg.values()
