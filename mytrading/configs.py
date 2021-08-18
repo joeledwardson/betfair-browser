@@ -3,6 +3,7 @@ from myutils.myregistrar import MyRegistrar
 from myutils import mydict
 import os, yaml
 from os import path
+import json
 from .exceptions import FeatureConfigException
 
 
@@ -49,6 +50,9 @@ class ConfigGenerator:
             p_out = path.join(self._out_dir, fn)
             with open(p_out, 'w') as f:
                 f.write(yaml.dump(ftr_cfg))
+            p_out_json = path.splitext(p_out)[0] + '.json'
+            with open(p_out_json, 'w') as f:
+                f.write(json.dumps(ftr_cfg, indent=2))
 
 
 def _plot_procs_lad(ftr_key, lad_key):
