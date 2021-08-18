@@ -1,7 +1,7 @@
 {
     "_meta": {
         "hash": {
-            "sha256": "0ea039121ec2650fb4d6e7e1a83cafdde6a37c925a0fc23dcfb8c63651ab9c60"
+            "sha256": "35192241ab876c0bccae6f10e88972383d326818d0f0eab5bbf447779c0a2d2e"
         },
         "pipfile-spec": 6,
         "requires": {
@@ -267,11 +267,26 @@
             ],
             "version": "==1.1.4"
         },
+        "dash-renderer": {
+            "hashes": [
+                "sha256:73a69e3d145880e68e42723ad10182251d92b44f3efe92b8763145cfd2158e7e"
+            ],
+            "index": "pypi",
+            "version": "==1.9.1"
+        },
         "dash-table": {
             "hashes": [
                 "sha256:4c99689a887bfd035278b14ecd5db70706023389e53735d5e3cccc416facdbe4"
             ],
             "version": "==4.12.0"
+        },
+        "dataclasses-jsonschema": {
+            "hashes": [
+                "sha256:4f0ba1ee882f2a79afa7e36d98e063fd7c71f15b54affeebf9116238e73e7b94",
+                "sha256:a51fcb9523ce7aaa6daec2b42ce05f512f795192321c0ca5918b69125023dbc3"
+            ],
+            "index": "pypi",
+            "version": "==2.14.1"
         },
         "dateparser": {
             "hashes": [
@@ -668,6 +683,22 @@
             ],
             "markers": "python_version >= '3.6'",
             "version": "==2.0.1"
+        },
+        "marshmallow": {
+            "hashes": [
+                "sha256:c67929438fd73a2be92128caa0325b1b5ed8b626d91a094d2f7f2771bf1f1c0e",
+                "sha256:dd4724335d3c2b870b641ffe4a2f8728a1380cd2e7e2312756715ffeaa82b842"
+            ],
+            "markers": "python_version >= '3.5'",
+            "version": "==3.13.0"
+        },
+        "marshmallow-dataclass": {
+            "hashes": [
+                "sha256:c0c5e1ea8d0e557b6fa00343799a9a9e60757b948fb096076beb6aa76bd68d30",
+                "sha256:eefeff62ee975c64d293d2db9370e7e748a2ff83dcb5109416b75e087a2ac02e"
+            ],
+            "index": "pypi",
+            "version": "==8.5.3"
         },
         "matplotlib-inline": {
             "hashes": [
@@ -1332,11 +1363,11 @@
         },
         "terminado": {
             "hashes": [
-                "sha256:1e01183885f64c1bba3cf89a5a995ad4acfed4e5f00aebcce1bf7f089b0825a1",
-                "sha256:221eef83e6a504894842f7dccfa971ca2e98ec22a8a9118577e5257527674b42"
+                "sha256:962b402edbb480718054dc37027bada293972ecadfb587b89f01e2b8660a2132",
+                "sha256:9e0457334863be3e6060c487ad60e0995fa1df54f109c67b24ff49a4f2f34df5"
             ],
             "markers": "python_version >= '3.6'",
-            "version": "==0.11.0"
+            "version": "==0.11.1"
         },
         "testpath": {
             "hashes": [

@@ -29,6 +29,9 @@ typing-inspect = "*"
 pytojsonschema = "*"
 pytoschema = "*"
 pydantic = "*"
+marshmallow-dataclass = "*"
+dataclasses-jsonschema = "*"
+dash-renderer = "*"
 
 [dev-packages]
 
