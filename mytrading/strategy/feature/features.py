@@ -34,8 +34,7 @@ def reg_feature(cls: type):
     return ftrs_reg.register_element(cls)
 
 
-@reg_feature
-class RFBase(pydantic.BaseModel):
+class RFBase(pyschema.ClassModel):
     """
     base class for runner features that can hold child features specified by `sub_features_config`, dictionary of
     (child feature identifier => child feature constructor kwargs)
@@ -51,35 +50,16 @@ class RFBase(pydantic.BaseModel):
     cache_secs: Optional[float] = None
     cache_insidewindow: Optional[bool] = None
 
-    class Config:
-        underscore_attrs_are_private = True
-        extra = 'forbid'
-        arbitrary_types_allowed = True
-        validate_all = False
-        orm_mode = True
-        validate_assignment = False
-
     def __init__(
             self,
             parent: Optional['RFBase'] = None,
             **kwargs
     ):
         super().__init__(**kwargs)
-            # parent: Optional['RFBase'] = None,
-    #         sub_features_config: Optional[Dict] = None,
-    #         ftr_identifier: Optional[str] = None,
-    #         cache_count: int = 2,
-    #         cache_secs: Optional[float] = None,
-    #         cache_insidewindow: Optional[bool] = None,
-    # ):
         self.parent: Optional[RFBase] = parent
         self.selection_id: Optional[int] = None
 
         self.ftr_identifier: str = self.custom_ftr_identifier or self.__class__.__name__
-        # if ftr_identifier:
-        #     self.ftr_identifier = ftr_identifier
-        # else:
-        #     self.ftr_identifier = self.__class__.__name__
         if self.parent:
             self.ftr_identifier = '.'.join([
                 self.parent.ftr_identifier,

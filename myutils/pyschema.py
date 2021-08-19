@@ -1,4 +1,5 @@
 import dataclasses
+import typing
 from typing import Dict, Any, List, TypedDict, Optional
 import inspect
 import pydantic
@@ -11,14 +12,36 @@ class SchemaException(Exception):
     pass
 
 
-class Config:
+def get_definitions(spec: Dict) -> Dict[str, Dict]:
+    return spec.get('definitions') or spec.get('$defs') or {}
+
+
+class Config(pydantic.BaseConfig):
     underscore_attrs_are_private = True
     extra = 'forbid'
     arbitrary_types_allowed = True
     validate_all = False
     orm_mode = True
-    validate_assignment = False
+    @staticmethod
+    def schema_extra(schema: Dict[str, Any], model) -> None:
+        required = ['name'] + (['kwargs'] if len(schema.get('required', [])) else [])
+        propNames = ['properties', 'additionalProperties', 'required']
+        kwargsDict = {nm: schema.pop(nm) for nm in propNames if nm in schema}
 
+        schema["additionalProperties"] = False
+        schema['isClassDefinition'] = True
+        schema["required"] = required
+        schema['properties'] = {
+            'name': {
+                'const': model.__name__,
+            },
+            'kwargs': kwargsDict
+        }
+
+
+class ClassModel(pydantic.BaseModel):
+    Config = Config
+    # pass
 
 def dc(cls: type):
     """Pydantic dataclass decorator with custom configuration and auto update forward references"""
@@ -92,20 +115,28 @@ def create_pyd_model(spec: ClassModelSpec):
         return create_cls_model(**spec)
 
 
-def override_schema_type(var_name, new_type, defs, schema: Dict):
+def override_schema_type(property_chain: List[str], new_type, receivers: List[str], schema: Dict):
+    if not len(property_chain):
+        raise SchemaException(f'expected at least 1 element in `property_chain`')
+
     class T(pydantic.BaseModel):
         var: new_type
     updated = T.schema()["properties"]["var"]
-    def u(s: Dict):
-        p = s.get("properties", dict())
-        if var_name in p:
-            p[var_name].update(updated)
-    for k, d in schema.get("definitions", dict()).items():
-        if k in defs:
-            u(d)
+    updated.pop("title")
 
-    # if schema["title"] in defs:
-    #
+    def update_property(spec: Dict, _property_chain: List[str]):
+        props = spec.get("properties", {})
+        prop_name = _property_chain.pop(0)
+        var_spec = props.get(prop_name, {})
+        if len(_property_chain):
+            update_property(var_spec, _property_chain)
+        else:
+            var_spec.update(updated)
+            props[prop_name] = var_spec
+
+    for k, d in get_definitions(schema).items():
+        if k in receivers:
+            update_property(d, property_chain.copy())
 
 
 def mdl_schema(
@@ -191,7 +222,7 @@ def class_model_schema(schema: Dict[str, Any]):
         class_process(schema, schema["title"])
 
     # loop definitions and add class const if needed
-    for k, clsDef in schema.get("definitions", dict()).items():
+    for k, clsDef in get_definitions(schema).items():
         if isinstance(clsDef, dict) and is_class(clsDef):
             class_process(clsDef, k)
 
