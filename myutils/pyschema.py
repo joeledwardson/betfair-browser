@@ -1,11 +1,11 @@
 import dataclasses
 import typing
-from typing import Dict, Any, List, TypedDict, Optional
+from typing import Dict, Any, List, TypedDict, Optional, Type
 import inspect
 import pydantic
-from pydantic import BaseModel, create_model
+from pydantic import BaseModel, create_model, schema
 
-OBJ_CLASS_KEY = "_obj_class_key"
+OBJ_CLASS_KEY = "_obj_class_identifier_key"
 
 
 class SchemaException(Exception):
@@ -115,15 +115,19 @@ def create_pyd_model(spec: ClassModelSpec):
         return create_cls_model(**spec)
 
 
-def override_schema_type(property_chain: List[str], new_type, receivers: List[str], schema: Dict):
+def type_to_schema(T: Type[Any]) -> Dict[str, Any]:
+    class DummyModel(pydantic.BaseModel):
+        var: T
+    updated = DummyModel.schema()["properties"]["var"]
+    updated.pop("title")
+    return updated
+
+
+def override_schema_type(property_chain: List[str], new_type: Type[Any], receivers: List[str], schema: Dict):
     if not len(property_chain):
         raise SchemaException(f'expected at least 1 element in `property_chain`')
 
-    class T(pydantic.BaseModel):
-        var: new_type
-    updated = T.schema()["properties"]["var"]
-    updated.pop("title")
-
+    updated = type_to_schema(new_type)
     def update_property(spec: Dict, _property_chain: List[str]):
         props = spec.get("properties", {})
         prop_name = _property_chain.pop(0)
