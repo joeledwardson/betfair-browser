@@ -52,6 +52,7 @@ class RFBase(pyschema.ClassModel):
 
     def __init__(
             self,
+            *,
             parent: Optional['RFBase'] = None,
             **kwargs
     ):
