@@ -8,6 +8,7 @@ from betfairlightweight.resources import MarketBook, RunnerBook, MarketDefinitio
 from betfairlightweight.resources.bettingresources import RunnerBookEX
 from flumine.order.trade import Trade
 
+import myutils.datetime
 from .ticks import LTICKS, LTICKS_DECODED, TICKS, TICKS_DECODED
 from myutils import mygeneric, mytiming
 from ..exceptions import BfProcessException
@@ -326,7 +327,7 @@ def event_time(dt: datetime, localise=True) -> str:
     Time of event in HH:MM, converted from betfair UTC to local
     """
     if localise:
-        dt = mytiming.localise(dt)
+        dt = myutils.datetime.localise(dt)
     return dt.strftime("%H:%M")
 
 

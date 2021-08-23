@@ -16,7 +16,7 @@ from mytrading.process.ticks import LTICKS_DECODED
 from myutils import mytiming, myregistrar, mydict, pyschema
 
 
-ftrs_reg = myregistrar.MyRegistrar()
+ftrs_reg = myregistrar.Registrar()
 active_logger = logging.getLogger(__name__)
 
 SUB_FEATURE_CONFIG_SPEC = {

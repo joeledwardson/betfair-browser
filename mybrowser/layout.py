@@ -11,7 +11,7 @@ from myutils import myregistrar
 from .exceptions import LayoutException
 import uuid
 
-dash_generators = myregistrar.MyRegistrar()
+dash_generators = myregistrar.Registrar()
 
 HEADER_PY = 2  # header top/bottom padding
 HEADER_PX = 4  # header left/right padding

@@ -19,6 +19,7 @@ from enum import Enum
 
 import mytrading.exceptions
 import mytrading.process
+import myutils.datetime
 from mybrowser.exceptions import SessionException
 from mytrading import utils as trutils
 from mytrading.utils import bettingdb as bdb, dbfilter as dbf
@@ -83,8 +84,8 @@ def get_strat_filters(strat_sel_fmt):
     ]
 
 
-def get_formatters(config) -> myreg.MyRegistrar:
-    formatters = myreg.MyRegistrar()
+def get_formatters(config) -> myreg.Registrar:
+    formatters = myreg.Registrar()
 
     @formatters.register_element
     def format_datetime(dt: datetime):
@@ -92,7 +93,7 @@ def get_formatters(config) -> myreg.MyRegistrar:
 
     @formatters.register_element
     def format_timedelta(td: timedelta):
-        return mytiming.format_timedelta(td=td, fmt=config['FORMATTERS_CONFIG']['td_format'])
+        return myutils.datetime.format_timedelta(td=td, fmt=config['FORMATTERS_CONFIG']['td_format'])
 
     return formatters
 
@@ -489,7 +490,7 @@ class Session:
         # convert trade UUIDs to indexes for easy viewing
         trade_ids = list(df['trade'].unique())
         df['trade'] = [trade_ids.index(x) for x in df['trade'].values]
-        df['t-start'] = [mytiming.format_timedelta(mkt_dt - dt) for dt in df['date']]
+        df['t-start'] = [myutils.datetime.format_timedelta(mkt_dt - dt) for dt in df['date']]
 
         currency_cols = [
             'trade-profit',

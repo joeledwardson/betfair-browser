@@ -18,8 +18,8 @@ from .trademachine import RunnerTradeMachine
 from .tradestates import TradeStateTypes
 from .tradetracker import TradeTracker
 from .runnerhandler import RunnerHandler
-from myutils.mytiming import EdgeDetector, timing_register
-
+from myutils.mytiming import timing_register
+from myutils.edgedetector import EdgeDetector
 
 active_logger = logging.getLogger(__name__)
 

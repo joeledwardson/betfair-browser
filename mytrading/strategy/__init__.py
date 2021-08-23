@@ -11,7 +11,7 @@ from flumine import FlumineBacktest, clients, Flumine
 from betfairlightweight.filters import streaming_market_filter, streaming_market_data_filter
 from betfairlightweight import APIClient
 
-strategies_reg = myreg.MyRegistrar()
+strategies_reg = myreg.Registrar()
 active_logger = logging.getLogger(__name__)
 active_logger.setLevel(logging.INFO)
 

@@ -17,3 +17,7 @@ class TimingException(MyUtilsException):
 
 class DictException(MyUtilsException):
     pass
+
+
+class DateTimeException(MyUtilsException):
+    pass

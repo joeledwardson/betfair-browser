@@ -1,8 +1,7 @@
-import functools
 from .exceptions import RegistrarException
 
 
-class MyRegistrar:
+class Registrar:
     def __init__(self):
         self._reg = dict()
 

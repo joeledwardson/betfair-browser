@@ -35,7 +35,7 @@ from .dbfilter import DBFilterHandler
 active_logger = logging.getLogger(__name__)
 active_logger.setLevel(logging.INFO)
 
-db_processors = myregistrar.MyRegistrar()
+db_processors = myregistrar.Registrar()
 
 
 @db_processors.register_element
