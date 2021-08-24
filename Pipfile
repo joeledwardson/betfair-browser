@@ -32,6 +32,7 @@ pydantic = "*"
 marshmallow-dataclass = "*"
 dataclasses-jsonschema = "*"
 dash-renderer = "*"
+redis = "*"
 
 [dev-packages]
 

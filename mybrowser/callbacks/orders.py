@@ -2,12 +2,12 @@ from dash.dependencies import Output, Input, State
 import logging
 import traceback
 
-import myutils.mydash
+import myutils.dashutils
 from ..session import Session
 from ..exceptions import SessionException
 
 active_logger = logging.getLogger(__name__)
-counter = myutils.mydash.Intermediary()
+counter = myutils.dashutils.Intermediary()
 
 
 def cb_orders(app, shn: Session):
@@ -29,7 +29,7 @@ def cb_orders(app, shn: Session):
     )
     def update_orders_table(n1, n2, cell):
 
-        orders_pressed = myutils.mydash.triggered_id() == 'button-orders'
+        orders_pressed = myutils.dashutils.triggered_id() == 'button-orders'
         r = [
             list(),
             # False,

@@ -124,5 +124,11 @@ def get_bf_layout(config):
             market.market_sidebar_spec(),
             runners.runners_sidebar_spec(config),
             strategy.strategy_sidebar_spec()
+        ],
+        'stores': [
+            {
+                'id': 'selected-market',
+                'data': {}
+            }
         ]
     }

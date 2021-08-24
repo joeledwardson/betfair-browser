@@ -2,11 +2,11 @@ from dash.dependencies import Output, Input, State
 import logging
 import traceback
 
-import myutils.mydash
+import myutils.dashutils
 from ..session import Session, Notification as Notif, NotificationType as NType
 from ..exceptions import SessionException
 
-counter = myutils.mydash.Intermediary()
+counter = myutils.dashutils.Intermediary()
 active_logger = logging.getLogger(__name__)
 
 

@@ -28,14 +28,14 @@ import json
 import sys
 import dateparser
 
-from myutils import mydict, myregistrar
+from myutils import mydict, registrar
 from ..exceptions import DBException
 from .dbfilter import DBFilterHandler
 
 active_logger = logging.getLogger(__name__)
 active_logger.setLevel(logging.INFO)
 
-db_processors = myregistrar.Registrar()
+db_processors = registrar.Registrar()
 
 
 @db_processors.register_element

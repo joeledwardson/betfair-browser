@@ -4,7 +4,7 @@ import dash_html_components as html
 
 import json
 from typing import List, Dict, Any, Optional
-from myutils import mydash
+from myutils import dashutils
 import logging
 from ..session import Session, Notification as Notif, NotificationType as NType
 from mytrading.strategy import tradetracker as tt
@@ -12,8 +12,8 @@ from mytrading.strategy import tradetracker as tt
 active_logger = logging.getLogger(__name__)
 active_logger.setLevel(logging.INFO)
 
-counter = mydash.Intermediary()
-strat_counter = mydash.Intermediary()
+counter = dashutils.Intermediary()
+strat_counter = dashutils.Intermediary()
 
 
 def cb_strategy(app, shn: Session):
@@ -51,7 +51,7 @@ def cb_strategy(app, shn: Session):
             n_delete,
             active_cell,
     ):
-        btn_id = mydash.triggered_id()
+        btn_id = dashutils.triggered_id()
         strategy_id = active_cell['row_id'] if active_cell and 'row_id' in active_cell else None
 
         # delete strategy if requested

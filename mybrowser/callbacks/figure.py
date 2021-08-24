@@ -7,14 +7,14 @@ from plotly import graph_objects as go
 import traceback
 
 import mytrading.exceptions
-import myutils.mydash
+import myutils.dashutils
 from myutils import mytiming
 from ..session import Session
 from ..exceptions import SessionException
 
 # override visual logger with custom logger
 active_logger = logging.getLogger(__name__)
-counter = myutils.mydash.Intermediary()
+counter = myutils.dashutils.Intermediary()
 
 
 def get_ids(cell, id_list) -> List[int]:
@@ -25,7 +25,7 @@ def get_ids(cell, id_list) -> List[int]:
     """
 
     # determine if 'all feature plots' clicked as opposed to single plot
-    do_all = myutils.mydash.triggered_id() == 'button-all-figures'
+    do_all = myutils.dashutils.triggered_id() == 'button-all-figures'
 
     # do all selection IDs if requested
     if do_all:
@@ -93,7 +93,7 @@ def cb_fig(app, shn: Session):
             counter.next()
         ]
 
-        if myutils.mydash.triggered_id() != 'button-figure' and myutils.mydash.triggered_id() != 'button-all-figures':
+        if myutils.dashutils.triggered_id() != 'button-figure' and myutils.dashutils.triggered_id() != 'button-all-figures':
             return ret
 
         # get datetime/None chart offset from time input

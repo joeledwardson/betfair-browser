@@ -1,7 +1,7 @@
 from dash.dependencies import Output, Input, State
 import dash_html_components as html
 import logging
-from myutils import mydash
+from myutils import dashutils
 from typing import List
 
 from .configs import cb_configs
@@ -50,8 +50,8 @@ def _right_panel_callback(app, panel_id: str, open_id: str, close_id: str):
     )
     def toggle_classname(n1, n2, class_names: str):
         # CSS class toggles sidebar
-        classes = mydash.CSSClassHandler(class_names)
-        if mydash.triggered_id() == open_id:
+        classes = dashutils.CSSClassHandler(class_names)
+        if dashutils.triggered_id() == open_id:
             return str(classes + "right-not-collapsed")
         else:
             return str(classes - "right-not-collapsed")

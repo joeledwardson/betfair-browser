@@ -7,11 +7,11 @@ import dash_core_components as dcc
 import dash_table
 from dash.development.base_component import Component
 from typing import Dict, List, Any, Optional
-from myutils import myregistrar
+from myutils import registrar
 from .exceptions import LayoutException
 import uuid
 
-dash_generators = myregistrar.Registrar()
+dash_generators = registrar.Registrar()
 
 HEADER_PY = 2  # header top/bottom padding
 HEADER_PX = 4  # header left/right padding
@@ -389,9 +389,15 @@ def generate_layout(layout_spec: Dict):
     sidebar_specs = layout_spec.pop('sidebars')
     sidebars = [generate_sidebar(x) for x in sidebar_specs]
 
+    store_specs = layout_spec.get('stores', [])
+
     return html.Div([
         dcc.Location(id="url"),
         html.Div(hiddens),
+        html.Div([
+            dcc.Store(s['id'], storage_type=s.get('storage_type', 'session'), data=s.get('data', None))
+            for s in store_specs
+        ]),
         html.Div(
             [
                 header,

@@ -1,7 +1,7 @@
 from typing import Dict
 import yaml
 import logging
-from myutils import myregistrar as myreg
+from myutils import registrar as myreg
 from myutils import mydict
 from uuid import UUID
 from ..exceptions import MyStrategyException

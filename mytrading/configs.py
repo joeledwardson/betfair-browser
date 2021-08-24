@@ -1,5 +1,5 @@
 from typing import List, Dict, Optional
-from myutils.myregistrar import MyRegistrar
+from myutils.registrar import Registrar
 from myutils import mydict
 import os, yaml
 from os import path
@@ -7,8 +7,8 @@ import json
 from .exceptions import FeatureConfigException
 
 
-reg_plots = MyRegistrar()
-reg_features = MyRegistrar()
+reg_plots = Registrar()
+reg_features = Registrar()
 
 KEY_SAMPLE = 'smp'
 KEY_AVERAGE = 'avg'
@@ -27,7 +27,7 @@ class ConfigGenerator:
         }
     }
 
-    def __init__(self, cfg_dir: str, out_dir, reg: MyRegistrar):
+    def __init__(self, cfg_dir: str, out_dir, reg: Registrar):
         self._cfg_dir = path.abspath(path.expandvars(cfg_dir))
         if not path.isdir(self._cfg_dir):
             raise FeatureConfigException(f'configuration dir "{self._cfg_dir}" is not a directory')

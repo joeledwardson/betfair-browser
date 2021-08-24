@@ -2,7 +2,7 @@ from dash.dependencies import Output, Input, State
 import dash_html_components as html
 import dash_bootstrap_components as dbc
 
-import myutils.mydash
+import myutils.dashutils
 from .. import log_q
 from ..session import Session
 from ..layouts import INTERMEDIARIES

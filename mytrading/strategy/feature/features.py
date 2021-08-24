@@ -13,10 +13,10 @@ from dataclasses import dataclass, field, InitVar
 from mytrading.exceptions import FeatureException
 from mytrading.process import get_best_price, closest_tick, tick_spread, traded_runner_vol, get_record_tv_diff
 from mytrading.process.ticks import LTICKS_DECODED
-from myutils import mytiming, myregistrar, mydict, pyschema
+from myutils import mytiming, registrar, mydict, pyschema
 
 
-ftrs_reg = myregistrar.Registrar()
+ftrs_reg = registrar.Registrar()
 active_logger = logging.getLogger(__name__)
 
 SUB_FEATURE_CONFIG_SPEC = {

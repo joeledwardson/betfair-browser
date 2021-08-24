@@ -4,7 +4,7 @@ import dash_html_components as html
 
 import json
 from typing import List, Dict, Any, Optional
-from myutils import mydash
+from myutils import dashutils
 import logging
 from ..session import Session, Notification as Notif, NotificationType as NType
 from mytrading.strategy import tradetracker as tt
@@ -12,8 +12,8 @@ from mytrading.strategy import tradetracker as tt
 active_logger = logging.getLogger(__name__)
 active_logger.setLevel(logging.INFO)
 
-counter = mydash.Intermediary()
-strat_counter = mydash.Intermediary()
+counter = dashutils.Intermediary()
+strat_counter = dashutils.Intermediary()
 
 
 def cb_market(app, shn: Session):
@@ -113,7 +113,7 @@ def cb_market(app, shn: Session):
             strategy_tbl_cell,
     ):
         flt_market_args = [m0, m1, m2, m3, m4, m5, m6, m7]
-        btn_id = mydash.triggered_id()
+        btn_id = dashutils.triggered_id()
         shn.notif_post(Notif(NType.INFO, 'Market Database', 'Updated markets'))
 
         # run new strategy if requested

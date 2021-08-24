@@ -10,6 +10,8 @@ from . import layouts
 from .layout import generate_layout
 from . import callbacks
 from .session import Session
+from flask_caching import Cache
+
 
 
 active_logger = logging.getLogger(__name__)
@@ -27,13 +29,15 @@ def run_browser(debug: bool, config_path=None):
         raise ImportError('Python version needs to be 3.9 or higher!')
 
     app = dash.Dash(__name__, title='Betfair Browser', update_title=None, external_stylesheets=[dbc.themes.BOOTSTRAP, FA])
+    cache = Cache()
+    cache.init_app(app.server, config={'CACHE_TYPE': 'simple'})
 
     if config_path:
         config = ConfigParser()
         config.read_file(config_path)
     else:
         config = None
-    session = Session(config)
+    session = Session(cache, config)
 
     callbacks.cb_runners(app, session)
     callbacks.cb_orders(app, session)

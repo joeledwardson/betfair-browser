@@ -3,7 +3,7 @@ import dash_html_components as html
 import logging
 import traceback
 
-from myutils import mydash
+from myutils import dashutils
 from mytrading import exceptions as trdexp
 from sqlalchemy.exc import SQLAlchemyError
 from ..session import Session, Notification as Notif, NotificationType as NType
@@ -12,7 +12,7 @@ from ..session import Session, Notification as Notif, NotificationType as NType
 active_logger = logging.getLogger(__name__)
 active_logger.setLevel(logging.INFO)
 
-counter = mydash.Intermediary()
+counter = dashutils.Intermediary()
 
 
 def cb_runners(app, shn: Session):
@@ -26,6 +26,7 @@ def cb_runners(app, shn: Session):
             Output('table-runners', 'active_cell'),
             Output('table-runners', 'selected_cells'),
             Output('loading-out-runners', 'children'),
+            Output('selected-market', 'data')
         ],
         inputs=[
             Input('button-runners', 'n_clicks'),
@@ -53,7 +54,8 @@ def cb_runners(app, shn: Session):
             True,  # by default assume market not loaded, figures button disabled
             None,  # reset active cell
             [],  # reset selected cells
-            ''  # blank loading output
+            '',  # blank loading output
+            {}, # blank selected market
         ]
 
         # assume market not loaded, clear
@@ -64,7 +66,7 @@ def cb_runners(app, shn: Session):
             return ret
 
         # market clear
-        if mydash.triggered_id() == 'button-mkt-bin':
+        if dashutils.triggered_id() == 'button-mkt-bin':
             active_logger.info(f'clearing market')
             shn.notif_post(Notif(NType.INFO, 'Market', 'Cleared market'))
             return ret
@@ -83,7 +85,9 @@ def cb_runners(app, shn: Session):
             shn.mkt_load(market_id, shn.active_strat_get())
             shn.mkt_lginf()
             shn.notif_post(Notif(
-                NType.INFO, 'Market', f'Loaded market "{market_id}" with strategy "{shn.active_strat_get()}"'
+                NType.INFO,
+                'Market',
+                f'Loaded market "{market_id}" with strategy "{shn.active_strat_get()}"'
             ))
         except (trdexp.MyTradingException, SQLAlchemyError) as e:
             active_logger.warning(f'failed to load market: {e}\n{traceback.format_exc()}')
@@ -109,10 +113,10 @@ def cb_runners(app, shn: Session):
         State("container-filters-plot", "className")
     )
     def toggle_classname(n1, n2, css_classes):
-        if mydash.triggered_id() == 'btn-runners-filter':
-            return str(mydash.CSSClassHandler(css_classes) + 'right-not-collapsed')
+        if dashutils.triggered_id() == 'btn-runners-filter':
+            return str(dashutils.CSSClassHandler(css_classes) + 'right-not-collapsed')
         else:
-            return str(mydash.CSSClassHandler(css_classes) - 'right-not-collapsed')
+            return str(dashutils.CSSClassHandler(css_classes) - 'right-not-collapsed')
 
     @app.callback(
         output=[

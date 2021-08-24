@@ -3,7 +3,7 @@ import uuid
 from functools import partial
 from betfairlightweight.resources.bettingresources import MarketBook
 from os import path
-from typing import List, Dict, Optional
+from typing import List, Dict, Optional, TypedDict
 import pandas as pd
 import logging
 import sys
@@ -16,6 +16,7 @@ import importlib
 import threading
 from dataclasses import dataclass
 from enum import Enum
+from flask_caching import Cache
 
 import mytrading.exceptions
 import mytrading.process
@@ -29,11 +30,19 @@ from mytrading.strategy import feature as ftrutils
 from mytrading import visual as figlib
 from mytrading import configs as cfgs
 from myutils import mytiming, mygeneric
-from myutils import myregistrar as myreg
+from myutils import registrar as myreg
 from myutils import mydict
+
 
 active_logger = logging.getLogger(__name__)
 active_logger.setLevel(logging.INFO)
+
+
+
+class LoadedMarket(TypedDict):
+    info: Dict
+    strategy_id: Optional[str]
+    runners: Dict
 
 
 def get_mkt_filters(mkt_dt_fmt):
@@ -126,7 +135,17 @@ class Session:
         'best_lay': {'name': 'RFLay'}
     }
 
-    def __init__(self, config: Optional[ConfigParser] = None):
+    def __init__(self, cache: Cache, config: Optional[ConfigParser] = None):
+
+        @cache.memoize(60)
+        def get_market_records(market_id) -> List[List[MarketBook]]:
+            active_logger.info(f'******** getting market ID "{market_id}"')
+            self.betting_db.cache_mkt_stream(market_id)
+            p = self.betting_db.path_mkt_updates(market_id)
+            q = self.api_handler.get_historical(p)
+            return list(q.queue)
+
+        self.get_market_records = get_market_records
 
         # load configuration from local file if not passed, then print values
         if config is None:
@@ -371,17 +390,18 @@ class Session:
         """
         mytiming.clear_timing_register()
 
-    def mkt_load(self, market_id, strategy_id):
+    def mkt_load(self, market_id, strategy_id) -> LoadedMarket:
 
         # check strategy valid if one is selected, when writing info to cache
         if strategy_id:
             self.betting_db.cache_strat_updates(strategy_id, market_id)
             self.betting_db.cache_strat_meta(strategy_id)
 
-        self.betting_db.cache_mkt_stream(market_id)
-        p = self.betting_db.path_mkt_updates(market_id)
-        q = self.api_handler.get_historical(p)
-        record_list = list(q.queue)
+        # self.betting_db.cache_mkt_stream(market_id)
+        # p = self.betting_db.path_mkt_updates(market_id)
+        # q = self.api_handler.get_historical(p)
+        # record_list = list(q.queue)
+        record_list = self.get_market_records(market_id)
         if not len(record_list):
             raise SessionException(f'record list is empty')
 
@@ -397,6 +417,12 @@ class Session:
             }
             for r in drows
         }
+
+        # return LoadedMarket(
+        #     info=dict(meta),
+        #     strategy_id=strategy_id,
+        #     runners=mygeneric.dict_sort(rinf, key=lambda item: item[1]['starting_odds'])
+        # )
 
         # put market information into self
         self.mkt_sid = strategy_id
