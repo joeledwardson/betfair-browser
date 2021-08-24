@@ -40,6 +40,7 @@ active_logger.setLevel(logging.INFO)
 
 
 class LoadedMarket(TypedDict):
+    market_id: str
     info: Dict
     strategy_id: Optional[str]
     runners: Dict
@@ -172,10 +173,10 @@ class Session:
         self.log_elements = list()  # logging elements
 
         # selected market info
-        self.mkt_sid = None  # strategy ID
-        self.mkt_info = {}  # database meta information dict
-        self.mkt_records: List[List[MarketBook]] = []  # record list
-        self.mkt_rnrs: Dict[int, Dict] = {}  # market runners information, indexed by runner ID
+        # self.mkt_sid = None  # strategy ID
+        # self.mkt_info = {}  # database meta information dict
+        # self.mkt_records: List[List[MarketBook]] = []  # record list
+        # self.mkt_rnrs: Dict[int, Dict] = {}  # market runners information, indexed by runner ID
 
         # betting database instance
         self._db_kwargs = {}
@@ -418,32 +419,33 @@ class Session:
             for r in drows
         }
 
-        # return LoadedMarket(
-        #     info=dict(meta),
-        #     strategy_id=strategy_id,
-        #     runners=mygeneric.dict_sort(rinf, key=lambda item: item[1]['starting_odds'])
-        # )
+        return LoadedMarket(
+            market_id=market_id,
+            info=dict(meta),
+            strategy_id=strategy_id,
+            runners=mygeneric.dict_sort(rinf, key=lambda item: item[1]['starting_odds'])
+        )
 
-        # put market information into self
-        self.mkt_sid = strategy_id
-        self.mkt_records = record_list
-        self.mkt_info = dict(meta)
-        self.mkt_rnrs = mygeneric.dict_sort(rinf, key=lambda item:item[1]['starting_odds'])
+        # # put market information into self
+        # self.mkt_sid = strategy_id
+        # self.mkt_records = record_list
+        # self.mkt_info = dict(meta)
+        # self.mkt_rnrs = mygeneric.dict_sort(rinf, key=lambda item:item[1]['starting_odds'])
 
-    def mkt_clr(self):
-        self.mkt_info = {}
-        self.mkt_records = []
-        self.mkt_sid = None
-        self.mkt_rnrs = {}
+    # def mkt_clr(self):
+    #     self.mkt_info = {}
+    #     self.mkt_records = []
+    #     self.mkt_sid = None
+    #     self.mkt_rnrs = {}
 
-    def mkt_lginf(self):
+    def mkt_lginf(self, market_info: LoadedMarket):
         """
         log information about records
         """
-        rl = self.mkt_records
-        mt = self.mkt_info['market_time']
+        rl = self.get_market_records(market_info['market_id'])
+        mt = market_info['info']['market_time']
 
-        active_logger.info(f'loaded market "{self.mkt_info["market_id"]}"')
+        active_logger.info(f'loaded market "{market_info["market_id"]}"')
         active_logger.info(f'{mt}, market time')
         active_logger.info(f'{rl[0][0].publish_time}, first record timestamp')
         active_logger.info(f'{rl[-1][0].publish_time}, final record timestamp')
@@ -559,22 +561,25 @@ class Session:
             selection_id
         )
 
-    def fig_plot(self, selection_id, secs, ftr_key, plt_key):
+    def fig_plot(self, market_info: LoadedMarket, selection_id, secs, ftr_key, plt_key):
 
         # if no active market selected then abort
-        if not self.mkt_records or not self.mkt_info:
-            raise SessionException('no market information/records')
+        if not market_info:
+            raise SessionException('no market information')
+        market_records = self.get_market_records(market_info)
+        if not market_records:
+            raise SessionException('no market records')
 
         # get name and title
-        if selection_id not in self.mkt_rnrs:
+        if selection_id not in market_info['runners']:
             raise SessionException(f'selection ID "{selection_id}" not found in market runners')
-        name = self.mkt_rnrs[selection_id]['runner_name'] or 'N/A'
-        title = self.fig_title(self.mkt_info, name, selection_id)
+        name = market_info['runners'][selection_id]['runner_name'] or 'N/A'
+        title = self.fig_title(market_info['info'], name, selection_id)
         active_logger.info(f'producing figure for runner {selection_id}, name: "{name}"')
 
         # get start/end of chart datetimes
-        dt0 = self.mkt_records[0][0].publish_time
-        mkt_dt = self.mkt_info['market_time']
+        dt0 = market_records[0][0].publish_time
+        mkt_dt = market_info['info']['market_time']
         start = figlib.FeatureFigure.get_chart_start(
             display_seconds=secs, market_time=mkt_dt, first=dt0
         )
@@ -582,8 +587,8 @@ class Session:
 
         # get orders dataframe (or None)
         orders = None
-        if self.mkt_sid:
-            p = self.betting_db.path_strat_updates(self.mkt_info['market_id'], self.mkt_sid)
+        if market_info['strategy_id']:
+            p = self.betting_db.path_strat_updates(market_info['market_id'], market_info['strategy_id'])
             if not path.exists(p):
                 raise SessionException(f'could not find cached strategy market file:\n-> "{p}"')
 
@@ -606,7 +611,7 @@ class Session:
 
         # generate plot by simulating features
         ftrs_data = ftrutils.FeatureHolder.gen_ftrs(ftr_cfg).sim_mktftrs(
-            hist_records=self.mkt_records,
+            hist_records=market_records,
             selection_id=selection_id,
             cmp_start=start,
             cmp_end=end,

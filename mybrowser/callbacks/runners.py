@@ -6,7 +6,7 @@ import traceback
 from myutils import dashutils
 from mytrading import exceptions as trdexp
 from sqlalchemy.exc import SQLAlchemyError
-from ..session import Session, Notification as Notif, NotificationType as NType
+from ..session import Session, Notification as Notif, NotificationType as NType, LoadedMarket
 
 
 active_logger = logging.getLogger(__name__)
@@ -59,7 +59,7 @@ def cb_runners(app, shn: Session):
         ]
 
         # assume market not loaded, clear
-        shn.mkt_clr()
+        # shn.mkt_clr()
 
         # first callback call
         if not btn_rn:
@@ -82,8 +82,8 @@ def cb_runners(app, shn: Session):
             shn.notif_post(Notif(NType.WARNING, 'Market', 'row ID is blank'))
             return ret
         try:
-            shn.mkt_load(market_id, shn.active_strat_get())
-            shn.mkt_lginf()
+            market_info = shn.mkt_load(market_id, shn.active_strat_get())
+            shn.mkt_lginf(market_info)
             shn.notif_post(Notif(
                 NType.INFO,
                 'Market',
@@ -91,17 +91,17 @@ def cb_runners(app, shn: Session):
             ))
         except (trdexp.MyTradingException, SQLAlchemyError) as e:
             active_logger.warning(f'failed to load market: {e}\n{traceback.format_exc()}')
-            shn.mkt_clr()
             return ret
 
         tbl = [d | {
             'id': d['runner_id'],  # set row to ID for easy access in callbacks
-        } for d in shn.mkt_rnrs.values()]
+        } for d in market_info['runners'].values()]
 
         ret[0] = sorted(tbl, key=lambda d: d['starting_odds'])
         ret[1] = f'loaded "{market_id}"'
         ret[3] = False  # enable bin market button
         ret[4] = False  # enable plot all figures button
+        ret[8] = market_info
         return ret
 
     @app.callback(
@@ -119,22 +119,24 @@ def cb_runners(app, shn: Session):
             return str(dashutils.CSSClassHandler(css_classes) - 'right-not-collapsed')
 
     @app.callback(
-        output=[
+        [
             Output('button-figure', 'disabled'),
             Output('button-orders', 'disabled')
-        ], inputs=[
+        ], [
             Input('table-runners', 'active_cell')
+        ], [
+            State('selected-market', 'data')
         ]
     )
-    def fig_btn_disable(active_cell):
+    def fig_btn_disable(active_cell, market_info: LoadedMarket):
         active_logger.info(f'runners button callback, runners cell: {active_cell}')
-        dsbl_fig = True
-        dsbl_odr = True
+        disable_figure = True
+        disable_orders = True
 
         if active_cell is not None and 'row_id' in active_cell:
-            dsbl_fig = False
-            if shn.mkt_sid is not None:
-                dsbl_odr = False
+            disable_figure = False
+            if market_info['strategy_id'] is not None:
+                disable_orders = False
 
-        return dsbl_fig, dsbl_odr
+        return disable_figure, disable_orders
 
