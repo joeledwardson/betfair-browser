@@ -9,7 +9,7 @@ import traceback
 import mytrading.exceptions
 import myutils.dashutils
 from myutils import mytiming
-from ..session import Session
+from ..session import Session, LoadedMarket
 from ..exceptions import SessionException
 
 # override visual logger with custom logger
@@ -79,14 +79,14 @@ def cb_fig(app, shn: Session):
             State('table-runners', 'active_cell'),
             State('input-chart-offset', 'value'),
             State('input-feature-config', 'value'),
-            State('input-plot-config', 'value')
+            State('input-plot-config', 'value'),
+            State('selected-market', 'data')
         ]
     )
-    def fig_button(clicks0, clicks1, cell, offset_str, ftr_key, plt_key):
+    def fig_button(clicks0, clicks1, cell, offset_str, ftr_key, plt_key, loaded_market: LoadedMarket):
         """
         create a plotly figure based on selected runner when "figure" button is pressed
         """
-
         ret = [
             list(),
             '',
@@ -96,16 +96,24 @@ def cb_fig(app, shn: Session):
         if myutils.dashutils.triggered_id() != 'button-figure' and myutils.dashutils.triggered_id() != 'button-all-figures':
             return ret
 
+        if not loaded_market:
+            return ret
+
+        # deserialise market info
+        shn.betting_db.meta_de_serialise(loaded_market['info'])
+        # dash uses JSON strings for keys, have to convert back to integers for runner IDs
+        loaded_market['runners'] = {int(k): v for k, v in loaded_market['runners'].items()}
+
         # get datetime/None chart offset from time input
         offset_dt = get_chart_offset(offset_str)
         secs = offset_dt.total_seconds() if offset_dt else 0
 
         # get selected IDs and plot
-        sel_ids = get_ids(cell, list(shn.mkt_rnrs.keys()))
+        sel_ids = get_ids(cell, list(loaded_market['runners'].keys()))
         try:
             shn.ftr_update()  # update feature & plot configs
             for selection_id in sel_ids:
-                shn.fig_plot(selection_id, secs, ftr_key, plt_key)
+                shn.fig_plot(loaded_market, selection_id, secs, ftr_key, plt_key)
         except (ValueError, TypeError, mytrading.exceptions.FigureException, SessionException) as e:
             active_logger.error(f'plot error: {e}\n{traceback.format_exc()}')
 

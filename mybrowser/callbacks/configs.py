@@ -3,7 +3,7 @@ import logging
 import traceback
 
 import myutils.dashutils
-from ..session import Session, Notification as Notif, NotificationType as NType
+from ..session import Session, post_notification
 from ..exceptions import SessionException
 
 counter = myutils.dashutils.Intermediary()
@@ -15,20 +15,20 @@ def cb_configs(app, shn: Session):
         output=[
             Output('input-feature-config', 'options'),
             Output('input-plot-config', 'options'),
-            Output('intermediary-featureconfigs', 'children')
+            Output('intermediary-featureconfigs', 'children'),
+            Output('notifications-configs', 'data')
         ],
         inputs=[
             Input('button-feature-config', 'n_clicks'),
         ]
     )
     def update_files_table(n_clicks):
+        notifs = []
         try:
             shn.ftr_update()
         except SessionException as e:
             active_logger.warning(f'error getting feature configs: {e}\n{traceback.format_exc()}')
-            shn.notif_post(Notif(
-                msg_type=NType.WARNING, msg_header='Feature Configs', msg_content='failed getting feature configs'
-            ))
+            post_notification(notifs, 'warning', 'Feature Configs', 'failed getting feature configs')
 
         feature_options = [{
             'label': v,
@@ -39,18 +39,11 @@ def cb_configs(app, shn: Session):
             'value': v,
         } for v in shn.ftr_pcfgs.keys()]
 
-        shn.notif_post(Notif(
-            msg_type=NType.INFO,
-            msg_header='Feature Configs',
-            msg_content=f'{len(shn.ftr_fcfgs)} feature configs loaded'
-        ))
-        shn.notif_post(Notif(
-            msg_type=NType.INFO,
-            msg_header='Plot Configs',
-            msg_content=f'{len(shn.ftr_pcfgs)} plot configs loaded'
-        ))
+        post_notification(notifs, 'info', 'Feature Configs', f'{len(shn.ftr_fcfgs)} feature configs loaded')
+        post_notification(notifs, 'info', 'Plot Configs', f'{len(shn.ftr_pcfgs)} plot configs loaded')
         return [
             feature_options,
             plot_options,
-            counter.next()
+            counter.next(),
+            notifs
         ]

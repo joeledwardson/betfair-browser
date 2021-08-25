@@ -6,7 +6,7 @@ import json
 from typing import List, Dict, Any, Optional
 from myutils import dashutils
 import logging
-from ..session import Session, Notification as Notif, NotificationType as NType
+from ..session import Session, post_notification
 from mytrading.strategy import tradetracker as tt
 
 active_logger = logging.getLogger(__name__)
@@ -55,6 +55,7 @@ def cb_market(app, shn: Session):
             Output('table-market-session', 'page_current'),
             Output('loading-out-session', 'children'),
             Output('intermediary-session-market', 'children'),
+            Output('notifications-market', 'data'),
 
             Output('input-sport-type', 'value'),
             Output('input-mkt-type', 'value'),
@@ -114,40 +115,41 @@ def cb_market(app, shn: Session):
     ):
         flt_market_args = [m0, m1, m2, m3, m4, m5, m6, m7]
         btn_id = dashutils.triggered_id()
-        shn.notif_post(Notif(NType.INFO, 'Market Database', 'Updated markets'))
+        notifs = []
+        post_notification(notifs, 'info',  'Market Database', 'Updated markets')
 
         # run new strategy if requested
         if btn_id == 'btn-strategy-run':
             shn.strat_update()  # update configurations first
             if strategy_run_val is None:
-                shn.notif_post(Notif(NType.WARNING, 'Strategy', 'cannot run strategy without selecting one'))
+                post_notification(notifs, 'warning', 'Strategy', 'cannot run strategy without selecting one')
             else:
                 strategy_id = str(shn.strat_run(strategy_run_val))
-                shn.notif_post(Notif(NType.INFO, 'Strategy', f'created new strategy "{strategy_id}"'))
+                post_notification(notifs, 'info', 'Strategy',  f'created new strategy "{strategy_id}"')
                 shn.betting_db.scan_strat_cache(tt.TradeTracker.get_runner_profits)  # upload strategy from cache
 
         # wipe cache if requested
         if btn_id == 'btn-cache-clear':
             n_files, n_dirs = shn.betting_db.wipe_cache()
-            shn.notif_post(Notif(NType.INFO, 'Cache', f'Cleared {n_files} files and {n_dirs} dirs from cache'))
+            post_notification(notifs, 'info', 'Cache', f'Cleared {n_files} files and {n_dirs} dirs from cache')
 
         # TODO - move all strategy functions from here to strategy page
         # reconnect to database if button pressed
         if btn_id == 'btn-db-reconnect':
             shn.rl_db()
-            shn.notif_post(Notif(NType.INFO, 'Database', 'reconnected to database'))
+            post_notification(notifs, 'info', 'Database', 'reconnected to database')
 
         # upload market & strategy cache if "upload" button clicked
         if btn_id == 'btn-db-upload':
             n_mkt = len(shn.betting_db.scan_mkt_cache())
             n_strat = len(shn.betting_db.scan_strat_cache(tt.TradeTracker.get_runner_profits))
-            shn.notif_post(Notif(NType.INFO, 'Cache', f'found {n_mkt} new markets in cache'))
-            shn.notif_post(Notif(NType.INFO, 'Cache', f'found {n_strat} new strategies in cache'))
+            post_notification(notifs, 'info', 'Cache', f'found {n_mkt} new markets in cache')
+            post_notification(notifs, 'info', 'Cache', f'found {n_strat} new strategies in cache')
 
         # update strategy filters and selectable options
         if btn_id == 'btn-strategy-download':
             if 'row_id' not in strategy_tbl_cell:
-                shn.notif_post(Notif(NType.WARNING, 'Strategy', 'no row ID found in strategy cell'))
+                post_notification(notifs, 'warning', 'Strategy', 'no row ID found in strategy cell')
                 shn.active_strat_set(None)
             else:
                 shn.active_strat_set(strategy_tbl_cell['row_id'])
@@ -200,19 +202,22 @@ def cb_market(app, shn: Session):
             0,  # reset current page back to first page
             '',  # loading output
             counter.next(),  # intermediary counter value
+            notifs,
             # market_sorter  # market sorter value
         ] + vals + lbls
 
     @app.callback(
         [
             Output('input-strategy-run', 'options'),
-            Output('intermediary-strat-reload', 'children')
+            Output('intermediary-strat-reload', 'children'),
+            Output('notifications-strategy-reload', 'data'),
         ],
         Input('btn-strategies-reload', 'n_clicks')
     )
     def strategy_run_reload(n_reload):
         n_confs = len(shn.strat_update())
-        shn.notif_post(Notif(NType.INFO, 'Strategy Configs', f'loaded {n_confs} strategy configs'))
+        notifs = []
+        post_notification(notifs, 'info', 'Strategy Configs', f'loaded {n_confs} strategy configs')
 
         options = [{
             'label': v,
@@ -221,7 +226,8 @@ def cb_market(app, shn: Session):
 
         return [
             options,
-            strat_counter.next()
+            strat_counter.next(),
+            notifs
         ]
 
     @app.callback(

@@ -64,7 +64,7 @@ def cb_display(app):
         Output("container-runners", "hidden"),
         Output("container-filters-plot", "hidden"),
         Output("container-timings", "hidden"),
-        Output("container-logs", "hidden"),
+        # Output("container-logs", "hidden"),
         Output("container-strategy", "hidden"),
         Output("container-filters-strategy", "hidden"),
         Output("container-orders", "hidden")
@@ -79,8 +79,8 @@ def cb_display(app):
             displays = ["container-runners", "container-filters-plot"]
         elif pathname == "/timings":
             displays = ["container-timings"]
-        elif pathname == "/logs":
-            displays = ["container-logs"]
+        # elif pathname == "/logs":
+        #     displays = ["container-logs"]
         elif pathname == "/strategy":
             displays = ["container-strategy", "container-filters-strategy"]
         elif pathname == "/orders":

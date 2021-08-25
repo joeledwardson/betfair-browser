@@ -2,8 +2,7 @@ from dash.dependencies import Output, Input, State
 import logging
 
 import myutils.dashutils
-from ..session import Session, Notification as Notif, NotificationType as NType
-
+from ..session import Session,post_notification
 active_logger = logging.getLogger(__name__)
 counter = myutils.dashutils.Intermediary()
 
@@ -12,7 +11,8 @@ def cb_libs(app, shn: Session):
     @app.callback(
         output=[
             Output('intermediary-libs', 'children'),
-            Output('loading-out-libs', 'children')
+            Output('loading-out-libs', 'children'),
+            Output('notifications-libs', 'data')
         ],
         inputs=[
             Input('button-libs', 'n_clicks')
@@ -22,11 +22,16 @@ def cb_libs(app, shn: Session):
         """
         when reload libraries button pressed, dynamically update references to `mytrading` and `myutils`
         """
+        notifs = []
         if myutils.dashutils.triggered_id() == 'button-libs':
             n = shn.rl_mods()
-            shn.notif_post(Notif(NType.INFO, 'Libraries', f'{n} modules reloaded'))
+            post_notification('info', 'Libraries', f'{n} modules reloaded')
 
-        return counter.next(), ''
+        return [
+            counter.next(),
+            '',
+            notifs
+        ]
 
 
 

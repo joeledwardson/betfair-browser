@@ -6,7 +6,7 @@ import json
 from typing import List, Dict, Any, Optional
 from myutils import dashutils
 import logging
-from ..session import Session, Notification as Notif, NotificationType as NType
+from ..session import Session, post_notification
 from mytrading.strategy import tradetracker as tt
 
 active_logger = logging.getLogger(__name__)
@@ -23,8 +23,9 @@ def cb_strategy(app, shn: Session):
             Input("btn-strategy-delete", "n_clicks"),
             Input("strategy-delete-yes", "n_clicks"),
             Input("strategy-delete-no", "n_clicks")
+        ], [
+            State("strategy-delete-modal", "is_open")
         ],
-        [State("strategy-delete-modal", "is_open")],
     )
     def toggle_modal(n1, n2, n3, is_open):
         if n1 or n2 or n3:
@@ -37,6 +38,7 @@ def cb_strategy(app, shn: Session):
             Output('table-strategies', "selected_cells"),
             Output('table-strategies', 'active_cell'),
             Output('table-strategies', 'page_current'),
+            Output('notifications-strategy', 'data')
         ],
         inputs=[
             Input('btn-strategy-refresh', 'n_clicks'),
@@ -51,16 +53,18 @@ def cb_strategy(app, shn: Session):
             n_delete,
             active_cell,
     ):
+        notifs = []
         btn_id = dashutils.triggered_id()
         strategy_id = active_cell['row_id'] if active_cell and 'row_id' in active_cell else None
 
         # delete strategy if requested
         if btn_id == 'strategy-delete-yes':
             if not strategy_id:
-                shn.notif_post(Notif(NType.WARNING, 'Strategy', 'Must select a strategy to delete'))
+                post_notification(notifs, 'warning', 'Strategy', 'Must select a strategy to delete')
             else:
                 n0, n1, n2 = shn.betting_db.strategy_delete(strategy_id)
-                shn.notif_post(Notif(NType.INFO, 'Strategy', f'removed {n0} strategy meta, {n1} markets, {n2} runners'))
+                msg = f'removed {n0} strategy meta, {n1} markets, {n2} runners'
+                post_notification(notifs, 'info', 'Strategy', msg)
 
         tbl_rows = shn.strats_tbl_rows()
         for r in tbl_rows:
@@ -70,4 +74,5 @@ def cb_strategy(app, shn: Session):
             [],  # clear selected cell(s)
             None,  # clear selected cell
             0,  # reset current page back to first page
+            notifs
         ]

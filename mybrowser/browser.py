@@ -57,5 +57,5 @@ def run_browser(debug: bool, config_path=None):
     active_logger.info('Starting dash server...')
 
     # turn of dev tools prop check to disable time input error
-    app.run_server(debug=debug, dev_tools_props_check=False)
+    app.run_server(debug=debug, dev_tools_props_check=False, use_reloader=False)
 

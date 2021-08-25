@@ -17,7 +17,7 @@ from sqlalchemy_filters.filters import Operator as SqlOperator
 from sqlalchemy.orm.query import Query
 from queue import Queue
 import logging
-from typing import Optional, Dict, List, Callable, Any, Tuple
+from typing import Optional, Dict, List, Callable, Any, Tuple, Union, Literal
 import keyring
 from os import path
 import os
@@ -35,7 +35,11 @@ from .dbfilter import DBFilterHandler
 active_logger = logging.getLogger(__name__)
 active_logger.setLevel(logging.INFO)
 
-db_processors = registrar.Registrar()
+ProcessorKey = Literal['process_in', 'process_out', 'processors']
+ProcessorMap = Dict[type, Dict[ProcessorKey, List[str]]]
+
+Processor = Callable[[Any], Any]
+db_processors = registrar.Registrar[Processor]()
 
 
 @db_processors.register_element
@@ -146,7 +150,7 @@ class DBBase:
         """
         return self.apply_basic_filters(tbl_nm, pkey_flts).count() >= 1
 
-    def _value_processors(self, value, tbl_name, col, prcs, prc_type):
+    def _value_processors(self, value: Any, tbl_name: str, col: str, prcs: ProcessorMap, prc_type: ProcessorKey) -> Any:
         col_type = type(self.tables[tbl_name].columns[col].type)
         prc_nms = prcs.get(col_type, {}).get(prc_type)
         if prc_nms:
@@ -159,7 +163,7 @@ class DBBase:
                 value = value_out
         return value
 
-    def _process_columns(self, data, tbl_name, prcs, prc_type):
+    def _process_columns(self, data: Dict, tbl_name: str, prcs: ProcessorMap, prc_type: ProcessorKey) -> None:
         self._validate_tbl(tbl_name)
         self._validate_cols(tbl_name, list(data.keys()))
         for col in data.keys():
@@ -344,7 +348,7 @@ class DBCache(DBBase):
         return len(filenames), len(dirnames)
 
 
-DB_PROCESSORS = {
+DB_PROCESSORS: ProcessorMap = {
     psqlbase.BYTEA: {
         'process_in': [
             'prc_compress'
@@ -365,7 +369,8 @@ DB_PROCESSORS = {
     # }
 }
 
-CACHE_PROCESSORS = {
+
+CACHE_PROCESSORS: ProcessorMap = {
     psqlbase.BYTEA: {
         'process_in': [
             'prc_str_encode',
@@ -400,7 +405,8 @@ CACHE_PROCESSORS = {
     }
 }
 
-FILTER_SPEC_PROCESSORS = {
+
+FILTER_SPEC_PROCESSORS: ProcessorMap = {
     psqlbase.TIMESTAMP: {
         'processors': [
             'prc_str_to_dt'
@@ -469,6 +475,14 @@ class BettingDB:
 
     def close(self):
         self._dbc.session.close()
+
+    def meta_serialise(self, market_info: Dict) -> None:
+        """run caching serialisation on market information retrieved from 'marketmeta' database"""
+        self._dbc._process_columns(market_info, 'marketmeta', self._dbc.cache_prcs, 'process_out')
+
+    def meta_de_serialise(self, market_info: Dict) -> None:
+        """run caching de-serialisation on market information that has been serialised"""
+        self._dbc._process_columns(market_info, 'marketmeta', self._dbc.cache_prcs, 'process_in')
 
     @staticmethod
     def get_meta(first_book: MarketBook, cat: MarketCatalogue = None) -> Dict:

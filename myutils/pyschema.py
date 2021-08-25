@@ -20,6 +20,7 @@ class Config(pydantic.BaseConfig):
     underscore_attrs_are_private = True
     extra = 'forbid'
     arbitrary_types_allowed = True
+    validate_assignment = False
     validate_all = False
     orm_mode = True
     @staticmethod

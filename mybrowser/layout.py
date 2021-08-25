@@ -406,6 +406,7 @@ def generate_layout(layout_spec: Dict):
                     className='d-flex flex-row flex-grow-1 overflow-hidden'
                 ),
                 html.Div(id='toast-holder'),
+                html.Div(id='test-div')
             ],
             id='bf-container',
             className='d-flex flex-column'

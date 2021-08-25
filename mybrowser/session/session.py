@@ -3,7 +3,7 @@ import uuid
 from functools import partial
 from betfairlightweight.resources.bettingresources import MarketBook
 from os import path
-from typing import List, Dict, Optional, TypedDict
+from typing import List, Dict, Optional, TypedDict, Union, Literal, Any
 import pandas as pd
 import logging
 import sys
@@ -108,20 +108,24 @@ def get_formatters(config) -> myreg.Registrar:
     return formatters
 
 
-class NotificationType(Enum):
-    PRIMARY = "primary"
-    SECONDARY = "secondary"
-    SUCCESS = "success"
-    WARNING = "warning"
-    DANGER = "danger"
-    INFO = "info"
+
+NotificationType = Literal["primary", "secondary", "success", "warning", "danger", "info"]
 
 
-@dataclass
-class Notification:
+class Notification(TypedDict):
     msg_type: NotificationType
     msg_header: str
     msg_content: str
+
+
+def post_notification(
+        notifications: List[Notification],
+        msg_type: NotificationType,
+        msg_header: str,
+        msg_content: str
+):
+    notifications.append(Notification(msg_type=msg_type, msg_header=msg_header, msg_content=msg_content))
+
 
 
 # TODO  - split strategy into strategy config and market filter configs
@@ -201,16 +205,16 @@ class Session:
         self._active_strat = None
 
         # notification queue
-        self._notification_queue: queue.Queue[Notification] = queue.Queue()
+        # self._notification_queue: queue.Queue[Notification] = queue.Queue()
 
-    def notif_post(self, new_notification: Notification):
-        self._notification_queue.put(new_notification)
-
-    def notif_exist(self) -> bool:
-        return not self._notification_queue.empty()
-
-    def notif_pop(self) -> Notification:
-        return self._notification_queue.get()
+    # def notif_post(self, new_notification: Notification):
+    #     self._notification_queue.put(new_notification)
+    #
+    # def notif_exist(self) -> bool:
+    #     return not self._notification_queue.empty()
+    #
+    # def notif_pop(self) -> Notification:
+    #     return self._notification_queue.get()
 
     def active_strat_get(self):
         return self._active_strat
@@ -438,14 +442,14 @@ class Session:
     #     self.mkt_sid = None
     #     self.mkt_rnrs = {}
 
-    def mkt_lginf(self, market_info: LoadedMarket):
+    def mkt_lginf(self, loaded_market: LoadedMarket):
         """
         log information about records
         """
-        rl = self.get_market_records(market_info['market_id'])
-        mt = market_info['info']['market_time']
+        rl = self.get_market_records(loaded_market['market_id'])
+        mt = loaded_market['info']['market_time']
 
-        active_logger.info(f'loaded market "{market_info["market_id"]}"')
+        active_logger.info(f'loaded market "{loaded_market["market_id"]}"')
         active_logger.info(f'{mt}, market time')
         active_logger.info(f'{rl[0][0].publish_time}, first record timestamp')
         active_logger.info(f'{rl[-1][0].publish_time}, final record timestamp')
@@ -566,7 +570,7 @@ class Session:
         # if no active market selected then abort
         if not market_info:
             raise SessionException('no market information')
-        market_records = self.get_market_records(market_info)
+        market_records = self.get_market_records(market_info['market_id'])
         if not market_records:
             raise SessionException('no market records')
 

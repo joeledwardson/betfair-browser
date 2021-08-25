@@ -2,9 +2,10 @@ import logging
 from queue import Queue
 from myutils import mylogging
 
-log_q = Queue()
+# log_q = Queue()
+# my_handler = mylogging.QueueHandler(log_q)
 
-my_handler = mylogging.QueueHandler(log_q)
+my_handler = logging.StreamHandler()
 my_formatter = logging.Formatter(
     fmt='{asctime}.{msecs:03.0f}: {levelname}:{name}: {message}',
     datefmt='%Y-%m-%d %H:%M:%S',

@@ -35,14 +35,14 @@ class FeatureHolder(dict):
                 raise FeatureException(f'feature does not have "name" attr')
             ftr_key = conf.pop('name')
             active_logger.info(f'generating feature of class "{ftr_key}"')
-            feature_class = ftrs_reg[ftr_key]
+            feature_class: RFBase = ftrs_reg[ftr_key]
             kwargs = conf.pop('kwargs', {})
             if type(kwargs) is not dict:
                 raise FeatureException(f'feature kwargs not dict: {kwargs}')
             if conf:
                 raise FeatureException(f'feature has config keys not recognised: "{conf}"')
             try:
-                ftrs[name] = feature_class(**kwargs, ftr_identifier=name)
+                ftrs[name] = feature_class(**kwargs, custom_ftr_identifier=name)
             except TypeError as e:
                 raise FeatureException(f'error creating feature: {e}')
         return ftrs

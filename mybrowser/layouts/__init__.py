@@ -41,28 +41,28 @@ def _nav_spec():
             'href': '/orders',
             'nav_icon': 'fas fa-file-invoice-dollar'
         },
-        {
-            'type': 'element-navigation-item',
-            'href': '/logs',
-            'nav_icon': 'fas fa-envelope-open-text',
-            'css_classes': 'position-relative',
-            'nav_children_spec': [
-                {
-                    'type': 'element-div',
-                    'id': 'msg-alert-box',
-                    'css_classes': 'right-corner-box',
-                    'hidden': True,
-                    'children_spec': [
-                        {
-                            'type': 'element-badge',
-                            'id': 'log-warns',
-                            'color': 'danger',
-                            'css_classes': 'p-2'
-                        }
-                    ]
-                }
-            ]
-        }
+        # {
+        #     'type': 'element-navigation-item',
+        #     'href': '/logs',
+        #     'nav_icon': 'fas fa-envelope-open-text',
+        #     'css_classes': 'position-relative',
+        #     'nav_children_spec': [
+        #         {
+        #             'type': 'element-div',
+        #             'id': 'msg-alert-box',
+        #             'css_classes': 'right-corner-box',
+        #             'hidden': True,
+        #             'children_spec': [
+        #                 {
+        #                     'type': 'element-badge',
+        #                     'id': 'log-warns',
+        #                     'color': 'danger',
+        #                     'css_classes': 'p-2'
+        #                 }
+        #             ]
+        #         }
+        #     ]
+        # }
     ]
 
 
@@ -115,7 +115,7 @@ def get_bf_layout(config):
         'containers': [
             market.market_display_spec(config),
             runners.runners_config_spec(config),
-            logger.log_config_spec(config),
+            # logger.log_config_spec(config),
             orders.orders_config_spec(config),
             strategy.strategy_config_spec(config),
             timings.timings_config_spec(config)
@@ -129,6 +129,24 @@ def get_bf_layout(config):
             {
                 'id': 'selected-market',
                 'data': {}
+            },
+            {
+                'id': 'notifications-runners',
+            },
+            {
+                'id': 'notifications-market',
+            },
+            {
+                'id': 'notifications-strategy-reload',
+            },
+            {
+                'id': 'notifications-configs',
+            },
+            {
+                'id': 'notifications-libs',
+            },
+            {
+                'id': 'notifications-strategy',
             }
         ]
     }
