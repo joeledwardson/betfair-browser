@@ -48,7 +48,7 @@ def cb_logs(app, shn: Session):
         pathname = args[-2]
 
         # remove past toasts after duration
-        toasts = [t for t in toasts if t['props']['children']['props']['is_open']]
+        # toasts = [t for t in toasts if t['props']['children']['props']['is_open']]
 
         for e in dashutils.all_triggered_ids():
             if e in STORES:

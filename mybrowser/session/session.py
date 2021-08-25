@@ -18,6 +18,9 @@ from dataclasses import dataclass
 from enum import Enum
 from flask_caching import Cache
 
+
+from ..layouts.market import FILTERS
+from mytrading.utils.dbfilter import filters_reg
 import mytrading.exceptions
 import mytrading.process
 import myutils.datetime
@@ -47,39 +50,52 @@ class LoadedMarket(TypedDict):
 
 
 def get_mkt_filters(mkt_dt_fmt):
-    return [
-        dbf.DBFilterJoin(
-            "sport_id",
-            join_tbl_name='sportids',
-            join_id_col='sport_id',
-            join_name_col='sport_name'
-        ),
-        dbf.DBFilter(
-            "market_type",
-        ),
-        dbf.DBFilter(
-            "betting_type",
-        ),
-        dbf.DBFilter(
-            'format',
-        ),
-        dbf.DBFilterJoin(
-            "country_code",
-            join_tbl_name='countrycodes',
-            join_id_col='alpha_2_code',
-            join_name_col='name'
-        ),
-        dbf.DBFilter(
-            "venue",
-        ),
-        dbf.DBFilterDate(
-            "market_time",
-            mkt_dt_fmt
-        ),
-        dbf.DBFilterText(
-            'market_id',
-        )
-    ]
+    out = []
+    for f in FILTERS:
+        if 'filter' in f:
+            cls = filters_reg[f['filter']['name']]
+            kwargs = f['filter']['kwargs']
+            try:
+                obj = cls(**kwargs)
+                out.append(obj)
+            except TypeError as e:
+                raise SessionException(f'could not create filter using class "{cls}" with kwargs {kwargs}')
+    return out
+
+    #
+    # return [
+    #     dbf.DBFilterJoin(
+    #         "sport_id",
+    #         join_tbl_name='sportids',
+    #         join_id_col='sport_id',
+    #         join_name_col='sport_name'
+    #     ),
+    #     dbf.DBFilter(
+    #         "market_type",
+    #     ),
+    #     dbf.DBFilter(
+    #         "betting_type",
+    #     ),
+    #     dbf.DBFilter(
+    #         'format',
+    #     ),
+    #     dbf.DBFilterJoin(
+    #         "country_code",
+    #         join_tbl_name='countrycodes',
+    #         join_id_col='alpha_2_code',
+    #         join_name_col='name'
+    #     ),
+    #     dbf.DBFilter(
+    #         "venue",
+    #     ),
+    #     dbf.DBFilterDate(
+    #         "market_time",
+    #         mkt_dt_fmt
+    #     ),
+    #     dbf.DBFilterText(
+    #         'market_id',
+    #     )
+    # ]
 
 
 def get_strat_filters(strat_sel_fmt):
@@ -173,8 +189,8 @@ class Session:
             get_strat_filters(config['MARKET_FILTER']['strategy_sel_format'])
         )  # db strategy filters
 
-        self.log_nwarn = 0  # number of logger warnings
-        self.log_elements = list()  # logging elements
+        # self.log_nwarn = 0  # number of logger warnings
+        # self.log_elements = list()  # logging elements
 
         # selected market info
         # self.mkt_sid = None  # strategy ID
@@ -216,11 +232,14 @@ class Session:
     # def notif_pop(self) -> Notification:
     #     return self._notification_queue.get()
 
-    def active_strat_get(self):
-        return self._active_strat
+    def market_filter_conditions(self, values: List[Any]):
+        return self._flts_mkt.filters_conditions(self.betting_db._dbc.tables['marketmeta'], values)
 
-    def active_strat_set(self, strategy_id):
-        self._active_strat = strategy_id
+    # def active_strat_get(self):
+    #     return self._active_strat
+    #
+    # def active_strat_set(self, strategy_id):
+    #     self._active_strat = strategy_id
 
     def strat_update(self) -> Dict:
         self._strat_cfgs = mydict.load_yaml_confs(self._strat_dir)

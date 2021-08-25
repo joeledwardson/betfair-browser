@@ -131,6 +131,9 @@ def get_bf_layout(config):
                 'data': {}
             },
             {
+                'id': 'selected-strategy',
+            },
+            {
                 'id': 'notifications-runners',
             },
             {
@@ -147,6 +150,6 @@ def get_bf_layout(config):
             },
             {
                 'id': 'notifications-strategy',
-            }
+            },
         ]
     }

@@ -33,6 +33,8 @@ marshmallow-dataclass = "*"
 dataclasses-jsonschema = "*"
 dash-renderer = "*"
 redis = "*"
+celery = {extras = ["librabbitmq", "redis"], version = "*"}
+librabbitmq = "*"
 
 [dev-packages]
 

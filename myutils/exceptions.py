@@ -21,3 +21,7 @@ class DictException(MyUtilsException):
 
 class DateTimeException(MyUtilsException):
     pass
+
+
+class DashUtilsException(MyUtilsException):
+    pass

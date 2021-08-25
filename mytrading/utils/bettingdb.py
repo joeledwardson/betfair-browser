@@ -5,6 +5,7 @@ from betfairlightweight.resources.streamingresources import MarketDefinition
 from betfairlightweight.resources.bettingresources import MarketCatalogue, MarketBook
 from betfairlightweight.streaming.listener import StreamListener
 import sqlalchemy
+from sqlalchemy.sql.expression import ColumnElement
 from sqlalchemy.sql.selectable import CTE
 from sqlalchemy import create_engine, func, DECIMAL
 from sqlalchemy.orm import Session
@@ -791,7 +792,7 @@ class BettingDB:
         )
         return q.cte()
 
-    def filters_mkt_cte(self, strategy_id, mkt_filters: DBFilterHandler) -> CTE:
+    def filters_mkt_cte(self, strategy_id, column_filters: List[ColumnElement]) -> CTE:
         meta = self._dbc.tables['marketmeta']
         sr = self._dbc.tables['strategyrunners']
 
@@ -818,7 +819,7 @@ class BettingDB:
                 sqlalchemy.null().label('market_profit')
             )
 
-        q = q.filter(*mkt_filters.filters_conditions(meta))
+        q = q.filter(*column_filters)
         return q.cte()
 
     def cache_strat_updates(self, strategy_id, market_id):
