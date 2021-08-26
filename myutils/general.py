@@ -27,11 +27,6 @@ def dattr_name(deep_attr):
     return re.match(r'(.*[.])?(.*)', deep_attr).groups()[1]
 
 
-def milliseconds():
-    """milliseconds sinch epoch"""
-    return round(time.time()*1000)
-
-
 def ms_to_datetime(timestamp_ms):
     return datetime.datetime.fromtimestamp(float(timestamp_ms)/1000)
 

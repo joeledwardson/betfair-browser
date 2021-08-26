@@ -17,7 +17,7 @@ active_logger = logging.getLogger(__name__)
 class FeatureHolder(dict):
     """dictionary holder of (feature name => feature instance)"""
     @classmethod
-    def gen_ftrs(cls, ftr_cfgs: dict) -> FeatureHolder:
+    def generator(cls, configs: dict) -> FeatureHolder:
         """
         create dictionary of features based on a dictionary of `features_config`,
         - key: feature usage name
@@ -26,8 +26,8 @@ class FeatureHolder(dict):
             - 'kwargs': dict of constructor arguments used when creating feature
         """
         ftrs = cls()
-        ftr_cfgs = copy.deepcopy(ftr_cfgs)
-        for i, (name, conf) in enumerate(ftr_cfgs.items()):
+        configs = copy.deepcopy(configs)
+        for i, (name, conf) in enumerate(configs.items()):
             active_logger.info(f'creating feature #{i}, name: "{name}')
             if type(conf) is not dict:
                 raise FeatureException(f'feature config not dict: "{conf}"')
@@ -35,14 +35,14 @@ class FeatureHolder(dict):
                 raise FeatureException(f'feature does not have "name" attr')
             ftr_key = conf.pop('name')
             active_logger.info(f'generating feature of class "{ftr_key}"')
-            feature_class: RFBase = ftrs_reg[ftr_key]
+            feature_class: type(RFBase) = ftrs_reg[ftr_key]
             kwargs = conf.pop('kwargs', {})
             if type(kwargs) is not dict:
                 raise FeatureException(f'feature kwargs not dict: {kwargs}')
             if conf:
                 raise FeatureException(f'feature has config keys not recognised: "{conf}"')
             try:
-                ftrs[name] = feature_class(**kwargs, custom_ftr_identifier=name)
+                ftrs[name] = feature_class(**kwargs, ftr_identifier=name)
             except TypeError as e:
                 raise FeatureException(f'error creating feature: {e}')
         return ftrs
@@ -58,7 +58,7 @@ class FeatureHolder(dict):
             return dly
         return _get_delay(0, self)
 
-    def sim_getftrdata(self) -> Dict[str, pd.Series]:
+    def get_data(self) -> Dict[str, pd.Series]:
         """get feature data recursively into dictionary of pandas Series, indexed by feature identifier"""
 
         # loop features and get data recursively
@@ -77,8 +77,7 @@ class FeatureHolder(dict):
         inner(self)
         return data
 
-    @timing.timing_register
-    def sim_prcftrs(self, selection_id: int, records: List[List[MarketBook]]):
+    def _stream(self, selection_id: int, records: List[List[MarketBook]]):
         """simulate streaming and process historical records with a set of features for a selected runner"""
         for bk in records:
             bk = bk[0]
@@ -87,7 +86,7 @@ class FeatureHolder(dict):
                     for feature in self.values():
                         feature.process_runner(bk, i_rn)
 
-    def sim_mktftrs(
+    def simulate(
             self,
             hist_records: List[List[MarketBook]],
             selection_id: int,
@@ -123,10 +122,10 @@ class FeatureHolder(dict):
         # initialise features with first of trimmed books, then simulate market stream and process feature updates
         for feature in self.values():
             feature.race_initializer(selection_id, hist_records[0][0])
-        self.sim_prcftrs(selection_id, hist_records)
+        self._stream(selection_id, hist_records)
 
         # get feature data from feature set
-        return self.sim_getftrdata()
+        return self.get_data()
 
     def __getitem__(self, item) -> RFBase:
         return super().__getitem__(item)

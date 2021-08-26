@@ -33,14 +33,14 @@ def cb_configs(app, shn: Session):
         feature_options = [{
             'label': v,
             'value': v,
-        } for v in shn.ftr_fcfgs.keys()]
+        } for v in shn.feature_configs.keys()]
         plot_options = [{
             'label': v,
             'value': v,
-        } for v in shn.ftr_pcfgs.keys()]
+        } for v in shn.plot_configs.keys()]
 
-        post_notification(notifs, 'info', 'Feature Configs', f'{len(shn.ftr_fcfgs)} feature configs loaded')
-        post_notification(notifs, 'info', 'Plot Configs', f'{len(shn.ftr_pcfgs)} plot configs loaded')
+        post_notification(notifs, 'info', 'Feature Configs', f'{len(shn.feature_configs)} feature configs loaded')
+        post_notification(notifs, 'info', 'Plot Configs', f'{len(shn.plot_configs)} plot configs loaded')
         return [
             feature_options,
             plot_options,

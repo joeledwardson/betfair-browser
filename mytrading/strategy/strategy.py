@@ -18,7 +18,6 @@ from .trademachine import RunnerTradeMachine
 from .tradestates import TradeStateTypes
 from .tradetracker import TradeTracker
 from .runnerhandler import RunnerHandler
-from myutils.timing import timing_register
 from myutils.edgedetector import EdgeDetector
 
 active_logger = logging.getLogger(__name__)
@@ -356,7 +355,6 @@ class MyFeatureStrategy(MyBaseStrategy):
                 f'expected market id "{market.market_id}" to be the same as market book id "{market_book.market_id}"'
             )
 
-    @timing_register
     def process_market_book(self, market: Market, market_book: MarketBook):
         """
         get runner feature data for current market with new `market_book` received
@@ -415,7 +413,6 @@ class MyFeatureStrategy(MyBaseStrategy):
                 # update order tracker
                 rh.trade_tracker.update_order_tracker(market_book.publish_time)
 
-    @timing_register
     def process_closed_market(self, market: Market, market_book: MarketBook) -> None:
         # check market that is closing is in trade trackers
         if market.market_id not in self.market_handlers:

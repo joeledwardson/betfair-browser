@@ -1,5 +1,7 @@
 # cant use future annotations or it doesnt work with dict/list
 # from __future__ import annotations
+import time
+
 from betfairlightweight.resources.bettingresources import MarketBook
 import numpy as np
 from typing import Dict, Optional, Any, Union
@@ -40,33 +42,32 @@ class RFBase:
     `cache_insidewindow` determines whether first cache value in queue should be inside the time window or
     outside
     """
-
-
     def __init__(
             self,
             parent: Optional['RFBase'] = None,
             sub_features_config: Optional[Dict] = None,
-            custom_ftr_identifier: Optional[str] = None,
+            ftr_identifier: Optional[str] = None,
             cache_count: int = 2,
             cache_secs: Optional[float] = None,
             cache_insidewindow: Optional[bool] = None
     ):
         self.parent = parent
         self.sub_features_config = sub_features_config
-        self.custom_ftr_identifier = custom_ftr_identifier
+        self.ftr_identifier = ftr_identifier
         self.cache_count = cache_count
         self.cache_secs = cache_secs
         self.cache_insidewindow = cache_insidewindow
 
         self.selection_id: Optional[int] = None
 
-        self.ftr_identifier: str = self.custom_ftr_identifier or self.__class__.__name__
+        self.ftr_identifier: str = self.ftr_identifier or self.__class__.__name__
         if self.parent:
             self.ftr_identifier = '.'.join([
                 self.parent.ftr_identifier,
                 self.ftr_identifier
             ])
 
+        self.timing_reg = timing.TimingRegistrar()
         self._values_cache = deque()
         self.out_cache = deque()
         # self.cache_count = cache_count
@@ -146,10 +147,11 @@ class RFBase:
         for sub_feature in self.sub_features.values():
             sub_feature.process_runner(new_book, runner_index)
 
-    @timing.timing_register_attr(name_attr='ftr_identifier')
     def process_runner(self, new_book: MarketBook, runner_index) -> None:
         """update feature value and add to cache"""
+        t = time.perf_counter()
         self._publish_update(new_book, runner_index)
+        self.timing_reg.log_result(time.perf_counter() - t, self.ftr_identifier)
 
     def _get_feature_value(self, new_book: MarketBook, runner_index) -> Optional[Any]:
         """
@@ -197,9 +199,9 @@ class RFMvAvg(RFChild):
 @reg_feature
 class RFSample(RFChild):
     """sample values to periodic timestamps with most recent value"""
-    periodic_ms: float
-    def __init__(self, **kwargs):
+    def __init__(self, periodic_ms: float, **kwargs):
         super().__init__(**kwargs)
+        self.periodic_ms = periodic_ms
         self.last_timestamp: Optional[datetime] = None
 
     def race_initializer(self, selection_id: int, first_book: MarketBook):
@@ -208,9 +210,11 @@ class RFSample(RFChild):
 
     def process_runner(self, new_book: MarketBook, runner_index):
         # if data is sampled and more than one sample time has elapsed, fill forwards until time is met
+        t = time.perf_counter()
         while int((new_book.publish_time - self.last_timestamp).total_seconds() * 1000) > self.periodic_ms:
             self.last_timestamp = self.last_timestamp + timedelta(milliseconds=self.periodic_ms)
             self._publish_update(new_book, runner_index, self.last_timestamp)
+        self.timing_reg.log_result(time.perf_counter() - t, self.ftr_identifier)
 
 
 @reg_feature
@@ -335,7 +339,9 @@ class RFWOM(RFBase):
     Weight of money (difference of available-to-lay to available-to-back)
     applied to `wom_ticks` number of ticks on BACK and LAY sides of the book
     """
-    wom_ticks: int
+    def __init__(self, wom_ticks: int, **kwargs):
+        super().__init__(**kwargs)
+        self.wom_ticks = wom_ticks
 
     def _get_feature_value(self, new_book: MarketBook, runner_index):
         atl = new_book.runners[runner_index].ex.available_to_lay

@@ -5,19 +5,21 @@ from dash.dependencies import Output, Input, State
 import logging
 from plotly import graph_objects as go
 import traceback
-
-import mytrading.exceptions
-import myutils.dashutils
+from myutils import dashutils
+from myutils.dashutils import Config, TDict, Intermediary, dict_callback, triggered_id
 from myutils import timing
-from ..session import Session, LoadedMarket
+import mytrading.exceptions
+from ..session import Session, LoadedMarket, Notification, post_notification
+from mytrading.strategy.feature.features import RFBase
+
 from ..exceptions import SessionException
 
 # override visual logger with custom logger
 active_logger = logging.getLogger(__name__)
-counter = myutils.dashutils.Intermediary()
+counter = dashutils.Intermediary()
 
 
-def get_ids(cell, id_list) -> List[int]:
+def get_ids(cell: Union[None, Dict], id_list: List[int], notifs: List[Notification]) -> List[int]:
     """
     get a list of selection IDs for runners on which to plot charts
     if `do_all` is True, then simply return complete `id_list` - if not, take row ID from cell as single selection ID
@@ -25,7 +27,7 @@ def get_ids(cell, id_list) -> List[int]:
     """
 
     # determine if 'all feature plots' clicked as opposed to single plot
-    do_all = myutils.dashutils.triggered_id() == 'button-all-figures'
+    do_all = triggered_id() == 'button-all-figures'
 
     # do all selection IDs if requested
     if do_all:
@@ -33,91 +35,120 @@ def get_ids(cell, id_list) -> List[int]:
 
     # get selection ID of runner from active runner cell, or abort on fail
     if not cell:
-        active_logger.warning('no cell selected')
+        post_notification(notifs, 'warning', 'Figure', 'no cell selected')
         return []
 
     if 'row_id' not in cell:
-        active_logger.warning(f'row ID not found in active cell info')
+        post_notification(notifs, 'warning', 'Figure', 'row ID not found in active cell info')
         return []
 
     sel_id = cell['row_id']
     if not sel_id:
-        active_logger.warning(f'selection ID is blank')
+        post_notification(notifs, 'warning', 'Figure', f'selection ID is blank')
         return []
     return [sel_id]
 
 
-def get_chart_offset(chart_offset_str) -> Optional[timedelta]:
+def get_chart_offset(offset: str, notifs: List[Notification]) -> Optional[timedelta]:
     """
     get chart offset based on HH:MM:SS form, return datetime on success, or None on fail
     """
     # if html trims off the seconds part of hh:mm:ss then add it back on
-    if re.match(r'^\d{2}:\d{2}$', chart_offset_str):
-        chart_offset_str = chart_offset_str + ':00'
+    if re.match(r'^\d{2}:\d{2}$', offset):
+        offset = offset + ':00'
 
-    if re.match(r'^\d{2}:\d{2}:\d{2}$', chart_offset_str):
-        try:
-            t = datetime.strptime(chart_offset_str, "%H:%M:%S")
-            return timedelta(hours=t.hour, minutes=t.minute, seconds=t.second)
-        except ValueError:
-            pass
+    if offset:
+        if re.match(r'^\d{2}:\d{2}:\d{2}$', offset):
+            try:
+                t = datetime.strptime(offset, "%H:%M:%S")
+                return timedelta(hours=t.hour, minutes=t.minute, seconds=t.second)
+            except ValueError:
+                post_notification(notifs, 'warning', 'Figure', f'cannot process chart offset "{offset}"')
     return None
 
 
 def cb_fig(app, shn: Session):
-    @app.callback(
-        output=[
-            Output('table-timings', 'data'),
-            Output('loading-out-figure', 'children'),
-            Output('intermediary-figure', 'children'),
-        ],
-        inputs=[
-            Input('button-figure', 'n_clicks'),
-            Input('button-all-figures', 'n_clicks'),
-        ],
-        state=[
-            State('table-runners', 'active_cell'),
-            State('input-chart-offset', 'value'),
-            State('input-feature-config', 'value'),
-            State('input-plot-config', 'value'),
-            State('selected-market', 'data')
-        ]
-    )
-    def fig_button(clicks0, clicks1, cell, offset_str, ftr_key, plt_key, loaded_market: LoadedMarket):
+    def figure_callback(outputs: TDict, inputs: TDict, states: TDict):
         """
         create a plotly figure based on selected runner when "figure" button is pressed
         """
-        ret = [
-            list(),
-            '',
-            counter.next()
-        ]
+        outputs['notifications'] = []
+        notifs = outputs['notifications']
+        outputs['table'] = []
+        outputs['loading'] = ''
+        outputs['intermediary'] = counter.next()
 
-        if myutils.dashutils.triggered_id() != 'button-figure' and myutils.dashutils.triggered_id() != 'button-all-figures':
-            return ret
+        if triggered_id() != 'button-figure' and triggered_id() != 'button-all-figures':
+            return
 
-        if not loaded_market:
-            return ret
+        if not states['selected-market']:
+            return
 
         # deserialise market info
-        shn.deserialise_loaded_market(loaded_market)
+        shn.deserialise_loaded_market(states['selected-market'])
 
         # get datetime/None chart offset from time input
-        offset_dt = get_chart_offset(offset_str)
+        offset_dt = get_chart_offset(states['offset'], notifs)
         secs = offset_dt.total_seconds() if offset_dt else 0
 
         # get selected IDs and plot
-        sel_ids = get_ids(cell, list(loaded_market['runners'].keys()))
-        try:
-            shn.ftr_update()  # update feature & plot configs
-            for selection_id in sel_ids:
-                shn.fig_plot(loaded_market, selection_id, secs, ftr_key, plt_key)
-        except (ValueError, TypeError, mytrading.exceptions.FigureException, SessionException) as e:
-            active_logger.error(f'plot error: {e}\n{traceback.format_exc()}')
+        sel_ids = get_ids(states['cell'], list(states['selected-market'].keys()), notifs)
+        reg = timing.TimingRegistrar()
 
-        ret[0] = shn.tms_get()
-        timing.clear_timing_register()
-        return ret
+        def update_reg(f: RFBase, r: timing.TimingRegistrar):
+            for s in f.sub_features.values():
+                r = update_reg(f, r)
+            return f.timing_reg + r
+
+        try:
+            # shn.ftr_update()  # update feature & plot configs
+            for selection_id in sel_ids:
+                features = shn.fig_plot(
+                    market_info=states['selected-market'],
+                    selection_id=selection_id,
+                    secs=secs,
+                    ftr_key=states['feature-config'],
+                    plt_key=states['plot-config']
+                )
+                for f in features.values():
+                    reg = update_reg(f, reg)
+
+        except (ValueError, TypeError, mytrading.exceptions.FigureException, SessionException) as e:
+            post_notification(notifs, 'warning', 'Figure', f'plot error: {e}\n{traceback.format_exc()}')
+
+        summary = reg.get_timings_summary()
+        if not summary:
+            post_notification(notifs, 'warning', 'Figure', 'no timings on which to produce table')
+        else:
+            for s in summary:
+                s['level'] = s['function'].count('.')
+            outputs['table'] = shn.tms_get(summary)
+
+
+    dict_callback(
+        app=app,
+        inputs_config={
+            'buttons': [
+                Input('button-figure', 'n_clicks'),
+                Input('button-all-figures', 'n_clicks')
+            ]
+        },
+        outputs_config={
+            'table': Output('table-timings', 'data'),
+            'loading': Output('loading-out-figure', 'children'),
+            'intermediary': Output('intermediary-figure', 'children'),
+            'notifications': Output('notifications-figure', 'data'),
+        },
+        states_config={
+            'selected-market': State('selected-market', 'data'),
+            'cell': State('table-runners', 'active_cell'),
+            'offset': State('input-chart-offset', 'value'),
+            'feature-config': State('input-feature-config', 'value'),
+            'plot-config': State('input-plot-config', 'value'),
+        },
+        process=figure_callback
+    )
+
 
     # @app.callback(
     #     Output('modal-timings', 'is_open'),

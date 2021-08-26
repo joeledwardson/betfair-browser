@@ -185,10 +185,10 @@ class Session:
         self.tbl_formatters = get_formatters(config)  # registrar of table formatters
         self.api_handler = trutils.APIHandler()   # API client instance
 
-        self._flts_mkt = dbf.DBFilterHandler(
+        self._market_filters = dbf.DBFilterHandler(
             get_mkt_filters(config['MARKET_FILTER']['mkt_date_format'])
         )  # db market filters
-        self._flts_strat = dbf.DBFilterHandler(
+        self._strategy_filters = dbf.DBFilterHandler(
             get_strat_filters(config['MARKET_FILTER']['strategy_sel_format'])
         )  # db strategy filters
 
@@ -208,8 +208,8 @@ class Session:
         self.betting_db = bdb.BettingDB(**self._db_kwargs)
 
         # feature-plot configurations
-        self.ftr_fcfgs = dict()  # feature configurations
-        self.ftr_pcfgs = dict()  # plot configurations
+        self.feature_configs = dict()  # feature configurations
+        self.plot_configs = dict()  # plot configurations
 
         # strategy run configs
         # self._strat_dir = path.abspath(path.expandvars(config['CONFIG_PATHS']['strategy_dir']))
@@ -245,7 +245,7 @@ class Session:
 
 
     def market_filter_conditions(self, values: List[Any]):
-        return self._flts_mkt.filters_conditions(self.betting_db._dbc.tables['marketmeta'], values)
+        return self._market_filters.filters_conditions(self.betting_db._dbc.tables['marketmeta'], values)
 
     # def active_strat_get(self):
     #     return self._active_strat
@@ -351,20 +351,20 @@ class Session:
         # get feature configs
         feature_dir = path.abspath(path.expandvars(self.config['CONFIG_PATHS']['feature_out']))
         active_logger.info(f'getting feature configurations from:\n-> {feature_dir}"')
-        self.ftr_fcfgs = self.ftr_readf(feature_dir)
+        self.feature_configs = self.ftr_readf(feature_dir)
 
         # get plot configurations
         plot_dir = path.abspath(path.expandvars(self.config['CONFIG_PATHS']['plot_out']))
         active_logger.info(f'getting plot configurations from:\n-> {plot_dir}"')
-        self.ftr_pcfgs = self.ftr_readf(plot_dir)
+        self.plot_configs = self.ftr_readf(plot_dir)
 
     def ftr_pcfg(self, plt_key: str) -> Dict:
         """get plot configuration or empty dictionary from key"""
         plt_cfg = {}
         if plt_key:
-            if plt_key in self.ftr_pcfgs:
+            if plt_key in self.plot_configs:
                 active_logger.info(f'using selected plot configuration "{plt_key}"')
-                plt_cfg = self.ftr_pcfgs[plt_key]
+                plt_cfg = self.plot_configs[plt_key]
             else:
                 raise SessionException(f'selected plot configuration "{plt_key}" not in plot configurations')
         else:
@@ -381,29 +381,25 @@ class Session:
             active_logger.info(f'no feature config selected, using default "{self.FTR_DEFAULT}"')
             return self.FTR_DEFAULT
         else:
-            if ftr_key not in self.ftr_fcfgs:
+            if ftr_key not in self.feature_configs:
                 raise SessionException(f'selected feature config "{ftr_key}" not found in list')
             else:
                 active_logger.info(f'using selected feature config "{ftr_key}"')
-                return self.ftr_fcfgs[ftr_key]
+                return self.feature_configs[ftr_key]
 
     def ftr_clear(self):
         """clear existing feature/plot configurations"""
-        self.ftr_fcfgs = dict()
-        self.ftr_pcfgs = dict()
+        self.feature_configs = dict()
+        self.plot_configs = dict()
 
-    def tms_get(self) -> List[Dict]:
+    def tms_get(self, summary: List[timing.TimingResult]) -> List[Dict]:
         """
         get list of dict values for Function, Count and Mean table values for function timings
         """
-        tms = timing.get_timings_summary()
-        if not tms:
-            active_logger.warning('no timings on which to produce table')
-            return list()
         # TODO - make this work
         sort_col = self.config['TIMINGS_TABLE_SORT']['key']
         sort_reverse = self.config.getboolean('TIMINGS_TABLE_SORT', 'reverse')
-        tms = sorted(tms, key=lambda v: v[sort_col], reverse=sort_reverse)
+        tms = sorted(summary, key=lambda v: v[sort_col], reverse=sort_reverse)
         # self.config['format_timedelta']
         # f = partial(mytiming.format_timedelta, fmt=td_fmt)
         tbl_cols = dict(self.config['TIMINGS_TABLE_COLS'])
@@ -420,11 +416,7 @@ class Session:
                     row[col_id] = formatter(val)
         return tms
 
-    def tms_clr(self):
-        """
-        clear timings registry
-        """
-        timing.clear_timing_register()
+
 
     def mkt_load(self, market_id, strategy_id) -> LoadedMarket:
 
@@ -645,7 +637,8 @@ class Session:
         ftr_cfg = self.ftr_fcfg(ftr_key)
 
         # generate plot by simulating features
-        ftrs_data = ftrutils.FeatureHolder.gen_ftrs(ftr_cfg).sim_mktftrs(
+        features = ftrutils.FeatureHolder.generator(ftr_cfg)
+        data = features.simulate(
             hist_records=market_records,
             selection_id=selection_id,
             cmp_start=start,
@@ -655,7 +648,7 @@ class Session:
 
         # generate figure and display
         fig = figlib.FeatureFigure(
-            ftrs_data=ftrs_data,
+            ftrs_data=data,
             plot_cfg=plt_cfg,
             title=title,
             chart_start=start,
@@ -663,12 +656,13 @@ class Session:
             orders_df=orders
         )
         fig.show()
+        return features
 
     @property
     def filters_mkt(self):
-        return self._flts_mkt
+        return self._market_filters
 
     @property
     def filters_strat(self):
-        return self._flts_strat
+        return self._strategy_filters
 

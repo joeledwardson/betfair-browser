@@ -135,7 +135,7 @@ class MySpikeStrategy(MyFeatureStrategy):
     def _feature_holder_create(
             self, mkt: Market, mbk: MarketBook, rbk: RunnerBook, runner_index: int
     ) -> FeatureHolder:
-        return FeatureHolder.gen_ftrs(self.features_config)
+        return FeatureHolder.generator(self.features_config)
 
     def _runner_handler_create(
             self,

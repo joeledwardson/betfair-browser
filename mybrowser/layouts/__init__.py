@@ -151,5 +151,8 @@ def get_bf_layout(config):
             {
                 'id': 'notifications-strategy',
             },
+            {
+                'id': 'notifications-figure'
+            }
         ]
     }

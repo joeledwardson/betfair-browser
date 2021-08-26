@@ -25,7 +25,7 @@ def cb_libs(app, shn: Session):
         notifs = []
         if myutils.dashutils.triggered_id() == 'button-libs':
             n = shn.rl_mods()
-            post_notification('info', 'Libraries', f'{n} modules reloaded')
+            post_notification(notifs, 'info', 'Libraries', f'{n} modules reloaded')
 
         return [
             counter.next(),

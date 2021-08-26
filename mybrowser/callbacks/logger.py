@@ -24,7 +24,8 @@ STORES = [
     'notifications-strategy-reload',
     'notifications-configs',
     'notifications-libs',
-    'notifications-strategy'
+    'notifications-strategy',
+    'notifications-figure'
 ]
 def cb_logs(app, shn: Session):
     @app.callback(
