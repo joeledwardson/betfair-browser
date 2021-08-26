@@ -19,27 +19,27 @@ strat_counter = Intermediary()
 
 
 def cb_market(app, shn: Session):
-    @app.callback(
-        output=[
-            Output('progress-container-div', 'hidden'),
-            Output('header-progress-bar', 'children'),
-            Output('header-progress-bar', 'value')
-        ],
-        inputs=[
-            Input('interval-component', 'n_intervals')
-        ]
-    )
-    def int_callback(n_intervals):
-        if not shn.strat_running:
-            return True, None, None
-        else:
-            n_mkts = shn.strat_mkt_count
-            n_done = shn.strat_n_done
-            return (
-                False,
-                f'{n_done}/{n_mkts}',
-                max(n_done/n_mkts*100, 10)  # minimum width is 20% so can see text
-            )
+    # @app.callback(
+    #     output=[
+    #         Output('progress-container-div', 'hidden'),
+    #         Output('header-progress-bar', 'children'),
+    #         Output('header-progress-bar', 'value')
+    #     ],
+    #     inputs=[
+    #         Input('interval-component', 'n_intervals')
+    #     ]
+    # )
+    # def int_callback(n_intervals):
+    #     if not shn.strat_running:
+    #         return True, None, None
+    #     else:
+    #         n_mkts = shn.strat_mkt_count
+    #         n_done = shn.strat_n_done
+    #         return (
+    #             False,
+    #             f'{n_done}/{n_mkts}',
+    #             max(n_done/n_mkts*100, 10)  # minimum width is 20% so can see text
+    #         )
 
     @app.callback(
         output=Output('market-sorter', 'value'),
@@ -128,7 +128,10 @@ def cb_market(app, shn: Session):
         # generate status string of markets/strategies available and strategy selected
         n = shn.betting_db.cte_count(cte)
         ns = shn.betting_db.strategy_count()
-        post_notification(notifs, 'info', 'Market Database', f'Showing {n} markets')
+        active_filters = [nm for nm in filter_inputs if filter_inputs[nm] != None]
+        filter_msg = 'Filters: ' + ', '.join(nm for nm in active_filters)
+        msg = f'Showing {n} markets, ' + (filter_msg if active_filters else 'no filters')
+        post_notification(notifs, 'info', 'Market Database', msg)
 
         outputs['query-status'] = [
             html.Div(f'Showing {len(tbl_rows)} of {n} available, {ns} strategies available'),
@@ -192,7 +195,7 @@ def cb_market(app, shn: Session):
                     'btn-db-refresh',
                     'btn-db-upload',
                     'btn-db-reconnect',
-                    'btn-strategy-run',
+                    # 'btn-strategy-run',
                     'btn-strategy-download'
                 ]
             ],
@@ -203,9 +206,9 @@ def cb_market(app, shn: Session):
             }
         },
         states_config={
-            'strategy-run': State('input-strategy-run', 'value'),
+            # 'strategy-run': State('input-strategy-run', 'value'),
             'strategy-cell': State('table-strategies', 'active_cell'),
-            'strategy-id': State('selected-strategy', 'data')
+            'strategy-id': State('selected-strategy', 'data'),
         },
         process=market_callback
     )
@@ -375,35 +378,35 @@ def cb_market(app, shn: Session):
     #         # market_sorter  # market sorter value
     #     ] + vals + lbls
 
-    @app.callback(
-        [
-            Output('input-strategy-run', 'options'),
-            Output('intermediary-strat-reload', 'children'),
-            Output('notifications-strategy-reload', 'data'),
-        ],
-        Input('btn-strategies-reload', 'n_clicks')
-    )
-    def strategy_run_reload(n_reload):
-        n_confs = len(shn.strat_update())
-        notifs = []
-        post_notification(notifs, 'info', 'Strategy Configs', f'loaded {n_confs} strategy configs')
+    # @app.callback(
+    #     [
+    #         Output('input-strategy-run', 'options'),
+    #         Output('intermediary-strat-reload', 'children'),
+    #         Output('notifications-strategy-reload', 'data'),
+    #     ],
+    #     Input('btn-strategies-reload', 'n_clicks')
+    # )
+    # def strategy_run_reload(n_reload):
+    #     n_confs = len(shn.strat_update())
+    #     notifs = []
+    #     post_notification(notifs, 'info', 'Strategy Configs', f'loaded {n_confs} strategy configs')
+    #
+    #     options = [{
+    #         'label': v,
+    #         'value': v
+    #     } for v in shn.strat_cfg_names]
+    #
+    #     return [
+    #         options,
+    #         strat_counter.next(),
+    #         notifs
+    #     ]
 
-        options = [{
-            'label': v,
-            'value': v
-        } for v in shn.strat_cfg_names]
-
-        return [
-            options,
-            strat_counter.next(),
-            notifs
-        ]
-
-    @app.callback(
-        Output('btn-strategy-run', 'disabled'),
-        Input('input-strategy-run', 'value')
-    )
-    def strategy_run_enable(strategy_run_select):
-        return strategy_run_select is None
+    # @app.callback(
+    #     Output('btn-strategy-run', 'disabled'),
+    #     Input('input-strategy-run', 'value')
+    # )
+    # def strategy_run_enable(strategy_run_select):
+    #     return strategy_run_select is None
 
 
