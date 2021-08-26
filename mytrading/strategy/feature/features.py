@@ -13,7 +13,7 @@ from dataclasses import dataclass, field, InitVar
 from mytrading.exceptions import FeatureException
 from mytrading.process import get_best_price, closest_tick, tick_spread, traded_runner_vol, get_record_tv_diff
 from mytrading.process.ticks import LTICKS_DECODED
-from myutils import mytiming, registrar, mydict, pyschema
+from myutils import timing, registrar, dictionaries, pyschema
 
 
 
@@ -85,7 +85,7 @@ class RFBase:
                     raise FeatureException(
                         f'error in feature "{self.ftr_identifier}", sub-feature "{sub_nm}" value is not dict'
                     )
-                mydict.validate_config(sub_cfg, SUB_FEATURE_CONFIG_SPEC)
+                dictionaries.validate_config(sub_cfg, SUB_FEATURE_CONFIG_SPEC)
                 feature_class = ftrs_reg[sub_cfg['name']]
                 feature_kwargs = sub_cfg.get('kwargs', {})
                 try:
@@ -146,7 +146,7 @@ class RFBase:
         for sub_feature in self.sub_features.values():
             sub_feature.process_runner(new_book, runner_index)
 
-    @mytiming.timing_register_attr(name_attr='ftr_identifier')
+    @timing.timing_register_attr(name_attr='ftr_identifier')
     def process_runner(self, new_book: MarketBook, runner_index) -> None:
         """update feature value and add to cache"""
         self._publish_update(new_book, runner_index)

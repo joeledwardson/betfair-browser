@@ -29,7 +29,7 @@ import json
 import sys
 import dateparser
 
-from myutils import mydict, registrar
+from myutils import dictionaries, registrar
 from ..exceptions import DBException
 from .dbfilter import DBFilterHandler
 
@@ -673,7 +673,7 @@ class BettingDB:
 
     def paths_market_updates(self, filter_spec: List[Dict], limit=200):
         for flt in filter_spec:
-            mydict.validate_config(flt, MARKET_FILTER_SPEC)
+            dictionaries.validate_config(flt, MARKET_FILTER_SPEC)
             flt['value'] = self._dbc._value_processors(
                 value=flt['value'],
                 tbl_name='marketmeta',

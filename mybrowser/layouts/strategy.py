@@ -41,8 +41,11 @@ def strategy_config_spec(config):
                     'type': 'element-navigation-button',
                     'id': 'nav-strategy-download',
                     'href': '/',
-                    'btn_id': 'btn-strategy-download',
-                    'btn_icon': 'fas fa-download'
+                    'children': [{
+                        'type': 'element-button',
+                        'id': 'btn-strategy-download',
+                        'btn_icon': 'fas fa-download'
+                    }],
                 }
             ],
             [
@@ -60,26 +63,26 @@ def strategy_config_spec(config):
                     'color': 'danger'
                 }
             ],
-            [
-                {
-                    'type': 'element-stylish-select',
-                    'id': 'input-strategy-run',
-                    'placeholder': 'Strategy config...',
-                    'clear_id': 'strategy-run-clear',
-                },
-                {
-                    'type': 'element-button',
-                    'id': 'btn-strategies-reload',
-                    'btn_text': 'Reload configs...',
-                    'color': 'info',
-                },
-                {
-                    'type': 'element-button',
-                    'id': 'btn-strategy-run',
-                    'btn_text': 'Run strategy',
-                    'btn_icon': 'fas fa-play-circle'
-                },
-            ],
+            # [
+            #     {
+            #         'type': 'element-stylish-select',
+            #         'id': 'input-strategy-run',
+            #         'placeholder': 'Strategy config...',
+            #         'clear_id': 'strategy-run-clear',
+            #     },
+            #     {
+            #         'type': 'element-button',
+            #         'id': 'btn-strategies-reload',
+            #         'btn_text': 'Reload configs...',
+            #         'color': 'info',
+            #     },
+            #     {
+            #         'type': 'element-button',
+            #         'id': 'btn-strategy-run',
+            #         'btn_text': 'Run strategy',
+            #         'btn_icon': 'fas fa-play-circle'
+            #     },
+            # ],
             {
                 'type': 'element-table',
                 'id': 'table-strategies',

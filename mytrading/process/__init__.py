@@ -9,8 +9,9 @@ from betfairlightweight.resources.bettingresources import RunnerBookEX
 from flumine.order.trade import Trade
 
 import myutils.datetime
+import myutils.dictionaries
 from .ticks import LTICKS, LTICKS_DECODED, TICKS, TICKS_DECODED
-from myutils import mygeneric, mytiming
+from myutils import general, timing
 from ..exceptions import BfProcessException
 from . import oddschecker as oc
 
@@ -154,7 +155,7 @@ def get_best_price(available: List, is_dict=True) -> float:
 def get_ltps(market_book: MarketBook) -> Dict[int, float]:
     """get dictionary of runner ID to last traded price if last traded price is not 0 (or None), sorting with
     shortest LTP first"""
-    return mygeneric.dict_sort({
+    return myutils.dictionaries.dict_sort({
         r.selection_id: r.last_price_traded
         for r in market_book.runners if r.last_price_traded
     })
@@ -248,7 +249,7 @@ def closest_tick(value: float, return_index=False, round_down=False, round_up=Fa
     Convert an value to the nearest odds tick, e.g. 2.10000001 would be converted to 2.1
     Specify return_index=True to get index instead of value
     """
-    return mygeneric.closest_value(
+    return general.closest_value(
         TICKS_DECODED,
         value,
         return_index=return_index,

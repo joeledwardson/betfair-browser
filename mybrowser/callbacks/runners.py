@@ -100,7 +100,7 @@ def cb_runners(app, shn: Session):
         } for d in loaded_market['runners'].values()]
 
         # serialise market info
-        shn.betting_db.meta_serialise(loaded_market['info'])
+        shn.serialise_loaded_market(loaded_market)
 
         ret[0] = sorted(tbl, key=lambda d: d['starting_odds'])
         ret[1] = f'loaded "{market_id}"'

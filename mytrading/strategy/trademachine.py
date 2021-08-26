@@ -1,5 +1,5 @@
 from mytrading.strategy.messages import MessageTypes
-from myutils import mystatemachine as stm
+from myutils import statemachine as stm
 from flumine.markets.market import Market
 import logging
 from typing import Dict

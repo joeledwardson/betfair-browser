@@ -8,7 +8,7 @@ import traceback
 
 import mytrading.exceptions
 import myutils.dashutils
-from myutils import mytiming
+from myutils import timing
 from ..session import Session, LoadedMarket
 from ..exceptions import SessionException
 
@@ -100,9 +100,7 @@ def cb_fig(app, shn: Session):
             return ret
 
         # deserialise market info
-        shn.betting_db.meta_de_serialise(loaded_market['info'])
-        # dash uses JSON strings for keys, have to convert back to integers for runner IDs
-        loaded_market['runners'] = {int(k): v for k, v in loaded_market['runners'].items()}
+        shn.deserialise_loaded_market(loaded_market)
 
         # get datetime/None chart offset from time input
         offset_dt = get_chart_offset(offset_str)
@@ -118,7 +116,7 @@ def cb_fig(app, shn: Session):
             active_logger.error(f'plot error: {e}\n{traceback.format_exc()}')
 
         ret[0] = shn.tms_get()
-        mytiming.clear_timing_register()
+        timing.clear_timing_register()
         return ret
 
     # @app.callback(

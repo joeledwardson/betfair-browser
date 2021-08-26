@@ -38,11 +38,16 @@ def runners_config_spec(config):
             ],
             [
                 {
-                    'type': 'element-button',
+                    'type': 'element-navigation-button',
                     'id': 'button-orders',
-                    'btn_icon': 'fas fa-file-invoice-dollar',
-                    'btn_text': 'Orders',
-                    'color': 'info',
+                    'href': '/orders',
+                    'children': [{
+                        'type': 'element-button',
+                        'id': 'button-navigation-order',
+                        'btn_icon': 'fas fa-file-invoice-dollar',
+                        'btn_text': 'Orders',
+                        'color': 'info',
+                    }]
                 },
                 {
                     'type': 'element-button',

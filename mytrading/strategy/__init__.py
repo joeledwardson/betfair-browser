@@ -2,7 +2,7 @@ from typing import Dict
 import yaml
 import logging
 from myutils import registrar as myreg
-from myutils import mydict
+from myutils import dictionaries
 from uuid import UUID
 from ..exceptions import MyStrategyException
 from ..utils import BettingDB
@@ -29,7 +29,7 @@ STRATEGY_CONFIG_SPEC = {
 
 
 def hist_strat_create(cfg: Dict, db: BettingDB) -> MyFeatureStrategy:
-    mydict.validate_config(cfg, STRATEGY_CONFIG_SPEC)
+    dictionaries.validate_config(cfg, STRATEGY_CONFIG_SPEC)
     nm = cfg['name']
     kwargs = cfg['info']
     filter_spec = cfg['market_filter_spec']

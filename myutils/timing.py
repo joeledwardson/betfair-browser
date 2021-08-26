@@ -4,10 +4,8 @@ from datetime import timedelta
 import logging
 import pandas as pd
 from typing import List, Dict
+from .exceptions import TimingException
 
-
-class TimerException(Exception):
-    pass
 
 
 active_logger = logging.getLogger(__name__)

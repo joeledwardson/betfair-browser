@@ -1,44 +1,7 @@
 from typing import Iterable, Dict
 import copy
-from os import path
-import os
-import yaml
+from collections.abc import Mapping
 from .exceptions import DictException
-
-
-def load_yaml_confs(cfg_dir: str) -> Dict:
-    """get list of .yaml configs in a dictionary, key is file name, value is dict"""
-    # check directory is set
-    if type(cfg_dir) is not str:
-        raise DictException(f'directory "{cfg_dir}" is not a string')
-
-    # check actually exists
-    if not path.isdir(cfg_dir):
-        raise DictException(f'directory "{cfg_dir}" does not exist!')
-
-    # dict of configs to return
-    configs = dict()
-
-    # get files in directory
-    _, _, files = next(os.walk(cfg_dir))
-
-    # loop files
-    for file_name in files:
-
-        # get file path and name without ext
-        file_path = path.join(cfg_dir, file_name)
-        name, ext = path.splitext(file_name)
-        if ext != '.yaml':
-            continue
-
-        with open(file_path) as f:
-            # The FullLoader parameter handles the conversion from YAML
-            # scalar values to Python the dictionary format
-            cfg = yaml.load(f, Loader=yaml.FullLoader)
-
-        configs[name] = cfg
-
-    return configs
 
 
 def validate_config(cfg: Dict, cfg_spec: Dict):
@@ -72,7 +35,7 @@ def is_dict_subset(x, y):
     return True
 
 
-def dict_update(x: dict, y: Iterable):
+def dict_update(x: Mapping, y: Mapping):
     """recursively update key value pairs of y with x"""
 
     for k, v in x.items():
@@ -96,3 +59,8 @@ def dict_update(x: dict, y: Iterable):
 
         # value is dict & key found in y & value in y is not iterable
         y[k] = v
+
+
+def dict_sort(d: dict, key=lambda item: item[1]) -> Dict:
+    """sort a dictionary items"""
+    return {k: v for k, v in sorted(d.items(), key=key)}

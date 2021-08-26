@@ -18,7 +18,8 @@ from dataclasses import dataclass
 from enum import Enum
 from flask_caching import Cache
 
-
+import myutils.dictionaries
+import myutils.files
 from ..layouts.market import FILTERS
 from mytrading.utils.dbfilter import filters_reg
 import mytrading.exceptions
@@ -32,9 +33,9 @@ from mytrading.strategy import tradetracker, messages as msgs
 from mytrading.strategy import feature as ftrutils
 from mytrading import visual as figlib
 from mytrading import configs as cfgs
-from myutils import mytiming, mygeneric
+from myutils import timing, general
 from myutils import registrar as myreg
-from myutils import mydict
+from myutils import dictionaries
 
 
 active_logger = logging.getLogger(__name__)
@@ -47,6 +48,8 @@ class LoadedMarket(TypedDict):
     info: Dict
     strategy_id: Optional[str]
     runners: Dict
+
+
 
 
 def get_mkt_filters(mkt_dt_fmt):
@@ -209,16 +212,16 @@ class Session:
         self.ftr_pcfgs = dict()  # plot configurations
 
         # strategy run configs
-        self._strat_dir = path.abspath(path.expandvars(config['CONFIG_PATHS']['strategy_dir']))
-        self._strat_cfgs = dict()
-        self._strat_lock = threading.Lock()
-        self._strat_mkt_count = 0
-        self._strat_running = False
-        self._strat_obj: Optional[strat.MyFeatureStrategy] = None
-        self.strat_update()
+        # self._strat_dir = path.abspath(path.expandvars(config['CONFIG_PATHS']['strategy_dir']))
+        # self._strat_cfgs = dict()
+        # self._strat_lock = threading.Lock()
+        # self._strat_mkt_count = 0
+        # self._strat_running = False
+        # self._strat_obj: Optional[strat.MyFeatureStrategy] = None
+        # self.strat_update()
 
         # selected strategy
-        self._active_strat = None
+        # self._active_strat = None
 
         # notification queue
         # self._notification_queue: queue.Queue[Notification] = queue.Queue()
@@ -232,6 +235,15 @@ class Session:
     # def notif_pop(self) -> Notification:
     #     return self._notification_queue.get()
 
+    def serialise_loaded_market(self, mkt: LoadedMarket) -> None:
+        self.betting_db.meta_serialise(mkt['info'])
+
+    def deserialise_loaded_market(self, mkt: LoadedMarket) -> None:
+        self.betting_db.meta_de_serialise(mkt['info'])
+        # dash uses JSON strings for keys, have to convert back to integers for runner IDs
+        mkt['runners'] = {int(k): v for k, v in mkt['runners'].items()}
+
+
     def market_filter_conditions(self, values: List[Any]):
         return self._flts_mkt.filters_conditions(self.betting_db._dbc.tables['marketmeta'], values)
 
@@ -241,47 +253,47 @@ class Session:
     # def active_strat_set(self, strategy_id):
     #     self._active_strat = strategy_id
 
-    def strat_update(self) -> Dict:
-        self._strat_cfgs = mydict.load_yaml_confs(self._strat_dir)
-        return self._strat_cfgs
-
-    @property
-    def strat_n_done(self) -> int:
-        with self._strat_lock:
-            if self._strat_running:
-                return len([mh for mh in self._strat_obj.market_handlers.values() if mh.closed])
-            else:
-                return 0
-
-    @property
-    def strat_mkt_count(self) -> int:
-        return self._strat_mkt_count
-
-    @property
-    def strat_running(self) -> bool:
-        with self._strat_lock:
-            return self._strat_running
-
-    def strat_run(self, cfg_name) -> uuid.UUID:
-        if cfg_name not in self._strat_cfgs:
-            raise SessionException(f'strategy config name "{cfg_name}" not found')
-        cfg = self._strat_cfgs[cfg_name]
-        with self._strat_lock:
-            self._strat_obj = strat.hist_strat_create(cfg, self.betting_db)
-            strat_id = self._strat_obj.strategy_id
-            self._strat_running = True
-            self._strat_mkt_count = len(self._strat_obj.market_filter['markets'])
-        strat.hist_strat_run(self._strat_obj)
-        with self._strat_lock:
-            self._strat_running = False
-            del self._strat_obj
-            self._strat_obj = None
-            self._strat_mkt_count = 0
-        return strat_id
-
-    @property
-    def strat_cfg_names(self) -> List:
-        return list(self._strat_cfgs.keys())
+    # def strat_update(self) -> Dict:
+    #     self._strat_cfgs = mydict.load_yaml_confs(self._strat_dir)
+    #     return self._strat_cfgs
+    #
+    # @property
+    # def strat_n_done(self) -> int:
+    #     with self._strat_lock:
+    #         if self._strat_running:
+    #             return len([mh for mh in self._strat_obj.market_handlers.values() if mh.closed])
+    #         else:
+    #             return 0
+    #
+    # @property
+    # def strat_mkt_count(self) -> int:
+    #     return self._strat_mkt_count
+    #
+    # @property
+    # def strat_running(self) -> bool:
+    #     with self._strat_lock:
+    #         return self._strat_running
+    #
+    # def strat_run(self, cfg_name) -> uuid.UUID:
+    #     if cfg_name not in self._strat_cfgs:
+    #         raise SessionException(f'strategy config name "{cfg_name}" not found')
+    #     cfg = self._strat_cfgs[cfg_name]
+    #     with self._strat_lock:
+    #         self._strat_obj = strat.hist_strat_create(cfg, self.betting_db)
+    #         strat_id = self._strat_obj.strategy_id
+    #         self._strat_running = True
+    #         self._strat_mkt_count = len(self._strat_obj.market_filter['markets'])
+    #     strat.hist_strat_run(self._strat_obj)
+    #     with self._strat_lock:
+    #         self._strat_running = False
+    #         del self._strat_obj
+    #         self._strat_obj = None
+    #         self._strat_mkt_count = 0
+    #     return strat_id
+    #
+    # @property
+    # def strat_cfg_names(self) -> List:
+    #     return list(self._strat_cfgs.keys())
 
     @classmethod
     def cfg_local(cls):
@@ -314,7 +326,7 @@ class Session:
     @staticmethod
     def ftr_readf(config_dir: str) -> Dict:
         """get dictionary of (configuration file name without ext => config dict) directory of yaml files"""
-        configs = mydict.load_yaml_confs(config_dir)
+        configs = myutils.files.load_yaml_confs(config_dir)
         active_logger.info(f'{len(configs)} valid configuration files found')
         active_logger.info(f'feature configs: {list(configs.keys())}')
         return configs
@@ -384,7 +396,7 @@ class Session:
         """
         get list of dict values for Function, Count and Mean table values for function timings
         """
-        tms = mytiming.get_timings_summary()
+        tms = timing.get_timings_summary()
         if not tms:
             active_logger.warning('no timings on which to produce table')
             return list()
@@ -412,7 +424,7 @@ class Session:
         """
         clear timings registry
         """
-        mytiming.clear_timing_register()
+        timing.clear_timing_register()
 
     def mkt_load(self, market_id, strategy_id) -> LoadedMarket:
 
@@ -446,7 +458,7 @@ class Session:
             market_id=market_id,
             info=dict(meta),
             strategy_id=strategy_id,
-            runners=mygeneric.dict_sort(rinf, key=lambda item: item[1]['starting_odds'])
+            runners=myutils.dictionaries.dict_sort(rinf, key=lambda item: item[1]['starting_odds'])
         )
 
         # # put market information into self
@@ -558,13 +570,13 @@ class Session:
         # sort earliest first
         return df.sort_values(by=['date'])
 
-    def odr_prft(self, selection_id) -> pd.DataFrame:
-        p = self.betting_db.path_strat_updates(self.mkt_info['market_id'], self.mkt_sid)
+    def odr_prft(self, selection_id: int, selected_market: LoadedMarket, strategy_id) -> pd.DataFrame:
+        p = self.betting_db.path_strat_updates(selected_market['market_id'], strategy_id)
         active_logger.info(f'reading strategy market cache file:\n-> {p}')
         if not path.isfile(p):
             raise SessionException(f'order file does not exist')
 
-        df = self.odr_rd(p, selection_id, self.mkt_info['market_time'])
+        df = self.odr_rd(p, selection_id, selected_market['info']['market_time'])
         if not df.shape[0]:
             raise SessionException(f'Retrieved profits dataframe is empty')
 

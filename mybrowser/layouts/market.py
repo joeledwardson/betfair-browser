@@ -37,14 +37,14 @@ def progress_loading_spec():
         'type': 'element-div',
         'id': 'progress-container-div',
         'children_spec': [
-            {
-                'type': 'element-progress',
-                'id': 'header-progress-bar',
-                'element_kwargs': {
-                    'striped': True,
-                    'animated': True,
-                }
-            }
+            # {
+            #     'type': 'element-progress',
+            #     'id': 'header-progress-bar',
+            #     'element_kwargs': {
+            #         'striped': True,
+            #         'animated': True,
+            #     }
+            # }
         ]
     }
 
@@ -73,8 +73,11 @@ def market_display_spec(config):
                     'type': 'element-navigation-button',
                     'id': 'nav-runners',
                     'href': '/runners',
-                    'btn_id': 'button-runners',
-                    'btn_icon': 'fas fa-download'
+                    'children': [{
+                        'type': 'element-button',
+                        'id': 'button-runners',
+                        'btn_icon': 'fas fa-download'
+                    }],
                 }
             ],
             [

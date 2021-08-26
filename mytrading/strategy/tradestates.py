@@ -15,7 +15,7 @@ from ..process import MatchBetSums, get_order_profit, get_side_operator, get_sid
 from ..exceptions import TradeStateException
 from mytrading.strategy.messages import MessageTypes
 from .runnerhandler import RunnerHandler
-from myutils import mystatemachine as stm
+from myutils import statemachine as stm
 
 
 order_error_states = [

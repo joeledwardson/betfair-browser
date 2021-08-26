@@ -15,7 +15,7 @@ dash_generators = registrar.Registrar()
 
 HEADER_PY = 2  # header top/bottom padding
 HEADER_PX = 4  # header left/right padding
-NAV_BTN_P = 0  # padding for navigation buttons
+NAV_BTN_P = 0  # padding for navigation links
 LOAD_TYPE = 'dot'  # loading type
 NAV_P = 1  # padding around each nav object
 NAV_PT = 2  # top padding of nav bar
@@ -159,17 +159,18 @@ def gen_stylish_select(spec: Dict) -> dbase.Component:
 def gen_navigation_button(spec: Dict) -> dbase.Component:
     _validate_id(spec)
     href = spec.pop('href')
-    btn_id = spec.pop('btn_id', None)
-    btn_icon = spec.pop('btn_icon')
+    # btn_id = spec.pop('btn_id', None)
+    # btn_icon = spec.pop('btn_icon')
     nav_id = spec.pop('id')
     css_classes = spec.pop('css_classes', '')
     return dbc.NavLink(
-        [dbc.Button(
-            html.I(className=btn_icon),
-            id=btn_id,
-            n_clicks=0,
-            color=BTN_COLOR,
-        )],
+        [_gen_element(s) for s in spec.pop('children')],
+        # [dbc.Button(
+        #     html.I(className=btn_icon),
+        #     id=btn_id,
+        #     n_clicks=0,
+        #     color=BTN_COLOR,
+        # )],
         id=nav_id,
         href=href,
         active='exact',

@@ -77,6 +77,6 @@ def create_dual_logger(name, file_name,
     return my_logger
 
 
-def get_all_logger():
+def get_all_loggers():
     """get a dictionary of all loggers"""
     return logging.root.manager.loggerDict

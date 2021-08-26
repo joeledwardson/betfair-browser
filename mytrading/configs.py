@@ -1,6 +1,6 @@
 from typing import List, Dict, Optional
 from myutils.registrar import Registrar
-from myutils import mydict
+from myutils import dictionaries
 import os, yaml
 from os import path
 import json
@@ -43,7 +43,7 @@ class ConfigGenerator:
             with open(p_in, 'r') as f:
                 data = f.read()
             file_cfg = yaml.load(data, yaml.FullLoader)
-            mydict.validate_config(file_cfg, self.CONFIG_SPEC)
+            dictionaries.validate_config(file_cfg, self.CONFIG_SPEC)
             reg_nm = file_cfg['name']
             reg_kwargs = file_cfg['kwargs']
             ftr_cfg = self._reg[reg_nm](**reg_kwargs)

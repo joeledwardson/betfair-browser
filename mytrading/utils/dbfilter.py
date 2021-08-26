@@ -65,7 +65,11 @@ class DBFilterDate(DBFilter):
         self.dt_fmt = dt_fmt
 
     def db_filter(self, tbl: Table, value: Any):
-        return cast(tbl.columns[self.db_col], Date) == datetime.strptime(value, self.dt_fmt).date()
+        try:
+            dt = datetime.strptime(value, self.dt_fmt)
+        except ValueError:
+            raise DBException(f'cannot convert date "{value}" using formatter "{self.dt_fmt}"')
+        return cast(tbl.columns[self.db_col], Date) == dt
 
     def get_options(self, session: Session, tables, db_cte: cte) -> List[Row]:
         """

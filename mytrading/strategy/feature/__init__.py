@@ -6,7 +6,7 @@ import logging
 import numpy as np
 import pandas as pd
 from betfairlightweight.resources import MarketBook
-from myutils import mytiming
+from myutils import timing
 from collections import MutableMapping
 from .features import ftrs_reg, RFBase
 from ...exceptions import FeatureException
@@ -77,7 +77,7 @@ class FeatureHolder(dict):
         inner(self)
         return data
 
-    @mytiming.timing_register
+    @timing.timing_register
     def sim_prcftrs(self, selection_id: int, records: List[List[MarketBook]]):
         """simulate streaming and process historical records with a set of features for a selected runner"""
         for bk in records:
