@@ -569,9 +569,6 @@ class Session:
             raise SessionException(f'order file does not exist')
 
         df = self.odr_rd(p, selection_id, selected_market['info']['market_time'])
-        if not df.shape[0]:
-            raise SessionException(f'Retrieved profits dataframe is empty')
-
         return df
 
     @staticmethod

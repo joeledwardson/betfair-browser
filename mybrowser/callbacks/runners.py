@@ -5,6 +5,7 @@ import traceback
 from typing import List
 
 from myutils import dashutils
+from myutils.dashutils import Config, TDict, dict_callback, triggered_id
 from mytrading import exceptions as trdexp
 from sqlalchemy.exc import SQLAlchemyError
 from ..session import Session, LoadedMarket, post_notification
@@ -13,33 +14,33 @@ from ..session import Session, LoadedMarket, post_notification
 active_logger = logging.getLogger(__name__)
 active_logger.setLevel(logging.INFO)
 
-counter = dashutils.Intermediary()
-
 
 def cb_runners(app, shn: Session):
-    @app.callback(
-        output=[
-            Output('table-runners', 'data'),
-            Output('infobox-market', 'children'),
-            Output('intermediary-runners', 'children'),
-            Output('button-mkt-bin', 'disabled'),
-            Output('button-all-figures', 'disabled'),
-            Output('table-runners', 'active_cell'),
-            Output('table-runners', 'selected_cells'),
-            Output('loading-out-runners', 'children'),
-            Output('selected-market', 'data'),
-            Output('notifications-runners', 'data')
-        ],
-        inputs=[
-            Input('button-runners', 'n_clicks'),
-            Input('button-mkt-bin', 'n_clicks')
-        ],
-        state=[
-            State('table-market-session', 'active_cell'),
-            State('selected-strategy', 'data')
-        ],
+    @dashutils.dict_callback(
+        app=app,
+        outputs_config={
+            'table': Output('table-runners', 'data'),
+            'info': Output('infobox-market', 'children'),
+            'disable-bin': Output('button-mkt-bin', 'disabled'),
+            'disable-figures': Output('button-all-figures', 'disabled'),
+            'cell':  Output('table-runners', 'active_cell'),
+            'cells': Output('table-runners', 'selected_cells'),
+            'loading': Output('loading-out-runners', 'children'),
+            'selected-market': Output('selected-market', 'data'),
+            'notifications': Output('notifications-runners', 'data')
+        },
+        inputs_config={
+            'buttons': [
+                Input('button-runners', 'n_clicks'),
+                Input('button-mkt-bin', 'n_clicks')
+            ]
+        },
+        states_config={
+            'cell': State('table-market-session', 'active_cell'),
+            'strategy-id': State('selected-strategy', 'data')
+        }
     )
-    def runners_pressed(btn_rn, btn_clr, cell, strategy_id):
+    def orders_callback(outputs: TDict, inputs: TDict, states: TDict):
         """
         update runners table and market information table, based on when "get runners" button is clicked
         update data in runners table, and active file indicator when runners button pressed
@@ -48,52 +49,44 @@ def cb_runners(app, shn: Session):
         :param active_cell:
         :return:
         """
+        outputs['table'] = []  # empty table
+        outputs['info'] = html.P('no market selected'),  # market status
+        outputs['disable-bin'] = True,  # by default assume market not loaded, bin market button disabled
+        outputs['disable-figures'] = True # by default assume market not loaded, figures button disabled
+        outputs['cell'] = None  # reset active cell
+        outputs['cells'] = []  # reset selected cells
+        outputs['loading'] = ''  # blank loading output
+        outputs['selected-market'] = {}  # blank selected market by default
+        notifs = outputs['notifications'] = []
 
-        ret = [
-            [],  # empty table
-            html.P('no market selected'),  # market status
-            counter.next(),  # intermediary value increment
-            True,  # by default assume market not loaded, bin market button disabled
-            True,  # by default assume market not loaded, figures button disabled
-            None,  # reset active cell
-            [],  # reset selected cells
-            '',  # blank loading output
-            {}, # blank selected market
-            [], # no notifications
-        ]
-        notifs = ret[-1]
-
-        # assume market not loaded, clear
-        # shn.mkt_clr()
-
-        # first callback call
-        if not btn_rn:
-            return ret
+        # check for first callback call
+        if triggered_id() not in ['button-runners', 'button-mkt-bin']:
+            return
 
         # market clear
-        if dashutils.triggered_id() == 'button-mkt-bin':
-            active_logger.info(f'clearing market')
+        if triggered_id() == 'button-mkt-bin':
             post_notification(notifs, "info", 'Market', 'Cleared market')
-            return ret
+            return
 
+        cell = states['cell']
         if not cell:
-            active_logger.warning(f'no active cell to get market')
             post_notification(notifs, "warning", 'Market', 'No active cell to get market')
-            return ret
+            return
 
         market_id = cell['row_id']
         if not market_id:
-            active_logger.warning(f'row ID is blank')
-            post_notification(notifs, "warning", 'Market', 'row ID is blank')
-            return ret
+            post_notification(notifs, "warning", 'Market', 'row ID from cell is blank')
+            return
+
+        strategy_id = states['strategy-id']
         try:
             loaded_market = shn.mkt_load(market_id, strategy_id)
             shn.mkt_lginf(loaded_market)
             info_str = f'Loaded market "{market_id}" with strategy "{strategy_id}"'
             post_notification(notifs, "info", 'Market', info_str)
         except (trdexp.MyTradingException, SQLAlchemyError) as e:
-            active_logger.warning(f'failed to load market: {e}\n{traceback.format_exc()}')
-            return ret
+            post_notification(notifs, 'warning', 'Market', f'failed to load market: {e}\n{traceback.format_exc()}')
+            return
 
         tbl = [d | {
             'id': d['runner_id'],  # set row to ID for easy access in callbacks
@@ -102,12 +95,12 @@ def cb_runners(app, shn: Session):
         # serialise market info
         shn.serialise_loaded_market(loaded_market)
 
-        ret[0] = sorted(tbl, key=lambda d: d['starting_odds'])
-        ret[1] = f'loaded "{market_id}"'
-        ret[3] = False  # enable bin market button
-        ret[4] = False  # enable plot all figures button
-        ret[8] = loaded_market
-        return ret
+        outputs['table'] = sorted(tbl, key=lambda d: d['starting_odds'])
+        outputs['info'] = f'loaded "{market_id}"'
+        outputs['disable-bin'] = False  # enable bin market button
+        outputs['disable-figures'] = False  # enable plot all figures button
+        outputs['selected-market'] = loaded_market
+        return
 
     @app.callback(
         Output("container-filters-plot", "className"),

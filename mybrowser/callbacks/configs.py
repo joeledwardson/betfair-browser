@@ -1,12 +1,9 @@
 from dash.dependencies import Output, Input, State
 import logging
 import traceback
-
-import myutils.dashutils
 from ..session import Session, post_notification
 from ..exceptions import SessionException
 
-counter = myutils.dashutils.Intermediary()
 active_logger = logging.getLogger(__name__)
 
 
@@ -15,7 +12,6 @@ def cb_configs(app, shn: Session):
         output=[
             Output('input-feature-config', 'options'),
             Output('input-plot-config', 'options'),
-            Output('intermediary-featureconfigs', 'children'),
             Output('notifications-configs', 'data')
         ],
         inputs=[
@@ -44,6 +40,5 @@ def cb_configs(app, shn: Session):
         return [
             feature_options,
             plot_options,
-            counter.next(),
             notifs
         ]

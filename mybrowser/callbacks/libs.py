@@ -1,16 +1,11 @@
 from dash.dependencies import Output, Input, State
-import logging
-
 import myutils.dashutils
 from ..session import Session,post_notification
-active_logger = logging.getLogger(__name__)
-counter = myutils.dashutils.Intermediary()
 
 
 def cb_libs(app, shn: Session):
     @app.callback(
         output=[
-            Output('intermediary-libs', 'children'),
             Output('loading-out-libs', 'children'),
             Output('notifications-libs', 'data')
         ],
@@ -28,7 +23,6 @@ def cb_libs(app, shn: Session):
             post_notification(notifs, 'info', 'Libraries', f'{n} modules reloaded')
 
         return [
-            counter.next(),
             '',
             notifs
         ]

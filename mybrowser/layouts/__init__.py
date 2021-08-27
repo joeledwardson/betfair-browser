@@ -1,4 +1,3 @@
-from ._intermeds import INTERMEDIARIES
 from . import market
 from . import runners
 from . import logger
@@ -78,13 +77,6 @@ def _reload_button_spec():
 def get_bf_layout(config):
     hidden_divs = [
         {
-            'type': 'element-div',
-            'id': x,
-            'hidden': True
-        }
-        for x in INTERMEDIARIES
-    ] + [
-        {
             'type': 'element-periodic',
             'id': 'interval-component',
             'interval_milliseconds': int(config['CALLBACK_CONFIG']['interval_ms'])
@@ -153,6 +145,9 @@ def get_bf_layout(config):
             },
             {
                 'id': 'notifications-figure'
+            },
+            {
+                'id': 'notifications-orders'
             }
         ]
     }

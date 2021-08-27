@@ -12,8 +12,6 @@ from mytrading.strategy import tradetracker as tt
 active_logger = logging.getLogger(__name__)
 active_logger.setLevel(logging.INFO)
 
-counter = dashutils.Intermediary()
-strat_counter = dashutils.Intermediary()
 
 
 def cb_strategy(app, shn: Session):

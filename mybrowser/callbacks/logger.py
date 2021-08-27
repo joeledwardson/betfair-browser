@@ -2,12 +2,8 @@ from dash.dependencies import Output, Input, State
 import dash_html_components as html
 import dash_bootstrap_components as dbc
 from typing import List, Dict
-
-import dash
 from myutils import dashutils
-# from .. import log_q
 from ..session import Session, Notification
-from ..layouts import INTERMEDIARIES
 
 # mapping of log levels to bootstrap background colors
 LEVEL_COLORS = {
@@ -25,7 +21,8 @@ STORES = [
     'notifications-configs',
     'notifications-libs',
     'notifications-strategy',
-    'notifications-figure'
+    'notifications-figure',
+    'notifications-orders'
 ]
 def cb_logs(app, shn: Session):
     @app.callback(

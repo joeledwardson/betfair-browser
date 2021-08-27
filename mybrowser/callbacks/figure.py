@@ -6,7 +6,7 @@ import logging
 from plotly import graph_objects as go
 import traceback
 from myutils import dashutils
-from myutils.dashutils import Config, TDict, Intermediary, dict_callback, triggered_id
+from myutils.dashutils import Config, TDict, dict_callback, triggered_id
 from myutils import timing
 import mytrading.exceptions
 from ..session import Session, LoadedMarket, Notification, post_notification
@@ -16,7 +16,6 @@ from ..exceptions import SessionException
 
 # override visual logger with custom logger
 active_logger = logging.getLogger(__name__)
-counter = dashutils.Intermediary()
 
 
 def get_ids(cell: Union[None, Dict], id_list: List[int], notifs: List[Notification]) -> List[int]:
@@ -68,15 +67,34 @@ def get_chart_offset(offset: str, notifs: List[Notification]) -> Optional[timede
 
 
 def cb_fig(app, shn: Session):
+    @dict_callback(
+        app=app,
+        inputs_config={
+            'buttons': [
+                Input('button-figure', 'n_clicks'),
+                Input('button-all-figures', 'n_clicks')
+            ]
+        },
+        outputs_config={
+            'table': Output('table-timings', 'data'),
+            'loading': Output('loading-out-figure', 'children'),
+            'notifications': Output('notifications-figure', 'data'),
+        },
+        states_config={
+            'selected-market': State('selected-market', 'data'),
+            'cell': State('table-runners', 'active_cell'),
+            'offset': State('input-chart-offset', 'value'),
+            'feature-config': State('input-feature-config', 'value'),
+            'plot-config': State('input-plot-config', 'value'),
+        }
+    )
     def figure_callback(outputs: TDict, inputs: TDict, states: TDict):
         """
         create a plotly figure based on selected runner when "figure" button is pressed
         """
-        outputs['notifications'] = []
-        notifs = outputs['notifications']
+        notifs = outputs['notifications'] = []
         outputs['table'] = []
         outputs['loading'] = ''
-        outputs['intermediary'] = counter.next()
 
         if triggered_id() != 'button-figure' and triggered_id() != 'button-all-figures':
             return
@@ -124,36 +142,4 @@ def cb_fig(app, shn: Session):
                 s['level'] = s['function'].count('.')
             outputs['table'] = shn.tms_get(summary)
 
-
-    dict_callback(
-        app=app,
-        inputs_config={
-            'buttons': [
-                Input('button-figure', 'n_clicks'),
-                Input('button-all-figures', 'n_clicks')
-            ]
-        },
-        outputs_config={
-            'table': Output('table-timings', 'data'),
-            'loading': Output('loading-out-figure', 'children'),
-            'intermediary': Output('intermediary-figure', 'children'),
-            'notifications': Output('notifications-figure', 'data'),
-        },
-        states_config={
-            'selected-market': State('selected-market', 'data'),
-            'cell': State('table-runners', 'active_cell'),
-            'offset': State('input-chart-offset', 'value'),
-            'feature-config': State('input-feature-config', 'value'),
-            'plot-config': State('input-plot-config', 'value'),
-        },
-        process=figure_callback
-    )
-
-
-    # @app.callback(
-    #     Output('modal-timings', 'is_open'),
-    #     [Input('button-timings', 'n_clicks'), Input('modal-close-timings', 'n_clicks')]
-    # )
-    # def modal_timings(n1, n2):
-    #     return myutils.mydash.triggered_id() == 'button-timings'
 
