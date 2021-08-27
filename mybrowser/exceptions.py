@@ -12,3 +12,5 @@ class SessionException(MyBrowserException):
 
 class UrlException(MyBrowserException):
     pass
+
+

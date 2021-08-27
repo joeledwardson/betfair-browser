@@ -9,7 +9,7 @@ from myutils.dashutils import Config, TDict, dict_callback, triggered_id
 from mytrading import exceptions as trdexp
 from sqlalchemy.exc import SQLAlchemyError
 from ..session import Session, LoadedMarket, post_notification
-
+from ..error_catcher import exceptions
 
 active_logger = logging.getLogger(__name__)
 active_logger.setLevel(logging.INFO)
@@ -84,7 +84,7 @@ def cb_runners(app, shn: Session):
             shn.mkt_lginf(loaded_market)
             info_str = f'Loaded market "{market_id}" with strategy "{strategy_id}"'
             post_notification(notifs, "info", 'Market', info_str)
-        except (trdexp.MyTradingException, SQLAlchemyError) as e:
+        except exceptions as e:
             post_notification(notifs, 'warning', 'Market', f'failed to load market: {e}\n{traceback.format_exc()}')
             return
 

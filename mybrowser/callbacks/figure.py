@@ -11,7 +11,7 @@ from myutils import timing
 import mytrading.exceptions
 from ..session import Session, LoadedMarket, Notification, post_notification
 from mytrading.strategy.feature.features import RFBase
-
+from ..error_catcher import handle_errors
 from ..exceptions import SessionException
 
 # override visual logger with custom logger
@@ -102,23 +102,25 @@ def cb_fig(app, shn: Session):
         if not states['selected-market']:
             return
 
-        # deserialise market info
-        shn.deserialise_loaded_market(states['selected-market'])
+        @handle_errors(notifs, 'Figure')
+        def process():
 
-        # get datetime/None chart offset from time input
-        offset_dt = get_chart_offset(states['offset'], notifs)
-        secs = offset_dt.total_seconds() if offset_dt else 0
+            # deserialise market info
+            shn.deserialise_loaded_market(states['selected-market'])
 
-        # get selected IDs and plot
-        sel_ids = get_ids(states['cell'], list(states['selected-market'].keys()), notifs)
-        reg = timing.TimingRegistrar()
+            # get datetime/None chart offset from time input
+            offset_dt = get_chart_offset(states['offset'], notifs)
+            secs = offset_dt.total_seconds() if offset_dt else 0
 
-        def update_reg(f: RFBase, r: timing.TimingRegistrar):
-            for s in f.sub_features.values():
-                r = update_reg(f, r)
-            return f.timing_reg + r
+            # get selected IDs and plot
+            sel_ids = get_ids(states['cell'], list(states['selected-market'].keys()), notifs)
+            reg = timing.TimingRegistrar()
 
-        try:
+            def update_reg(f: RFBase, r: timing.TimingRegistrar):
+                for s in f.sub_features.values():
+                    r = update_reg(f, r)
+                return f.timing_reg + r
+
             # shn.ftr_update()  # update feature & plot configs
             for selection_id in sel_ids:
                 features = shn.fig_plot(
@@ -131,15 +133,13 @@ def cb_fig(app, shn: Session):
                 for f in features.values():
                     reg = update_reg(f, reg)
 
-        except (ValueError, TypeError, mytrading.exceptions.FigureException, SessionException) as e:
-            post_notification(notifs, 'warning', 'Figure', f'plot error: {e}\n{traceback.format_exc()}')
+            summary = reg.get_timings_summary()
+            if not summary:
+                post_notification(notifs, 'warning', 'Figure', 'no timings on which to produce table')
+            else:
+                for s in summary:
+                    s['level'] = s['function'].count('.')
+                outputs['table'] = shn.tms_get(summary)
 
-        summary = reg.get_timings_summary()
-        if not summary:
-            post_notification(notifs, 'warning', 'Figure', 'no timings on which to produce table')
-        else:
-            for s in summary:
-                s['level'] = s['function'].count('.')
-            outputs['table'] = shn.tms_get(summary)
-
+        process()
 

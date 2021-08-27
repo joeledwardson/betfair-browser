@@ -390,7 +390,9 @@ class RFLadBck(RFBase):
     """
     best available price-sizes on back side within specified number of elements of best price
     """
-    n_elements: int
+    def __init__(self, n_elements: int, **kwargs):
+        super().__init__(**kwargs)
+        self.n_elements = n_elements
 
     def _get_feature_value(self, new_book: MarketBook, runner_index):
         return new_book.runners[runner_index].ex.available_to_back[:self.n_elements]
@@ -401,7 +403,9 @@ class RFLadLay(RFBase):
     """
     best available price-sizes on lay side within specified number of elements of best price
     """
-    n_elements: int
+    def __init__(self, n_elements: int, **kwargs):
+        super().__init__(**kwargs)
+        self.n_elements = n_elements
 
     def _get_feature_value(self, new_book: MarketBook, runner_index):
         return new_book.runners[runner_index].ex.available_to_lay[:self.n_elements]

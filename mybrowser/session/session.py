@@ -25,7 +25,7 @@ from mytrading.utils.dbfilter import filters_reg
 import mytrading.exceptions
 import mytrading.process
 import myutils.datetime
-from mybrowser.exceptions import SessionException
+from ..exceptions import SessionException
 from mytrading import utils as trutils
 from mytrading.utils import bettingdb as bdb, dbfilter as dbf
 from mytrading import strategy as strat
