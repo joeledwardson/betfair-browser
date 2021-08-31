@@ -58,6 +58,20 @@ def cb_market(app, shn: Session):
     def market_sort_clear(n_clicks):
         return None
 
+    buttons = [
+        'input-mkt-clear',
+        'input-strategy-clear',
+        'btn-db-reconnect',
+        # 'btn-strategy-run',
+        'btn-strategy-download'
+    ]
+    if shn.config.getboolean('DISPLAY_CONFIG', 'cache'):
+        buttons += [
+            'btn-db-upload',
+            'btn-cache-clear',
+            'btn-db-refresh'
+        ]
+
     @dict_callback(
         app=app,
         outputs_config={
@@ -81,16 +95,7 @@ def cb_market(app, shn: Session):
         inputs_config={
             'buttons': [
                 Input(x, 'n_clicks')
-                for x in [
-                    'input-mkt-clear',
-                    'input-strategy-clear',
-                    'btn-cache-clear',
-                    'btn-db-refresh',
-                    'btn-db-upload',
-                    'btn-db-reconnect',
-                    # 'btn-strategy-run',
-                    'btn-strategy-download'
-                ]
+                for x in buttons
             ],
             'sorter': Input('market-sorter', 'value'),
             'filter-inputs': {

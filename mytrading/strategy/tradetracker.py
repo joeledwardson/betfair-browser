@@ -113,6 +113,20 @@ class TradeTracker:
         else:
             return dict()
 
+
+    @staticmethod
+    def get_orders_from_buffer(buffer: str) -> pd.DataFrame:
+        lines = buffer.splitlines()
+        try:
+            order_data = [json.loads(line) for line in lines]
+        except (ValueError, TypeError) as e:
+            raise TradeTrackerException(f'Cannot json parse order updates: {e}')
+
+        order_df = pd.DataFrame(order_data)
+        if order_df.shape[0]:
+            order_df.index = order_df['dt'].apply(datetime.fromtimestamp)
+        return order_df
+
     @staticmethod
     def get_order_updates(file_path: str) -> pd.DataFrame:
         """get `TradeTracker` data written to file in dataframe format, with index set as `pt` converted to datetimes if
@@ -121,17 +135,8 @@ class TradeTracker:
             raise TradeTrackerException(f'Cannot get order updates, path is not valid file: "{file_path}')
 
         with open(file_path) as f:
-            lines = f.readlines()
-
-        try:
-            order_data = [json.loads(line) for line in lines]
-        except (ValueError, TypeError) as e:
-            raise TradeTrackerException(f'Cannot json parse order updates from "{file_path}": {e}')
-
-        order_df = pd.DataFrame(order_data)
-        if order_df.shape[0]:
-            order_df.index = order_df['dt'].apply(datetime.fromtimestamp)
-        return order_df
+            data = f.read()
+            return TradeTracker.get_orders_from_buffer(data)
 
     @staticmethod
     def dict_order_profit(order_info: dict) -> float:

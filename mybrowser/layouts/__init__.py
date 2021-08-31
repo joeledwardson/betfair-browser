@@ -1,3 +1,4 @@
+from configparser import ConfigParser
 from . import market
 from . import runners
 from . import logger
@@ -74,7 +75,7 @@ def _reload_button_spec():
     }
 
 
-def get_bf_layout(config):
+def get_bf_layout(config: ConfigParser):
     hidden_divs = [
         {
             'type': 'element-periodic',

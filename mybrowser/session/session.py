@@ -17,6 +17,12 @@ import threading
 from dataclasses import dataclass
 from enum import Enum
 from flask_caching import Cache
+import betfairlightweight
+import queue
+import sys
+from betfairlightweight.exceptions import SocketError, ListenerError
+from betfairlightweight.streaming.listener import BaseListener, StreamListener
+
 
 import myutils.dictionaries
 import myutils.files
@@ -49,6 +55,45 @@ class LoadedMarket(TypedDict):
     strategy_id: Optional[str]
     runners: Dict
 
+
+
+class BufferStream:
+    def __init__(
+        self, data: str, listener: BaseListener, operation: str, unique_id: int
+    ):
+        self.data = data
+        self.listener = listener
+        self.operation = operation
+        self.unique_id = unique_id
+        self._running = False
+
+    @staticmethod
+    def generator(
+            data: str = None,
+            listener: BaseListener = None,
+            operation: str = "marketSubscription",
+            unique_id: int = 0,
+    ) -> 'BufferStream':
+        listener = listener if listener else StreamListener()
+        return BufferStream(data, listener, operation, unique_id)
+
+    def start(self) -> None:
+        self._running = True
+        self._read_loop()
+
+    def stop(self) -> None:
+        self._running = False
+
+    def _read_loop(self) -> None:
+        self.listener.register_stream(self.unique_id, self.operation)
+        for update in self.data.splitlines():
+            if self.listener.on_data(update) is False:
+                # if on_data returns an error stop the stream and raise error
+                self.stop()
+                raise ListenerError("HISTORICAL", update)
+            if not self._running:
+                break
+        self.stop()
 
 
 
@@ -163,10 +208,16 @@ class Session:
 
         @cache.memoize(60)
         def get_market_records(market_id) -> List[List[MarketBook]]:
-            active_logger.info(f'******** getting market ID "{market_id}"')
-            self.betting_db.cache_mkt_stream(market_id)
-            p = self.betting_db.path_mkt_updates(market_id)
-            q = self.api_handler.get_historical(p)
+            print(f'**** reading market "{market_id}"')
+            row = self.betting_db.read('marketstream', {'market_id': market_id})
+            buffer = row['stream_updates']
+            q = queue.Queue()
+            listener = betfairlightweight.StreamListener(
+                output_queue=q,
+                max_latency=sys.float_info.max
+            )
+            streamer = BufferStream.generator(buffer, listener)
+            streamer.start()
             return list(q.queue)
 
         self.get_market_records = get_market_records
@@ -421,9 +472,9 @@ class Session:
     def mkt_load(self, market_id, strategy_id) -> LoadedMarket:
 
         # check strategy valid if one is selected, when writing info to cache
-        if strategy_id:
-            self.betting_db.cache_strat_updates(strategy_id, market_id)
-            self.betting_db.cache_strat_meta(strategy_id)
+        # if strategy_id:
+        #     self.betting_db.cache_strat_updates(strategy_id, market_id)
+        #     self.betting_db.cache_strat_meta(strategy_id)
 
         # self.betting_db.cache_mkt_stream(market_id)
         # p = self.betting_db.path_mkt_updates(market_id)
@@ -612,22 +663,27 @@ class Session:
         # get orders dataframe (or None)
         orders = None
         if market_info['strategy_id']:
-            p = self.betting_db.path_strat_updates(market_info['market_id'], market_info['strategy_id'])
-            if not path.exists(p):
-                raise SessionException(f'could not find cached strategy market file:\n-> "{p}"')
+            row = self.betting_db.read('strategyupdates', {
+                'strategy_id': market_info['strategy_id'],
+                'market_id': market_info['market_id'],
+            })
+            buffer = row['strategy_updates']
+
+            # p = self.betting_db.path_strat_updates(market_info['market_id'], market_info['strategy_id'])
+            # if not path.exists(p):
+            #     raise SessionException(f'could not find cached strategy market file:\n-> "{p}"')
 
             try:
-                orders = tradetracker.TradeTracker.get_order_updates(p)
+                orders = tradetracker.TradeTracker.get_orders_from_buffer(buffer)
             except mytrading.exceptions.TradeTrackerException as e:
                 raise SessionException(e)
             if not orders.shape[0]:
-                raise SessionException(f'could not find any rows in cached strategy market file:\n-> "{p}"')
+                raise SessionException(f'could not find any rows in strategy updates')
 
             orders = orders[orders['selection_id'] == selection_id]
             offset_secs = float(self.config['PLOT_CONFIG']['order_offset_secs'])
             start = figlib.FeatureFigure.modify_start(start, orders, offset_secs)
             end = figlib.FeatureFigure.modify_end(end, orders, offset_secs)
-            active_logger.info(f'loaded {orders.shape[0]} rows from cached strategy market file\n-> "{p}"')
 
         # feature and plot configurations
         plt_cfg = self.ftr_pcfg(plt_key)

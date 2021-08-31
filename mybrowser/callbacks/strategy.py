@@ -64,6 +64,7 @@ def cb_strategy(app, shn: Session):
                 msg = f'removed {n0} strategy meta, {n1} markets, {n2} runners'
                 post_notification(notifs, 'info', 'Strategy', msg)
 
+        post_notification(notifs, 'info', 'Strategy', 'Strategies reloaded')
         tbl_rows = shn.strats_tbl_rows()
         for r in tbl_rows:
             r['id'] = r['strategy_id']  # assign 'id' so market ID set in row ID read in callbacks

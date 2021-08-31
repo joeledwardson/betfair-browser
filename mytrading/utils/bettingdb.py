@@ -474,6 +474,9 @@ class BettingDB:
             col_processors=col_processors or DB_PROCESSORS
         )
 
+    def read(self, tbl_nm: str, pkey_flts: Dict):
+        return self._dbc.read_row(tbl_nm, pkey_flts)
+
     def close(self):
         self._dbc.session.close()
 

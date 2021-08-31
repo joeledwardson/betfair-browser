@@ -1,3 +1,4 @@
+from configparser import ConfigParser
 from typing import Dict, List, TypedDict, Literal
 import itertools
 import json
@@ -49,11 +50,30 @@ def progress_loading_spec():
     }
 
 
-def market_display_spec(config):
+def market_display_spec(config: ConfigParser):
     sort_options = dict(config['MARKET_SORT_OPTIONS'])
     n_mkt_rows = int(config['TABLE']['market_rows'])
     full_tbl_cols = dict(config['MARKET_TABLE_COLS'])
     options_labels = _sort_labels(sort_options)
+    cache_row = []
+    if config.getboolean('DISPLAY_CONFIG', 'cache'):
+        cache_row += [{
+            'type': 'element-button',
+            'id': 'btn-db-upload',
+            'btn_icon': 'fas fa-arrow-circle-up',
+            'btn_text': 'Upload Cache'
+        }, {
+            'type': 'element-button',
+            'id': 'btn-cache-clear',
+            'btn_icon': 'fas fa-trash',
+            'btn_text': 'Clear Cache',
+            'color': 'warning'
+        }, {
+            'type': 'element-button',
+            'id': 'btn-db-refresh',
+            'btn_icon': 'fas fa-sync-alt',
+            'btn_text': 'Reload'
+        }]
     return {
         'container-id': 'container-market',
         'content': [
@@ -80,27 +100,7 @@ def market_display_spec(config):
                     }],
                 }
             ],
-            [
-                {
-                    'type': 'element-button',
-                    'id': 'btn-db-refresh',
-                    'btn_icon': 'fas fa-sync-alt',
-                    'btn_text': 'Reload'
-                },
-                {
-                    'type': 'element-button',
-                    'id': 'btn-db-upload',
-                    'btn_icon': 'fas fa-arrow-circle-up',
-                    'btn_text': 'Upload Cache'
-                },
-                {
-                    'type': 'element-button',
-                    'id': 'btn-cache-clear',
-                    'btn_icon': 'fas fa-trash',
-                    'btn_text': 'Clear Cache',
-                    'color': 'warning'
-                }
-            ],
+            cache_row,
             [
                 {
                     'type': 'element-stylish-select',
