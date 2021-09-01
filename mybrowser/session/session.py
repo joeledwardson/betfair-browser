@@ -1,21 +1,15 @@
-import queue
-import uuid
-from functools import partial
 from betfairlightweight.resources.bettingresources import MarketBook
-from os import path
+from os import path, listdir
 from typing import List, Dict, Optional, TypedDict, Union, Literal, Any
 import pandas as pd
 import logging
-import sys
 from datetime import datetime, timedelta
 from configparser import ConfigParser
+import yaml
 import json
 from json.decoder import JSONDecodeError
 import importlib.resources as pkg_resources
 import importlib
-import threading
-from dataclasses import dataclass
-from enum import Enum
 from flask_caching import Cache
 import betfairlightweight
 import queue
@@ -179,7 +173,6 @@ class LoadedMarket(TypedDict):
     runners: Dict
 
 
-
 class BufferStream:
     def __init__(
         self, data: str, listener: BaseListener, operation: str, unique_id: int
@@ -259,7 +252,6 @@ def get_formatters(config) -> myreg.Registrar:
     return formatters
 
 
-
 NotificationType = Literal["primary", "secondary", "success", "warning", "danger", "info"]
 
 
@@ -278,16 +270,6 @@ def post_notification(
     notifications.append(Notification(msg_type=msg_type, msg_header=msg_header, msg_content=msg_content))
 
 
-def load_yaml_dir(config_dir: str) -> Dict:
-    """get dictionary of (configuration file name without ext => config dict) directory of yaml files"""
-    configs = myutils.files.load_yaml_confs(config_dir)
-    active_logger.info(f'{len(configs)} valid configuration files found')
-    active_logger.info(f'feature configs: {list(configs.keys())}')
-    return configs
-
-
-# TODO  - split strategy into strategy config and market filter configs
-# TODO - move configuration to github location
 class Session:
 
     MODULES = ['myutils', 'mytrading']
@@ -299,6 +281,15 @@ class Session:
     }
 
     def __init__(self, cache: Cache, config: Optional[ConfigParser] = None):
+
+        def get_package_files(resource: str, file_ext: str) -> Dict[str, Any]:
+            data = {}
+            for filename in pkg_resources.contents(resource):
+                name, ext = path.splitext(filename)
+                if ext == file_ext:
+                    buffer = pkg_resources.read_text(resource, filename)
+                    data[name] = yaml.load(buffer, Loader=yaml.FullLoader)
+            return data
 
         @cache.memoize(60)
         def get_market_records(market_id) -> List[List[MarketBook]]:
@@ -328,7 +319,6 @@ class Session:
 
         self.config: ConfigParser = config  # parsed configuration
         self.tbl_formatters = get_formatters(config)  # registrar of table formatters
-        self.api_handler = trutils.APIHandler()   # API client instance
 
         self._market_filters = dbf.DBFilterHandler(
             get_mkt_filters(config['MARKET_FILTER']['mkt_date_format'])
@@ -343,11 +333,10 @@ class Session:
             self._db_kwargs = config['DB_CONFIG']
         self.betting_db = bdb.BettingDB(**self._db_kwargs)
 
-        feature_dir = path.abspath(path.expandvars(self.config['CONFIG_PATHS']['feature_out']))
-        self.feature_configs = load_yaml_dir(feature_dir)  # feature configurations
-
-        plot_dir = path.abspath(path.expandvars(self.config['CONFIG_PATHS']['plot_out']))
-        self.plot_configs = load_yaml_dir(plot_dir)  # plot configurations
+        self.feature_configs = get_package_files('mybrowser.configurations_feature', '.yaml')
+        self.plot_configs = get_package_files('mybrowser.configurations_plot', '.yaml')
+        active_logger.info(f'found {len(self.feature_configs)} feature configurations')
+        active_logger.info(f'found {len(self.plot_configs)} plot configurations')
 
     def serialise_loaded_market(self, mkt: LoadedMarket) -> None:
         self.betting_db.meta_serialise(mkt['info'])
