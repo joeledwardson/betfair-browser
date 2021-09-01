@@ -1,0 +1,68 @@
+back ladder:
+  kwargs:
+    n_elements: 3
+  name: RFLadBck
+best back:
+  name: RFBck
+best lay:
+  name: RFLay
+lay ladder:
+  kwargs:
+    n_elements: 3
+  name: RFLadLay
+ltp:
+  name: RFLTP
+spread:
+  kwargs:
+    sub_features_config:
+      smp:
+        kwargs:
+          cache_count: 40
+          periodic_ms: 100
+          sub_features_config:
+            avg:
+              name: RFMvAvg
+        name: RFSample
+  name: RFLadSprd
+tv:
+  name: RFTVTot
+tvlad:
+  kwargs:
+    cache_insidewindow: false
+    cache_secs: 60
+    sub_features_config:
+      dif:
+        kwargs:
+          sub_features_config:
+            max:
+              kwargs:
+                sub_features_config:
+                  smp:
+                    kwargs:
+                      cache_count: 10
+                      periodic_ms: 200
+                      sub_features_config:
+                        avg:
+                          name: RFMvAvg
+                    name: RFSample
+              name: RFTVLadMax
+            min:
+              kwargs:
+                sub_features_config:
+                  smp:
+                    kwargs:
+                      cache_count: 10
+                      periodic_ms: 200
+                      sub_features_config:
+                        avg:
+                          name: RFMvAvg
+                    name: RFSample
+              name: RFTVLadMin
+            spread:
+              name: RFTVLadSpread
+        name: RFTVLadDif
+  name: RFTVLad
+wom:
+  kwargs:
+    wom_ticks: 3
+  name: RFWOM

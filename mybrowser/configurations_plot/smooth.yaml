@@ -1,0 +1,313 @@
+bck:
+  chart_args:
+    visible: legendonly
+  value_processors:
+  - kwargs:
+      ftr_keys:
+        text: bcklad
+        y: bck
+    name: prc_ftrstodf
+  - kwargs:
+      df_col: text
+    name: prc_dffmtps
+  - name: prc_dftodict
+bck.smp:
+  ignore: true
+bck.smp.avg:
+  chart_args:
+    line_color: black
+    marker:
+      cmid: 0
+      colorscale:
+      - - 0
+        - rgb(255,0,0)
+      - - 1
+        - rgb(0,255,0)
+    mode: lines+markers
+  rename: back smoothed
+  value_processors:
+  - kwargs:
+      ftr_keys:
+        marker_color: bck.tck.smp.avg.cmp
+        text_max_diff: bck.tck.mdf
+        text_tick_comp: bck.tck.smp.avg.cmp
+        text_ticks: bck.tck.smp.avg
+        y: bck.smp.avg
+    name: prc_ftrstodf
+  - name: prc_dffillna
+  - kwargs:
+      df_col: text_ticks
+      fmt_spec: 'Tick: {0:.2f}'
+    name: prc_dffmtstr
+  - kwargs:
+      df_col: text_tick_comp
+      fmt_spec: 'Tick difference: {0:.2f}'
+    name: prc_dffmtstr
+  - kwargs:
+      df_col: text_max_diff
+      fmt_spec: 'Max tick difference: {0:.2f}'
+    name: prc_dffmtstr
+  - kwargs:
+      dest_col: text
+      src_cols:
+      - text_ticks
+      - text_tick_comp
+      - text_max_diff
+    name: prc_dftxtjoin
+  - kwargs:
+      cols:
+      - text_ticks
+      - text_tick_comp
+      - text_max_diff
+    name: prc_dfdrop
+  - name: prc_dftodict
+bck.tck:
+  ignore: true
+bck.tck.mdf:
+  ignore: true
+bck.tck.smp:
+  ignore: true
+bck.tck.smp.avg:
+  ignore: true
+bck.tck.smp.avg.cmp:
+  ignore: true
+bcklad:
+  ignore: true
+lay:
+  chart_args:
+    visible: legendonly
+  value_processors:
+  - kwargs:
+      ftr_keys:
+        text: laylad
+        y: lay
+    name: prc_ftrstodf
+  - kwargs:
+      df_col: text
+    name: prc_dffmtps
+  - name: prc_dftodict
+lay.smp:
+  ignore: true
+lay.smp.avg:
+  chart_args:
+    line_color: black
+    marker:
+      cmid: 0
+      colorscale:
+      - - 0
+        - rgb(255,0,0)
+      - - 1
+        - rgb(0,255,0)
+    mode: lines+markers
+  rename: lay smoothed
+  value_processors:
+  - kwargs:
+      ftr_keys:
+        marker_color: lay.tck.smp.avg.cmp
+        text_max_diff: lay.tck.mdf
+        text_tick_comp: lay.tck.smp.avg.cmp
+        text_ticks: lay.tck.smp.avg
+        y: lay.smp.avg
+    name: prc_ftrstodf
+  - name: prc_dffillna
+  - kwargs:
+      df_col: text_ticks
+      fmt_spec: 'Tick: {0:.2f}'
+    name: prc_dffmtstr
+  - kwargs:
+      df_col: text_tick_comp
+      fmt_spec: 'Tick difference: {0:.2f}'
+    name: prc_dffmtstr
+  - kwargs:
+      df_col: text_max_diff
+      fmt_spec: 'Max tick difference: {0:.2f}'
+    name: prc_dffmtstr
+  - kwargs:
+      dest_col: text
+      src_cols:
+      - text_ticks
+      - text_tick_comp
+      - text_max_diff
+    name: prc_dftxtjoin
+  - kwargs:
+      cols:
+      - text_ticks
+      - text_tick_comp
+      - text_max_diff
+    name: prc_dfdrop
+  - name: prc_dftodict
+lay.tck:
+  ignore: true
+lay.tck.mdf:
+  ignore: true
+lay.tck.smp:
+  ignore: true
+lay.tck.smp.avg:
+  ignore: true
+lay.tck.smp.avg.cmp:
+  ignore: true
+laylad:
+  ignore: true
+ltp:
+  chart_args:
+    line_color: black
+    marker:
+      cmid: 0
+      colorscale:
+      - - 0
+        - rgb(255,0,0)
+      - - 1
+        - rgb(0,255,0)
+    mode: lines+markers
+    visible: legendonly
+  value_processors:
+  - kwargs:
+      ftr_keys:
+        marker_color: wom
+        split_text: split.sum
+        spread_text: spread
+        tv_text: tv
+        wom_text: wom
+        y: ltp
+    name: prc_ftrstodf
+  - name: prc_dffillna
+  - kwargs:
+      df_col: spread_text
+      fmt_spec: 'Spread: {0}'
+    name: prc_dffmtstr
+  - kwargs:
+      df_col: tv_text
+      fmt_spec: "Traded Volume: \xA3{0:.2f}"
+    name: prc_dffmtstr
+  - kwargs:
+      df_col: split_text
+      fmt_spec: "Book split: \xA3{0:.2f}"
+    name: prc_dffmtstr
+  - kwargs:
+      df_col: wom_text
+      fmt_spec: "WOM: \xA3{0:.2f}"
+    name: prc_dffmtstr
+  - kwargs:
+      dest_col: text
+      src_cols:
+      - tv_text
+      - spread_text
+      - split_text
+      - wom_text
+    name: prc_dftxtjoin
+  - kwargs:
+      cols:
+      - tv_text
+      - spread_text
+      - split_text
+      - wom_text
+    name: prc_dfdrop
+  - name: prc_dftodict
+ltp.smp:
+  ignore: true
+ltp.smp.avg:
+  chart_args:
+    line_color: black
+    marker:
+      cmid: 0
+      colorscale:
+      - - 0
+        - rgb(255,255,0)
+      - - 1
+        - rgb(0,0,255)
+    mode: lines+markers
+  rename: ltp smoothed
+  value_processors:
+  - kwargs:
+      ftr_keys:
+        text: split.sum
+        y: ltp.smp.avg
+    name: prc_ftrstodf
+  - name: prc_dffillna
+  - kwargs:
+      col_out: marker_color
+      col_src: text
+    name: prc_dfcp
+  - kwargs:
+      df_col: text
+      fmt_spec: "Book split: \xA3{0:.2f}"
+    name: prc_dffmtstr
+  - name: prc_dftodict
+split:
+  chart: Bar
+  chart_args:
+    marker:
+      cmid: 0
+      colorscale:
+      - - 0
+        - rgb(250,50,50)
+      - - 1
+        - rgb(50,250,50)
+    offset: 0
+    opacity: 0.6
+    width: 4000
+  trace_args:
+    secondary_y: true
+  value_processors:
+  - keys:
+      key_out: key_tv
+    kwargs:
+      ftr_key: tv
+    name: prc_getftr
+  - keys:
+      key_in: key_tv
+      key_out: key_tv
+    name: prc_dfdiff
+  - kwargs:
+      buf_cfg:
+        text: key_tv
+        y: key_0
+    name: prc_buftodf
+  - kwargs:
+      agg_function:
+        text: sum
+        y: sum
+      n_seconds: 4
+    name: prc_resmp
+  - kwargs:
+      col_out: marker_color
+      col_src: text
+    name: prc_dfcp
+  - kwargs:
+      df_col: text
+      fmt_spec: "Traded volume: \xA3{0:.2f}"
+    name: prc_dffmtstr
+  - name: prc_dftodict
+split.sum:
+  chart_args:
+    visible: legendonly
+  trace_args:
+    secondary_y: true
+split.tot:
+  ignore: true
+spread:
+  ignore: true
+spread.smp:
+  ignore: true
+spread.smp.avg:
+  ignore: true
+tv:
+  ignore: true
+tvlad:
+  ignore: true
+tvlad.dif:
+  ignore: true
+tvlad.dif.max:
+  ignore: true
+tvlad.dif.max.smp:
+  ignore: true
+tvlad.dif.max.smp.avg:
+  rename: ltp max
+tvlad.dif.min:
+  ignore: true
+tvlad.dif.min.smp:
+  ignore: true
+tvlad.dif.min.smp.avg:
+  rename: ltp min
+wom:
+  ignore: true
