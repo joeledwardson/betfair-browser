@@ -26,7 +26,7 @@ class TimingRegistrar:
     def log_result(self, elapsed_seconds: float, name: str) -> None:
         if name not in self._function_timings:
             self._function_timings[name] = []
-        self._function_timings[name].append(timedelta(elapsed_seconds))
+        self._function_timings[name].append(timedelta(seconds=elapsed_seconds))
 
     def _call(self, f: Callable,  key: str, *args, **kwargs) -> Any:
         start_time = time.perf_counter()  # gets timestamp in seconds (with decimal places)

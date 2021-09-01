@@ -287,7 +287,7 @@ class MarketComponent(Component):
                 # TODO - move all strategy functions from here to strategy page
                 # reconnect to database if button pressed
                 if btn_id == 'btn-db-reconnect':
-                    shn.rl_db()
+                    shn.reload_database()
                     post_notification(notifs, 'info', 'Database', 'reconnected to database')
 
                 # upload market & strategy cache if "upload" button clicked
@@ -454,6 +454,27 @@ class RunnersComponent(Component):
     def callbacks(self, app, shn: Session):
         _right_panel_callback(app, "container-filters-plot", "btn-runners-filter", "btn-plot-close")
 
+        @app.callback(
+            [
+                Output('input-feature-config', 'options'),
+                Output('input-plot-config', 'options'),
+            ],
+            Input('btn-runners-filter', 'n_clicks')
+        )
+        def configs(_):
+            feature_options = [{
+                'label': v,
+                'value': v,
+            } for v in shn.feature_configs.keys()]
+            plot_options = [{
+                'label': v,
+                'value': v,
+            } for v in shn.plot_configs.keys()]
+            return [
+                feature_options,
+                plot_options
+            ]
+
         @dict_callback(
             app=app,
             outputs_config={
@@ -514,8 +535,7 @@ class RunnersComponent(Component):
 
             strategy_id = states['strategy-id']
             try:
-                loaded_market = shn.mkt_load(market_id, strategy_id)
-                shn.mkt_lginf(loaded_market)
+                loaded_market = shn.market_load(market_id, strategy_id)
                 info_str = f'Loaded market "{market_id}" with strategy "{strategy_id}"'
                 post_notification(notifs, "info", 'Market', info_str)
             except exceptions as e:
@@ -708,11 +728,12 @@ class FigureComponent(Component):
                 # get selected IDs and plot
                 sel_ids = self._get_ids(states['cell'], list(states['selected-market'].keys()), notifs)
                 reg = timing.TimingRegistrar()
+                levels = {}
 
-                def update_reg(f: RFBase, r: timing.TimingRegistrar):
-                    for s in f.sub_features.values():
-                        r = update_reg(f, r)
-                    return f.timing_reg + r
+                def update_reg(feature: RFBase, registrar: timing.TimingRegistrar):
+                    for sub_feature in feature.sub_features.values():
+                        registrar = update_reg(sub_feature, registrar)
+                    return feature.timing_reg + registrar
 
                 # shn.ftr_update()  # update feature & plot configs
                 for selection_id in sel_ids:
@@ -732,7 +753,7 @@ class FigureComponent(Component):
                 else:
                     for s in summary:
                         s['level'] = s['function'].count('.')
-                    outputs['table'] = shn.tms_get(summary)
+                    outputs['table'] = shn.format_timings(summary)
 
             process()
 
@@ -1019,7 +1040,12 @@ class OrdersComponent(Component):
                     post_notification(notifs, 'warning', 'Orders', 'no strategy selected')
                     return
 
-                df = shn.odr_prft(selection_id, selected_market, strategy_id)
+                df = shn.read_orders(
+                    market_id=selected_market['market_id'],
+                    strategy_id=strategy_id,
+                    selection_id=selection_id,
+                    start_time=selected_market['info']['market_time']
+                )
                 if not df.shape[0]:
                     post_notification(notifs, 'warning', 'Orders', f'no orders found for runner "{selection_id}"')
                     return
@@ -1065,7 +1091,7 @@ class LibraryComponent(Component):
             """
             notifs = []
             if triggered_id() == 'button-libs':
-                n = shn.rl_mods()
+                n = shn.reload_modules()
                 post_notification(notifs, 'info', 'Libraries', f'{n} modules reloaded')
 
             return [

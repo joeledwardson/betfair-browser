@@ -219,7 +219,6 @@ class BufferStream:
         self.stop()
 
 
-
 def get_mkt_filters(mkt_dt_fmt):
     out = []
     for f in MARKET_FILTERS:
@@ -232,41 +231,6 @@ def get_mkt_filters(mkt_dt_fmt):
             except TypeError as e:
                 raise SessionException(f'could not create filter using class "{cls}" with kwargs {kwargs}')
     return out
-
-    #
-    # return [
-    #     dbf.DBFilterJoin(
-    #         "sport_id",
-    #         join_tbl_name='sportids',
-    #         join_id_col='sport_id',
-    #         join_name_col='sport_name'
-    #     ),
-    #     dbf.DBFilter(
-    #         "market_type",
-    #     ),
-    #     dbf.DBFilter(
-    #         "betting_type",
-    #     ),
-    #     dbf.DBFilter(
-    #         'format',
-    #     ),
-    #     dbf.DBFilterJoin(
-    #         "country_code",
-    #         join_tbl_name='countrycodes',
-    #         join_id_col='alpha_2_code',
-    #         join_name_col='name'
-    #     ),
-    #     dbf.DBFilter(
-    #         "venue",
-    #     ),
-    #     dbf.DBFilterDate(
-    #         "market_time",
-    #         mkt_dt_fmt
-    #     ),
-    #     dbf.DBFilterText(
-    #         'market_id',
-    #     )
-    # ]
 
 
 def get_strat_filters(strat_sel_fmt):
@@ -313,6 +277,13 @@ def post_notification(
 ):
     notifications.append(Notification(msg_type=msg_type, msg_header=msg_header, msg_content=msg_content))
 
+
+def load_yaml_dir(config_dir: str) -> Dict:
+    """get dictionary of (configuration file name without ext => config dict) directory of yaml files"""
+    configs = myutils.files.load_yaml_confs(config_dir)
+    active_logger.info(f'{len(configs)} valid configuration files found')
+    active_logger.info(f'feature configs: {list(configs.keys())}')
+    return configs
 
 
 # TODO  - split strategy into strategy config and market filter configs
@@ -366,48 +337,17 @@ class Session:
             get_strat_filters(config['MARKET_FILTER']['strategy_sel_format'])
         )  # db strategy filters
 
-        # self.log_nwarn = 0  # number of logger warnings
-        # self.log_elements = list()  # logging elements
-
-        # selected market info
-        # self.mkt_sid = None  # strategy ID
-        # self.mkt_info = {}  # database meta information dict
-        # self.mkt_records: List[List[MarketBook]] = []  # record list
-        # self.mkt_rnrs: Dict[int, Dict] = {}  # market runners information, indexed by runner ID
-
         # betting database instance
         self._db_kwargs = {}
         if config.has_section('DB_CONFIG'):
             self._db_kwargs = config['DB_CONFIG']
         self.betting_db = bdb.BettingDB(**self._db_kwargs)
 
-        # feature-plot configurations
-        self.feature_configs = dict()  # feature configurations
-        self.plot_configs = dict()  # plot configurations
+        feature_dir = path.abspath(path.expandvars(self.config['CONFIG_PATHS']['feature_out']))
+        self.feature_configs = load_yaml_dir(feature_dir)  # feature configurations
 
-        # strategy run configs
-        # self._strat_dir = path.abspath(path.expandvars(config['CONFIG_PATHS']['strategy_dir']))
-        # self._strat_cfgs = dict()
-        # self._strat_lock = threading.Lock()
-        # self._strat_mkt_count = 0
-        # self._strat_running = False
-        # self._strat_obj: Optional[strat.MyFeatureStrategy] = None
-        # self.strat_update()
-
-        # selected strategy
-        # self._active_strat = None
-
-        # notification queue
-        # self._notification_queue: queue.Queue[Notification] = queue.Queue()
-
-    # def notif_post(self, new_notification: Notification):
-    #     self._notification_queue.put(new_notification)
-    #
-    # def notif_exist(self) -> bool:
-    #     return not self._notification_queue.empty()
-    #
-    # def notif_pop(self) -> Notification:
-    #     return self._notification_queue.get()
+        plot_dir = path.abspath(path.expandvars(self.config['CONFIG_PATHS']['plot_out']))
+        self.plot_configs = load_yaml_dir(plot_dir)  # plot configurations
 
     def serialise_loaded_market(self, mkt: LoadedMarket) -> None:
         self.betting_db.meta_serialise(mkt['info'])
@@ -417,57 +357,8 @@ class Session:
         # dash uses JSON strings for keys, have to convert back to integers for runner IDs
         mkt['runners'] = {int(k): v for k, v in mkt['runners'].items()}
 
-
     def market_filter_conditions(self, values: List[Any]):
         return self._market_filters.filters_conditions(self.betting_db._dbc.tables['marketmeta'], values)
-
-    # def active_strat_get(self):
-    #     return self._active_strat
-    #
-    # def active_strat_set(self, strategy_id):
-    #     self._active_strat = strategy_id
-
-    # def strat_update(self) -> Dict:
-    #     self._strat_cfgs = mydict.load_yaml_confs(self._strat_dir)
-    #     return self._strat_cfgs
-    #
-    # @property
-    # def strat_n_done(self) -> int:
-    #     with self._strat_lock:
-    #         if self._strat_running:
-    #             return len([mh for mh in self._strat_obj.market_handlers.values() if mh.closed])
-    #         else:
-    #             return 0
-    #
-    # @property
-    # def strat_mkt_count(self) -> int:
-    #     return self._strat_mkt_count
-    #
-    # @property
-    # def strat_running(self) -> bool:
-    #     with self._strat_lock:
-    #         return self._strat_running
-    #
-    # def strat_run(self, cfg_name) -> uuid.UUID:
-    #     if cfg_name not in self._strat_cfgs:
-    #         raise SessionException(f'strategy config name "{cfg_name}" not found')
-    #     cfg = self._strat_cfgs[cfg_name]
-    #     with self._strat_lock:
-    #         self._strat_obj = strat.hist_strat_create(cfg, self.betting_db)
-    #         strat_id = self._strat_obj.strategy_id
-    #         self._strat_running = True
-    #         self._strat_mkt_count = len(self._strat_obj.market_filter['markets'])
-    #     strat.hist_strat_run(self._strat_obj)
-    #     with self._strat_lock:
-    #         self._strat_running = False
-    #         del self._strat_obj
-    #         self._strat_obj = None
-    #         self._strat_mkt_count = 0
-    #     return strat_id
-    #
-    # @property
-    # def strat_cfg_names(self) -> List:
-    #     return list(self._strat_cfgs.keys())
 
     @classmethod
     def cfg_local(cls):
@@ -478,7 +369,7 @@ class Session:
         return config
 
     @classmethod
-    def rl_mods(cls) -> int:
+    def reload_modules(cls) -> int:
         """
         reload all modules within 'mytrading' or 'myutils'
         """
@@ -491,91 +382,40 @@ class Session:
         active_logger.info('libraries reloaded')
         return n
 
-    def rl_db(self):
+    def reload_database(self):
         """reload database instance"""
         self.betting_db.close()
         del self.betting_db
         self.betting_db = bdb.BettingDB(**self._db_kwargs)
 
-    @staticmethod
-    def ftr_readf(config_dir: str) -> Dict:
-        """get dictionary of (configuration file name without ext => config dict) directory of yaml files"""
-        configs = myutils.files.load_yaml_confs(config_dir)
-        active_logger.info(f'{len(configs)} valid configuration files found')
-        active_logger.info(f'feature configs: {list(configs.keys())}')
-        return configs
-
-    def ftr_update(self):
-        """
-        load feature and plot configurations from directory to dicts
-        """
-        # regenerate feature/plot configs (do at runtime so can reload lib)
-        importlib.reload(cfgs)
-        cfgs.ConfigGenerator(
-            self.config['CONFIG_PATHS']['feature_src'],
-            self.config['CONFIG_PATHS']['feature_out'],
-            cfgs.reg_features
-        ).reload()
-        cfgs.ConfigGenerator(
-            self.config['CONFIG_PATHS']['plot_src'],
-            self.config['CONFIG_PATHS']['plot_out'],
-            cfgs.reg_plots
-        ).reload()
-
-        # get feature configs
-        feature_dir = path.abspath(path.expandvars(self.config['CONFIG_PATHS']['feature_out']))
-        active_logger.info(f'getting feature configurations from:\n-> {feature_dir}"')
-        self.feature_configs = self.ftr_readf(feature_dir)
-
-        # get plot configurations
-        plot_dir = path.abspath(path.expandvars(self.config['CONFIG_PATHS']['plot_out']))
-        active_logger.info(f'getting plot configurations from:\n-> {plot_dir}"')
-        self.plot_configs = self.ftr_readf(plot_dir)
-
-    def ftr_pcfg(self, plt_key: str) -> Dict:
+    def get_plot_config(self, plt_key: str) -> Dict:
         """get plot configuration or empty dictionary from key"""
         plt_cfg = {}
         if plt_key:
             if plt_key in self.plot_configs:
-                active_logger.info(f'using selected plot configuration "{plt_key}"')
                 plt_cfg = self.plot_configs[plt_key]
             else:
                 raise SessionException(f'selected plot configuration "{plt_key}" not in plot configurations')
-        else:
-            active_logger.info('no plot configuration selected')
         return plt_cfg
 
-    def ftr_fcfg(self, ftr_key: str) -> Optional[Dict]:
+    def get_feature_config(self, ftr_key: str) -> Optional[Dict]:
         """
         get feature configuration dictionary - if no selection passed use default from configs
         return None on failure to retrieve configuration
         """
-
         if not ftr_key:
-            active_logger.info(f'no feature config selected, using default "{self.FTR_DEFAULT}"')
             return self.FTR_DEFAULT
         else:
             if ftr_key not in self.feature_configs:
                 raise SessionException(f'selected feature config "{ftr_key}" not found in list')
             else:
-                active_logger.info(f'using selected feature config "{ftr_key}"')
                 return self.feature_configs[ftr_key]
 
-    def ftr_clear(self):
-        """clear existing feature/plot configurations"""
-        self.feature_configs = dict()
-        self.plot_configs = dict()
-
-    def tms_get(self, summary: List[timing.TimingResult]) -> List[Dict]:
+    def format_timings(self, summary: List[timing.TimingResult]) -> List[Dict]:
         """
         get list of dict values for Function, Count and Mean table values for function timings
         """
-        # TODO - make this work
-        sort_col = self.config['TIMINGS_TABLE_SORT']['key']
-        sort_reverse = self.config.getboolean('TIMINGS_TABLE_SORT', 'reverse')
-        tms = sorted(summary, key=lambda v: v[sort_col], reverse=sort_reverse)
-        # self.config['format_timedelta']
-        # f = partial(mytiming.format_timedelta, fmt=td_fmt)
+        tms = sorted(summary, key=lambda v: v['function'])
         tbl_cols = dict(self.config['TIMINGS_TABLE_COLS'])
         tms = [{
             k: v
@@ -590,19 +430,7 @@ class Session:
                     row[col_id] = formatter(val)
         return tms
 
-
-
-    def mkt_load(self, market_id, strategy_id) -> LoadedMarket:
-
-        # check strategy valid if one is selected, when writing info to cache
-        # if strategy_id:
-        #     self.betting_db.cache_strat_updates(strategy_id, market_id)
-        #     self.betting_db.cache_strat_meta(strategy_id)
-
-        # self.betting_db.cache_mkt_stream(market_id)
-        # p = self.betting_db.path_mkt_updates(market_id)
-        # q = self.api_handler.get_historical(p)
-        # record_list = list(q.queue)
+    def market_load(self, market_id, strategy_id) -> LoadedMarket:
         record_list = self.get_market_records(market_id)
         if not len(record_list):
             raise SessionException(f'record list is empty')
@@ -619,43 +447,12 @@ class Session:
             }
             for r in drows
         }
-
         return LoadedMarket(
             market_id=market_id,
             info=dict(meta),
             strategy_id=strategy_id,
             runners=myutils.dictionaries.dict_sort(rinf, key=lambda item: item[1]['starting_odds'])
         )
-
-        # # put market information into self
-        # self.mkt_sid = strategy_id
-        # self.mkt_records = record_list
-        # self.mkt_info = dict(meta)
-        # self.mkt_rnrs = mygeneric.dict_sort(rinf, key=lambda item:item[1]['starting_odds'])
-
-    # def mkt_clr(self):
-    #     self.mkt_info = {}
-    #     self.mkt_records = []
-    #     self.mkt_sid = None
-    #     self.mkt_rnrs = {}
-
-    def mkt_lginf(self, loaded_market: LoadedMarket):
-        """
-        log information about records
-        """
-        rl = self.get_market_records(loaded_market['market_id'])
-        mt = loaded_market['info']['market_time']
-
-        active_logger.info(f'loaded market "{loaded_market["market_id"]}"')
-        active_logger.info(f'{mt}, market time')
-        active_logger.info(f'{rl[0][0].publish_time}, first record timestamp')
-        active_logger.info(f'{rl[-1][0].publish_time}, final record timestamp')
-        for r in rl:
-            if r[0].market_definition.in_play:
-                active_logger.info(f'{r[0].publish_time}, first inplay')
-                break
-        else:
-            active_logger.info(f'no inplay elements found')
 
     def _apply_formatters(self, tbl_rows: List[Dict], fmt_config: Dict):
         for i, row in enumerate(tbl_rows):
@@ -678,18 +475,16 @@ class Session:
         self._apply_formatters(tbl_rows, dict(self.config['STRATEGY_TABLE_FORMATTERS']))
         return tbl_rows
 
-    @staticmethod
-    def odr_rd(p, selection_id, mkt_dt) -> Optional[pd.DataFrame]:
+    def read_orders(self, market_id: str, strategy_id: str, selection_id: int, start_time: datetime) -> pd.DataFrame:
         """
         get profit for each order from order updates file
         """
-
+        buffer = self.get_strategy_updates(market_id, strategy_id)
         # get order results
         try:
-            with open(p) as f:
-                lines = [json.loads(ln) for ln in f.readlines()]
+            lines = [json.loads(ln) for ln in buffer.splitlines()]
         except JSONDecodeError as e:
-            raise SessionException(f'error reading orders file "{p}": {e}')
+            raise SessionException(f'error decoding orders buffer: {e}')
 
         # get order infos for each message close and check not blank
         lines = [
@@ -719,7 +514,7 @@ class Session:
         # convert trade UUIDs to indexes for easy viewing
         trade_ids = list(df['trade'].unique())
         df['trade'] = [trade_ids.index(x) for x in df['trade'].values]
-        df['t-start'] = [myutils.datetime.format_timedelta(mkt_dt - dt) for dt in df['date']]
+        df['t-start'] = [myutils.datetime.format_timedelta(start_time - dt) for dt in df['date']]
 
         currency_cols = [
             'trade-profit',
@@ -736,15 +531,6 @@ class Session:
         # sort earliest first
         return df.sort_values(by=['date'])
 
-    def odr_prft(self, selection_id: int, selected_market: LoadedMarket, strategy_id) -> pd.DataFrame:
-        p = self.betting_db.path_strat_updates(selected_market['market_id'], strategy_id)
-        active_logger.info(f'reading strategy market cache file:\n-> {p}')
-        if not path.isfile(p):
-            raise SessionException(f'order file does not exist')
-
-        df = self.odr_rd(p, selection_id, selected_market['info']['market_time'])
-        return df
-
     @staticmethod
     def fig_title(mkt_info: Dict, name: str, selection_id: int) -> str:
         """
@@ -758,6 +544,13 @@ class Session:
             name,
             selection_id
         )
+
+    def get_strategy_updates(self, market_id, strategy_id) -> str:
+        row = self.betting_db.read('strategyupdates', {
+            'strategy_id': strategy_id,
+            'market_id': market_id,
+        })
+        return row['strategy_updates']
 
     def fig_plot(self, market_info: LoadedMarket, selection_id, secs, ftr_key, plt_key):
 
@@ -809,8 +602,8 @@ class Session:
             end = figlib.FeatureFigure.modify_end(end, orders, offset_secs)
 
         # feature and plot configurations
-        plt_cfg = self.ftr_pcfg(plt_key)
-        ftr_cfg = self.ftr_fcfg(ftr_key)
+        plt_cfg = self.get_plot_config(plt_key)
+        ftr_cfg = self.get_feature_config(ftr_key)
 
         # generate plot by simulating features
         features = ftrutils.FeatureHolder.generator(ftr_cfg)

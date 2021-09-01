@@ -36,6 +36,8 @@ redis = "*"
 celery = {extras = ["librabbitmq", "redis"], version = "*"}
 librabbitmq = "*"
 boussole = "*"
+gunicorn = "*"
+waitress = "*"
 
 [dev-packages]
 

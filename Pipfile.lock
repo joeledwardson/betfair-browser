@@ -1,7 +1,7 @@
 {
     "_meta": {
         "hash": {
-            "sha256": "7ab7570d0848dc787bc5be8d37c8e2ed53ebd209277e48207206b34e7f15c2b0"
+            "sha256": "2bca37a2469bdeba28a196c4d1f60d54909235b832d238b04d9eef901dc2dc5f"
         },
         "pipfile-spec": 6,
         "requires": {
@@ -528,6 +528,14 @@
             "markers": "python_version >= '3'",
             "version": "==1.1.1"
         },
+        "gunicorn": {
+            "hashes": [
+                "sha256:9dcc4547dbb1cb284accfb15ab5667a0e5d1881cc443e0677b4882a4067a807e",
+                "sha256:e0a968b5ba15f8a328fdfd7ab1fcb5af4470c28aaf7e55df02a99bc13138e6e8"
+            ],
+            "index": "pypi",
+            "version": "==20.1.0"
+        },
         "idna": {
             "hashes": [
                 "sha256:14475042e284991034cb48e06f6851428fb14c4dc953acd9be9a5e95c7b6dd7a",
@@ -647,11 +655,11 @@
         },
         "jupyterlab": {
             "hashes": [
-                "sha256:007e42f833e59fd36872d459e45be243d899edbd0e4a98d21388632e4e0d8af7",
-                "sha256:370545a6a33eb50db3f60bdd5e46ca690b2a7fb09145a5df0fc00dd0a40d06d2"
+                "sha256:1c561f1487666e659bf391d2b0d744e53a89567ed314c450bc986127de562254",
+                "sha256:8442b87f5715a7110b5afefe2e00effa6d6bb09818c81ca3501ba573bffa4b8d"
             ],
             "index": "pypi",
-            "version": "==3.1.9"
+            "version": "==3.1.10"
         },
         "jupyterlab-pygments": {
             "hashes": [
@@ -964,11 +972,11 @@
         },
         "plotly": {
             "hashes": [
-                "sha256:70bb0aa3920ac8d2b237361c3536b3b6a86fb722e893eaf4806591b22065e27f",
-                "sha256:b6dc306c56e7d5fa7d017718894099b27290b427abf4acad8e5b77fdc3bd32ec"
+                "sha256:6598393e898a9c5ae78397f76f07002ec41fd92e5f746d3b9806248d53885643",
+                "sha256:c3da90d41cab36722048eaa5d0eee7a286a55982835980e5f183e5536b823f07"
             ],
             "index": "pypi",
-            "version": "==5.3.0"
+            "version": "==5.3.1"
         },
         "prometheus-client": {
             "hashes": [
@@ -1597,6 +1605,14 @@
             ],
             "markers": "python_version >= '3.6'",
             "version": "==5.0.0"
+        },
+        "waitress": {
+            "hashes": [
+                "sha256:29af5a53e9fb4e158f525367678b50053808ca6c21ba585754c77d790008c746",
+                "sha256:69e1f242c7f80273490d3403c3976f3ac3b26e289856936d1f620ed48f321897"
+            ],
+            "index": "pypi",
+            "version": "==2.0.0"
         },
         "watchdog": {
             "hashes": [
