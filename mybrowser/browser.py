@@ -5,12 +5,10 @@ import dash_bootstrap_components as dbc
 import logging
 import sys
 from configparser import ConfigParser
-
-from . import layouts
 from .layout import generate_layout
-from . import callbacks
 from .session import Session
 from flask_caching import Cache
+from . import components
 
 
 
@@ -39,17 +37,34 @@ def run_browser(debug: bool, config_path=None):
         config = None
     session = Session(cache, config)
 
-    callbacks.cb_runners(app, session)
-    callbacks.cb_orders(app, session)
-    callbacks.cb_market(app, session)
-    callbacks.cb_logs(app, session)
-    callbacks.cb_libs(app, session)
-    callbacks.cb_configs(app, session)
-    callbacks.cb_fig(app, session)
-    callbacks.cb_strategy(app, session)
-    callbacks.cb_display(app)
+    _comps = [
+        components.MarketComponent(),
+        components.RunnersComponent(),
+        components.FigureComponent(),
+        components.StrategyComponent(),
+        components.OrdersComponent(),
+        components.LibraryComponent(),
+        components.TimingsComponent()
+    ]
+    notifications = [c.NOTIFICATION_ID for c in _comps if c.NOTIFICATION_ID]
+    _comps.append(components.LoggerComponent(notifications))
+    components.components_callback(app, _comps)
 
-    layout_spec = layouts.get_bf_layout(session.config)
+    # callbacks.cb_runners(app, session)
+    # callbacks.cb_orders(app, session)
+    # callbacks.cb_market(app, session)
+    # callbacks.cb_logs(app, session)
+    # callbacks.cb_libs(app, session)
+    # callbacks.cb_configs(app, session)
+    # callbacks.cb_fig(app, session)
+    # callbacks.cb_strategy(app, session)
+    # callbacks.cb_display(app)
+
+
+    # layout_spec = layouts.get_bf_layout(session.config)
+    for c in _comps:
+        c.callbacks(app, session)
+    layout_spec = components.components_layout(_comps, 'Betfair Browser', session.config)
     app.layout = generate_layout(layout_spec)
 
     active_logger.info(f'Dash version: {dash.__version__}')

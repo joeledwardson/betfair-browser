@@ -1,12 +1,11 @@
 import itertools
-
 from dash.development import base_component as dbase
 import dash_bootstrap_components as dbc
 import dash_html_components as html
 import dash_core_components as dcc
 import dash_table
 from dash.development.base_component import Component
-from typing import Dict, List, Any, Optional
+from typing import Dict, List, Any, Optional, TypedDict, Union
 from myutils import registrar
 from .exceptions import LayoutException
 import uuid
@@ -197,17 +196,18 @@ def gen_navigation_item(spec: Dict) -> dbase.Component:
 
 
 @dash_generators.register_named('element-loading')
-def gen_navigation_item(spec: Dict) -> dbase.Component:
+def _(spec: Dict) -> dbase.Component:
     _validate_id(spec)
     return dcc.Loading(
-        html.Div(id=spec.pop('id')),
+        id=spec.pop('id'),
         type=LOAD_TYPE,
-        className=spec.pop('css_classes', '')
+        className=spec.pop('css_classes', ''),
+        children=[_gen_element(s) for s in spec.pop('children_spec', [])]
     )
 
 
 @dash_generators.register_named('element-badge')
-def gen_navigation_item(spec: Dict) -> dbase.Component:
+def _(spec: Dict) -> dbase.Component:
     return dbc.Badge(
         id=spec.pop('id', None) or str(uuid.uuid4()),
         color=spec.pop('color', None),
@@ -272,7 +272,42 @@ def _gen_element(spec: Dict):
     return element
 
 
-def generate_sidebar(spec: Dict):
+class ElementSpec(TypedDict):
+    id: str
+    placeholder: Optional[str]
+    css_classes: Optional[str]
+
+
+class SidebarSpec(TypedDict):
+    sidebar_title: str
+    sidebar_id: str
+    close_id: str
+    content: List[ElementSpec]
+
+
+class ContainerSpec(TypedDict):
+    container_id: str
+    content: Union[List[ElementSpec], Dict[str, ElementSpec]]
+
+
+class StoreSpec(TypedDict):
+    id: str
+    storage_type: Optional[str]
+    data: Optional[Any]
+
+
+class ContentSpec(TypedDict):
+    navigation: List[ElementSpec]
+    header_title: str
+    header_right: ElementSpec
+    header_left: ElementSpec
+    hidden_elements: List[ElementSpec]
+    containers: List[ContainerSpec]
+    sidebars: List[SidebarSpec]
+    stores: List[StoreSpec]
+
+
+def generate_sidebar(spec: SidebarSpec):
     title = spec.pop('sidebar_title')
     sidebar_id = spec.pop('sidebar_id')
     close_id = spec.pop('close_id')
@@ -340,7 +375,7 @@ def generate_container(spec: Dict):
 def generate_header(title, left_spec, right_spec):
     return dbc.Row([
         dbc.Col(
-            _gen_element(left_spec),
+            _gen_element(left_spec) if left_spec else None,
             width=3
         ),
         dbc.Col(
@@ -352,7 +387,7 @@ def generate_header(title, left_spec, right_spec):
             width=6,
         ),
         dbc.Col(
-            _gen_element(right_spec),
+            _gen_element(right_spec) if right_spec else None,
             width=3
         )],
         align='center',
@@ -372,7 +407,7 @@ def generate_nav(nav_spec):
     )
 
 
-def generate_layout(layout_spec: Dict):
+def generate_layout(layout_spec: ContentSpec):
     nav_spec = layout_spec.pop('navigation')
     nav = generate_nav(nav_spec)
 

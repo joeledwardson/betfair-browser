@@ -26,7 +26,6 @@ from betfairlightweight.streaming.listener import BaseListener, StreamListener
 
 import myutils.dictionaries
 import myutils.files
-from ..layouts.market import FILTERS
 from mytrading.utils.dbfilter import filters_reg
 import mytrading.exceptions
 import mytrading.process
@@ -47,6 +46,130 @@ from myutils import dictionaries
 active_logger = logging.getLogger(__name__)
 active_logger.setLevel(logging.INFO)
 
+
+MARKET_FILTERS = [
+    {
+        'layout': {
+            'type': 'element-select',
+            'id': 'input-sport-type',
+            'placeholder': 'Sport...'
+        },
+        'filter': {
+            'name': 'DBFilterJoin',
+            'kwargs': {
+                'db_col': "sport_id",
+                'join_tbl_name': 'sportids',
+                'join_id_col': 'sport_id',
+                'join_name_col': 'sport_name'
+            }
+        }
+    },
+    {
+        'layout': {
+            'type': 'element-select',
+            'id': 'input-mkt-type',
+            'placeholder': 'Market type...',
+        },
+        'filter': {
+            'name': 'DBFilter',
+            'kwargs': {
+                'db_col': 'market_type'
+            }
+        },
+    },
+    {
+        'layout': {
+            'type': 'element-select',
+            'id': 'input-bet-type',
+            'placeholder': 'Betting type...',
+        },
+        'filter': {
+            'name': 'DBFilter',
+            'kwargs': {
+                'db_col': 'betting_type'
+            }
+        }
+    },
+    {
+        'layout': {
+            'type': 'element-select',
+            'id': 'input-format',
+            'placeholder': 'Format...'
+        },
+        'filter': {
+            'name': 'DBFilter',
+            'kwargs': {
+                'db_col': 'format'
+            }
+        }
+    },
+    {
+        'layout': {
+            'type': 'element-select',
+            'id': 'input-country-code',
+            'placeholder': 'Country...'
+        },
+        'filter': {
+            'name': 'DBFilterJoin',
+            'kwargs': {
+                'db_col': "country_code",
+                'join_tbl_name': 'countrycodes',
+                'join_id_col': 'alpha_2_code',
+                'join_name_col': 'name'
+            }
+        }
+    },
+    {
+        'layout': {
+            'type': 'element-select',
+            'id': 'input-venue',
+            'placeholder': 'Venue...'
+        },
+        'filter': {
+            'name': 'DBFilter',
+            'kwargs': {
+                'db_col': 'venue'
+            }
+        }
+    },
+    {
+        'layout': {
+            'type': 'element-select',
+            'id': 'input-date',
+            'placeholder': 'Market date...'
+        },
+        'filter': {
+            'name': 'DBFilterDate',
+            'kwargs': {
+                'db_col': 'market_time',
+                'dt_fmt': '%d %b %y'
+            }
+        }
+    },
+    {
+        'layout': {
+            'type': 'element-input',
+            'id': 'input-mkt-id',
+            'element_kwargs': {
+                'placeholder': 'Market ID filter...',
+            }
+        },
+        'filter': {
+            'name': 'DBFilterText',
+            'kwargs': {
+                'db_col': 'market_id',
+            }
+        }
+    },
+    {
+        'layout': {
+            'type': 'element-button',
+            'id': 'input-mkt-clear',
+            'btn_icon': 'fas fa-times-circle',
+            'btn_text': 'Clear Filters'
+        }
+    }
+]
 
 
 class LoadedMarket(TypedDict):
@@ -99,7 +222,7 @@ class BufferStream:
 
 def get_mkt_filters(mkt_dt_fmt):
     out = []
-    for f in FILTERS:
+    for f in MARKET_FILTERS:
         if 'filter' in f:
             cls = filters_reg[f['filter']['name']]
             kwargs = f['filter']['kwargs']
