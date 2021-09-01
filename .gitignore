@@ -3,3 +3,6 @@ myutils/__pycache__
 .ipynb_checkpoints/
 .idea/
 /mybrowser/bootstrap-5.0.1/
+ __pycache__/
+ *.pyc
+ 
