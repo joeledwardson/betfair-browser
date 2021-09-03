@@ -1,3 +1,4 @@
+import pprint
 import importlib.resources as pkg_resources
 from os import path, listdir
 from typing import List, Dict, Optional, TypedDict, Union, Literal, Any
@@ -279,7 +280,7 @@ class Session:
         'best_lay': {'name': 'RFLay'}
     }
 
-    def __init__(self, cache: Cache, config: ConfigParser):
+    def __init__(self, cache: Cache, config):
 
         def get_package_files(resource: str, file_ext: str) -> Dict[str, Any]:
             data = {}
@@ -307,13 +308,10 @@ class Session:
         self.get_market_records = get_market_records
 
         active_logger.info(f'configuration values:')
-        for section in config.sections():
-            active_logger.info(f'Section {section}, values:')
-            for k, v in config[section].items():
-                active_logger.info(f'{k}: {v}')
+        active_logger.info(yaml.dump(config, indent=4))
         active_logger.info(f'configuration end')
 
-        self.config: ConfigParser = config  # parsed configuration
+        self.config = config  # parsed configuration
         self.tbl_formatters = get_formatters(config)  # registrar of table formatters
 
         self._market_filters = dbf.DBFilterHandler(
@@ -325,7 +323,7 @@ class Session:
 
         # betting database instance
         self._db_kwargs = {}
-        if config.has_section('DB_CONFIG'):
+        if 'DB_CONFIG' in config:
             self._db_kwargs = config['DB_CONFIG']
         self.betting_db = bdb.BettingDB(**self._db_kwargs)
 

@@ -35,30 +35,30 @@ def is_dict_subset(x, y):
     return True
 
 
-def dict_update(x: Mapping, y: Mapping):
-    """recursively update key value pairs of y with x"""
+def dict_update(updates: Mapping, base_dict: Mapping):
+    """recursively update key value pairs of base_dict with updates"""
 
-    for k, v in x.items():
+    for k, v in updates.items():
 
         if type(v) is not dict:
             # value is not dict
-            y[k] = v
+            base_dict[k] = v
             continue
 
         # value is dict
-        if k not in y:
+        if k not in base_dict:
             # value is dict & key not found in y
-            y[k] = v
+            base_dict[k] = v
             continue
 
         # value is dict & key found in y
-        if isinstance(y[k], Iterable):
+        if isinstance(base_dict[k], Iterable):
             # value is dict & key found in y & value in y is iterable
-            dict_update(v, y[k])
+            dict_update(v, base_dict[k])
             continue
 
         # value is dict & key found in y & value in y is not iterable
-        y[k] = v
+        base_dict[k] = v
 
 
 def dict_sort(d: dict, key=lambda item: item[1]) -> Dict:

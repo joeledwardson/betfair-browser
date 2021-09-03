@@ -1,26 +1,24 @@
 from __future__ import annotations
 import dash
-import dash_renderer
 import dash_bootstrap_components as dbc
 import logging
 import sys
-from configparser import ConfigParser
 from typing import Optional, Dict, Any
-
-import keyring
+import importlib.resources as pkg_resources
+from flask_caching import Cache
+import yaml
 
 from .layout import generate_layout
 from .session import Session
-from flask_caching import Cache
-import importlib.resources as pkg_resources
 from . import components
+from myutils import dictionaries
 
 active_logger = logging.getLogger(__name__)
 active_logger.setLevel(logging.INFO)
 FA = "https://use.fontawesome.com/releases/v5.15.1/css/all.css"
 
 
-def get_app(config_path=None, additional_config: Optional[Dict[str, Dict[str, Any]]] = None):
+def get_app(config_path=None, additional_config: Optional[Dict[str, Any]] = None):
     """
     run dash app mybrowser - input_dir specifies input directory for entry point for mybrowser but also expected root for:
     - "historical" dir
@@ -33,18 +31,15 @@ def get_app(config_path=None, additional_config: Optional[Dict[str, Dict[str, An
     cache = Cache()
     cache.init_app(app.server, config={'CACHE_TYPE': 'simple'})
 
-    config = ConfigParser()
     if config_path:
-        config.read_file(config_path)
+        with open(config_path, 'r') as f:
+            data = f.read()
     else:
-        config = ConfigParser()
-        txt = pkg_resources.read_text("mybrowser.session", 'config.ini')
-        config.read_string(txt)
+        data = pkg_resources.read_text("mybrowser.session", 'config.yaml')
+    config = yaml.load(data, yaml.FullLoader)
 
     if additional_config:
-        for section, _cfg in additional_config.items():
-            for key, value in _cfg.items():
-                config[section][key] = value
+        dictionaries.dict_update(additional_config, config)
     session = Session(cache, config)
 
     _comps = [

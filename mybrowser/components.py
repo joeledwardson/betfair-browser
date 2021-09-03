@@ -121,7 +121,7 @@ class MarketComponent(Component):
         options_labels = self._sort_labels(sort_options)
         cache_row = []
 
-        if config.getboolean('DISPLAY_CONFIG', 'cache'):
+        if config['DISPLAY_CONFIG']['cache']:
             cache_row += [{
                 'type': 'element-button',
                 'id': 'btn-db-upload',
@@ -223,7 +223,7 @@ class MarketComponent(Component):
             # 'btn-strategy-run',
             'btn-strategy-download'
         ]
-        if shn.config.getboolean('DISPLAY_CONFIG', 'cache'):
+        if shn.config['DISPLAY_CONFIG']['cache']:
             buttons += [
                 'btn-db-upload',
                 'btn-cache-clear',
@@ -955,7 +955,7 @@ class OrdersComponent(Component):
     PATHNAME = '/orders'
     CONTAINER_ID = 'container-orders'
 
-    def display_spec(self, config: ConfigParser) -> Optional[Dict]:
+    def display_spec(self, config) -> Optional[Dict]:
         tbl_cols = dict(config['ORDER_TABLE_COLS'])
         n_rows = int(config['TABLE']['orders_rows'])
         return {
