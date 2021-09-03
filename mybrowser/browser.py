@@ -41,7 +41,6 @@ def get_app(config_path=None, additional_config: Optional[Dict[str, Dict[str, An
         txt = pkg_resources.read_text("mybrowser.session", 'config.ini')
         config.read_string(txt)
 
-    config['DB_CONFIG']['db_pwd'] = keyring.get_password('betdb_pwd', 'betting')
     if additional_config:
         for section, _cfg in additional_config.items():
             for key, value in _cfg.items():
