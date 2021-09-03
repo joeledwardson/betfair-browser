@@ -32,4 +32,4 @@ app = get_app(additional_config=config)
 server = app.server
 
 # turn of dev tools prop check to disable time input error
-app.run_server(debug=False, dev_tools_props_check=False, use_reloader=False, host='0.0.0.0')
+# app.run_server(debug=False, dev_tools_props_check=False, use_reloader=False, host='0.0.0.0')
