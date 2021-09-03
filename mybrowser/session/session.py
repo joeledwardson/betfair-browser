@@ -1,4 +1,4 @@
-from betfairlightweight.resources.bettingresources import MarketBook
+import importlib.resources as pkg_resources
 from os import path, listdir
 from typing import List, Dict, Optional, TypedDict, Union, Literal, Any
 import pandas as pd
@@ -8,12 +8,12 @@ from configparser import ConfigParser
 import yaml
 import json
 from json.decoder import JSONDecodeError
-import importlib.resources as pkg_resources
 import importlib
 from flask_caching import Cache
 import betfairlightweight
 import queue
 import sys
+from betfairlightweight.resources.bettingresources import MarketBook
 from betfairlightweight.exceptions import SocketError, ListenerError
 from betfairlightweight.streaming.listener import BaseListener, StreamListener
 
@@ -273,14 +273,13 @@ def post_notification(
 class Session:
 
     MODULES = ['myutils', 'mytrading']
-    CFG_LOCAL_FILE = 'config.ini'
     FTR_DEFAULT = {
         'ltp': {'name': 'RFLTP'},
         'best_back': {'name': 'RFBck'},
         'best_lay': {'name': 'RFLay'}
     }
 
-    def __init__(self, cache: Cache, config: Optional[ConfigParser] = None):
+    def __init__(self, cache: Cache, config: ConfigParser):
 
         def get_package_files(resource: str, file_ext: str) -> Dict[str, Any]:
             data = {}
@@ -307,9 +306,6 @@ class Session:
 
         self.get_market_records = get_market_records
 
-        # load configuration from local file if not passed, then print values
-        if config is None:
-            config = self.cfg_local()
         active_logger.info(f'configuration values:')
         for section in config.sections():
             active_logger.info(f'Section {section}, values:')
@@ -348,14 +344,6 @@ class Session:
 
     def market_filter_conditions(self, values: List[Any]):
         return self._market_filters.filters_conditions(self.betting_db._dbc.tables['marketmeta'], values)
-
-    @classmethod
-    def cfg_local(cls):
-        active_logger.info(f'reading configuration from default "{cls.CFG_LOCAL_FILE}"...')
-        config = ConfigParser()
-        txt = pkg_resources.read_text("mybrowser.session", cls.CFG_LOCAL_FILE)
-        config.read_string(txt)
-        return config
 
     @classmethod
     def reload_modules(cls) -> int:

@@ -5,9 +5,14 @@ import dash_bootstrap_components as dbc
 import logging
 import sys
 from configparser import ConfigParser
+from typing import Optional, Dict, Any
+
+import keyring
+
 from .layout import generate_layout
 from .session import Session
 from flask_caching import Cache
+import importlib.resources as pkg_resources
 from . import components
 
 active_logger = logging.getLogger(__name__)
@@ -15,7 +20,7 @@ active_logger.setLevel(logging.INFO)
 FA = "https://use.fontawesome.com/releases/v5.15.1/css/all.css"
 
 
-def get_app(config_path=None):
+def get_app(config_path=None, additional_config: Optional[Dict[str, Dict[str, Any]]] = None):
     """
     run dash app mybrowser - input_dir specifies input directory for entry point for mybrowser but also expected root for:
     - "historical" dir
@@ -28,11 +33,19 @@ def get_app(config_path=None):
     cache = Cache()
     cache.init_app(app.server, config={'CACHE_TYPE': 'simple'})
 
+    config = ConfigParser()
     if config_path:
-        config = ConfigParser()
         config.read_file(config_path)
     else:
-        config = None
+        config = ConfigParser()
+        txt = pkg_resources.read_text("mybrowser.session", 'config.ini')
+        config.read_string(txt)
+
+    config['DB_CONFIG']['db_pwd'] = keyring.get_password('betdb_pwd', 'betting')
+    if additional_config:
+        for section, _cfg in additional_config.items():
+            for key, value in _cfg.items():
+                config[section][key] = value
     session = Session(cache, config)
 
     _comps = [

@@ -18,8 +18,7 @@ from sqlalchemy_filters.filters import Operator as SqlOperator
 from sqlalchemy.orm.query import Query
 from queue import Queue
 import logging
-from typing import Optional, Dict, List, Callable, Any, Tuple, Union, Literal
-import keyring
+from typing import Optional, Dict, List, Callable, Any, Tuple, Union, Literal, TypedDict
 from os import path
 import os
 from datetime import datetime, timedelta
@@ -41,6 +40,54 @@ ProcessorMap = Dict[type, Dict[ProcessorKey, List[str]]]
 
 Processor = Callable[[Any], Any]
 db_processors = registrar.Registrar[Processor]()
+
+
+DB_PROCESSORS: ProcessorMap = {
+    psqlbase.BYTEA: {
+        'process_in': [
+            'prc_compress'
+        ],
+        'process_out': [
+            'prc_decompress',
+        ]
+    },
+}
+
+
+CACHE_PROCESSORS: ProcessorMap = {
+    psqlbase.BYTEA: {
+        'process_in': [
+            'prc_str_encode',
+        ],
+        'process_out': [
+            'prc_str_decode'
+        ]
+    },
+    psqlbase.TIMESTAMP: {
+        'process_in': [
+            'prc_dt_from_str',
+        ],
+        'process_out': [
+            'prc_dt_to_str'
+        ]
+    },
+    psqlbase.INTERVAL: {
+        'process_in': [
+            'prc_td_from_float',
+        ],
+        'process_out': [
+            'prc_td_to_float'
+        ]
+    },
+    psqljson.JSON: {
+        'process_in': [
+            'prc_json_decode',
+        ],
+        'process_out': [
+            'prc_json_encode'
+        ]
+    }
+}
 
 
 @db_processors.register_element
@@ -101,22 +148,24 @@ def prc_json_decode(data):
 class DBBase:
     def __init__(
             self,
-            db_lang,
-            db_user,
-            db_host,
-            db_port,
-            db_name,
-            db_pwd,
+            db_lang=None,
+            db_user=None,
+            db_host=None,
+            db_port=None,
+            db_name=None,
+            db_pwd=None,
             db_engine=None,
-            col_processors=None
+            col_processors=None,
+            engine_kwargs=None
     ):
-        self.col_prcs = col_processors or dict()
-        engine_str = f'+{db_engine}' if db_engine else ''
+        self.col_prcs = col_processors or DB_PROCESSORS
         self.Base = automap_base()
-        self.engine = create_engine(
-            f'{db_lang}{engine_str}://{db_user}:{db_pwd}'
-            f'@{db_host}:{db_port}/{db_name}'
-        )
+
+        engine_kwargs = engine_kwargs or {}
+        engine_str = f'+{db_engine}' if db_engine else ''
+        url = f'{db_lang}{engine_str}://{db_user}:{db_pwd}@{db_host}:{db_port}/{db_name}'
+        engine_kwargs = {'url': url} | engine_kwargs # prioritise engine kwargs "url" if provided
+        self.engine = create_engine(**engine_kwargs)
         self.Base.prepare(self.engine, reflect=True)
         self.session = Session(self.engine)
         self.tables: Dict[str, Table] = self.Base.metadata.tables
@@ -224,7 +273,6 @@ class DBBase:
 
 
 class DBCache(DBBase):
-
     def __init__(self, cache_root, cache_processors=None, **kwargs):
         super().__init__(**kwargs)
         self.cache_root = path.abspath(path.expandvars(cache_root))
@@ -233,7 +281,7 @@ class DBCache(DBBase):
             os.makedirs(self.cache_root)
         else:
             active_logger.info(f'existing cache root directory found at: "{self.cache_root}"')
-        self.cache_prcs = cache_processors or dict()
+        self.cache_prcs = cache_processors or CACHE_PROCESSORS
 
     def cache_tbl(self, tbl_nm) -> str:
         return path.join(self.cache_root, tbl_nm)
@@ -349,86 +397,13 @@ class DBCache(DBBase):
         return len(filenames), len(dirnames)
 
 
-DB_PROCESSORS: ProcessorMap = {
-    psqlbase.BYTEA: {
-        'process_in': [
-            'prc_compress'
-        ],
-        'process_out': [
-            'prc_decompress',
-        ]
-    },
-    # sqlalchemy automatically converts JSON to/from dictionary objects
-
-    # psqljson.JSON: {
-    #     'process_in': [
-    #         'prc_json_encode',
-    #     ],
-    #     'process_out': [
-    #         'prc_json_decode'
-    #     ]
-    # }
-}
+class QueryFilter(TypedDict):
+    value: object
+    field: str
+    op: str
 
 
-CACHE_PROCESSORS: ProcessorMap = {
-    psqlbase.BYTEA: {
-        'process_in': [
-            'prc_str_encode',
-        ],
-        'process_out': [
-            'prc_str_decode'
-        ]
-    },
-    psqlbase.TIMESTAMP: {
-        'process_in': [
-            'prc_dt_from_str',
-        ],
-        'process_out': [
-            'prc_dt_to_str'
-        ]
-    },
-    psqlbase.INTERVAL: {
-        'process_in': [
-            'prc_td_from_float',
-        ],
-        'process_out': [
-            'prc_td_to_float'
-        ]
-    },
-    psqljson.JSON: {
-        'process_in': [
-            'prc_json_decode',
-        ],
-        'process_out': [
-            'prc_json_encode'
-        ]
-    }
-}
-
-
-FILTER_SPEC_PROCESSORS: ProcessorMap = {
-    psqlbase.TIMESTAMP: {
-        'processors': [
-            'prc_str_to_dt'
-        ]
-    }
-}
-
-MARKET_FILTER_SPEC = {
-    'value': {
-        'type': object,
-    },
-    'field': {
-        'type': str,
-    },
-    'op': {
-        'type': str,
-    }
-}
-
-
-def apply_filter_spec(tbl: Table, q: Query, filters_spec: List[Dict]) -> Query:
+def apply_filter_spec(tbl: Table, q: Query, filters_spec: List[QueryFilter]) -> Query:
     """sqlalchemy_filters `apply_filters` function doesn't work with Sqlalchemy V1.14 so i've bodged it myself until
     they sort it out"""
     conditions = [
@@ -447,32 +422,8 @@ class BettingDB:
     "Recorded" markets are files from betfair markets recorded through a python script locally, which are recorded
     with the accompanying market catalogue file
     """
-    def __init__(
-            self,
-            cache_root=r'%USERPROFILE%\Documents\_bf_cache',
-            cache_processors=None,
-            db_lang="postgresql",
-            db_engine="psycopg2",
-            db_user="better",
-            db_host='imappalled.ddns.net',
-            db_port=5432,
-            db_name='betting',
-            keyring_pwd_service="betdb_pwd",
-            keyring_pwd_user='betting',
-            col_processors=None,
-    ):
-        self._dbc = DBCache(
-            cache_root=cache_root,
-            cache_processors=cache_processors or CACHE_PROCESSORS,
-            db_lang=db_lang,
-            db_engine=db_engine,
-            db_user=db_user,
-            db_host=db_host,
-            db_port=db_port,
-            db_name=db_name,
-            db_pwd=keyring.get_password(keyring_pwd_service, keyring_pwd_user),
-            col_processors=col_processors or DB_PROCESSORS
-        )
+    def __init__(self, **kwargs):
+        self._dbc = DBCache(**kwargs)
 
     def read(self, tbl_nm: str, pkey_flts: Dict):
         return self._dbc.read_row(tbl_nm, pkey_flts)
@@ -674,16 +625,7 @@ class BettingDB:
             col='strategy_updates'
         )
 
-    def paths_market_updates(self, filter_spec: List[Dict], limit=200):
-        for flt in filter_spec:
-            dictionaries.validate_config(flt, MARKET_FILTER_SPEC)
-            flt['value'] = self._dbc._value_processors(
-                value=flt['value'],
-                tbl_name='marketmeta',
-                col=flt['field'],
-                prcs=FILTER_SPEC_PROCESSORS,
-                prc_type='processors'
-            )
+    def paths_market_updates(self, filter_spec: List[QueryFilter], limit=200):
         tbl = self._dbc.tables['marketmeta']
         q = self._dbc.session.query(tbl)
         q_flt = apply_filter_spec(tbl, q, filter_spec)

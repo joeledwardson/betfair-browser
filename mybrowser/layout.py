@@ -125,7 +125,7 @@ def gen_table(spec: Dict) -> dbase.Component:
             },
             page_size=n_rows,
         ),
-        className='table-container flex-grow-1 overflow-hidden'
+        className='table-container flex-grow-1 overflow-hidden pr-1'
     )
 
 
