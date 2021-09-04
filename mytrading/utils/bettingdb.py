@@ -164,7 +164,8 @@ class DBBase:
         engine_kwargs = engine_kwargs or {}
         engine_str = f'+{db_engine}' if db_engine else ''
         url = f'{db_lang}{engine_str}://{db_user}:{db_pwd}@{db_host}:{db_port}/{db_name}'
-        engine_kwargs = {'url': url} | engine_kwargs # prioritise engine kwargs "url" if provided
+        engine_kwargs = {'url': url} | engine_kwargs  # prioritise engine kwargs "url" if provided
+        active_logger.info(f'connecting to database with kwargs:\n{engine_kwargs}')
         self.engine = create_engine(**engine_kwargs)
         self.Base.prepare(self.engine, reflect=True)
         self.session = Session(self.engine)

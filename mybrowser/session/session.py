@@ -307,8 +307,7 @@ class Session:
 
         self.get_market_records = get_market_records
 
-        active_logger.info(f'configuration values:')
-        active_logger.info(yaml.dump(config, indent=4))
+        active_logger.info(f'configuration values:\n{yaml.dump(config, indent=4)}')
         active_logger.info(f'configuration end')
 
         self.config = config  # parsed configuration

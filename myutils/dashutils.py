@@ -124,9 +124,9 @@ def dict_callback(
 
         logger.info(f'generating callback using process "{process.__name__}"')
         get_info = lambda objs: '\n'.join([f'{x.__class__.__name__}: {repr(x)}' for x in objs])
-        logger.info(get_info(inputs))
-        logger.info(get_info(outputs))
-        logger.info(get_info(states))
+        logger.info(f'inputs:\n{get_info(inputs)}')
+        logger.info(f'outputs:\n{get_info(outputs)}')
+        logger.info(f'states:\n{get_info(states)}')
 
         @app.callback(outputs, inputs, states)
         def callback(*args):
