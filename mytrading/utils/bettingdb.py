@@ -170,6 +170,7 @@ class DBBase:
         self.Base.prepare(self.engine, reflect=True)
         self.session = Session(self.engine)
         self.tables: Dict[str, Table] = self.Base.metadata.tables
+        active_logger.info(f'tables found: {list(self.tables.keys())}')
 
     def _validate_tbl(self, tbl_name: str):
         if tbl_name not in self.tables:
