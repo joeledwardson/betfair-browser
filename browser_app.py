@@ -13,7 +13,7 @@ my_formatter = logging.Formatter(
 )
 my_handler.setFormatter(my_formatter)
 
-logger = logging.getLogger('__main__')
+logger = logging.getLogger()
 logger.addHandler(my_handler)
 logger.setLevel(logging.INFO)
 
