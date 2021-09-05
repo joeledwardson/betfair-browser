@@ -16,7 +16,7 @@ HEADER_PY = 2  # header top/bottom padding
 HEADER_PX = 4  # header left/right padding
 NAV_BTN_P = 0  # padding for navigation links
 LOAD_TYPE = 'dot'  # loading type
-NAV_P = 1  # padding around each nav object
+NAV_P = 0  # padding around each nav object
 NAV_PT = 2  # top padding of nav bar
 BTN_ML = 2  # left margin for button icons
 BTN_COLOR = 'primary'  # default button color
@@ -46,6 +46,9 @@ EL_MAP = {
     },
     'element-input-group-addon': {
         'dash_cls': dbc.InputGroupAddon
+    },
+    'element-paragraph': {
+        'dash_cls': html.P
     }
 }
 
@@ -179,17 +182,18 @@ def gen_navigation_button(spec: Dict) -> dbase.Component:
 
 @dash_generators.register_named('element-navigation-item')
 def gen_navigation_item(spec: Dict) -> dbase.Component:
-    nav_icon = spec.pop('nav_icon')
+    nav_icon = spec.pop('nav_icon', None)
     css_classes = spec.pop('css_classes', '')
     children = list()
     if nav_icon:
         children.append(html.I(className=nav_icon))
-    children += [_gen_element(x) for x in spec.pop('nav_children_spec', list())]
+    children += [_gen_element(x) for x in spec.pop('children_spec', list())]
     return dbc.NavItem(
         dbc.NavLink(
             children,
             href=spec.pop('href'),
             active='exact',
+            className=spec.pop('nav_css_classes', '')
         ),
         className=css_classes
     )
@@ -211,7 +215,8 @@ def _(spec: Dict) -> dbase.Component:
     return dbc.Badge(
         id=spec.pop('id', None) or str(uuid.uuid4()),
         color=spec.pop('color', None),
-        className=spec.pop('css_classes', '')
+        className=spec.pop('css_classes', ''),
+        children=_gen_element(spec.pop('children_spec', []))
     )
 
 
@@ -261,9 +266,19 @@ def _(spec: Dict) -> dbase.Component:
     )
 
 
-def _gen_element(spec: Dict):
+@dash_generators.register_named('element-fontawesome')
+def _(spec: Dict) -> dbase.Component:
+    return html.I(className=spec.pop('css_classes'))
+
+
+def _gen_element(spec: Union[str, Dict]):
+
+    if isinstance(spec, str):
+        return spec
+    if isinstance(spec, list):
+        return [_gen_element(x) for x in spec]
+
     el_type = spec.pop('type')
-    
     if el_type in dash_generators:
         element = dash_generators[el_type](spec)
     elif el_type in EL_MAP:
@@ -354,6 +369,7 @@ def generate_sidebar(spec: SidebarSpec):
             className=f'd-flex flex-column h-100 p-{SIDE_CONTENT_P}'
         ),
         className='right-side-bar',
+        hidden=True,  # default hidden so don't show at startup
         id=sidebar_id
     )
 
@@ -388,6 +404,7 @@ def generate_container(spec: Dict):
         ),
         className=f'flex-grow-1 shadow m-{CONT_M} p-{CONT_P}',
         id=cont_id,
+        hidden=True  # default hidden so don't show at startup
     )
 
 
@@ -419,8 +436,8 @@ def generate_nav(nav_spec):
         dbc.Nav(
             [html.Div(_gen_element(x), className=f'p-{NAV_P}') for x in nav_spec],
             vertical=True,
-            pills=True,
-            className=f'align-items-center h-100 pt-{NAV_PT}',
+            # pills=True,
+            className=f'h-100 pt-{NAV_PT}',
         ),
         id='nav-bar',
     )

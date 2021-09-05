@@ -13,7 +13,7 @@ html, body {
 
 /* navigation bar */
 #nav-bar {
-    min-width: 5rem;
+    min-width: 11rem;
     background-color: #feeffe;
 }
 
@@ -68,13 +68,20 @@ html, body {
     opacity: 0.2 !important;
 }
 
-div.anchor-right div {
-    justify-content: flex-end !important;
-}
-
 div.right-corner-box {
     position: absolute;
     transform: translate(50%, -50%);
     right: 0;
     top: 0;
+}
+
+/* unselected nav links not fully visible */
+.nav-link {
+    opacity: 0.7;
+}
+
+/* active nav link is fully visible and bold text */
+.nav-link.active {
+    opacity: 1 !important;
+    font-weight: bold;
 }

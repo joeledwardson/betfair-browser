@@ -22,17 +22,6 @@ from .layout import ContentSpec, StoreSpec
 
 RUNNER_BUTTON_ID = 'button-runners'
 
-STORES = [
-    'notifications-runners',
-    'notifications-market',
-    'notifications-strategy-reload',
-    'notifications-configs',
-    'notifications-libs',
-    'notifications-strategy',
-    'notifications-figure',
-    'notifications-orders'
-]
-
 
 def _right_panel_callback(app, panel_id: str, open_id: str, close_id: str):
     """
@@ -53,6 +42,86 @@ def _right_panel_callback(app, panel_id: str, open_id: str, close_id: str):
             return str(classes + "right-not-collapsed")
         else:
             return str(classes - "right-not-collapsed")
+
+
+def nav_element(path: str, icon: str, header: str) -> Dict:
+    return {
+        'type': 'element-navigation-item',
+        'css_classes': 'ml-3',
+        'nav_css_classes': 'position-relative d-flex align-items-center mb-2',
+        'href': path,
+        'children_spec': [
+            {
+                'type': 'element-fontawesome',
+                'css_classes': icon + ' mr-2'
+            },
+            {
+                'type': 'element-div',
+                'css_classes': 'position-relative pr-3',
+                'children_spec': [
+                    header,
+                    {
+                        'type': 'element-div',
+                        'css_classes': 'right-corner-box',
+                        'children_spec': [
+                            {
+                                'type': 'element-badge',
+                                'color': 'primary',
+                                'css_classes': 'p-2',
+                            }
+                        ]
+                    }
+                ],
+            }
+        ]
+    }
+# 'type': 'element-div',
+        # 'css_classes': 'd-flex align-items-center',
+        # 'children_spec': [
+        # {
+        #     'type': 'element-navigation-item',
+        #     'nav_css_classes': 'd-flex align-items-center',
+        #     'href': self.PATHNAME,
+        #     'children_spec': [
+        #         {
+        #             'type': 'element-fontawesome',
+        #             'css_classes': 'fas fa-envelope-open-text mr-2'
+        #         },
+        #         {
+        #             'type': 'element-div',
+        #             'children_spec': 'Logger',
+        #             'css_classes': 'mr-1'
+        #         }
+        #     ]
+        # 'type': 'element-div',
+        # 'css_classes': 'd-flex align-items-center',
+        # 'children_spec': [
+            # 'nav_icon': 'fas fa-envelope-open-text',
+            # 'css_classes': 'position-relative',
+            # 'nav_children_spec': [
+            #     {
+            #         'type': 'element-div',
+            #         'id': 'msg-alert-box',
+            #         'css_classes': 'right-corner-box',
+            #         'hidden': True,
+            #         'children_spec': [
+            #             {
+            #                 'type': 'element-badge',
+            #                 'id': 'log-warns',
+            #                 'color': 'danger',
+            #                 'css_classes': 'p-2'
+            #             }
+            #         ]
+            #     }
+            # ]
+            #     },
+            # {
+            #     'type': 'element-div',
+            #     'children_spec': 'Logger',
+            #     'css_classes': 'p-1'
+            # },
+            # ]
+        # }
 
 
 class Component:
@@ -365,11 +434,12 @@ class MarketComponent(Component):
         return [self.LOADING_ID]
 
     def nav_items(self) -> Optional[Dict]:
-        return {
-            'type': 'element-navigation-item',
-            'href': self.PATHNAME,
-            'nav_icon': 'fas fa-horse',
-        }
+        return nav_element(self.PATHNAME, 'fas fa-horse', 'Markets')
+        # return {
+        #     'type': 'element-navigation-item',
+        #     'href': self.PATHNAME,
+        #     'nav_icon': 'fas fa-horse',
+        # }
 
     def additional_stores(self) -> List[Dict]:
         return [{
@@ -595,13 +665,6 @@ class RunnersComponent(Component):
                     'placeholder': 'Plot config...',
                 },
                 {
-                    'type': 'element-button',
-                    'id': 'button-feature-config',
-                    'btn_text': 'Reload feature configs',
-                    'btn_icon': 'fas fa-sync-alt',
-                    'color': 'info'
-                },
-                {
                     'type': 'element-input-group',
                     'children_spec': [
                         {
@@ -623,11 +686,12 @@ class RunnersComponent(Component):
         }
 
     def nav_items(self) -> Optional[Dict]:
-        return {
-            'type': 'element-navigation-item',
-            'href': self.PATHNAME,
-            'nav_icon': 'fas fa-running',
-        }
+        return nav_element(self.PATHNAME, 'fas fa-running', 'Runners')
+        # return {
+        #     'type': 'element-navigation-item',
+        #     'href': self.PATHNAME,
+        #     'nav_icon': 'fas fa-running',
+        # }
 
 
 class FigureComponent(Component):
@@ -842,11 +906,12 @@ class FigureComponent(Component):
         }
 
     def nav_items(self) -> Optional[Dict]:
-        return {
-            'type': 'element-navigation-item',
-            'href': self.PATHNAME,
-            'nav_icon': 'fas fa-chart-bar',
-        }
+        return nav_element(self.PATHNAME, 'fas fa-chart-bar', 'Figures')
+        # return {
+        #     'type': 'element-navigation-item',
+        #     'href': self.PATHNAME,
+        #     'nav_icon': 'fas fa-chart-bar',
+        # }
 
     def additional_stores(self) -> List[StoreSpec]:
         return [{
@@ -1034,11 +1099,23 @@ class StrategyComponent(Component):
             ]
 
     def nav_items(self) -> Optional[Dict]:
-        return {
-            'type': 'element-navigation-item',
-            'href': self.PATHNAME,
-            'nav_icon': 'fas fa-chess-king'
-        }
+        return nav_element(self.PATHNAME, 'fas fas fa-chess-king', 'Strategies')
+        #     'type': 'element-navigation-item',
+        #     'href': self.PATHNAME,
+        #     'nav_icon': 'fas fa-chess-king'
+        # }
+        # {
+        #     'type': 'element-navigation-item',
+        #     # 'css_classes': 'mx-1',
+        #     'href': self.PATHNAME,
+        #     'children_spec': [
+        #         {
+        #             'type': 'element-fontawesome',
+        #             'css_classes': 'fas fa-chess-king mr-2'
+        #         },
+        #         'Strategies',
+        #     ]
+        # }
 
     def additional_stores(self) -> List[StoreSpec]:
         return [{
@@ -1152,11 +1229,12 @@ class OrdersComponent(Component):
             process()
 
     def nav_items(self) -> Optional[Dict]:
-        return {
-            'type': 'element-navigation-item',
-            'href': self.PATHNAME,
-            'nav_icon': 'fas fa-file-invoice-dollar'
-        }
+        return nav_element(self.PATHNAME, 'fas fa-file-invoice-dollar', 'Orders')
+        # return {
+        #     'type': 'element-navigation-item',
+        #     'href': self.PATHNAME,
+        #     'nav_icon': 'fas fa-file-invoice-dollar'
+        # }
 
 
 class LibraryComponent(Component):
@@ -1217,28 +1295,7 @@ class LoggerComponent(Component):
     }
 
     def nav_items(self) -> Optional[Dict]:
-        return {
-            'type': 'element-navigation-item',
-            'href': self.PATHNAME,
-            'nav_icon': 'fas fa-envelope-open-text',
-            'css_classes': 'position-relative',
-            # 'nav_children_spec': [
-            #     {
-            #         'type': 'element-div',
-            #         'id': 'msg-alert-box',
-            #         'css_classes': 'right-corner-box',
-            #         'hidden': True,
-            #         'children_spec': [
-            #             {
-            #                 'type': 'element-badge',
-            #                 'id': 'log-warns',
-            #                 'color': 'danger',
-            #                 'css_classes': 'p-2'
-            #             }
-            #         ]
-            #     }
-            # ]
-        }
+        return nav_element(self.PATHNAME, 'fas fa-envelope-open-text', 'Logger')
 
     def display_spec(self, config: ConfigParser) -> Optional[Dict]:
         return {
@@ -1356,11 +1413,12 @@ class TimingsComponent(Component):
     CONTAINER_ID = 'container-timings'
 
     def nav_items(self) -> Optional[Dict]:
-        return {
-            'type': 'element-navigation-item',
-            'href': self.PATHNAME,
-            'nav_icon': 'fas fa-clock'
-        }
+        return nav_element(self.PATHNAME, 'fas fa-clock', 'Timings')
+        # return {
+        #     'type': 'element-navigation-item',
+        #     'href': self.PATHNAME,
+        #     'nav_icon': 'fas fa-clock'
+        # }
 
     def display_spec(self, config: ConfigParser) -> Optional[Dict]:
         tbl_cols = dict(config['TIMINGS_TABLE_COLS'])
@@ -1424,6 +1482,7 @@ def components_callback(app, components: List[Component]):
     output_ids = [c.CONTAINER_ID for c in components if c.CONTAINER_ID]
     output_ids += [c.SIDEBAR_ID for c in components if c.SIDEBAR_ID]
     outputs = [Output(o, "hidden") for o in output_ids]
+
     @app.callback(outputs, Input("url", "pathname"))
     def render_page_content(pathname):
         displays = []
