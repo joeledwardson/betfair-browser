@@ -4,6 +4,7 @@ import traceback
 import itertools
 import dash_html_components as html
 import json
+import dash_core_components as dcc
 import dash_bootstrap_components as dbc
 from configparser import ConfigParser
 from dash.dependencies import Output, Input, State
@@ -16,7 +17,7 @@ from mytrading.strategy.feature.features import RFBase
 from mytrading.strategy import tradetracker as tt
 from .session import Session, post_notification, LoadedMarket, Notification, MARKET_FILTERS
 from .error_catcher import handle_errors, exceptions
-from .layout import ContentSpec
+from .layout import ContentSpec, StoreSpec
 
 
 RUNNER_BUTTON_ID = 'button-runners'
@@ -82,7 +83,7 @@ class Component:
     def header_right(self) -> Optional[Dict]:
         return None
 
-    def additional_stores(self) -> List[Dict]:
+    def additional_stores(self) -> List[StoreSpec]:
         return []
 
 
@@ -632,6 +633,8 @@ class RunnersComponent(Component):
 class FigureComponent(Component):
     LOADING_ID = 'figures-loading'
     NOTIFICATION_ID = 'notifications-figure'
+    PATHNAME = '/figure'
+    CONTAINER_ID = 'container-figures'
 
     def _get_ids(self, cell: Union[None, Dict], id_list: List[int], notifs: List[Notification]) -> List[int]:
         """
@@ -685,13 +688,21 @@ class FigureComponent(Component):
             inputs_config={
                 'buttons': [
                     Input('button-figure', 'n_clicks'),
-                    Input('button-all-figures', 'n_clicks')
-                ]
+                    Input('button-all-figures', 'n_clicks'),
+                    Input('btn-close-figure', 'n_clicks')
+                ],
+                'active': Input('figure-tabs', 'active_tab')
             },
             outputs_config={
                 'table': Output('table-timings', 'data'),
                 'loading': Output(self.LOADING_ID, 'children'),
                 'notifications': Output(self.NOTIFICATION_ID, 'data'),
+                'count': Output('figure-count', 'data'),
+                'tabs': Output('figure-tabs', 'children'),
+                'data': Output('figure-holder', 'data'),
+                'figure': Output('figure-div', 'children'),
+                'active': Output('figure-tabs', 'active_tab'),
+                'delete-disabled': Output('btn-close-figure', 'disabled')
             },
             states_config={
                 'selected-market': State('selected-market', 'data'),
@@ -699,6 +710,10 @@ class FigureComponent(Component):
                 'offset': State('input-chart-offset', 'value'),
                 'feature-config': State('input-feature-config', 'value'),
                 'plot-config': State('input-plot-config', 'value'),
+                'count': State('figure-count', 'data'),
+                'tabs': State('figure-tabs', 'children'),
+                'data': State('figure-holder', 'data'),
+
             }
         )
         def figure_callback(outputs: TDict, inputs: TDict, states: TDict):
@@ -709,6 +724,33 @@ class FigureComponent(Component):
             outputs['table'] = []
             outputs['loading'] = ''
 
+            tabs = states['tabs'] or []
+            outputs['tabs'] = tabs
+            outputs['count'] = states['count']
+            figure_stores = states['data'] or {}
+            outputs['data'] = figure_stores
+
+            active_tab = inputs['active']
+            outputs['figure'] = figure_stores.get(active_tab, None)
+            outputs['active'] = active_tab
+
+            outputs['delete-disabled'] = not active_tab
+
+            if triggered_id() == 'btn-close-figure':
+                tabs = [t for t in tabs if t['props']['tab_id'] != active_tab]
+                outputs['tabs'] = tabs
+                if active_tab in figure_stores:
+                    del figure_stores[active_tab]
+                    if figure_stores:
+                        k = list(figure_stores.keys())[-1]
+                        outputs['active'] = k
+                        outputs['figure'] = figure_stores[k]
+                    else:
+                        outputs['active'] = None
+                        outputs['figure'] = None
+                        outputs['delete-disabled'] = True
+                    return
+
             if triggered_id() != 'button-figure' and triggered_id() != 'button-all-figures':
                 return
 
@@ -718,8 +760,8 @@ class FigureComponent(Component):
             @handle_errors(notifs, 'Figure')
             def process():
 
-                # deserialise market info
-                shn.deserialise_loaded_market(states['selected-market'])
+                n_figures = states['count']  # get number of figures
+                shn.deserialise_loaded_market(states['selected-market'])  # deserialise market info
 
                 # get datetime/None chart offset from time input
                 offset_dt = self._get_chart_offset(states['offset'], notifs)
@@ -728,7 +770,6 @@ class FigureComponent(Component):
                 # get selected IDs and plot
                 sel_ids = self._get_ids(states['cell'], list(states['selected-market'].keys()), notifs)
                 reg = timing.TimingRegistrar()
-                levels = {}
 
                 def update_reg(feature: RFBase, registrar: timing.TimingRegistrar):
                     for sub_feature in feature.sub_features.values():
@@ -737,7 +778,7 @@ class FigureComponent(Component):
 
                 # shn.ftr_update()  # update feature & plot configs
                 for selection_id in sel_ids:
-                    features = shn.fig_plot(
+                    features, fig = shn.fig_plot(
                         market_info=states['selected-market'],
                         selection_id=selection_id,
                         secs=secs,
@@ -746,6 +787,15 @@ class FigureComponent(Component):
                     )
                     for f in features.values():
                         reg = update_reg(f, reg)
+                    n_figures += 1
+                    tab_name = f'Figure {n_figures}'
+                    tabs.append(dbc.Tab(label=tab_name, tab_id=tab_name))
+                    graph = dcc.Graph(figure=fig, className='flex-grow-1')
+                    figure_stores[tab_name] = graph
+                    post_notification(notifs, 'success', 'Figure', f'produced {tab_name}')
+                    outputs['figure'] = graph
+                    outputs['active'] = tab_name
+                    outputs['delete-disabled'] = False
 
                 summary = reg.get_timings_summary()
                 if not summary:
@@ -754,11 +804,57 @@ class FigureComponent(Component):
                     for s in summary:
                         s['level'] = s['function'].count('.')
                     outputs['table'] = shn.format_timings(summary)
+                    post_notification(notifs, 'info', 'Figure', f'{len(summary)} timings logged for figure generation')
+                outputs['count'] = n_figures
 
             process()
 
     def loading_ids(self) -> List[str]:
         return [self.LOADING_ID]
+
+    def display_spec(self, config):
+        return {
+            'container-id': self.CONTAINER_ID,
+            'content': [
+                [
+                    {
+                        'type': 'element-header',
+                        'children_spec': 'Figures'
+                    },
+                    {
+                        'type': 'element-button',
+                        'id': 'btn-close-figure',
+                        'btn_text': 'Delete figure',
+                        'btn_icon': 'fas fa-trash',
+                        'color': 'warning'
+                    }
+                ],
+                {
+                    'type': 'element-tabs',
+                    'id': 'figure-tabs',
+                },
+                {
+                    'type': 'element-div',
+                    'id': 'figure-div',
+                    'css_classes': 'd-flex flex-column flex-grow-1'
+                }
+            ],
+        }
+
+    def nav_items(self) -> Optional[Dict]:
+        return {
+            'type': 'element-navigation-item',
+            'href': self.PATHNAME,
+            'nav_icon': 'fas fa-chart-bar',
+        }
+
+    def additional_stores(self) -> List[StoreSpec]:
+        return [{
+            'id': 'figure-count',
+            'data': 0
+        }, {
+            'id': 'figure-holder'
+        }]
 
 
 class StrategyComponent(Component):
@@ -944,7 +1040,7 @@ class StrategyComponent(Component):
             'nav_icon': 'fas fa-chess-king'
         }
 
-    def additional_stores(self) -> List[Dict]:
+    def additional_stores(self) -> List[StoreSpec]:
         return [{
             'id': 'selected-strategy'
         }]
@@ -1204,7 +1300,10 @@ class LoggerComponent(Component):
                         for p in new_notifications
                     ]
                     logs = [
-                        html.P(p['msg_content'], className='m-0 ' + self.LEVEL_COLORS.get(p['msg_type'], ''))
+                        html.P(
+                            f'{p["timestamp"]}: {p["msg_header"]}: {p["msg_content"]}',
+                            className='m-0 ' + self.LEVEL_COLORS.get(p['msg_type'], '')
+                        )
                         for p in new_notifications
                     ] + logs
 

@@ -342,7 +342,7 @@ class FeatureFigure:
 
         # create figure based off axis names with correct number of subplots
         axis_names = self.get_axisnames(fpc, self.DEFAULT_PLOT_CFG['y_axis'])
-        self._fig = self.create_figure(axis_names, vertical_spacing=self.VERTICAL_SPACING)
+        self.fig = self.create_figure(axis_names, vertical_spacing=self.VERTICAL_SPACING)
 
         # trim feature data
         ftrs_data = {
@@ -357,7 +357,7 @@ class FeatureFigure:
         for i, ftr_name in enumerate(ftrs_data.keys()):
             active_logger.info(f'plotting feature #{i}, name: "{ftr_name}"')
             cfg = fpc.pop(ftr_name, {})
-            self.ftr_trace(self._fig, ftrs_data, ftr_name, axis_names, cfg)
+            self.ftr_trace(self.fig, ftrs_data, ftr_name, axis_names, cfg)
 
         if fpc:
             raise FigureException(f'figure configuration still contains keys: "{list(fpc.keys())}"')
@@ -371,15 +371,15 @@ class FeatureFigure:
             ]
             if _odf.shape[0]:
                 active_logger.info(f'plotting trimmed orders dataframe of {_odf.shape[0]} elements')
-                self.plot_orders(self._fig, _odf.copy(), orders_cfg)
+                self.plot_orders(self.fig, _odf.copy(), orders_cfg)
             else:
                 active_logger.info(f'trimmed orders has no elements, igorning...')
 
         # set figure layouts and return
-        self.set_figure_layout(self._fig, title, chart_start, chart_end)
+        self.set_figure_layout(self.fig, title, chart_start, chart_end)
 
     def show(self, *args, **kwargs):
-        self._fig.show(*args, **kwargs)
+        self.fig.show(*args, **kwargs)
 
     @classmethod
     def ftr_trace(

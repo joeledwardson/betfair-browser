@@ -1,11 +1,10 @@
-import pprint
+from plotly.graph_objects import Figure
 import importlib.resources as pkg_resources
 from os import path, listdir
 from typing import List, Dict, Optional, TypedDict, Union, Literal, Any
 import pandas as pd
 import logging
 from datetime import datetime, timedelta
-from configparser import ConfigParser
 import yaml
 import json
 from json.decoder import JSONDecodeError
@@ -26,16 +25,12 @@ import mytrading.exceptions
 import mytrading.process
 import myutils.datetime
 from ..exceptions import SessionException
-from mytrading import utils as trutils
 from mytrading.utils import bettingdb as bdb, dbfilter as dbf
-from mytrading import strategy as strat
 from mytrading.strategy import tradetracker, messages as msgs
 from mytrading.strategy import feature as ftrutils
 from mytrading import visual as figlib
-from mytrading import configs as cfgs
 from myutils import timing, general
 from myutils import registrar as myreg
-from myutils import dictionaries
 
 
 active_logger = logging.getLogger(__name__)
@@ -260,6 +255,7 @@ class Notification(TypedDict):
     msg_type: NotificationType
     msg_header: str
     msg_content: str
+    timestamp: str
 
 
 def post_notification(
@@ -268,7 +264,12 @@ def post_notification(
         msg_header: str,
         msg_content: str
 ):
-    notifications.append(Notification(msg_type=msg_type, msg_header=msg_header, msg_content=msg_content))
+    notifications.append(Notification(
+        msg_type=msg_type,
+        msg_header=msg_header,
+        msg_content=msg_content,
+        timestamp=datetime.now().isoformat()
+    ))
 
 
 class Session:
@@ -526,7 +527,8 @@ class Session:
         })
         return row['strategy_updates']
 
-    def fig_plot(self, market_info: LoadedMarket, selection_id, secs, ftr_key, plt_key):
+    def fig_plot(self, market_info: LoadedMarket, selection_id, secs, ftr_key, plt_key) -> (ftrutils.FeatureHolder,
+                                                                                            Figure):
 
         # if no active market selected then abort
         if not market_info:
@@ -598,8 +600,7 @@ class Session:
             chart_end=end,
             orders_df=orders
         )
-        fig.show()
-        return features
+        return features, fig.fig
 
     @property
     def filters_mkt(self):

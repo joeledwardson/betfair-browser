@@ -242,6 +242,25 @@ def gen_periodic(spec: Dict) -> dbase.Component:
     )
 
 
+@dash_generators.register_named('element-tabs')
+def _(spec: Dict) -> dbase.Component:
+    return dbc.Tabs(
+        id=spec.pop('id'),
+        className=spec.pop('css_classes', ''),
+        children=[_gen_element(s) for s in spec.pop('children_spec', [])]
+    )
+
+
+@dash_generators.register_named('element-tab')
+def _(spec: Dict) -> dbase.Component:
+    return dbc.Tab(
+        tab_id=spec.pop('tab_id'),
+        label=spec.pop('label', ''),
+        className=spec.pop('css_classes', ''),
+        children=[_gen_element(s) for s in spec.pop('children_spec', [])]
+    )
+
+
 def _gen_element(spec: Dict):
     el_type = spec.pop('type')
     
