@@ -527,8 +527,14 @@ class Session:
         })
         return row['strategy_updates']
 
-    def fig_plot(self, market_info: LoadedMarket, selection_id, secs, ftr_key, plt_key) -> (ftrutils.FeatureHolder,
-                                                                                            Figure):
+    def fig_plot(
+            self,
+            market_info: LoadedMarket,
+            selection_id,
+            secs,
+            ftr_key,
+            plt_key
+    ) -> (ftrutils.FeatureHolder, Figure):
 
         # if no active market selected then abort
         if not market_info:

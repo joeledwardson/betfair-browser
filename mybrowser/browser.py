@@ -7,6 +7,7 @@ from typing import Optional, Dict, Any
 import importlib.resources as pkg_resources
 from flask_caching import Cache
 import yaml
+from dash_extensions.enrich import DashProxy, MultiplexerTransform
 
 from .layout import generate_layout
 from .session import Session
@@ -27,7 +28,14 @@ def get_app(config_path=None, additional_config: Optional[Dict[str, Any]] = None
     if sys.version_info < (3, 9):
         raise ImportError('Python version needs to be 3.9 or higher!')
 
-    app = dash.Dash(__name__, title='Betfair Browser', update_title=None, external_stylesheets=[dbc.themes.BOOTSTRAP, FA])
+    app = DashProxy(
+        name=__name__,
+        title='Betfair Browser',
+        update_title=None,
+        external_stylesheets=[dbc.themes.BOOTSTRAP, FA],
+        transforms=[MultiplexerTransform()]
+    )
+    # app = dash.Dash(__name__, title='Betfair Browser', update_title=None, external_stylesheets=[dbc.themes.BOOTSTRAP, FA])
     cache = Cache()
     cache.init_app(app.server, config={'CACHE_TYPE': 'simple'})
 

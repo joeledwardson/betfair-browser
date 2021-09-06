@@ -24,16 +24,6 @@ html, body {
     height: 100%;
 }
 
-/* override width and height placeholders so that dash datatable with fixed headers width and height fill container */
-/*
-.dash-spreadsheet.dash-freeze-top {
-    height: unset !important;
-    min-height: unset !important;
-    width: 100% !important;
-    min-width: unset !important;
-}
-*/
-
 /* absolute positioned element holding toast notifications in bottom left corner */
 #toast-holder {
     bottom: 1rem;
@@ -77,11 +67,12 @@ div.right-corner-box {
 
 /* unselected nav links not fully visible */
 .nav-link {
-    opacity: 0.7;
+    opacity: 0.8;
+
+    /* active nav link is fully visible and bold text */
+    &.active {
+        opacity: 1 !important;
+        font-weight: bold;
+    }
 }
 
-/* active nav link is fully visible and bold text */
-.nav-link.active {
-    opacity: 1 !important;
-    font-weight: bold;
-}

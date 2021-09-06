@@ -23,7 +23,7 @@ from .layout import ContentSpec, StoreSpec
 RUNNER_BUTTON_ID = 'button-runners'
 
 
-def _right_panel_callback(app, panel_id: str, open_id: str, close_id: str):
+def right_panel_callback(app, panel_id: str, open_id: str, close_id: str):
     """
     toggle "right-not-collapsed" css class to open and close a side panel based on open/close buttons
     """
@@ -44,12 +44,21 @@ def _right_panel_callback(app, panel_id: str, open_id: str, close_id: str):
             return str(classes - "right-not-collapsed")
 
 
-def nav_element(path: str, icon: str, header: str) -> Dict:
+def notification_clear(app, nav_notification_id: str, button_id: str):
+    @app.callback(Output(nav_notification_id, 'children'), Input(button_id, 'n_clicks'))
+    def _(n_clicks):
+        return None
+
+
+def nav_element(
+        path: str, icon: str, header: str, nav_id: Optional[str] = None, notifications_id: Optional[str] = None
+) -> Dict:
     return {
         'type': 'element-navigation-item',
         'css_classes': 'ml-3',
         'nav_css_classes': 'position-relative d-flex align-items-center mb-2',
         'href': path,
+        'id': nav_id,
         'children_spec': [
             {
                 'type': 'element-fontawesome',
@@ -68,60 +77,15 @@ def nav_element(path: str, icon: str, header: str) -> Dict:
                                 'type': 'element-badge',
                                 'color': 'primary',
                                 'css_classes': 'p-2',
-                            }
+                            } | (
+                                {'id': notifications_id} if notifications_id else {}
+                            )
                         ]
                     }
                 ],
             }
         ]
     }
-# 'type': 'element-div',
-        # 'css_classes': 'd-flex align-items-center',
-        # 'children_spec': [
-        # {
-        #     'type': 'element-navigation-item',
-        #     'nav_css_classes': 'd-flex align-items-center',
-        #     'href': self.PATHNAME,
-        #     'children_spec': [
-        #         {
-        #             'type': 'element-fontawesome',
-        #             'css_classes': 'fas fa-envelope-open-text mr-2'
-        #         },
-        #         {
-        #             'type': 'element-div',
-        #             'children_spec': 'Logger',
-        #             'css_classes': 'mr-1'
-        #         }
-        #     ]
-        # 'type': 'element-div',
-        # 'css_classes': 'd-flex align-items-center',
-        # 'children_spec': [
-            # 'nav_icon': 'fas fa-envelope-open-text',
-            # 'css_classes': 'position-relative',
-            # 'nav_children_spec': [
-            #     {
-            #         'type': 'element-div',
-            #         'id': 'msg-alert-box',
-            #         'css_classes': 'right-corner-box',
-            #         'hidden': True,
-            #         'children_spec': [
-            #             {
-            #                 'type': 'element-badge',
-            #                 'id': 'log-warns',
-            #                 'color': 'danger',
-            #                 'css_classes': 'p-2'
-            #             }
-            #         ]
-            #     }
-            # ]
-            #     },
-            # {
-            #     'type': 'element-div',
-            #     'children_spec': 'Logger',
-            #     'css_classes': 'p-1'
-            # },
-            # ]
-        # }
 
 
 class Component:
@@ -226,14 +190,9 @@ class MarketComponent(Component):
                         'id': 'btn-db-reconnect',
                         'btn_icon': 'fas fa-database',
                     }, {
-                        'type': 'element-navigation-button',
-                        'id': 'nav-runners',
-                        'href': RunnersComponent.PATHNAME,
-                        'children': [{
-                            'type': 'element-button',
-                            'id': RUNNER_BUTTON_ID,
-                            'btn_icon': 'fas fa-download'
-                        }],
+                        'type': 'element-button',
+                        'id': RUNNER_BUTTON_ID,
+                        'btn_icon': 'fas fa-download'
                     }
                 ],
                 cache_row,
@@ -277,7 +236,8 @@ class MarketComponent(Component):
         }
 
     def callbacks(self, app, shn: Session):
-        _right_panel_callback(app, "container-filters-market", "btn-session-filter", "btn-market-filters-close")
+        right_panel_callback(app, "container-filters-market", "btn-session-filter", "btn-market-filters-close")
+        notification_clear(app, 'nav-notifications-market', 'nav-markets')
 
         @app.callback(
             output=Output('market-sorter', 'value'),
@@ -318,7 +278,8 @@ class MarketComponent(Component):
                 'filter-options': [
                     Output(f['layout']['id'], 'options')
                     for f in MARKET_FILTERS if 'filter' in f and filters_reg[f['filter']['name']].HAS_OPTIONS
-                ]
+                ],
+                'market-notifications': Output('nav-notifications-market', 'children')
             },
             inputs_config={
                 'buttons': [
@@ -370,11 +331,12 @@ class MarketComponent(Component):
                 # update strategy filters and selectable options
                 if btn_id == 'btn-strategy-download':
                     strategy_cell = states['strategy-cell']
-                    if 'row_id' not in strategy_cell:
-                        post_notification(notifs, 'warning', 'Strategy', 'no row ID found in strategy cell')
-                        strategy_id = None
-                    else:
+                    outputs['market-notifications'] = '1'
+                    if isinstance(strategy_cell, dict) and 'row_id' in strategy_cell:
                         strategy_id = strategy_cell['row_id']
+                    else:
+                        post_notification(notifs, 'danger', 'Strategy', 'no row ID found in strategy cell')
+                        strategy_id = None
 
                 # clear strategy ID variable used in market filtering if "clear strategy" button clicked
                 if btn_id in ['input-strategy-clear', 'btn-db-reconnect', 'btn-strategy-delete']:
@@ -434,12 +396,11 @@ class MarketComponent(Component):
         return [self.LOADING_ID]
 
     def nav_items(self) -> Optional[Dict]:
-        return nav_element(self.PATHNAME, 'fas fa-horse', 'Markets')
-        # return {
-        #     'type': 'element-navigation-item',
-        #     'href': self.PATHNAME,
-        #     'nav_icon': 'fas fa-horse',
-        # }
+        return nav_element(
+            self.PATHNAME, 'fas fa-horse', 'Markets',
+            nav_id='nav-markets',
+            notifications_id='nav-notifications-market'
+        )
 
     def additional_stores(self) -> List[Dict]:
         return [{
@@ -483,16 +444,11 @@ class RunnersComponent(Component):
                 ],
                 [
                     {
-                        'type': 'element-navigation-button',
                         'id': 'button-orders',
-                        'href': '/orders',
-                        'children': [{
-                            'type': 'element-button',
-                            'id': 'button-navigation-order',
-                            'btn_icon': 'fas fa-file-invoice-dollar',
-                            'btn_text': 'Orders',
-                            'color': 'info',
-                        }]
+                        'type': 'element-button',
+                        'btn_icon': 'fas fa-file-invoice-dollar',
+                        'btn_text': 'Orders',
+                        'color': 'info',
                     },
                     {
                         'type': 'element-button',
@@ -523,7 +479,8 @@ class RunnersComponent(Component):
         }
 
     def callbacks(self, app, shn: Session):
-        _right_panel_callback(app, "container-filters-plot", "btn-runners-filter", "btn-plot-close")
+        right_panel_callback(app, "container-filters-plot", "btn-runners-filter", "btn-plot-close")
+        notification_clear(app, 'nav-notification-runners', 'nav-runners')
 
         @app.callback(
             [
@@ -557,7 +514,8 @@ class RunnersComponent(Component):
                 'cells': Output('table-runners', 'selected_cells'),
                 'loading': Output(self.LOADING_ID, 'children'),
                 'selected-market': Output('selected-market', 'data'),
-                'notifications': Output(self.NOTIFICATION_ID, 'data')
+                'notifications': Output(self.NOTIFICATION_ID, 'data'),
+                'nav-notifications': Output('nav-notification-runners', 'children'),
             },
             inputs_config={
                 'buttons': [
@@ -625,6 +583,7 @@ class RunnersComponent(Component):
             outputs['disable-bin'] = False  # enable bin market button
             outputs['disable-figures'] = False  # enable plot all figures button
             outputs['selected-market'] = loaded_market
+            outputs['nav-notifications'] = '1'
             return
 
         @app.callback(
@@ -686,12 +645,11 @@ class RunnersComponent(Component):
         }
 
     def nav_items(self) -> Optional[Dict]:
-        return nav_element(self.PATHNAME, 'fas fa-running', 'Runners')
-        # return {
-        #     'type': 'element-navigation-item',
-        #     'href': self.PATHNAME,
-        #     'nav_icon': 'fas fa-running',
-        # }
+        return nav_element(
+            self.PATHNAME, 'fas fa-running', 'Runners',
+            nav_id='nav-runners',
+            notifications_id='nav-notification-runners'
+        )
 
 
 class FigureComponent(Component):
@@ -747,6 +705,8 @@ class FigureComponent(Component):
         return None
 
     def callbacks(self, app, shn: Session):
+        notification_clear(app, 'nav-notifications-figure', 'nav-figure')
+
         @dict_callback(
             app=app,
             inputs_config={
@@ -766,7 +726,9 @@ class FigureComponent(Component):
                 'data': Output('figure-holder', 'data'),
                 'figure': Output('figure-div', 'children'),
                 'active': Output('figure-tabs', 'active_tab'),
-                'delete-disabled': Output('btn-close-figure', 'disabled')
+                'delete-disabled': Output('btn-close-figure', 'disabled'),
+                'figure-notifications': Output('nav-notifications-figure', 'children'),
+                'timings-notifications': Output('nav-notifications-timings', 'children'),
             },
             states_config={
                 'selected-market': State('selected-market', 'data'),
@@ -777,7 +739,7 @@ class FigureComponent(Component):
                 'count': State('figure-count', 'data'),
                 'tabs': State('figure-tabs', 'children'),
                 'data': State('figure-holder', 'data'),
-
+                'figure-notifications': State('nav-notifications-figure', 'children'),
             }
         )
         def figure_callback(outputs: TDict, inputs: TDict, states: TDict):
@@ -799,6 +761,8 @@ class FigureComponent(Component):
             outputs['active'] = active_tab
 
             outputs['delete-disabled'] = not active_tab
+
+            outputs['figure-notifications'] = states['figure-notifications']
 
             if triggered_id() == 'btn-close-figure':
                 tabs = [t for t in tabs if t['props']['tab_id'] != active_tab]
@@ -860,6 +824,13 @@ class FigureComponent(Component):
                     outputs['figure'] = graph
                     outputs['active'] = tab_name
                     outputs['delete-disabled'] = False
+                    try:
+                        nav_count = int(states['figure-notifications'])
+                    except (TypeError, ValueError):
+                        nav_count = 0
+                    nav_count += 1
+                    outputs['figure-notifications'] = str(nav_count)
+                    outputs['timings-notifications'] = '1'
 
                 summary = reg.get_timings_summary()
                 if not summary:
@@ -906,12 +877,11 @@ class FigureComponent(Component):
         }
 
     def nav_items(self) -> Optional[Dict]:
-        return nav_element(self.PATHNAME, 'fas fa-chart-bar', 'Figures')
-        # return {
-        #     'type': 'element-navigation-item',
-        #     'href': self.PATHNAME,
-        #     'nav_icon': 'fas fa-chart-bar',
-        # }
+        return nav_element(
+            self.PATHNAME, 'fas fa-chart-bar', 'Figures',
+            nav_id='nav-figure',
+            notifications_id='nav-notifications-figure'
+        )
 
     def additional_stores(self) -> List[StoreSpec]:
         return [{
@@ -966,14 +936,9 @@ class StrategyComponent(Component):
                         'btn_icon': 'fas fa-filter',
                     },
                     {
-                        'type': 'element-navigation-button',
-                        'id': 'nav-strategy-download',
-                        'href': '/',
-                        'children': [{
-                            'type': 'element-button',
-                            'id': 'btn-strategy-download',
-                            'btn_icon': 'fas fa-download'
-                        }],
+                        'type': 'element-button',
+                        'id': 'btn-strategy-download',
+                        'btn_icon': 'fas fa-download'
                     }
                 ],
                 [
@@ -1026,16 +991,11 @@ class StrategyComponent(Component):
             'sidebar_title': 'Strategy Filters',
             'close_id': 'btn-strategy-close',
             'content': [
-                # {
-                #     'type': 'element-select',
-                #     'id': 'input-strategy-select',
-                #     'placeholder': 'Strategy...'
-                # }
             ]
         }
 
     def callbacks(self, app, shn: Session):
-        _right_panel_callback(app, "container-filters-strategy", "btn-strategy-filter", "btn-strategy-close")
+        right_panel_callback(app, "container-filters-strategy", "btn-strategy-filter", "btn-strategy-close")
 
         @app.callback(
             Output("strategy-delete-modal", "is_open"),
@@ -1151,12 +1111,15 @@ class OrdersComponent(Component):
         }
 
     def callbacks(self, app, shn: Session) -> None:
+        notification_clear(app, 'nav-notifications-orders', 'nav-orders')
+
         @dict_callback(
             app=app,
             outputs_config={
                 'table': Output('table-orders', 'data'),
                 'page': Output('table-orders', 'page_current'),
-                'notifications': Output(self.NOTIFICATION_ID, 'data')
+                'notifications': Output(self.NOTIFICATION_ID, 'data'),
+                'orders-notifications': Output('nav-notifications-orders', 'children')
             },
             inputs_config={
                 'buttons': [
@@ -1225,16 +1188,16 @@ class OrdersComponent(Component):
 
                 post_notification(notifs, 'info', 'Orders', f'Got {df.shape[0]} orders for runner "{selection_id}"')
                 outputs['table'] = df.to_dict('records')
+                outputs['orders-notifications'] = '1'
 
             process()
 
     def nav_items(self) -> Optional[Dict]:
-        return nav_element(self.PATHNAME, 'fas fa-file-invoice-dollar', 'Orders')
-        # return {
-        #     'type': 'element-navigation-item',
-        #     'href': self.PATHNAME,
-        #     'nav_icon': 'fas fa-file-invoice-dollar'
-        # }
+        return nav_element(
+            self.PATHNAME, 'fas fa-file-invoice-dollar', 'Orders',
+            nav_id='nav-orders',
+            notifications_id='nav-notifications-orders'
+        )
 
 
 class LibraryComponent(Component):
@@ -1413,12 +1376,11 @@ class TimingsComponent(Component):
     CONTAINER_ID = 'container-timings'
 
     def nav_items(self) -> Optional[Dict]:
-        return nav_element(self.PATHNAME, 'fas fa-clock', 'Timings')
-        # return {
-        #     'type': 'element-navigation-item',
-        #     'href': self.PATHNAME,
-        #     'nav_icon': 'fas fa-clock'
-        # }
+        return nav_element(
+            self.PATHNAME, 'fas fa-clock', 'Timings',
+            nav_id='nav-timings',
+            notifications_id='nav-notifications-timings'
+        )
 
     def display_spec(self, config: ConfigParser) -> Optional[Dict]:
         tbl_cols = dict(config['TIMINGS_TABLE_COLS'])
@@ -1440,6 +1402,9 @@ class TimingsComponent(Component):
                 }
             ]
         }
+
+    def callbacks(self, app, shn: Session) -> None:
+        notification_clear(app, 'nav-notifications-timings', 'nav-timings')
 
 
 def components_layout(components: List[Component], title: str, config: ConfigParser) -> ContentSpec:

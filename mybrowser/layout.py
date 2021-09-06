@@ -190,7 +190,8 @@ def gen_navigation_item(spec: Dict) -> dbase.Component:
     children += [_gen_element(x) for x in spec.pop('children_spec', list())]
     return dbc.NavItem(
         dbc.NavLink(
-            children,
+            id=spec.pop('id', None) or str(uuid.uuid4()),
+            children=children,
             href=spec.pop('href'),
             active='exact',
             className=spec.pop('nav_css_classes', '')
