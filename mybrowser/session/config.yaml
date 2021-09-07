@@ -82,15 +82,19 @@ FORMATTERS_CONFIG:
   dt_format: "%Y-%m-%d %H:%M"
   # format to display time-delta objects from the `mytiming.format_timedelta` function
   td_format: "{d}d {h:02}:{m:02}:{s:02}.{u:06}"
+  money_format: "£{value:+.2f}"
 
 # mapping of (database column name -> python formatter function) for market database columns
 MARKET_TABLE_FORMATTERS:
   market_time: "format_datetime"
+  market_profit: "format_money"
+
 
 # mapping of (database column name -> python formatter function) for strategy database columns
 STRATEGY_TABLE_FORMATTERS:
   exec_time: "format_datetime"
   date_added: "format_datetime"
+  total_profit: "format_money"
 
 DB:
   # maximum number of rows to return from a database query

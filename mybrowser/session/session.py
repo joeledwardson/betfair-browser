@@ -238,12 +238,19 @@ def get_formatters(config) -> myreg.Registrar:
     formatters = myreg.Registrar()
 
     @formatters.register_element
-    def format_datetime(dt: datetime):
-        return dt.strftime(config['FORMATTERS_CONFIG']['dt_format'])
+    def format_datetime(value: datetime):
+        return value.strftime(config['FORMATTERS_CONFIG']['dt_format'])
 
     @formatters.register_element
-    def format_timedelta(td: timedelta):
-        return myutils.datetime.format_timedelta(td=td, fmt=config['FORMATTERS_CONFIG']['td_format'])
+    def format_timedelta(value: timedelta):
+        return myutils.datetime.format_timedelta(td=value, fmt=config['FORMATTERS_CONFIG']['td_format'])
+
+    @formatters.register_element
+    def format_money(value: float):
+        if value:
+            return config['FORMATTERS_CONFIG']['money_format'].format(value=value)
+        else:
+            return None
 
     return formatters
 
@@ -436,7 +443,8 @@ class Session:
                 if k in fmt_config:
                     nm = fmt_config[k]
                     f = self.tbl_formatters[nm]
-                    row[k] = f(v)
+                    if v is not None:
+                        row[k] = f(v)
 
     def mkt_tbl_rows(self, cte, order_col=None, order_asc=True):
         col_names = list(self.config['MARKET_TABLE_COLS'].keys()) + ['market_profit']
