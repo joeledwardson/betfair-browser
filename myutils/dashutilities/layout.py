@@ -270,6 +270,14 @@ def _(spec: Dict) -> dbase.Component:
     return html.I(className=spec.pop('css_classes'))
 
 
+@dash_generators.register_named('element-tooltip')
+def _(spec: Dict) -> dbase.Component:
+    return dbc.Tooltip(
+        children=spec.pop('children_spec', None),
+        target=spec.pop('tooltip_target')
+    )
+
+
 def _gen_element(spec: Union[str, Dict]):
 
     if isinstance(spec, str):
@@ -338,6 +346,7 @@ class ContentSpec(TypedDict):
     containers: List[ContainerSpec]
     sidebars: List[SidebarSpec]
     stores: List[StoreSpec]
+    tooltips: List[ElementSpec]
 
 
 def generate_sidebar(spec: SidebarSpec):
@@ -481,5 +490,6 @@ def generate_layout(layout_spec: ContentSpec):
             ],
             id='browser-container',
             className='d-flex flex-column'
-        )
+        ),
+        html.Div([_gen_element(s) for s in layout_spec['tooltips']])
     ])

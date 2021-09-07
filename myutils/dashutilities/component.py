@@ -108,6 +108,9 @@ class Component:
     def additional_stores(self) -> List[StoreSpec]:
         return []
 
+    def tooltips(self, config: ConfigParser) -> List[Dict]:
+        return []
+
 
 def components_layout(components: List[Component], title: str, config: ConfigParser) -> ContentSpec:
     not_none = lambda lst: [x for x in lst if x is not None]
@@ -139,9 +142,12 @@ def components_layout(components: List[Component], title: str, config: ConfigPar
         'hidden_elements': list(itertools.chain(*[c.modal_specs(config) for c in components])),
         'containers': not_none([c.display_spec(config) for c in components]),
         'sidebars': not_none([c.sidebar(config) for c in components]),
-        'stores': list(itertools.chain(*[c.additional_stores() for c in components])) + [{
+        'stores': list(itertools.chain(*[
+            c.additional_stores() for c in components
+        ])) + [{
             'id': c.NOTIFICATION_ID
-        } for c in components if c.NOTIFICATION_ID]
+        } for c in components if c.NOTIFICATION_ID],
+        'tooltips': list(itertools.chain.from_iterable(c.tooltips(config) for c in components))
     })
 
 

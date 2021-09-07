@@ -311,6 +311,20 @@ class MarketComponent(Component):
             'data': {}
         }]
 
+    def tooltips(self, config: ConfigParser) -> List[Dict]:
+        return [
+            {
+                'type': 'element-tooltip',
+                'children_spec': 'Filter market table',
+                'tooltip_target': 'btn-session-filter'
+            },
+            {
+                'type': 'element-tooltip',
+                'children_spec': 'Reconnect to database',
+                'tooltip_target': 'btn-db-reconnect'
+            }
+        ]
+
 
 class RunnersComponent(Component):
     LOADING_ID = 'runners-loading'
