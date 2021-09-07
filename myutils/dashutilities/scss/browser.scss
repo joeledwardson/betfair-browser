@@ -5,7 +5,7 @@ html, body {
 }
 
 /* root container of content */
-#bf-container {
+#browser-container {
     height: 100vh;
     position: relative;
     overflow-x: hidden; /* stop right sidebar from scrolling page */
@@ -13,7 +13,7 @@ html, body {
 
 /* navigation bar */
 #nav-bar {
-    min-width: 11rem;
+//     min-width: 11rem;
     background-color: #feeffe;
 }
 
@@ -72,7 +72,7 @@ div.right-corner-box {
     /* active nav link is fully visible and bold text */
     &.active {
         opacity: 1 !important;
-        font-weight: bold;
+        text-shadow: -0.06ex 0 currentColor, 0.06ex 0 currentColor;
     }
 }
 

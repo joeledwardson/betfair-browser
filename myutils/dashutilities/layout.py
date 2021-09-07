@@ -1,14 +1,12 @@
-import itertools
 from dash.development import base_component as dbase
 import dash_bootstrap_components as dbc
 import dash_html_components as html
 import dash_core_components as dcc
 import dash_table
-from dash.development.base_component import Component
 from typing import Dict, List, Any, Optional, TypedDict, Union
 from myutils import registrar
-from .exceptions import LayoutException
 import uuid
+from ..exceptions import LayoutException
 
 dash_generators = registrar.Registrar()
 
@@ -481,7 +479,7 @@ def generate_layout(layout_spec: ContentSpec):
                 html.Div(id='toast-holder'),
                 html.Div(id='test-div')
             ],
-            id='bf-container',
+            id='browser-container',
             className='d-flex flex-column'
         )
     ])

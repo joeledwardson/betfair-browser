@@ -9,7 +9,8 @@ from flask_caching import Cache
 import yaml
 from dash_extensions.enrich import DashProxy, MultiplexerTransform
 
-from .layout import generate_layout
+import myutils.dashutilities.component
+from myutils.dashutilities.layout import generate_layout
 from .session import Session
 from . import components
 from myutils import dictionaries
@@ -60,11 +61,11 @@ def get_app(config_path=None, additional_config: Optional[Dict[str, Any]] = None
     ]
     notifications = [c.NOTIFICATION_ID for c in _comps if c.NOTIFICATION_ID]
     _comps.append(components.LoggerComponent(notifications))
-    components.components_callback(app, _comps)
+    myutils.dashutilities.component.components_callback(app, _comps)
 
     for c in _comps:
         c.callbacks(app, session, config)
-    layout_spec = components.components_layout(_comps, 'Betfair Browser', session.config)
+    layout_spec = myutils.dashutilities.component.components_layout(_comps, 'Betfair Browser', session.config)
     app.layout = generate_layout(layout_spec)
 
     return app

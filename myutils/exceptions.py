@@ -24,3 +24,7 @@ class DateTimeException(MyUtilsException):
 
 class DashUtilsException(MyUtilsException):
     pass
+
+
+class LayoutException(MyUtilsException):
+    pass
