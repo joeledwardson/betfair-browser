@@ -1,5 +1,7 @@
 DISPLAY_CONFIG:
   cache: false
+  libraries: false
+  strategy_delete: false
   
 # market database querying settings
 MARKET_FILTER:
@@ -89,6 +91,9 @@ MARKET_TABLE_FORMATTERS:
   market_time: "format_datetime"
   market_profit: "format_money"
 
+
+RUNNER_TABLE_FORMATTERS:
+  runner_profit: "format_money"
 
 # mapping of (database column name -> python formatter function) for strategy database columns
 STRATEGY_TABLE_FORMATTERS:

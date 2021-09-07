@@ -29,6 +29,11 @@ url = DATABASE_URL.replace(start, 'postgresql://')
 # set url to database url and schema
 schema = 'bettingschema'
 config = {
+    'DISPLAY_CONFIG': {
+        'cache': False,
+        'libraries': False,
+        'strategy_delete': False,
+    },
     'DB_CONFIG': {
         'engine_kwargs': {
             'url': url,

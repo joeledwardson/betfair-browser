@@ -246,8 +246,8 @@ def get_formatters(config) -> myreg.Registrar:
         return myutils.datetime.format_timedelta(td=value, fmt=config['FORMATTERS_CONFIG']['td_format'])
 
     @formatters.register_element
-    def format_money(value: float):
-        if value:
+    def format_money(value: Optional[float]):
+        if value is not None:
             return config['FORMATTERS_CONFIG']['money_format'].format(value=value)
         else:
             return None
@@ -419,6 +419,7 @@ class Session:
 
         # rows are returned with additional "runner_profit" column
         rows = self.betting_db.rows_runners(market_id, strategy_id)
+        self._apply_formatters(rows, dict(self.config['RUNNER_TABLE_FORMATTERS']))
         meta = self.betting_db.read_mkt_meta(market_id)
 
         start_odds = mytrading.process.get_starting_odds(record_list)

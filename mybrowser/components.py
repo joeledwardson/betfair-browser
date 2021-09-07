@@ -95,7 +95,7 @@ class Component:
     CONTAINER_ID = None
     SIDEBAR_ID = None
 
-    def nav_items(self) -> Optional[Dict]:
+    def nav_items(self, config: ConfigParser) -> Optional[Dict]:
         return None
 
     def modal_specs(self, config: ConfigParser) -> List[Dict]:
@@ -104,7 +104,7 @@ class Component:
     def display_spec(self, config: ConfigParser) -> Optional[Dict]:
         return None
 
-    def callbacks(self, app, shn: Session) -> None:
+    def callbacks(self, app, shn: Session, config: ConfigParser) -> None:
         pass
 
     def sidebar(self, config: ConfigParser) -> Optional[Dict]:
@@ -113,7 +113,7 @@ class Component:
     def loading_ids(self) -> List[str]:
         return []
 
-    def header_right(self) -> Optional[Dict]:
+    def header_right(self, config: ConfigParser) -> Optional[Dict]:
         return None
 
     def additional_stores(self) -> List[StoreSpec]:
@@ -235,7 +235,7 @@ class MarketComponent(Component):
             'content': [f['layout'] for f in MARKET_FILTERS]
         }
 
-    def callbacks(self, app, shn: Session):
+    def callbacks(self, app, shn: Session, config: ConfigParser):
         right_panel_callback(app, "container-filters-market", "btn-session-filter", "btn-market-filters-close")
         notification_clear(app, 'nav-notifications-market', 'nav-markets')
 
@@ -395,7 +395,7 @@ class MarketComponent(Component):
     def loading_ids(self) -> List[str]:
         return [self.LOADING_ID]
 
-    def nav_items(self) -> Optional[Dict]:
+    def nav_items(self, config: ConfigParser) -> Optional[Dict]:
         return nav_element(
             self.PATHNAME, 'fas fa-horse', 'Markets',
             nav_id='nav-markets',
@@ -478,7 +478,7 @@ class RunnersComponent(Component):
             ],
         }
 
-    def callbacks(self, app, shn: Session):
+    def callbacks(self, app, shn: Session, config: ConfigParser):
         right_panel_callback(app, "container-filters-plot", "btn-runners-filter", "btn-plot-close")
         notification_clear(app, 'nav-notification-runners', 'nav-runners')
 
@@ -644,7 +644,7 @@ class RunnersComponent(Component):
             ]
         }
 
-    def nav_items(self) -> Optional[Dict]:
+    def nav_items(self, config: ConfigParser) -> Optional[Dict]:
         return nav_element(
             self.PATHNAME, 'fas fa-running', 'Runners',
             nav_id='nav-runners',
@@ -704,7 +704,7 @@ class FigureComponent(Component):
                     post_notification(notifs, 'warning', 'Figure', f'cannot process chart offset "{offset}"')
         return None
 
-    def callbacks(self, app, shn: Session):
+    def callbacks(self, app, shn: Session, config: ConfigParser):
         notification_clear(app, 'nav-notifications-figure', 'nav-figure')
 
         @dict_callback(
@@ -876,7 +876,7 @@ class FigureComponent(Component):
             ],
         }
 
-    def nav_items(self) -> Optional[Dict]:
+    def nav_items(self, config: ConfigParser) -> Optional[Dict]:
         return nav_element(
             self.PATHNAME, 'fas fa-chart-bar', 'Figures',
             nav_id='nav-figure',
@@ -922,6 +922,15 @@ class StrategyComponent(Component):
     def display_spec(self, config: ConfigParser) -> Optional[Dict]:
         full_tbl_cols = dict(config['STRATEGY_TABLE_COLS'])
         n_rows = int(config['TABLE']['strategy_rows'])
+        strategy_delete_buttons = []
+        if config['DISPLAY_CONFIG']['strategy_delete']:
+            strategy_delete_buttons.append({
+                'type': 'element-button',
+                'id': 'btn-strategy-delete',
+                'btn_text': 'Delete strategy',
+                'btn_icon': 'fas fa-trash',
+                'color': 'danger'
+            })
         return {
             'container-id': self.CONTAINER_ID,
             'content': [
@@ -947,15 +956,8 @@ class StrategyComponent(Component):
                         'id': 'btn-strategy-refresh',
                         'btn_text': 'Reload',
                         'btn_icon': 'fas fa-sync-alt'
-                    },
-                    {
-                        'type': 'element-button',
-                        'id': 'btn-strategy-delete',
-                        'btn_text': 'Delete strategy',
-                        'btn_icon': 'fas fa-trash',
-                        'color': 'danger'
                     }
-                ],
+                ] + strategy_delete_buttons,
                 # [
                 #     {
                 #         'type': 'element-stylish-select',
@@ -994,23 +996,24 @@ class StrategyComponent(Component):
             ]
         }
 
-    def callbacks(self, app, shn: Session):
+    def callbacks(self, app, shn: Session, config: ConfigParser):
         right_panel_callback(app, "container-filters-strategy", "btn-strategy-filter", "btn-strategy-close")
 
-        @app.callback(
-            Output("strategy-delete-modal", "is_open"),
-            [
-                Input("btn-strategy-delete", "n_clicks"),
-                Input("strategy-delete-yes", "n_clicks"),
-                Input("strategy-delete-no", "n_clicks")
-            ], [
-                State("strategy-delete-modal", "is_open")
-            ],
-        )
-        def toggle_modal(n1, n2, n3, is_open):
-            if n1 or n2 or n3:
-                return not is_open
-            return is_open
+        if config['DISPLAY_CONFIG']['strategy_delete']:
+            @app.callback(
+                Output("strategy-delete-modal", "is_open"),
+                [
+                    Input("btn-strategy-delete", "n_clicks"),
+                    Input("strategy-delete-yes", "n_clicks"),
+                    Input("strategy-delete-no", "n_clicks")
+                ], [
+                    State("strategy-delete-modal", "is_open")
+                ],
+            )
+            def toggle_modal(n1, n2, n3, is_open):
+                if n1 or n2 or n3:
+                    return not is_open
+                return is_open
 
         @app.callback(
             output=[
@@ -1058,7 +1061,7 @@ class StrategyComponent(Component):
                 notifs
             ]
 
-    def nav_items(self) -> Optional[Dict]:
+    def nav_items(self, config: ConfigParser) -> Optional[Dict]:
         return nav_element(self.PATHNAME, 'fas fas fa-chess-king', 'Strategies')
         #     'type': 'element-navigation-item',
         #     'href': self.PATHNAME,
@@ -1110,7 +1113,7 @@ class OrdersComponent(Component):
             ]
         }
 
-    def callbacks(self, app, shn: Session) -> None:
+    def callbacks(self, app, shn: Session, config: ConfigParser) -> None:
         notification_clear(app, 'nav-notifications-orders', 'nav-orders')
 
         @dict_callback(
@@ -1192,7 +1195,7 @@ class OrdersComponent(Component):
 
             process()
 
-    def nav_items(self) -> Optional[Dict]:
+    def nav_items(self, config: ConfigParser) -> Optional[Dict]:
         return nav_element(
             self.PATHNAME, 'fas fa-file-invoice-dollar', 'Orders',
             nav_id='nav-orders',
@@ -1204,7 +1207,10 @@ class LibraryComponent(Component):
     NOTIFICATION_ID = 'notifications-libs'
     LOADING_ID = 'loading-out-libs'
 
-    def header_right(self) -> Optional[Dict]:
+    def header_right(self, config: ConfigParser) -> Optional[Dict]:
+        if not config['DISPLAY_CONFIG']['libraries']:
+            return
+
         return {
             'type': 'element-button',
             'id': 'button-libs',
@@ -1212,7 +1218,10 @@ class LibraryComponent(Component):
             'color': 'info'
         }
 
-    def callbacks(self, app, shn: Session) -> None:
+    def callbacks(self, app, shn: Session, config: ConfigParser) -> None:
+        if not config['DISPLAY_CONFIG']['libraries']:
+            return
+
         @app.callback(
             output=[
                 Output(self.LOADING_ID, 'children'),
@@ -1257,7 +1266,7 @@ class LoggerComponent(Component):
         'info': 'bg-light'
     }
 
-    def nav_items(self) -> Optional[Dict]:
+    def nav_items(self, config: ConfigParser) -> Optional[Dict]:
         return nav_element(self.PATHNAME, 'fas fa-envelope-open-text', 'Logger')
 
     def display_spec(self, config: ConfigParser) -> Optional[Dict]:
@@ -1278,7 +1287,7 @@ class LoggerComponent(Component):
             ]
         }
 
-    def callbacks(self, app, shn: Session):
+    def callbacks(self, app, shn: Session, config: ConfigParser):
         @app.callback(
             output=[
                 Output('logger-box', 'children'),
@@ -1375,7 +1384,7 @@ class TimingsComponent(Component):
     PATHNAME = '/timings'
     CONTAINER_ID = 'container-timings'
 
-    def nav_items(self) -> Optional[Dict]:
+    def nav_items(self, config: ConfigParser) -> Optional[Dict]:
         return nav_element(
             self.PATHNAME, 'fas fa-clock', 'Timings',
             nav_id='nav-timings',
@@ -1403,7 +1412,7 @@ class TimingsComponent(Component):
             ]
         }
 
-    def callbacks(self, app, shn: Session) -> None:
+    def callbacks(self, app, shn: Session, config: ConfigParser) -> None:
         notification_clear(app, 'nav-notifications-timings', 'nav-timings')
 
 
@@ -1430,10 +1439,10 @@ def components_layout(components: List[Component], title: str, config: ConfigPar
                     'type': 'element-div',
                     'css_classes': 'flex-grow-1'
                 },
-                *not_none([c.header_right() for c in components])
+                *not_none([c.header_right(config) for c in components])
             ]
         },
-        'navigation': [c.nav_items() for c in components if c.nav_items()],
+        'navigation': not_none([c.nav_items(config) for c in components]),
         'hidden_elements': list(itertools.chain(*[c.modal_specs(config) for c in components])),
         'containers': not_none([c.display_spec(config) for c in components]),
         'sidebars': not_none([c.sidebar(config) for c in components]),

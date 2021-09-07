@@ -35,7 +35,6 @@ def get_app(config_path=None, additional_config: Optional[Dict[str, Any]] = None
         external_stylesheets=[dbc.themes.BOOTSTRAP, FA],
         transforms=[MultiplexerTransform()]
     )
-    # app = dash.Dash(__name__, title='Betfair Browser', update_title=None, external_stylesheets=[dbc.themes.BOOTSTRAP, FA])
     cache = Cache()
     cache.init_app(app.server, config={'CACHE_TYPE': 'simple'})
 
@@ -64,7 +63,7 @@ def get_app(config_path=None, additional_config: Optional[Dict[str, Any]] = None
     components.components_callback(app, _comps)
 
     for c in _comps:
-        c.callbacks(app, session)
+        c.callbacks(app, session, config)
     layout_spec = components.components_layout(_comps, 'Betfair Browser', session.config)
     app.layout = generate_layout(layout_spec)
 
