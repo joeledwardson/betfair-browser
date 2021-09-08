@@ -101,10 +101,11 @@ def gen_table(spec: Dict) -> dbase.Component:
         'height': 'auto',
         'verticalAlign': 'middle',
         'padding': '0.5rem',
+        'border': '1px solid RGBA(255,255,255,0)'
     }
     if not spec.pop('no_fixed_widths', None):
         style_cell |= {
-            'maxWidth': 0  # fix columnd widths
+            # 'maxWidth': 0  # fix column widths
         }
     return html.Div(
         dash_table.DataTable(
@@ -115,7 +116,8 @@ def gen_table(spec: Dict) -> dbase.Component:
             ],
             style_cell=style_cell,
             style_data={
-                'border': 'none'
+                # 'border': 'none'
+                # 'borderColor': 'white'
             },
             style_header={
                 'fontWeight': 'bold',
