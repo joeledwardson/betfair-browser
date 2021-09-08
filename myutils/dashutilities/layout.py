@@ -105,7 +105,7 @@ def gen_table(spec: Dict) -> dbase.Component:
     }
     if not spec.pop('no_fixed_widths', None):
         style_cell |= {
-            # 'maxWidth': 0  # fix column widths
+            'maxWidth': 0  # fix column widths
         }
     return html.Div(
         dash_table.DataTable(
