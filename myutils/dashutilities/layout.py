@@ -274,8 +274,22 @@ def _(spec: Dict) -> dbase.Component:
 def _(spec: Dict) -> dbase.Component:
     return dbc.Tooltip(
         children=spec.pop('children_spec', None),
-        target=spec.pop('tooltip_target')
+        target=spec.pop('tooltip_target'),
+        placement=spec.pop('placement'),
+        autohide=False,
     )
+
+
+@dash_generators.register_named('element-popover')
+def _(spec: Dict) -> dbase.Component:
+    return dbc.Popover(
+        children=spec.pop('children_spec', None),
+        target=spec.pop('tooltip_target'),
+        placement=spec.pop('placement'),
+        trigger="hover",
+
+    )
+
 
 
 def _gen_element(spec: Union[str, Dict]):
@@ -290,15 +304,14 @@ def _gen_element(spec: Union[str, Dict]):
         element = dash_generators[el_type](spec)
     elif el_type in EL_MAP:
         dash_cls = EL_MAP[el_type]['dash_cls']
-        children = spec.pop('children_spec', None)
+        children_spec = spec.pop('children_spec', None)
         user_kwargs = spec.pop('element_kwargs', dict())
         hidden = spec.pop('hidden', None)
         el_id = spec.pop('id', None)
-        if type(children) == list:
-            child_elements = list()
-            for child_spec in children:
-                child_elements.append(_gen_element(child_spec))
-            children = child_elements
+        if children_spec is not None:
+            children = _gen_element(children_spec)
+        else:
+            children = None
         el_kwargs = {'id': el_id} if el_id else {}
         el_kwargs |= {'hidden': hidden} if hidden else {}
         el_kwargs |= {'children': children, 'className': spec.pop('css_classes', '')}

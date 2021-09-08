@@ -16,11 +16,14 @@ from myutils import timing
 from mytrading.utils.dbfilter import filters_reg
 from mytrading.strategy.feature.features import RFBase
 from mytrading.strategy import tradetracker as tt
-from myutils.dashutilities.component import right_panel_callback, notification_clear, RUNNER_BUTTON_ID, nav_element, \
-    Component
+from myutils.dashutilities.component import right_panel_callback, notification_clear, nav_element, Component, \
+    tooltip, wrapper, button, header, nav_tooltip
 from .session import Session, post_notification, LoadedMarket, Notification, MARKET_FILTERS
 from .error_catcher import handle_errors, exceptions
 from myutils.dashutilities.layout import StoreSpec
+
+
+RUNNER_BUTTON_ID = 'button-runners'
 
 
 class MarketComponent(Component):
@@ -59,44 +62,29 @@ class MarketComponent(Component):
         cache_row = []
 
         if config['DISPLAY_CONFIG']['cache']:
-            cache_row += [{
-                'type': 'element-button',
-                'id': 'btn-db-upload',
-                'btn_icon': 'fas fa-arrow-circle-up',
-                'btn_text': 'Upload Cache'
-            }, {
-                'type': 'element-button',
-                'id': 'btn-cache-clear',
-                'btn_icon': 'fas fa-trash',
-                'btn_text': 'Clear Cache',
-                'color': 'warning'
-            }, {
-                'type': 'element-button',
-                'id': 'btn-db-refresh',
-                'btn_icon': 'fas fa-sync-alt',
-                'btn_text': 'Reload'
-            }]
+            cache_row += [
+                button('btn-db-upload', btn_icon='fas fa-arrow-circle-up', btn_text='Upload Cache'),
+                button('btn-cache-clear', btn_icon='fas fa-trash', btn_text='Clear Cache', color='warning'),
+                button('btn-db-refresh', btn_icon='fas fa-sync-alt', btn_text='Reload')
+            ]
 
         return {
             'container-id': self.CONTAINER_ID,
             'content': [
                 [
-                    {
-                        'type': 'element-header',
-                        'children_spec': 'Market Browser',
-                    }, {
-                        'type': 'element-button',
-                        'id': 'btn-session-filter',
-                        'btn_icon': 'fas fa-filter',
-                    }, {
-                        'type': 'element-button',
-                        'id': 'btn-db-reconnect',
-                        'btn_icon': 'fas fa-database',
-                    }, {
-                        'type': 'element-button',
-                        'id': RUNNER_BUTTON_ID,
-                        'btn_icon': 'fas fa-download'
-                    }
+                    header('Market Browser'),
+                    wrapper(
+                        'market-filter-wrapper',
+                        button('btn-session-filter', btn_icon='fas fa-filter')
+                    ),
+                    wrapper(
+                        'db-reconnect-wrapper',
+                        button('btn-db-reconnect', btn_icon='fas fa-database')
+                    ),
+                    wrapper(
+                        'market-download-wrapper',
+                        button(RUNNER_BUTTON_ID, btn_icon='fas fa-download', color='info')
+                    )
                 ],
                 cache_row,
                 [
@@ -313,16 +301,10 @@ class MarketComponent(Component):
 
     def tooltips(self, config: ConfigParser) -> List[Dict]:
         return [
-            {
-                'type': 'element-tooltip',
-                'children_spec': 'Filter market table',
-                'tooltip_target': 'btn-session-filter'
-            },
-            {
-                'type': 'element-tooltip',
-                'children_spec': 'Reconnect to database',
-                'tooltip_target': 'btn-db-reconnect'
-            }
+            nav_tooltip('Navigate historic betfair markets', 'nav-markets'),
+            tooltip('Filter market table', 'market-filter-wrapper'),
+            tooltip('Reconnect to database', 'db-reconnect-wrapper'),
+            tooltip('Load runners from selected market in table', 'market-download-wrapper'),
         ]
 
 
@@ -343,42 +325,29 @@ class RunnersComponent(Component):
             'container-id': self.CONTAINER_ID,
             'content': [
                 [
-                    {
-                        'type': 'element-header',
-                        'children_spec': 'Runner Info'
-                    },
-                    {
-                        'type': 'element-button',
-                        'id': 'btn-runners-filter',
-                        'btn_icon': 'fas fa-bars'
-                    },
-                    {
-                        'type': 'element-button',
-                        'id': 'button-mkt-bin',
-                        'btn_icon': 'fas fa-trash',
-                        'color': 'warning',
-                    }
+                    header('Runner Info'),
+                    wrapper(
+                        'runners-filter-wrapper',
+                        button('btn-runners-filter', btn_icon='fas fa-bars'),
+                    ),
+                    wrapper(
+                        'market-bin-wrapper',
+                        button('button-mkt-bin', btn_icon='fas fa-trash', color='warning')
+                    ),
                 ],
                 [
-                    {
-                        'id': 'button-orders',
-                        'type': 'element-button',
-                        'btn_icon': 'fas fa-file-invoice-dollar',
-                        'btn_text': 'Orders',
-                        'color': 'info',
-                    },
-                    {
-                        'type': 'element-button',
-                        'id': 'button-figure',
-                        'btn_icon': 'fas fa-chart-line',
-                        'btn_text': 'Figure',
-                    },
-                    {
-                        'type': 'element-button',
-                        'id': 'button-all-figures',
-                        'btn_icon': 'fas fa-chart-line',
-                        'btn_text': 'All Figures',
-                    },
+                    wrapper(
+                        'orders-button-wrapper',
+                        button('button-orders', btn_icon='fas fa-file-invoice-dollar', btn_text='Orders', color='info')
+                    ),
+                    wrapper(
+                        'figure-button-wrapper',
+                        button('button-figure', btn_icon='fas fa-chart-line', btn_text='Figure')
+                    ),
+                    wrapper(
+                        'all-figures-wrapper',
+                        button('button-all-figures', btn_icon='fas fa-chart-line', btn_text='All Figures')
+                    ),
                 ],
                 [
                     {
@@ -471,7 +440,7 @@ class RunnersComponent(Component):
 
             cell = states['cell']
             if not cell:
-                post_notification(notifs, "warning", 'Market', 'No active cell to get market')
+                post_notification(notifs, "danger", 'Market', 'No active cell to get market')
                 return
 
             market_id = cell['row_id']
@@ -567,6 +536,17 @@ class RunnersComponent(Component):
             nav_id='nav-runners',
             notifications_id='nav-notification-runners'
         )
+
+    def tooltips(self, config: ConfigParser) -> List[Dict]:
+        return [
+            nav_tooltip('Navigate race runners from loaded market', 'nav-runners'),
+            tooltip('Select figure plot configuration', 'runners-filter-wrapper'),
+            tooltip('Clear loaded runners\n(market must be loaded first)', 'market-bin-wrapper'),
+
+            tooltip('Show runner orders\n(strategy must be downloaded to market)', 'orders-button-wrapper'),
+            tooltip('Plot figure for select runner\n(runner must be selected from table)', 'figure-button-wrapper'),
+            tooltip('Plot all figures\n(market must be loaded)', 'all-figures-wrapper')
+        ]
 
 
 class FigureComponent(Component):
@@ -769,17 +749,8 @@ class FigureComponent(Component):
             'container-id': self.CONTAINER_ID,
             'content': [
                 [
-                    {
-                        'type': 'element-header',
-                        'children_spec': 'Figures'
-                    },
-                    {
-                        'type': 'element-button',
-                        'id': 'btn-close-figure',
-                        'btn_text': 'Delete figure',
-                        'btn_icon': 'fas fa-trash',
-                        'color': 'warning'
-                    }
+                    header('Figures'),
+                    button('btn-close-figure', btn_text='Delete figure', btn_icon='fas fa-trash', color='warning')
                 ],
                 {
                     'type': 'element-tabs',
@@ -807,6 +778,11 @@ class FigureComponent(Component):
         }, {
             'id': 'figure-holder'
         }]
+
+    def tooltips(self, config: ConfigParser) -> List[Dict]:
+        return [
+            nav_tooltip('View plotted figures', 'nav-figure')
+        ]
 
 
 class StrategyComponent(Component):
@@ -841,39 +817,25 @@ class StrategyComponent(Component):
         n_rows = int(config['TABLE']['strategy_rows'])
         strategy_delete_buttons = []
         if config['DISPLAY_CONFIG']['strategy_delete']:
-            strategy_delete_buttons.append({
-                'type': 'element-button',
-                'id': 'btn-strategy-delete',
-                'btn_text': 'Delete strategy',
-                'btn_icon': 'fas fa-trash',
-                'color': 'danger'
-            })
+            strategy_delete_buttons.append(
+                button('btn-strategy-delete', btn_text='Delete strategy', btn_icon='fas fa-trash', color='danger')
+            )
         return {
             'container-id': self.CONTAINER_ID,
             'content': [
                 [
-                    {
-                        'type': 'element-header',
-                        'children_spec': 'Strategies'
-                    },
-                    {
-                        'type': 'element-button',
-                        'id': 'btn-strategy-filter',
-                        'btn_icon': 'fas fa-filter',
-                    },
-                    {
-                        'type': 'element-button',
-                        'id': 'btn-strategy-download',
-                        'btn_icon': 'fas fa-download'
-                    }
+                    header('Strategies'),
+                    wrapper(
+                        'strategy-filter-wrapper',
+                        button('btn-strategy-filter', btn_icon='fas fa-filter')
+                    ),
+                    wrapper(
+                        'strategy-download-wrapper',
+                        button('btn-strategy-download', btn_icon='fas fa-download')
+                    )
                 ],
                 [
-                    {
-                        'type': 'element-button',
-                        'id': 'btn-strategy-refresh',
-                        'btn_text': 'Reload',
-                        'btn_icon': 'fas fa-sync-alt'
-                    }
+                    button('btn-strategy-refresh', btn_text='Reload', btn_icon='fas fa-sync-alt')
                 ] + strategy_delete_buttons,
                 # [
                 #     {
@@ -979,28 +941,19 @@ class StrategyComponent(Component):
             ]
 
     def nav_items(self, config: ConfigParser) -> Optional[Dict]:
-        return nav_element(self.PATHNAME, 'fas fas fa-chess-king', 'Strategies')
-        #     'type': 'element-navigation-item',
-        #     'href': self.PATHNAME,
-        #     'nav_icon': 'fas fa-chess-king'
-        # }
-        # {
-        #     'type': 'element-navigation-item',
-        #     # 'css_classes': 'mx-1',
-        #     'href': self.PATHNAME,
-        #     'children_spec': [
-        #         {
-        #             'type': 'element-fontawesome',
-        #             'css_classes': 'fas fa-chess-king mr-2'
-        #         },
-        #         'Strategies',
-        #     ]
-        # }
+        return nav_element(self.PATHNAME, 'fas fas fa-chess-king', 'Strategies', nav_id='nav-strategies')
 
     def additional_stores(self) -> List[StoreSpec]:
         return [{
             'id': 'selected-strategy'
         }]
+
+    def tooltips(self, config: ConfigParser) -> List[Dict]:
+        return [
+            nav_tooltip('Navigate historic strategies', 'nav-strategies'),
+            tooltip('Filter strategies (to-do)', 'strategy-filter-wrapper'),
+            tooltip('Download selected strategy to markets', 'strategy-download-wrapper')
+        ]
 
 
 class OrdersComponent(Component):
@@ -1014,12 +967,7 @@ class OrdersComponent(Component):
         return {
             'container-id': self.CONTAINER_ID,
             'content': [
-                [
-                    {
-                        'type': 'element-header',
-                        'children_spec': 'Order Profits'
-                    },
-                ],
+                header('Order Profits'),
                 {
                     'type': 'element-table',
                     'id': 'table-orders',
@@ -1119,6 +1067,11 @@ class OrdersComponent(Component):
             notifications_id='nav-notifications-orders'
         )
 
+    def tooltips(self, config: ConfigParser) -> List[Dict]:
+        return [
+            nav_tooltip('Runner profits from strategy', 'nav-orders'),
+        ]
+
 
 class LibraryComponent(Component):
     NOTIFICATION_ID = 'notifications-libs'
@@ -1184,7 +1137,7 @@ class LoggerComponent(Component):
     }
 
     def nav_items(self, config: ConfigParser) -> Optional[Dict]:
-        return nav_element(self.PATHNAME, 'fas fa-envelope-open-text', 'Logger')
+        return nav_element(self.PATHNAME, 'fas fa-envelope-open-text', 'Logger', nav_id='nav-logger')
 
     def display_spec(self, config: ConfigParser) -> Optional[Dict]:
         return {
@@ -1296,6 +1249,11 @@ class LoggerComponent(Component):
                 toasts
             ]
 
+    def tooltips(self, config: ConfigParser) -> List[Dict]:
+        return [
+            nav_tooltip('Notification log', 'nav-logger')
+        ]
+
 
 class TimingsComponent(Component):
     PATHNAME = '/timings'
@@ -1315,10 +1273,7 @@ class TimingsComponent(Component):
             'container-id': self.CONTAINER_ID,
             'content': [
                 [
-                    {
-                        'type': 'element-header',
-                        'children_spec': 'Function Timings'
-                    },
+                    header('Function Timings')
                 ],
                 {
                     'type': 'element-table',
@@ -1332,4 +1287,7 @@ class TimingsComponent(Component):
     def callbacks(self, app, shn: Session, config: ConfigParser) -> None:
         notification_clear(app, 'nav-notifications-timings', 'nav-timings')
 
-
+    def tooltips(self, config: ConfigParser) -> List[Dict]:
+        return [
+            nav_tooltip('Figure plot timings', 'nav-timings')
+        ]

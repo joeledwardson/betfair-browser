@@ -6,7 +6,7 @@ from dash.dependencies import Output, Input, State
 
 from mybrowser.session import Session
 from .core import triggered_id, CSSClassHandler
-from .layout import StoreSpec, ContentSpec
+from .layout import StoreSpec, ContentSpec, BTN_COLOR
 
 
 def right_panel_callback(app, panel_id: str, open_id: str, close_id: str):
@@ -36,8 +36,48 @@ def notification_clear(app, nav_notification_id: str, button_id: str):
         return None
 
 
-RUNNER_BUTTON_ID = 'button-runners'
+def tooltip(popup: str, target: str, placement="top"):
+    return {
+        'type': 'element-tooltip',
+        'children_spec': popup,
+        'tooltip_target': target,
+        'placement': placement
+    }
 
+
+def nav_tooltip(popup: str, target: str):
+    return tooltip(popup, target, placement='right')
+
+
+def wrapper(wrapper_id, content):
+    return {
+        'type': 'element-div',
+        'id': wrapper_id,
+        'children_spec': content
+    }
+
+
+def header(title: str):
+    return {
+        'type': 'element-header',
+        'children_spec': title,
+    }
+
+
+def button(
+        button_id,
+        color: Optional[str] = BTN_COLOR,
+        btn_icon: Optional[str] = None,
+        btn_text: Optional[str] = None,
+        css_classes: Optional[str] = None):
+    return {
+        'type': 'element-button',
+        'id': button_id,
+        'btn_icon': btn_icon,
+        'btn_text': btn_text,
+        'color': color,
+        'css_classes': css_classes
+    }
 
 def nav_element(
         path: str, icon: str, header: str, nav_id: Optional[str] = None, notifications_id: Optional[str] = None
