@@ -46,8 +46,6 @@ tvlad.dif.max:
   ignore: true
 tvlad.dif.max.smp:
   ignore: true
-tvlad.dif.spread:
-  ignore: true
 tvlad.dif.min:
   ignore: true
 tvlad.dif.min.smp:
