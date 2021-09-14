@@ -10,6 +10,8 @@ from configparser import ConfigParser
 from dash.dependencies import Output, Input, State
 from datetime import datetime, timedelta
 from typing import Optional, Dict, List, Union
+import importlib.resources as pkg_resources
+
 from myutils.dashutilities.core import triggered_id, all_triggered_ids
 from myutils.dashutilities.callbacks import TDict, dict_callback
 from myutils import timing
@@ -17,7 +19,7 @@ from mytrading.utils.dbfilter import filters_reg
 from mytrading.strategy.feature.features import RFBase
 from mytrading.strategy import tradetracker as tt
 from myutils.dashutilities.component import right_panel_callback, notification_clear, nav_element, Component, \
-    tooltip, wrapper, button, header, nav_tooltip
+    tooltip, wrapper, button, header, nav_tooltip, stylish_select
 from .session import Session, post_notification, LoadedMarket, Notification, MARKET_FILTERS
 from .error_catcher import handle_errors, exceptions
 from myutils.dashutilities.layout import StoreSpec
@@ -26,10 +28,34 @@ from myutils.dashutilities.layout import StoreSpec
 RUNNER_BUTTON_ID = 'button-runners'
 
 
+class OverviewComponent(Component):
+    PATHNAME = '/'
+    CONTAINER_ID = 'container-overview'
+
+    def display_spec(self, config: ConfigParser) -> Optional[Dict]:
+        md = pkg_resources.read_text('mybrowser', 'guide.md')
+        return {
+            'container-id': self.CONTAINER_ID,
+            'content': [
+                {
+                    'type': 'element-markdown',
+                    'markdown_text': md,
+                    'css_classes': 'overflow-auto markdown-body'  # use to get the github markdown styles form
+                    # github-markdown.css
+                }
+            ]
+        }
+
+    def nav_items(self, config: ConfigParser) -> Optional[Dict]:
+        return nav_element(
+            self.PATHNAME, 'fas fa-info-circle', 'Guide'
+        )
+
+
 class MarketComponent(Component):
     LOADING_ID = 'market-loading'
     NOTIFICATION_ID = 'notifications-market'
-    PATHNAME = '/'
+    PATHNAME = '/markets'
     CONTAINER_ID = 'container-market'
     SIDEBAR_ID = 'container-filters-market'
 
@@ -369,25 +395,17 @@ class RunnersComponent(Component):
         notification_clear(app, 'nav-notification-runners', 'nav-runners')
 
         @app.callback(
-            [
-                Output('input-feature-config', 'options'),
-                Output('input-plot-config', 'options'),
-            ],
+            Output('input-plot-config', 'options'),
             Input('btn-runners-filter', 'n_clicks')
         )
         def configs(_):
-            feature_options = [{
-                'label': v,
-                'value': v,
-            } for v in shn.feature_configs.keys()]
+            feature_keys = list(shn.feature_configs.keys())
+            config_keys = [k for k in shn.plot_configs.keys() if k in feature_keys]
             plot_options = [{
                 'label': v,
                 'value': v,
-            } for v in shn.plot_configs.keys()]
-            return [
-                feature_options,
-                plot_options
-            ]
+            } for v in config_keys]
+            return plot_options
 
         @dict_callback(
             app=app,
@@ -499,11 +517,6 @@ class RunnersComponent(Component):
             'sidebar_title': 'Plot Config',
             'close_id': 'btn-plot-close',
             'content': [
-                {
-                    'type': 'element-select',
-                    'id': 'input-feature-config',
-                    'placeholder': 'Feature config...'
-                },
                 {
                     'type': 'element-select',
                     'id': 'input-plot-config',
@@ -631,7 +644,6 @@ class FigureComponent(Component):
                 'selected-market': State('selected-market', 'data'),
                 'cell': State('table-runners', 'active_cell'),
                 'offset': State('input-chart-offset', 'value'),
-                'feature-config': State('input-feature-config', 'value'),
                 'plot-config': State('input-plot-config', 'value'),
                 'count': State('figure-count', 'data'),
                 'tabs': State('figure-tabs', 'children'),
@@ -707,7 +719,7 @@ class FigureComponent(Component):
                         market_info=states['selected-market'],
                         selection_id=selection_id,
                         secs=secs,
-                        ftr_key=states['feature-config'],
+                        ftr_key=states['plot-config'],
                         plt_key=states['plot-config']
                     )
                     for f in features.values():

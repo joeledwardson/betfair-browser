@@ -293,6 +293,13 @@ def _(spec: Dict) -> dbase.Component:
     )
 
 
+@dash_generators.register_named('element-markdown')
+def _(spec: Dict) -> dbase.Component:
+    return dcc.Markdown(
+        children=spec.pop('markdown_text'),
+        className=spec.pop('css_classes', ''),
+    )
+
 
 def _gen_element(spec: Union[str, Dict]):
 

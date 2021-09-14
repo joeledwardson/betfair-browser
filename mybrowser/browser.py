@@ -31,7 +31,7 @@ def get_app(config_path=None, additional_config: Optional[Dict[str, Any]] = None
 
     app = DashProxy(
         name=__name__,
-        title='Betfair Browser',
+        title='Betfair Browser 🏇',
         update_title=None,
         external_stylesheets=[dbc.themes.BOOTSTRAP, FA],
         transforms=[MultiplexerTransform()]
@@ -51,6 +51,7 @@ def get_app(config_path=None, additional_config: Optional[Dict[str, Any]] = None
     session = Session(cache, config)
 
     _comps = [
+        components.OverviewComponent(),
         components.MarketComponent(),
         components.RunnersComponent(),
         components.FigureComponent(),
@@ -65,7 +66,7 @@ def get_app(config_path=None, additional_config: Optional[Dict[str, Any]] = None
 
     for c in _comps:
         c.callbacks(app, session, config)
-    layout_spec = myutils.dashutilities.component.components_layout(_comps, 'Betfair Browser', session.config)
+    layout_spec = myutils.dashutilities.component.components_layout(_comps, 'Betfair Browser 🏇', session.config)
     app.layout = generate_layout(layout_spec)
 
     return app

@@ -79,6 +79,24 @@ def button(
         'css_classes': css_classes
     }
 
+
+def stylish_select(
+        placeholder: str,
+        select_options: List,
+        clear_id: str,
+        select_id: str,
+        css_classes: str = None
+):
+    return {
+        'type': 'element-stylish-select',
+        'placeholder': placeholder,
+        'select_options': select_options,
+        'clear_id': clear_id,
+        'id': select_id,
+        'css_classes': css_classes or ''
+    }
+
+
 def nav_element(
         path: str, icon: str, header: str, nav_id: Optional[str] = None, notifications_id: Optional[str] = None
 ) -> Dict:
