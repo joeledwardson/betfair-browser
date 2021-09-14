@@ -1,97 +1,15 @@
 back ladder:
   ignore: true
-best back:
-  value_processors:
-  - kwargs:
-      ftr_keys:
-        text: back ladder
-        y: best back
-    name: prc_ftrstodf
-  - kwargs:
-      df_col: text
-    name: prc_dffmtps
-  - name: prc_dftodict
-best lay:
-  value_processors:
-  - kwargs:
-      ftr_keys:
-        text: lay ladder
-        y: best lay
-    name: prc_ftrstodf
-  - kwargs:
-      df_col: text
-    name: prc_dffmtps
-  - name: prc_dftodict
 lay ladder:
   ignore: true
-ltp:
-  chart_args:
-    mode: lines+markers
-  value_processors:
-  - kwargs:
-      ftr_keys:
-        text: tv
-        y: ltp
-    name: prc_ftrstodf
-  - name: prc_dffillna
-  - kwargs:
-      df_col: text
-      fmt_spec: "Traded Volume: \xA3{0:.2f}"
-    name: prc_dffmtstr
-  - name: prc_dftodict
 spread:
   ignore: true
 spread.smp:
   ignore: true
 spread.smp.avg:
   ignore: true
-tv:
-  chart: Bar
-  chart_args:
-    marker:
-      cmid: 0
-      colorscale:
-      - - 0
-        - rgb(250,50,50)
-      - - 1
-        - rgb(50,250,50)
-    offset: 0
-    opacity: 0.6
-    width: 1000
-  trace_args:
-    secondary_y: true
-  value_processors:
-  - name: prc_dfdiff
-  - keys:
-      key_out: key_1
-    kwargs:
-      ftr_key: wom
-    name: prc_getftr
-  - kwargs:
-      buf_cfg:
-        text: key_1
-        y: key_0
-    name: prc_buftodf
-  - kwargs:
-      dtypes:
-        text: float
-        y: float
-    name: prc_dftypes
-  - kwargs:
-      agg_function:
-        text: mean
-        y: sum
-      n_seconds: 1
-    name: prc_resmp
-  - kwargs:
-      col_out: marker_color
-      col_src: text
-    name: prc_dfcp
-  - kwargs:
-      df_col: text
-      fmt_spec: "Weight of Money: \xA3{0:.2f}"
-    name: prc_dffmtstr
-  - name: prc_dftodict
+wom:
+  ignore: true
 tvlad:
   ignore: true
 tvlad.dif:
@@ -100,13 +18,97 @@ tvlad.dif.max:
   ignore: true
 tvlad.dif.max.smp:
   ignore: true
-tvlad.dif.max.smp.avg:
-  rename: ltp max
+tvlad.dif.spread:
+  ignore: true
 tvlad.dif.min:
   ignore: true
 tvlad.dif.min.smp:
   ignore: true
+best back:
+  value_processors:
+  - name: prc_ftrstodf
+    kwargs:
+      ftr_keys:
+        y: best back
+        text: back ladder
+  - name: prc_dffmtps
+    kwargs:
+      df_col: text
+  - name: prc_dftodict
+best lay:
+  value_processors:
+  - name: prc_ftrstodf
+    kwargs:
+      ftr_keys:
+        y: best lay
+        text: lay ladder
+  - name: prc_dffmtps
+    kwargs:
+      df_col: text
+  - name: prc_dftodict
+ltp:
+  chart_args:
+    mode: lines+markers
+  value_processors:
+  - name: prc_ftrstodf
+    kwargs:
+      ftr_keys:
+        y: ltp
+        text: tv
+  - name: prc_dffillna
+  - name: prc_dffmtstr
+    kwargs:
+      df_col: text
+      fmt_spec: "Traded Volume: \xA3{0:.2f}"
+  - name: prc_dftodict
+tv:
+  chart: Bar
+  chart_args:
+    marker:
+      colorscale:
+      - - 0
+        - rgb(250,50,50)
+      - - 1
+        - rgb(50,250,50)
+      cmid: 0
+    opacity: 0.6
+    width: 5000
+    offset: 0
+  trace_args:
+    secondary_y: true
+  value_processors:
+  - name: prc_dfdiff
+  - name: prc_getftr
+    keys:
+      key_out: key_1
+    kwargs:
+      ftr_key: wom
+  - name: prc_buftodf
+    kwargs:
+      buf_cfg:
+        y: key_0
+        text: key_1
+  - name: prc_dftypes
+    kwargs:
+      dtypes:
+        y: float
+        text: float
+  - name: prc_resmp
+    kwargs:
+      n_seconds: 5.0
+      agg_function:
+        y: sum
+        text: mean
+  - name: prc_dfcp
+    kwargs:
+      col_src: text
+      col_out: marker_color
+  - name: prc_dffmtstr
+    kwargs:
+      df_col: text
+      fmt_spec: "Weight of Money: \xA3{0:.2f}"
+  - name: prc_dftodict
+tvlad.dif.max.smp.avg:
+  rename: ltp max
 tvlad.dif.min.smp.avg:
   rename: ltp min
-wom:
-  ignore: true

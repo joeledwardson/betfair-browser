@@ -1,8 +1,9 @@
 DISPLAY_CONFIG:
-  cache: false
-  libraries: false
-  strategy_delete: false
-  
+  cache: true
+  libraries: true
+  strategy_delete: true
+  config_reloads: true
+
 # market database querying settings
 MARKET_FILTER:
   # date format to present in market filter

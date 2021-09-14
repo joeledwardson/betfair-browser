@@ -49,10 +49,10 @@ class ConfigGenerator:
             ftr_cfg = self._reg[reg_nm](**reg_kwargs)
             p_out = path.join(self._out_dir, fn)
             with open(p_out, 'w') as f:
-                f.write(yaml.dump(ftr_cfg))
+                f.write(yaml.dump(ftr_cfg, sort_keys=False))
             p_out_json = path.splitext(p_out)[0] + '.json'
             with open(p_out_json, 'w') as f:
-                f.write(json.dumps(ftr_cfg, indent=2))
+                f.write(json.dumps(ftr_cfg, indent=2, sort_keys=False))
 
 
 def _plot_procs_lad(ftr_key, lad_key):
@@ -281,7 +281,8 @@ def feature_configs_spike(
 @reg_plots.register_element
 def plot_configs_spike(
         ltp_diff_opacity,
-        ltp_diff_s
+        ltp_diff_s,
+        tv_width_ms
 ):
     IGNORE = [
         'back ladder',
@@ -295,6 +296,7 @@ def plot_configs_spike(
         'tvlad.dif.max',
         'tvlad.dif.max.smp',
         'tvlad.dif',
+        'tvlad.dif.spread',
         'tvlad.dif.min',
         'tvlad.dif.min.smp',
     ]
@@ -345,7 +347,7 @@ def plot_configs_spike(
                     'cmid': 0,  # with grey 0 scale
                 },
                 'opacity': ltp_diff_opacity,
-                'width': 1000,  # 1 seconds width of bars
+                'width': tv_width_ms,  # 1 seconds width of bars
                 'offset': 0,  # end of bar to be aligned with timestamp
             },
             'trace_args': {
@@ -380,7 +382,7 @@ def plot_configs_spike(
             }, {
                 'name': 'prc_resmp',
                 'kwargs': {
-                    'n_seconds': ltp_diff_s,
+                    'n_seconds': tv_width_ms/1000,
                     'agg_function': {
                         'y': 'sum',
                         'text': 'mean',

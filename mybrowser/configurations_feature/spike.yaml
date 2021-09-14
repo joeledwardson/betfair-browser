@@ -1,68 +1,68 @@
-back ladder:
-  kwargs:
-    n_elements: 3
-  name: RFLadBck
 best back:
   name: RFBck
 best lay:
   name: RFLay
-lay ladder:
+back ladder:
+  name: RFLadBck
   kwargs:
     n_elements: 3
+lay ladder:
   name: RFLadLay
-ltp:
-  name: RFLTP
-spread:
   kwargs:
-    sub_features_config:
-      smp:
-        kwargs:
-          cache_count: 40
-          periodic_ms: 100
-          sub_features_config:
-            avg:
-              name: RFMvAvg
-        name: RFSample
-  name: RFLadSprd
-tv:
-  name: RFTVTot
+    n_elements: 3
+wom:
+  name: RFWOM
+  kwargs:
+    wom_ticks: 3
 tvlad:
+  name: RFTVLad
   kwargs:
-    cache_insidewindow: false
     cache_secs: 60
+    cache_insidewindow: false
     sub_features_config:
       dif:
+        name: RFTVLadDif
         kwargs:
           sub_features_config:
             max:
-              kwargs:
-                sub_features_config:
-                  smp:
-                    kwargs:
-                      cache_count: 10
-                      periodic_ms: 200
-                      sub_features_config:
-                        avg:
-                          name: RFMvAvg
-                    name: RFSample
               name: RFTVLadMax
-            min:
               kwargs:
                 sub_features_config:
                   smp:
+                    name: RFSample
                     kwargs:
-                      cache_count: 10
                       periodic_ms: 200
+                      cache_count: 10
                       sub_features_config:
                         avg:
                           name: RFMvAvg
-                    name: RFSample
+            min:
               name: RFTVLadMin
+              kwargs:
+                sub_features_config:
+                  smp:
+                    name: RFSample
+                    kwargs:
+                      periodic_ms: 200
+                      cache_count: 10
+                      sub_features_config:
+                        avg:
+                          name: RFMvAvg
             spread:
               name: RFTVLadSpread
-        name: RFTVLadDif
-  name: RFTVLad
-wom:
+ltp:
+  name: RFLTP
+tv:
+  name: RFTVTot
+spread:
+  name: RFLadSprd
   kwargs:
-    wom_ticks: 3
-  name: RFWOM
+    sub_features_config:
+      smp:
+        name: RFSample
+        kwargs:
+          periodic_ms: 100
+          cache_count: 40
+          sub_features_config:
+            avg:
+              name: RFMvAvg

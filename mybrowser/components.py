@@ -394,11 +394,7 @@ class RunnersComponent(Component):
         right_panel_callback(app, "container-filters-plot", "btn-runners-filter", "btn-plot-close")
         notification_clear(app, 'nav-notification-runners', 'nav-runners')
 
-        @app.callback(
-            Output('input-plot-config', 'options'),
-            Input('btn-runners-filter', 'n_clicks')
-        )
-        def configs(_):
+        def get_config_options():
             feature_keys = list(shn.feature_configs.keys())
             config_keys = [k for k in shn.plot_configs.keys() if k in feature_keys]
             plot_options = [{
@@ -406,6 +402,22 @@ class RunnersComponent(Component):
                 'value': v,
             } for v in config_keys]
             return plot_options
+
+        if config['DISPLAY_CONFIG']['config_reloads']:
+            @app.callback(
+                Output('input-plot-config', 'options'),
+                Input('btn-reload-configs', 'n_clicks')
+            )
+            def reload(_):
+                shn.update_configs()
+                return get_config_options()
+
+        @app.callback(
+            Output('input-plot-config', 'options'),
+            Input('btn-runners-filter', 'n_clicks')
+        )
+        def configs(_):
+            return get_config_options()
 
         @dict_callback(
             app=app,
@@ -512,6 +524,12 @@ class RunnersComponent(Component):
             return disable_figure, disable_orders
 
     def sidebar(self, config: ConfigParser) -> Optional[Dict]:
+        reload_buttons = []
+        if config['DISPLAY_CONFIG']['config_reloads']:
+            reload_buttons.append(
+                button('btn-reload-configs', btn_text='Reload configurations')
+            )
+
         return {
             'sidebar_id': self.SIDEBAR_ID,
             'sidebar_title': 'Plot Config',
@@ -540,7 +558,7 @@ class RunnersComponent(Component):
                         }
                     ]
                 }
-            ]
+            ] + reload_buttons
         }
 
     def nav_items(self, config: ConfigParser) -> Optional[Dict]:

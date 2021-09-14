@@ -1,152 +1,152 @@
-bck:
+spread:
+  name: RFLadSprd
   kwargs:
-    cache_insidewindow: false
-    cache_secs: 5
     sub_features_config:
       smp:
+        name: RFSample
         kwargs:
-          cache_count: 30
           periodic_ms: 100
+          cache_count: 40
           sub_features_config:
             avg:
               name: RFMvAvg
-        name: RFSample
-      tck:
-        kwargs:
-          cache_insidewindow: false
-          cache_secs: 5
-          sub_features_config:
-            mdf:
-              name: RFMaxDif
-            smp:
-              kwargs:
-                cache_count: 30
-                periodic_ms: 100
-                sub_features_config:
-                  avg:
-                    kwargs:
-                      cache_secs: 5
-                      sub_features_config:
-                        cmp:
-                          name: RFDif
-                    name: RFMvAvg
-              name: RFSample
-        name: RFTick
-  name: RFBck
-bcklad:
-  kwargs:
-    n_elements: 3
-  name: RFLadBck
 lay:
+  name: RFLay
   kwargs:
-    cache_insidewindow: false
     cache_secs: 5
+    cache_insidewindow: false
     sub_features_config:
-      smp:
-        kwargs:
-          cache_count: 30
-          periodic_ms: 100
-          sub_features_config:
-            avg:
-              name: RFMvAvg
-        name: RFSample
       tck:
+        name: RFTick
         kwargs:
-          cache_insidewindow: false
           cache_secs: 5
+          cache_insidewindow: false
           sub_features_config:
             mdf:
               name: RFMaxDif
             smp:
+              name: RFSample
               kwargs:
-                cache_count: 30
                 periodic_ms: 100
+                cache_count: 30
                 sub_features_config:
                   avg:
+                    name: RFMvAvg
                     kwargs:
                       cache_secs: 5
                       sub_features_config:
                         cmp:
                           name: RFDif
-                    name: RFMvAvg
-              name: RFSample
-        name: RFTick
-  name: RFLay
-laylad:
-  kwargs:
-    n_elements: 3
-  name: RFLadLay
-ltp:
-  kwargs:
-    sub_features_config:
       smp:
+        name: RFSample
         kwargs:
-          cache_count: 30
           periodic_ms: 100
+          cache_count: 30
           sub_features_config:
             avg:
               name: RFMvAvg
-        name: RFSample
-  name: RFLTP
-split:
+bck:
+  name: RFBck
   kwargs:
+    cache_secs: 5
     cache_insidewindow: false
+    sub_features_config:
+      tck:
+        name: RFTick
+        kwargs:
+          cache_secs: 5
+          cache_insidewindow: false
+          sub_features_config:
+            mdf:
+              name: RFMaxDif
+            smp:
+              name: RFSample
+              kwargs:
+                periodic_ms: 100
+                cache_count: 30
+                sub_features_config:
+                  avg:
+                    name: RFMvAvg
+                    kwargs:
+                      cache_secs: 5
+                      sub_features_config:
+                        cmp:
+                          name: RFDif
+      smp:
+        name: RFSample
+        kwargs:
+          periodic_ms: 100
+          cache_count: 30
+          sub_features_config:
+            avg:
+              name: RFMvAvg
+ltp:
+  name: RFLTP
+  kwargs:
+    sub_features_config:
+      smp:
+        name: RFSample
+        kwargs:
+          periodic_ms: 100
+          cache_count: 30
+          sub_features_config:
+            avg:
+              name: RFMvAvg
+tvlad:
+  name: RFTVLad
+  kwargs:
+    cache_secs: 40
+    cache_insidewindow: false
+    sub_features_config:
+      dif:
+        name: RFTVLadDif
+        kwargs:
+          sub_features_config:
+            max:
+              name: RFTVLadMax
+              kwargs:
+                sub_features_config:
+                  smp:
+                    name: RFSample
+                    kwargs:
+                      periodic_ms: 200
+                      cache_count: 10
+                      sub_features_config:
+                        avg:
+                          name: RFMvAvg
+            min:
+              name: RFTVLadMin
+              kwargs:
+                sub_features_config:
+                  smp:
+                    name: RFSample
+                    kwargs:
+                      periodic_ms: 200
+                      cache_count: 10
+                      sub_features_config:
+                        avg:
+                          name: RFMvAvg
+bcklad:
+  name: RFLadBck
+  kwargs:
+    n_elements: 3
+laylad:
+  name: RFLadLay
+  kwargs:
+    n_elements: 3
+wom:
+  name: RFWOM
+  kwargs:
+    wom_ticks: 5
+split:
+  name: RFBkSplit
+  kwargs:
     cache_secs: 4
+    cache_insidewindow: false
     sub_features_config:
       sum:
         name: RFSum
       tot:
         name: RFIncSum
-  name: RFBkSplit
-spread:
-  kwargs:
-    sub_features_config:
-      smp:
-        kwargs:
-          cache_count: 40
-          periodic_ms: 100
-          sub_features_config:
-            avg:
-              name: RFMvAvg
-        name: RFSample
-  name: RFLadSprd
 tv:
   name: RFTVTot
-tvlad:
-  kwargs:
-    cache_insidewindow: false
-    cache_secs: 40
-    sub_features_config:
-      dif:
-        kwargs:
-          sub_features_config:
-            max:
-              kwargs:
-                sub_features_config:
-                  smp:
-                    kwargs:
-                      cache_count: 10
-                      periodic_ms: 200
-                      sub_features_config:
-                        avg:
-                          name: RFMvAvg
-                    name: RFSample
-              name: RFTVLadMax
-            min:
-              kwargs:
-                sub_features_config:
-                  smp:
-                    kwargs:
-                      cache_count: 10
-                      periodic_ms: 200
-                      sub_features_config:
-                        avg:
-                          name: RFMvAvg
-                    name: RFSample
-              name: RFTVLadMin
-        name: RFTVLadDif
-  name: RFTVLad
-wom:
-  kwargs:
-    wom_ticks: 5
-  name: RFWOM

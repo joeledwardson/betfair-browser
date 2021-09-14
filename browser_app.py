@@ -33,6 +33,7 @@ config = {
         'cache': False,
         'libraries': False,
         'strategy_delete': False,
+        'config_reloads': False,
     },
     'DB_CONFIG': {
         'engine_kwargs': {

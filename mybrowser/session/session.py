@@ -288,17 +288,16 @@ class Session:
         'best_lay': {'name': 'RFLay'}
     }
 
+    def get_package_files(self, resource: str, file_ext: str) -> Dict[str, Any]:
+        data = {}
+        for filename in pkg_resources.contents(resource):
+            name, ext = path.splitext(filename)
+            if ext == file_ext:
+                buffer = pkg_resources.read_text(resource, filename)
+                data[name] = yaml.load(buffer, Loader=yaml.FullLoader)
+        return data
+
     def __init__(self, cache: Cache, config):
-
-        def get_package_files(resource: str, file_ext: str) -> Dict[str, Any]:
-            data = {}
-            for filename in pkg_resources.contents(resource):
-                name, ext = path.splitext(filename)
-                if ext == file_ext:
-                    buffer = pkg_resources.read_text(resource, filename)
-                    data[name] = yaml.load(buffer, Loader=yaml.FullLoader)
-            return data
-
         @cache.memoize(60)
         def get_market_records(market_id) -> List[List[MarketBook]]:
             print(f'**** reading market "{market_id}"')
@@ -334,10 +333,15 @@ class Session:
             self._db_kwargs = config['DB_CONFIG']
         self.betting_db = bdb.BettingDB(**self._db_kwargs)
 
-        self.feature_configs = get_package_files('mybrowser.configurations_feature', '.yaml')
-        self.plot_configs = get_package_files('mybrowser.configurations_plot', '.yaml')
+        self.feature_configs = dict()
+        self.plot_configs = dict()
+        self.update_configs()
         active_logger.info(f'found {len(self.feature_configs)} feature configurations')
         active_logger.info(f'found {len(self.plot_configs)} plot configurations')
+
+    def update_configs(self):
+        self.feature_configs = self.get_package_files('mybrowser.configurations_feature', '.yaml')
+        self.plot_configs = self.get_package_files('mybrowser.configurations_plot', '.yaml')
 
     def serialise_loaded_market(self, mkt: LoadedMarket) -> None:
         self.betting_db.meta_serialise(mkt['info'])
