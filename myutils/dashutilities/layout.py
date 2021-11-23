@@ -1,8 +1,8 @@
 from dash.development import base_component as dbase
 import dash_bootstrap_components as dbc
-import dash_html_components as html
-import dash_core_components as dcc
-import dash_table
+from dash import html
+from dash import dcc
+from dash import dash_table
 from typing import Dict, List, Any, Optional, TypedDict, Union
 from myutils import registrar
 import uuid
@@ -43,7 +43,7 @@ EL_MAP = {
         'dash_cls': dbc.InputGroup
     },
     'element-input-group-addon': {
-        'dash_cls': dbc.InputGroupAddon
+        'dash_cls': dbc.InputGroupText
     },
     'element-paragraph': {
         'dash_cls': html.P
@@ -78,7 +78,7 @@ def gen_button(spec: Dict) -> dbase.Component:
     if btn_icon is not None:
         btn_cls = btn_icon
         if btn_text is not None:
-            btn_cls += f' ml-{BTN_ML}'  # add margin left to icon if text is specified
+            btn_cls += f' ms-{BTN_ML}'  # add margin left to icon if text is specified
         children.append(html.I(className=btn_cls))
     return dbc.Button(
         children,
@@ -231,7 +231,7 @@ def gen_modal(spec: Dict) -> dbase.Component:
     for i, child_spec in enumerate(footer_spec):
         if i == 0:
             css_classes = child_spec.get('css_classes', '')
-            css_classes += ' ml-auto'
+            css_classes += ' ms-auto'
             child_spec['css_classes'] = css_classes
         footer_children.append(_gen_element(child_spec))
     return dbc.Modal([
@@ -278,7 +278,6 @@ def _(spec: Dict) -> dbase.Component:
         children=spec.pop('children_spec', None),
         target=spec.pop('tooltip_target'),
         placement=spec.pop('placement'),
-        autohide=False,
     )
 
 
@@ -391,7 +390,7 @@ def generate_sidebar(spec: SidebarSpec):
                 dbc.Col(dbc.Button('Close', id=close_id), width='auto')],
                 align='center'
             ),
-            html.Hr(className='ml-0 mr-0'),
+            html.Hr(className='ms-0 me-0'),
             html.Div(
                 children,
                 className=f'd-flex flex-column pr-{SIDE_PR} overflow-auto'  # allow space for scroll bar with padding right

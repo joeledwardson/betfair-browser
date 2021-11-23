@@ -102,14 +102,14 @@ def nav_element(
 ) -> Dict:
     return {
         'type': 'element-navigation-item',
-        'css_classes': 'ml-3',
+        'css_classes': 'ms-3',
         'nav_css_classes': 'position-relative d-flex align-items-center mb-2',
         'href': path,
         'id': nav_id,
         'children_spec': [
             {
                 'type': 'element-fontawesome',
-                'css_classes': icon + ' mr-2'
+                'css_classes': icon + ' me-2'
             },
             {
                 'type': 'element-div',
