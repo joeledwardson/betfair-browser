@@ -128,7 +128,7 @@ def gen_table(spec: Dict) -> dbase.Component:
             },
             page_size=n_rows,
         ),
-        className='table-container flex-grow-1 overflow-hidden pr-1'
+        className='table-container flex-grow-1 overflow-hidden pe-1'
     )
 
 
@@ -393,7 +393,7 @@ def generate_sidebar(spec: SidebarSpec):
             html.Hr(className='ms-0 me-0'),
             html.Div(
                 children,
-                className=f'd-flex flex-column pr-{SIDE_PR} overflow-auto'  # allow space for scroll bar with padding right
+                className=f'd-flex flex-column pe-{SIDE_PR} overflow-auto'  # allow space for scroll bar with padding right
             )],
             className=f'd-flex flex-column h-100 p-{SIDE_CONTENT_P}'
         ),
@@ -416,7 +416,7 @@ def generate_container(spec: Dict):
                 row_children.append(dbc.Col(
                     _gen_element(col_spec),
                     width='auto',
-                    className=f'pr-{COL_PAD}' if i == 0 else f'p-{COL_PAD}'
+                    className=f'pe-{COL_PAD}' if i == 0 else f'p-{COL_PAD}'
                 ))
             cont_children.append(dbc.Row(
                 row_children,

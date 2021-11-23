@@ -113,7 +113,7 @@ def nav_element(
             },
             {
                 'type': 'element-div',
-                'css_classes': 'position-relative pr-3',
+                'css_classes': 'position-relative pe-3',
                 'children_spec': [
                     header,
                     {
