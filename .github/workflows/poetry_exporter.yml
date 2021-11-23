@@ -5,9 +5,6 @@ on: [push]
 jobs:
   build:
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        python-version: ["3.8", "3.9", "3.10"]
     steps:
     - uses: actions/checkout@v2
     - name: Set up Python ${{ matrix.python-version }}
@@ -20,4 +17,8 @@ jobs:
         pip install poetry
     - name: generating requirements.txt
       run: |
+        ls
+        pwd
         poetry export -f requirements.txt -o requirements_TEST.txt --without-hashes
+        ls
+    
