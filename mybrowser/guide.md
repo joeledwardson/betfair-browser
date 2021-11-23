@@ -1,5 +1,7 @@
 # Guide 📔
 
+- [Github repository](https://github.com/joeledwardson/betfair-browser)
+
 - Navigate sample historical horse racing and greyhound racing markets from the Betfair Exchange.
 
 - Visualise historic odds information for each runner leading up to the start of the race. 
