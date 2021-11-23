@@ -5,3 +5,4 @@ myutils/__pycache__
 /mybrowser/bootstrap-5.0.1/
  __pycache__/
  *.pyc
+poetry.lock
