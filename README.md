@@ -6,4 +6,4 @@ Navigate and plot historical betfair markets.
 
 [Demo available here](https://betfair-browser.herokuapp.com/)
 
-<img src="https://i.imgur.com/gjaY05g.png" style="width:60%">
+<img src="https://i.imgur.com/gjaY05g.png">
