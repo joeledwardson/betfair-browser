@@ -21,11 +21,6 @@ FA = "https://use.fontawesome.com/releases/v5.15.1/css/all.css"
 
 
 def get_app(config_path=None, additional_config: Optional[Dict[str, Any]] = None):
-    """
-    run dash app mybrowser - input_dir specifies input directory for entry point for mybrowser but also expected root for:
-    - "historical" dir
-    - "recorded" dir
-    """
     if sys.version_info < (3, 9):
         raise ImportError('Python version needs to be 3.9 or higher!')
 
