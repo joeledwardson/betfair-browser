@@ -4,10 +4,11 @@ version = "0.1.0"
 description = ""
 authors = ["Joel Edwardson <joel.edwardson1@gmail.com>"]
 readme = "README.md"
-packages = [{include = "betfair_browser"}]
+#packages = [{include = "betfair_browser"}]
 
 [tool.poetry.dependencies]
 python = ">=3.9,<3.11"
+setuptools = "^59.4.0"
 celery = "^5.2.1"
 SQLAlchemy = "^1.4.27"
 psycopg2-binary = "^2.9.2"
