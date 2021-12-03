@@ -1,4 +1,5 @@
 from mybrowser.browser import get_app
+from mybrowser.exceptions import MyBrowserException
 import argparse
 import keyring
 import logging
@@ -25,9 +26,12 @@ parser.add_argument(
 )
 args = parser.parse_args()
 logger.info(f'running browser...')
+pwd = keyring.get_password('betdb_pwd', 'betting')
+if not pwd:
+    raise MyBrowserException('no password found for database')
 app = get_app(additional_config={
     'DB_CONFIG': {
-        'db_pwd': keyring.get_password('betdb_pwd', 'betting')
+        'db_pwd': pwd
     }
 })
 # turn of dev tools prop check to disable time input error
