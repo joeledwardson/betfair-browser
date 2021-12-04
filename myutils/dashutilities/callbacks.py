@@ -4,7 +4,7 @@ import logging
 from dash.dependencies import DashDependency, Input, Output, State
 from myutils.exceptions import DashUtilsException
 
-Config = Union[DashDependency, List['_Config'], Dict[str, '_Config']]
+Config = Union[DashDependency, List['Config'], Dict[str, 'Config']]
 ConfigDict = Dict[str, Config]
 T = Union[Any, List['T'], Dict[str, 'T']]
 TDict = Dict[str, T]
