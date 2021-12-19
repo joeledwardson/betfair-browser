@@ -1,7 +1,5 @@
-myutils/.ipynb_checkpoints/
-myutils/__pycache__
-.ipynb_checkpoints/
+**/.ipynb_checkpoints/
+**/__pycache__
 .idea/
 /mybrowser/bootstrap-5.0.1/
- __pycache__/
- *.pyc
+*.pyc
