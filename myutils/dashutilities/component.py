@@ -102,10 +102,18 @@ def markdown(text: str, css_classes: Optional[str] = None) -> Dict:
     }
 
 
-def element_div(id: str):
+def element_tabs(id: str):
+    return {
+        'type': 'element-tabs',
+        'id': id,
+    }
+
+
+def element_div(id: str, css_classes: Optional[str] = None):
     return {
         'type': 'element-div',
-        'id': id
+        'id': id,
+        'css_classes': css_classes
     }
 
 

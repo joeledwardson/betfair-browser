@@ -757,24 +757,14 @@ class FigureComponent(Component):
         return [self.LOADING_ID]
 
     def display_spec(self, config):
-        return {
-            'container-id': self.CONTAINER_ID,
-            'content': [
-                [
-                    header('Figures'),
-                    button('btn-close-figure', btn_text='Delete figure', btn_icon='fas fa-trash', color='warning')
-                ],
-                {
-                    'type': 'element-tabs',
-                    'id': 'figure-tabs',
-                },
-                {
-                    'type': 'element-div',
-                    'id': 'figure-div',
-                    'css_classes': 'd-flex flex-column flex-grow-1'
-                }
-            ],
-        }
+        return comp.container_element(self.CONTAINER_ID, [
+            comp.container_row([
+                header('Figures'),
+                button('btn-close-figure', btn_text='Delete figure', btn_icon='fas fa-trash', color='warning')
+            ]),
+            comp.element_tabs('figure-tabs'),
+            comp.element_div('figure-div', css_classes='d-flex flex-column flex-grow-1')
+        ])
 
     def nav_items(self, config: ConfigParser) -> Optional[Dict]:
         return nav_element(
