@@ -1,13 +1,16 @@
 import itertools
 from configparser import ConfigParser
 from typing import Optional, Dict, List
-
+from dash import html
+import json
+from dash import dcc
+import dash_bootstrap_components as dbc
 from dash.dependencies import Output, Input, State
 
 from mybrowser.session import Session
 from .core import triggered_id, CSSClassHandler
 from .layout import StoreSpec, ContentSpec, BTN_COLOR
-
+from . import layout
 
 def right_panel_callback(app, panel_id: str, open_id: str, close_id: str):
     """
@@ -61,6 +64,57 @@ def header(title: str):
     return {
         'type': 'element-header',
         'children_spec': title,
+    }
+
+
+def container_element(container_id: str, content: Optional[List]) -> Dict:
+    return {
+        'container-id': container_id,
+        'content': content,
+    }
+
+
+def container_row(row_spec: List):
+    row_children = list()
+
+    for i, col_spec in enumerate(row_spec):
+        row_children.append({
+            'type': 'element-col',
+            'children_spec': col_spec,
+            'element_kwargs': {
+                'width': 'auto',
+            },
+            'css_classes': f'pe-{layout.COL_PAD}' if i == 0 else f'p-{layout.COL_PAD}'
+        })
+    return {
+        'type': 'element-row',
+        'children_spec': row_children,
+        'element_kwargs': {
+            'align': 'center'
+        }
+    }
+
+def markdown(text: str, css_classes: Optional[str] = None) -> Dict:
+    return {
+        'type': 'element-markdown',
+        'markdown_text': text,
+        'css_classes': css_classes
+    }
+
+
+def element_div(id: str):
+    return {
+        'type': 'element-div',
+        'id': id
+    }
+
+
+def element_table(id: str, columns, n_rows):
+    return {
+        'type': 'element-table',
+        'id': id,
+        'columns': columns,
+        'n_rows': n_rows
     }
 
 
@@ -224,3 +278,4 @@ def components_callback(app, components: List[Component]):
                 if c.SIDEBAR_ID:
                     displays.append(c.SIDEBAR_ID)
         return [not(o in displays) for o in output_ids]
+

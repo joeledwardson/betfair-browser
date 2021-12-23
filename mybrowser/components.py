@@ -23,6 +23,7 @@ from myutils.dashutilities.component import right_panel_callback, notification_c
 from .session import Session, post_notification, LoadedMarket, Notification, MARKET_FILTERS
 from .error_catcher import handle_errors, exceptions
 from myutils.dashutilities.layout import StoreSpec
+from myutils.dashutilities import component as comp
 
 
 RUNNER_BUTTON_ID = 'button-runners'
@@ -34,17 +35,10 @@ class OverviewComponent(Component):
 
     def display_spec(self, config: ConfigParser) -> Optional[Dict]:
         md = pkg_resources.read_text('mybrowser', 'guide.md')
-        return {
-            'container-id': self.CONTAINER_ID,
-            'content': [
-                {
-                    'type': 'element-markdown',
-                    'markdown_text': md,
-                    'css_classes': 'overflow-auto markdown-body'  # use to get the github markdown styles form
-                    # github-markdown.css
-                }
-            ]
-        }
+        return comp.container_element(self.CONTAINER_ID, [comp.markdown(
+            md,
+            'overflow-auto markdown-body' # use to get the github markdown styles form
+        )])
 
     def nav_items(self, config: ConfigParser) -> Optional[Dict]:
         return nav_element(
@@ -347,48 +341,36 @@ class RunnersComponent(Component):
     def display_spec(self, config):
         full_tbl_cols = dict(config['RUNNER_TABLE_COLS'])
         n_rows = int(config['TABLE']['runner_rows'])
-        return {
-            'container-id': self.CONTAINER_ID,
-            'content': [
-                [
-                    header('Runner Info'),
-                    wrapper(
-                        'runners-filter-wrapper',
-                        button('btn-runners-filter', btn_icon='fas fa-bars'),
-                    ),
-                    wrapper(
-                        'market-bin-wrapper',
-                        button('button-mkt-bin', btn_icon='fas fa-trash', color='warning')
-                    ),
-                ],
-                [
-                    wrapper(
-                        'orders-button-wrapper',
-                        button('button-orders', btn_icon='fas fa-file-invoice-dollar', btn_text='Orders', color='info')
-                    ),
-                    wrapper(
-                        'figure-button-wrapper',
-                        button('button-figure', btn_icon='fas fa-chart-line', btn_text='Figure')
-                    ),
-                    wrapper(
-                        'all-figures-wrapper',
-                        button('button-all-figures', btn_icon='fas fa-chart-line', btn_text='All Figures')
-                    ),
-                ],
-                [
-                    {
-                        'type': 'element-div',
-                        'id': 'infobox-market'
-                    }
-                ],
-                {
-                    'type': 'element-table',
-                    'id': 'table-runners',
-                    'columns': full_tbl_cols,
-                    'n_rows': n_rows
-                }
-            ],
-        }
+        return comp.container_element(self.CONTAINER_ID, [
+            comp.container_row([
+                header('Runner Info'),
+                wrapper(
+                    'runners-filter-wrapper',
+                    button('btn-runners-filter', btn_icon='fas fa-bars'),
+                ),
+                wrapper(
+                    'market-bin-wrapper',
+                    button('button-mkt-bin', btn_icon='fas fa-trash', color='warning')
+                ),
+            ]),
+            comp.container_row([
+                wrapper(
+                    'orders-button-wrapper',
+                    button('button-orders', btn_icon='fas fa-file-invoice-dollar', btn_text='Orders', color='info')
+                ),
+                wrapper(
+                    'figure-button-wrapper',
+                    button('button-figure', btn_icon='fas fa-chart-line', btn_text='Figure')
+                ),
+                wrapper(
+                    'all-figures-wrapper',
+                    button('button-all-figures', btn_icon='fas fa-chart-line', btn_text='All Figures')
+                ),
+            ]),
+            comp.element_div('infobox-market'),
+            comp.element_table('table-runners', full_tbl_cols,n_rows)
+        ])
+
 
     def callbacks(self, app, shn: Session, config: ConfigParser):
         right_panel_callback(app, "container-filters-plot", "btn-runners-filter", "btn-plot-close")

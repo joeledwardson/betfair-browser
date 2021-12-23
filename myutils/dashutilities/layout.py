@@ -47,6 +47,12 @@ EL_MAP = {
     },
     'element-paragraph': {
         'dash_cls': html.P
+    },
+    'element-col': {
+        'dash_cls': dbc.Col,
+    },
+    'element-row': {
+        'dash_cls': dbc.Row
     }
 }
 
