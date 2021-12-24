@@ -3,4 +3,3 @@
 .idea/
 /mybrowser/bootstrap-5.0.1/
 *.pyc
-poetry.lock
