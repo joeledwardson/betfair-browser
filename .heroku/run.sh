@@ -5,18 +5,18 @@ curl -sSL https://install.python-poetry.org | python3 -
 #curl -sSL https://raw.githubusercontent.com/python-poetry/poetry/master/get-poetry.py | python -
 echo "finished poetry installation..."
 
-echo
-echo "adding poetry to path"
-export PATH="$HOME/.local/bin:$PATH"
+#echo
+#echo "adding poetry to path"
+#export PATH="$HOME/.local/bin:$PATH"
 
-echo
+echo -e "\r\n"
 echo "poetry version:"
-poetry --version
+$HOME/.local/bin/poetry --version
 
-echo
+echo -e "\r\n"
 echo "exporting..."
-poetry export -f requirements.txt -o requirements.txt --without-hashes
+$HOME/.local/bin/poetry export -f requirements.txt -o requirements.txt --without-hashes
 
-echo
+echo -e "\r\n"
 printf "done!"
 echo "******************"
