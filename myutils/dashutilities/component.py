@@ -117,12 +117,13 @@ def element_div(id: str, css_classes: Optional[str] = None):
     }
 
 
-def element_table(id: str, columns, n_rows):
+def element_table(id: str, columns, n_rows, no_fixed_widths = None):
     return {
         'type': 'element-table',
         'id': id,
         'columns': columns,
-        'n_rows': n_rows
+        'n_rows': n_rows,
+        'no_fixed_widths': no_fixed_widths
     }
 
 

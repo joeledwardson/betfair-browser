@@ -416,19 +416,7 @@ def generate_container(spec: Dict):
     if type(content_spec) != list:
         raise LayoutException(f'expected content to be list, instead got "{type(content_spec)}"')
     for row_spec in content_spec:
-        if type(row_spec) == list:
-            row_children = list()
-            for i, col_spec in enumerate(row_spec):
-                row_children.append(dbc.Col(
-                    _gen_element(col_spec),
-                    width='auto',
-                    className=f'pe-{COL_PAD}' if i == 0 else f'p-{COL_PAD}'
-                ))
-            cont_children.append(dbc.Row(
-                row_children,
-                align='center'
-            ))
-        elif type(row_spec) == dict:
+        if type(row_spec) == dict:
             cont_children.append(_gen_element(row_spec))
         else:
             raise LayoutException(f'expected row spec list/dict, got "{type(row_spec)}"')

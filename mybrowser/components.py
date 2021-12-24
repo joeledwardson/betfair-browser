@@ -79,64 +79,52 @@ class MarketComponent(Component):
         n_mkt_rows = int(config['TABLE']['market_rows'])
         full_tbl_cols = dict(config['MARKET_TABLE_COLS'])
         options_labels = self._sort_labels(sort_options)
-        cache_row = []
+
+        children = [
+            comp.container_row([
+                header('Market Browser'),
+                wrapper(
+                    'market-filter-wrapper',
+                    button('btn-session-filter', btn_icon='fas fa-filter')
+                ),
+                wrapper(
+                    'db-reconnect-wrapper',
+                    button('btn-db-reconnect', btn_icon='fas fa-database')
+                ),
+                wrapper(
+                    'market-download-wrapper',
+                    button(RUNNER_BUTTON_ID, btn_icon='fas fa-download', color='info')
+                )
+            ])
+        ]
 
         if config['DISPLAY_CONFIG']['cache']:
-            cache_row += [
+            children.append(comp.container_row([
                 button('btn-db-upload', btn_icon='fas fa-arrow-circle-up', btn_text='Upload Cache'),
                 button('btn-cache-clear', btn_icon='fas fa-trash', btn_text='Clear Cache', color='warning'),
                 button('btn-db-refresh', btn_icon='fas fa-sync-alt', btn_text='Reload')
-            ]
+            ]))
 
-        return {
-            'container-id': self.CONTAINER_ID,
-            'content': [
-                [
-                    header('Market Browser'),
-                    wrapper(
-                        'market-filter-wrapper',
-                        button('btn-session-filter', btn_icon='fas fa-filter')
-                    ),
-                    wrapper(
-                        'db-reconnect-wrapper',
-                        button('btn-db-reconnect', btn_icon='fas fa-database')
-                    ),
-                    wrapper(
-                        'market-download-wrapper',
-                        button(RUNNER_BUTTON_ID, btn_icon='fas fa-download', color='info')
-                    )
-                ],
-                cache_row,
-                [
-                    {
-                        'type': 'element-stylish-select',
-                        'id': 'market-sorter',
-                        'placeholder': 'Market Sort...',
-                        'select_options': options_labels,
-                        'clear_id': 'btn-sort-clear'
-                    },
-                    {
-                        'type': 'element-button',
-                        'id': 'input-strategy-clear',
-                        'btn_icon': 'fas fa-times-circle',
-                        'btn_text': 'Clear Strategy',
-                        'color': 'info'
-                    }
-                ],
-                [
-                    {
-                        'type': 'element-div',
-                        'id': 'market-query-status'
-                    }
-                ],
-                {
-                    'type': 'element-table',
-                    'id': 'table-market-session',
-                    'columns': full_tbl_cols,
-                    'n_rows': n_mkt_rows
-                }
-            ],
-        }
+        children += [
+            comp.container_row([
+                comp.stylish_select(
+                    select_id='market-sorter',
+                    placeholder='Market Sort...',
+                    select_options=options_labels,
+                    clear_id='btn-sort-clear'
+                ),
+                comp.button(
+                    button_id='input-strategy-clear',
+                    btn_icon='fas fa-times-circle',
+                    btn_text='Clear Strategy',
+                    color='info'
+                )
+            ]),
+            comp.element_div('market-query-status'),
+            comp.element_table('table-market-session', full_tbl_cols, n_mkt_rows)
+        ]
+
+        return comp.container_element(self.CONTAINER_ID, children)
 
     def sidebar(self, config: ConfigParser):
         return {
@@ -822,51 +810,24 @@ class StrategyComponent(Component):
             strategy_delete_buttons.append(
                 button('btn-strategy-delete', btn_text='Delete strategy', btn_icon='fas fa-trash', color='danger')
             )
-        return {
-            'container-id': self.CONTAINER_ID,
-            'content': [
-                [
-                    header('Strategies'),
-                    wrapper(
-                        'strategy-filter-wrapper',
-                        button('btn-strategy-filter', btn_icon='fas fa-filter')
-                    ),
-                    wrapper(
-                        'strategy-download-wrapper',
-                        button('btn-strategy-download', btn_icon='fas fa-download')
-                    )
-                ],
-                [
-                    button('btn-strategy-refresh', btn_text='Reload', btn_icon='fas fa-sync-alt')
-                ] + strategy_delete_buttons,
-                # [
-                #     {
-                #         'type': 'element-stylish-select',
-                #         'id': 'input-strategy-run',
-                #         'placeholder': 'Strategy config...',
-                #         'clear_id': 'strategy-run-clear',
-                #     },
-                #     {
-                #         'type': 'element-button',
-                #         'id': 'btn-strategies-reload',
-                #         'btn_text': 'Reload configs...',
-                #         'color': 'info',
-                #     },
-                #     {
-                #         'type': 'element-button',
-                #         'id': 'btn-strategy-run',
-                #         'btn_text': 'Run strategy',
-                #         'btn_icon': 'fas fa-play-circle'
-                #     },
-                # ],
-                {
-                    'type': 'element-table',
-                    'id': 'table-strategies',
-                    'columns': full_tbl_cols,
-                    'n_rows': n_rows
-                }
-            ],
-        }
+        return comp.container_element(self.CONTAINER_ID, [
+            comp.container_row([
+                header('Strategies'),
+                wrapper(
+                    'strategy-filter-wrapper',
+                    button('btn-strategy-filter', btn_icon='fas fa-filter')
+                ),
+                wrapper(
+                    'strategy-download-wrapper',
+                    button('btn-strategy-download', btn_icon='fas fa-download')
+                )
+            ]),
+            comp.container_row(
+                [button('btn-strategy-refresh', btn_text='Reload', btn_icon='fas fa-sync-alt')] +
+                strategy_delete_buttons
+            ),
+            comp.element_table('table-strategies', full_tbl_cols, n_rows)
+        ])
 
     def sidebar(self, config: ConfigParser) -> Optional[Dict]:
         return {
@@ -966,19 +927,10 @@ class OrdersComponent(Component):
     def display_spec(self, config) -> Optional[Dict]:
         tbl_cols = dict(config['ORDER_TABLE_COLS'])
         n_rows = int(config['TABLE']['orders_rows'])
-        return {
-            'container-id': self.CONTAINER_ID,
-            'content': [
-                header('Order Profits'),
-                {
-                    'type': 'element-table',
-                    'id': 'table-orders',
-                    'columns': tbl_cols,
-                    'n_rows': n_rows,
-                    'no_fixed_widths': True,
-                }
-            ]
-        }
+        return comp.container_element(self.CONTAINER_ID, [
+            header('Order Profits'),
+            comp.element_table('table-orders', columns=tbl_cols, n_rows=n_rows, no_fixed_widths=True)
+        ])
 
     def callbacks(self, app, shn: Session, config: ConfigParser) -> None:
         notification_clear(app, 'nav-notifications-orders', 'nav-orders')
@@ -1142,22 +1094,12 @@ class LoggerComponent(Component):
         return nav_element(self.PATHNAME, 'fas fa-envelope-open-text', 'Logger', nav_id='nav-logger')
 
     def display_spec(self, config: ConfigParser) -> Optional[Dict]:
-        return {
-            'container-id': self.CONTAINER_ID,
-            'content': [
-                [
-                    {
-                        'type': 'element-header',
-                        'children_spec': 'Python Log'
-                    },
-                ],
-                {
-                    'type': 'element-div',
-                    'id': 'logger-box',
-                    'css_classes': 'd-flex flex-column-reverse overflow-auto bg-light'
-                }
-            ]
-        }
+        return comp.container_element(self.CONTAINER_ID, [
+            comp.container_row([
+                comp.header('Python Log')
+            ]),
+            comp.element_div('logger-box', css_classes='d-flex flex-column-reverse overflow-auto bg-light')
+        ])
 
     def callbacks(self, app, shn: Session, config: ConfigParser):
         @app.callback(
@@ -1271,20 +1213,12 @@ class TimingsComponent(Component):
     def display_spec(self, config: ConfigParser) -> Optional[Dict]:
         tbl_cols = dict(config['TIMINGS_TABLE_COLS'])
         n_rows = int(config['TABLE']['timings_rows'])
-        return {
-            'container-id': self.CONTAINER_ID,
-            'content': [
-                [
-                    header('Function Timings')
-                ],
-                {
-                    'type': 'element-table',
-                    'id': 'table-timings',
-                    'columns': tbl_cols,
-                    'n_rows': n_rows
-                }
-            ]
-        }
+        return comp.container_element(self.CONTAINER_ID, [
+            comp.container_row([
+                header('Function Timings')
+            ]),
+            comp.element_table('table-timings', columns=tbl_cols, n_rows=n_rows)
+        ])
 
     def callbacks(self, app, shn: Session, config: ConfigParser) -> None:
         notification_clear(app, 'nav-notifications-timings', 'nav-timings')
