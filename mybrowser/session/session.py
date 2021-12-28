@@ -17,7 +17,7 @@ from betfairlightweight.resources.bettingresources import MarketBook
 from dataclasses import dataclass
 
 from myutils.betfair import BufferStream
-from myutils.dashutilities import component as comp
+from myutils.dashutilities import interface as comp
 import myutils.dictionaries
 import myutils.files
 import mytrading.exceptions
@@ -56,7 +56,7 @@ def get_market_filters() -> List[MarketFilter]:
     return [
         MarketFilter(
             id_sport,
-            comp.normal_select(id_sport, placeholder='Sport...'),
+            comp.select(id_sport, placeholder='Sport...'),
             dbf.DBFilterJoin(
                 db_col='sport_id',
                 join_tbl_name='sportids',
@@ -66,22 +66,22 @@ def get_market_filters() -> List[MarketFilter]:
         ),
         MarketFilter(
             id_market_type,
-            comp.normal_select(id_market_type, placeholder='Market type...'),
+            comp.select(id_market_type, placeholder='Market type...'),
             dbf.DBFilter(db_col='market_type')
         ),
         MarketFilter(
             id_bet_type,
-            comp.normal_select(id_bet_type, placeholder='Betting type...'),
+            comp.select(id_bet_type, placeholder='Betting type...'),
             dbf.DBFilter(db_col='betting_type')
         ),
         MarketFilter(
             id_format,
-            comp.normal_select(id_format, placeholder='Format...'),
+            comp.select(id_format, placeholder='Format...'),
             dbf.DBFilter(db_col='format')
         ),
         MarketFilter(
             id_country_code,
-            comp.normal_select(id_country_code, placeholder='Country...'),
+            comp.select(id_country_code, placeholder='Country...'),
             dbf.DBFilterJoin(
                 db_col="country_code",
                 join_tbl_name='countrycodes',
@@ -91,12 +91,12 @@ def get_market_filters() -> List[MarketFilter]:
         ),
         MarketFilter(
             id_venue,
-            comp.normal_select(id_venue, placeholder='Venue...'),
+            comp.select(id_venue, placeholder='Venue...'),
             dbf.DBFilter(db_col='venue')
         ),
         MarketFilter(
             id_date,
-            comp.normal_select(id_date, placeholder='Market date...'),
+            comp.select(id_date, placeholder='Market date...'),
             dbf.DBFilterDate(
                 db_col='market_time',
                 dt_fmt='%d %b %y'
@@ -104,7 +104,7 @@ def get_market_filters() -> List[MarketFilter]:
         ),
         MarketFilter(
             id_market,
-            comp.component_input(id_market, placeholder='Market ID filter...'),
+            comp.input_component(id_market, placeholder='Market ID filter...'),
             dbf.DBFilterText(db_col='market_id')
         )
     ]

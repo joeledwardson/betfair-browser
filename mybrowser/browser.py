@@ -11,10 +11,10 @@ from dash_extensions.enrich import DashProxy, MultiplexerTransform
 from dash import html
 from dash import dcc
 from dash import dash_table
-from myutils.dashutilities import component as comp, layout
+from myutils.dashutilities import interface as comp, layout
 
 from myutils import general
-import myutils.dashutilities.component
+import myutils.dashutilities.interface
 from myutils.dashutilities.layout import generate_layout
 from .session.session import Session, MarketFilter, get_market_filters
 from . import components
@@ -131,7 +131,7 @@ def get_app(config_path=None, additional_config: Optional[Dict[str, Any]] = None
 
     containers = not_none([c.display_spec(config) for c in _comps])
     sidebars = not_none([c.sidebar(config) for c in _comps])
-    navs = not_none([c.nav_items(config) for c in _comps])
+    navs = not_none([c.nav_item(config) for c in _comps])
     nav = html.Div(
         dbc.Nav(
             [html.Div(x, className=f'p-{layout.NAV_P}') for x in navs],
@@ -152,15 +152,15 @@ def get_app(config_path=None, additional_config: Optional[Dict[str, Any]] = None
             width=6,
         ),
         dbc.Col(
-            comp.element_div(
+            comp.div(
                 'right-header',
                 css_classes='d-flex',
                 content=[
-                    comp.loading_container(
+                    comp.loading(
                         'loading-container',
-                        content=[comp.element_div(l_id) for l_id in loading_ids]
+                        content=[comp.div(l_id) for l_id in loading_ids]
                     ),
-                    comp.element_div('header-buffer', css_classes='flex-grow-1'),
+                    comp.div('header-buffer', css_classes='flex-grow-1'),
                     *not_none([c.header_right(config) for c in _comps])
                 ]
             ),
@@ -173,7 +173,7 @@ def get_app(config_path=None, additional_config: Optional[Dict[str, Any]] = None
     stores += general.flatten([c.additional_stores() for c in _comps])
     app.layout = html.Div([
         dcc.Location(id="url"),
-        html.Div(general.flatten([c.modal_specs(config) for c in _comps])),
+        html.Div(general.flatten([c.modals(config) for c in _comps])),
         html.Div(stores),
         html.Div(
             [
