@@ -1,4 +1,5 @@
 import itertools
+import uuid
 from configparser import ConfigParser
 from typing import Optional, Dict, List
 from dash import html
@@ -6,6 +7,7 @@ import json
 from dash import dcc
 import dash_bootstrap_components as dbc
 from dash.dependencies import Output, Input, State
+from dash import dash_table
 
 from mybrowser.session import Session
 from .core import triggered_id, CSSClassHandler
@@ -40,21 +42,18 @@ def notification_clear(app, nav_notification_id: str, button_id: str):
 
 
 def tooltip(popup: str, target: str, placement="top"):
-    return {
-        'type': 'element-tooltip',
-        'children_spec': popup,
-        'tooltip_target': target,
-        'placement': placement
-    }
+    return dbc.Tooltip(
+        children=popup,
+        target=target,
+        placement=placement,
+    )
 
 
 def modal(id: str, header_spec: any, footer_spec: any):
-    return {
-        'type': 'element-modal',
-        'id': id,
-        'header_spec': header_spec,
-        'footer_spec': footer_spec
-    }
+    return dbc.Modal([
+        dbc.ModalHeader(header_spec),
+        dbc.ModalFooter(footer_spec)
+    ], id=id)
 
 
 def nav_tooltip(popup: str, target: str):
@@ -62,88 +61,115 @@ def nav_tooltip(popup: str, target: str):
 
 
 def wrapper(wrapper_id, content):
-    return {
-        'type': 'element-div',
-        'id': wrapper_id,
-        'children_spec': content
-    }
+    return html.Div(id=wrapper_id, children=content)
 
 
 def header(title: str):
-    return {
-        'type': 'element-header',
-        'children_spec': title,
-    }
+    return html.H2(title)
 
 
-def container_element(container_id: str, content: Optional[List]) -> Dict:
-    return {
-        'container-id': container_id,
-        'content': content,
-    }
+def container_element(container_id: str, content: Optional[List]):
+    return html.Div(
+        html.Div(
+            content or [],
+            className='d-flex flex-column h-100'
+        ),
+        className=f'flex-grow-1 shadow m-{layout.CONT_M} p-{layout.CONT_P}',
+        id=container_id,
+        hidden=True  # default hidden so don't show at startup
+    )
 
 
 def sidebar_container(sidebar_id: str, sidebar_title: str, close_id: str, content: List):
-    return {
-        'sidebar_id': sidebar_id,
-        'sidebar_title': sidebar_title,
-        'close_id': close_id,
-        'content': content
-    }
-
+    return html.Div(
+        html.Div([
+            dbc.Row([
+                dbc.Col(html.H2(sidebar_title)),
+                dbc.Col(dbc.Button('Close', id=close_id), width='auto')],
+                align='center'
+            ),
+            html.Hr(className='ms-0 me-0'),
+            html.Div(
+                content,
+                className=f'd-flex flex-column pe-{layout.SIDE_PR} overflow-auto'  # allow space for scroll bar with padding right
+            )],
+            className=f'd-flex flex-column h-100 p-{layout.SIDE_CONTENT_P}'
+        ),
+        className='right-side-bar',
+        hidden=True,  # default hidden so don't show at startup
+        id=sidebar_id
+    )
 
 
 def container_row(row_spec: List):
     row_children = list()
 
-    for i, col_spec in enumerate(row_spec):
-        row_children.append({
-            'type': 'element-col',
-            'children_spec': col_spec,
-            'element_kwargs': {
-                'width': 'auto',
-            },
-            'css_classes': f'pe-{layout.COL_PAD}' if i == 0 else f'p-{layout.COL_PAD}'
-        })
-    return {
-        'type': 'element-row',
-        'children_spec': row_children,
-        'element_kwargs': {
-            'align': 'center'
-        }
-    }
+    for i, col_children in enumerate(row_spec):
+        row_children.append(dbc.Col(
+            children=col_children,
+            width='auto',
+            className=f'pe-{layout.COL_PAD}' if i == 0 else f'p-{layout.COL_PAD}'
+        ))
+    return dbc.Row(row_children, align='center')
 
-def markdown(text: str, css_classes: Optional[str] = None) -> Dict:
-    return {
-        'type': 'element-markdown',
-        'markdown_text': text,
-        'css_classes': css_classes
-    }
+
+def markdown(text: str, css_classes: Optional[str] = None):
+    return dcc.Markdown(
+        children=text,
+        className=css_classes or '',
+    )
 
 
 def element_tabs(id: str):
-    return {
-        'type': 'element-tabs',
-        'id': id,
+    return dbc.Tabs(
+        id=id,
+    )
+
+
+def loading_container(id: str, content):
+    return dcc.Loading(
+        id=id,
+        type=layout.LOAD_TYPE,
+        children=content
+    )
+
+
+def element_div(id: str, css_classes: Optional[str] = None, content: Optional[any] = None):
+    return html.Div(id=id, className=css_classes or '', children=content)
+
+
+def element_table(id: str, columns, n_rows, no_fixed_widths=None):
+    style_cell = {
+        'textAlign': 'left',
+        'whiteSpace': 'normal',
+        'height': 'auto',
+        'verticalAlign': 'middle',
+        'padding': '0.5rem',
+        'border': '1px solid RGBA(255,255,255,0)'
     }
-
-
-def element_div(id: str, css_classes: Optional[str] = None):
-    return {
-        'type': 'element-div',
-        'id': id,
-        'css_classes': css_classes
-    }
-
-
-def element_table(id: str, columns, n_rows, no_fixed_widths = None):
-    return {
-        'type': 'element-table',
-        'id': id,
-        'columns': columns,
-        'n_rows': n_rows,
-        'no_fixed_widths': no_fixed_widths
-    }
+    if no_fixed_widths is None:
+        style_cell |= {
+            'maxWidth': 0  # fix column widths
+        }
+    return html.Div(
+        dash_table.DataTable(
+            id=id,
+            columns=[
+                dict(name=v, id=k)
+                for k, v in columns.items()
+            ],
+            style_cell=style_cell,
+            style_header={
+                'fontWeight': 'bold',
+                'border': 'none'
+            },
+            style_table={
+                'overflowY': 'auto',
+            },
+            page_size=n_rows,
+        ),
+        className='table-container flex-grow-1 overflow-hidden pe-1'
+    )
 
 
 def button(
@@ -152,51 +178,44 @@ def button(
         btn_icon: Optional[str] = None,
         btn_text: Optional[str] = None,
         css_classes: Optional[str] = None):
-    return {
-        'type': 'element-button',
-        'id': button_id,
-        'btn_icon': btn_icon,
-        'btn_text': btn_text,
-        'color': color,
-        'css_classes': css_classes or ''
-    }
+    children = []
+    if btn_text is not None:
+        children.append(btn_text)
+    if btn_icon is not None:
+        btn_cls = btn_icon
+        if btn_text is not None:
+            btn_cls += f' ms-{layout.BTN_ML}'  # add margin left to icon if text is specified
+        children.append(html.I(className=btn_cls))
+    return dbc.Button(
+        children,
+        id=button_id,
+        n_clicks=0,
+        color=color,
+        className=css_classes or ''
+    )
 
 
-def store(id: str, data: Optional[any] = None):
-    return {
-        'id': id,
-        'data': data if data is not None else {}
-    }
+def store(id: str, data: Optional[any] = None, storage_type='session'):
+    return dcc.Store(id=id, storage_type=storage_type, data=data)
 
 
 def normal_select(id: str, placeholder: str):
-    return {
-        'type': 'element-select',
-        'id': id,
-        'placeholder': placeholder,
-    }
+    return dcc.Dropdown(
+        id=id,
+        placeholder=placeholder
+    )
 
 
-def component_input(id: str, element_kwargs: dict = None):
-    return {
-        'type': 'element-input',
-        'id': id,
-        'element_kwargs': element_kwargs or {}
-    }
+def component_input(id: str, type=None, step=None, value=None, placeholder=None):
+    return dbc.Input(id=id, type=type, step=step, value=value, placeholder=placeholder)
 
 
 def input_group(children_spec):
-    return {
-        'type': 'element-input-group',
-        'children_spec': children_spec
-    }
+    return dbc.InputGroup(children_spec)
 
 
 def input_group_addon(children_spec):
-    return {
-        'type': 'element-input-group-addon',
-        'children_spec': children_spec,
-    }
+    return dbc.InputGroupText(children_spec)
 
 
 def stylish_select(
@@ -206,52 +225,49 @@ def stylish_select(
         select_id: str,
         css_classes: str = None
 ):
-    return {
-        'type': 'element-stylish-select',
-        'placeholder': placeholder,
-        'select_options': select_options,
-        'clear_id': clear_id,
-        'id': select_id,
-        'css_classes': css_classes or ''
-    }
+    return dbc.ButtonGroup(
+        [
+            dbc.Select(
+                id=select_id,
+                placeholder=placeholder,
+                options=select_options,
+            ),
+            dbc.Button(
+                [html.I(className="fas fa-times-circle")],
+                id=clear_id,
+                color='secondary'
+            ),
+        ],
+        className=css_classes
+    )
 
 
 def nav_element(
         path: str, icon: str, header: str, nav_id: Optional[str] = None, notifications_id: Optional[str] = None
-) -> Dict:
-    return {
-        'type': 'element-navigation-item',
-        'css_classes': 'ms-3',
-        'nav_css_classes': 'position-relative d-flex align-items-center mb-2',
-        'href': path,
-        'id': nav_id,
-        'children_spec': [
-            {
-                'type': 'element-fontawesome',
-                'css_classes': icon + ' me-2'
-            },
-            {
-                'type': 'element-div',
-                'css_classes': 'position-relative pe-3',
-                'children_spec': [
+):
+    return dbc.NavItem(
+        dbc.NavLink(
+            id=nav_id or str(uuid.uuid4()),
+            children=[
+                html.I(className=f'{icon} me-2'),
+                html.Div([
                     header,
-                    {
-                        'type': 'element-div',
-                        'css_classes': 'right-corner-box',
-                        'children_spec': [
-                            {
-                                'type': 'element-badge',
-                                'color': 'primary',
-                                'css_classes': 'p-2',
-                            } | (
-                                {'id': notifications_id} if notifications_id else {}
-                            )
-                        ]
-                    }
-                ],
-            }
-        ]
-    }
+                    html.Div(
+                        dbc.Badge(
+                            id=notifications_id or str(uuid.uuid4()),
+                            color='primary',
+                            className='p-2',
+                        ),
+                        className='right-corner-box'
+                    )
+                ], className='position-relative pe-3')
+            ],
+            href=path,
+            active='exact',
+            className='position-relative d-flex align-items-center mb-2'
+        ),
+        className='ms-3'
+    )
 
 
 class Component:

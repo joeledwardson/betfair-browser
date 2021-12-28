@@ -1,7 +1,7 @@
 from plotly.graph_objects import Figure
 import importlib.resources as pkg_resources
-from os import path, listdir
-from typing import List, Dict, Optional, TypedDict, Union, Literal, Any
+from os import path
+from typing import List, Dict, Optional, TypedDict, Literal, Any
 import pandas as pd
 import logging
 from datetime import datetime, timedelta
@@ -14,13 +14,12 @@ import betfairlightweight
 import queue
 import sys
 from betfairlightweight.resources.bettingresources import MarketBook
-from betfairlightweight.exceptions import SocketError, ListenerError
-from betfairlightweight.streaming.listener import BaseListener, StreamListener
+from dataclasses import dataclass
 
-
+from myutils.betfair import BufferStream
+from myutils.dashutilities import component as comp
 import myutils.dictionaries
 import myutils.files
-from mytrading.utils.dbfilter import filters_reg
 import mytrading.exceptions
 import mytrading.process
 import myutils.datetime
@@ -29,7 +28,7 @@ from mytrading.utils import bettingdb as bdb, dbfilter as dbf
 from mytrading.strategy import tradetracker, messages as msgs
 from mytrading.strategy import feature as ftrutils
 from mytrading import visual as figlib
-from myutils import timing, general
+from myutils import timing
 from myutils import registrar as myreg
 
 
@@ -37,129 +36,78 @@ active_logger = logging.getLogger(__name__)
 active_logger.setLevel(logging.INFO)
 
 
-MARKET_FILTERS = [
-    {
-        'layout': {
-            'type': 'element-select',
-            'id': 'input-sport-type',
-            'placeholder': 'Sport...'
-        },
-        'filter': {
-            'name': 'DBFilterJoin',
-            'kwargs': {
-                'db_col': "sport_id",
-                'join_tbl_name': 'sportids',
-                'join_id_col': 'sport_id',
-                'join_name_col': 'sport_name'
-            }
-        }
-    },
-    {
-        'layout': {
-            'type': 'element-select',
-            'id': 'input-mkt-type',
-            'placeholder': 'Market type...',
-        },
-        'filter': {
-            'name': 'DBFilter',
-            'kwargs': {
-                'db_col': 'market_type'
-            }
-        },
-    },
-    {
-        'layout': {
-            'type': 'element-select',
-            'id': 'input-bet-type',
-            'placeholder': 'Betting type...',
-        },
-        'filter': {
-            'name': 'DBFilter',
-            'kwargs': {
-                'db_col': 'betting_type'
-            }
-        }
-    },
-    {
-        'layout': {
-            'type': 'element-select',
-            'id': 'input-format',
-            'placeholder': 'Format...'
-        },
-        'filter': {
-            'name': 'DBFilter',
-            'kwargs': {
-                'db_col': 'format'
-            }
-        }
-    },
-    {
-        'layout': {
-            'type': 'element-select',
-            'id': 'input-country-code',
-            'placeholder': 'Country...'
-        },
-        'filter': {
-            'name': 'DBFilterJoin',
-            'kwargs': {
-                'db_col': "country_code",
-                'join_tbl_name': 'countrycodes',
-                'join_id_col': 'alpha_2_code',
-                'join_name_col': 'name'
-            }
-        }
-    },
-    {
-        'layout': {
-            'type': 'element-select',
-            'id': 'input-venue',
-            'placeholder': 'Venue...'
-        },
-        'filter': {
-            'name': 'DBFilter',
-            'kwargs': {
-                'db_col': 'venue'
-            }
-        }
-    },
-    {
-        'layout': {
-            'type': 'element-select',
-            'id': 'input-date',
-            'placeholder': 'Market date...'
-        },
-        'filter': {
-            'name': 'DBFilterDate',
-            'kwargs': {
-                'db_col': 'market_time',
-                'dt_fmt': '%d %b %y'
-            }
-        }
-    },
-    {
-        'layout': {
-            'type': 'element-input',
-            'id': 'input-mkt-id',
-            'element_kwargs': {
-                'placeholder': 'Market ID filter...',
-            }
-        },
-        'filter': {
-            'name': 'DBFilterText',
-            'kwargs': {
-                'db_col': 'market_id',
-            }
-        }
-    },
-    {
-        'layout': {
-            'type': 'element-button',
-            'id': 'input-mkt-clear',
-            'btn_icon': 'fas fa-times-circle',
-            'btn_text': 'Clear Filters'
-        }
-    }
-]
+@dataclass
+class MarketFilter:
+    component_id: str
+    component: any
+    filter: dbf.DBFilter
+
+
+def get_market_filters() -> List[MarketFilter]:
+    id_sport = 'input-sport-type'
+    id_market_type = 'input-market-type'
+    id_bet_type = 'input-bet-type'
+    id_format = 'input-format'
+    id_country_code = 'input-country-code'
+    id_venue = 'input-venue'
+    id_date = 'input-date'
+    id_market = 'input-market-id'
+
+    return [
+        MarketFilter(
+            id_sport,
+            comp.normal_select(id_sport, placeholder='Sport...'),
+            dbf.DBFilterJoin(
+                db_col='sport_id',
+                join_tbl_name='sportids',
+                join_id_col='sport_id',
+                join_name_col='sport_name'
+            )
+        ),
+        MarketFilter(
+            id_market_type,
+            comp.normal_select(id_market_type, placeholder='Market type...'),
+            dbf.DBFilter(db_col='market_type')
+        ),
+        MarketFilter(
+            id_bet_type,
+            comp.normal_select(id_bet_type, placeholder='Betting type...'),
+            dbf.DBFilter(db_col='betting_type')
+        ),
+        MarketFilter(
+            id_format,
+            comp.normal_select(id_format, placeholder='Format...'),
+            dbf.DBFilter(db_col='format')
+        ),
+        MarketFilter(
+            id_country_code,
+            comp.normal_select(id_country_code, placeholder='Country...'),
+            dbf.DBFilterJoin(
+                db_col="country_code",
+                join_tbl_name='countrycodes',
+                join_id_col='alpha_2_code',
+                join_name_col='name'
+            )
+        ),
+        MarketFilter(
+            id_venue,
+            comp.normal_select(id_venue, placeholder='Venue...'),
+            dbf.DBFilter(db_col='venue')
+        ),
+        MarketFilter(
+            id_date,
+            comp.normal_select(id_date, placeholder='Market date...'),
+            dbf.DBFilterDate(
+                db_col='market_time',
+                dt_fmt='%d %b %y'
+            )
+        ),
+        MarketFilter(
+            id_market,
+            comp.component_input(id_market, placeholder='Market ID filter...'),
+            dbf.DBFilterText(db_col='market_id')
+        )
+    ]
 
 
 class LoadedMarket(TypedDict):
@@ -167,59 +115,6 @@ class LoadedMarket(TypedDict):
     info: Dict
     strategy_id: Optional[str]
     runners: Dict
-
-
-class BufferStream:
-    def __init__(
-        self, data: str, listener: BaseListener, operation: str, unique_id: int
-    ):
-        self.data = data
-        self.listener = listener
-        self.operation = operation
-        self.unique_id = unique_id
-        self._running = False
-
-    @staticmethod
-    def generator(
-            data: str = None,
-            listener: BaseListener = None,
-            operation: str = "marketSubscription",
-            unique_id: int = 0,
-    ) -> 'BufferStream':
-        listener = listener if listener else StreamListener()
-        return BufferStream(data, listener, operation, unique_id)
-
-    def start(self) -> None:
-        self._running = True
-        self._read_loop()
-
-    def stop(self) -> None:
-        self._running = False
-
-    def _read_loop(self) -> None:
-        self.listener.register_stream(self.unique_id, self.operation)
-        for update in self.data.splitlines():
-            if self.listener.on_data(update) is False:
-                # if on_data returns an error stop the stream and raise error
-                self.stop()
-                raise ListenerError("HISTORICAL", update)
-            if not self._running:
-                break
-        self.stop()
-
-
-def get_mkt_filters(mkt_dt_fmt):
-    out = []
-    for f in MARKET_FILTERS:
-        if 'filter' in f:
-            cls = filters_reg[f['filter']['name']]
-            kwargs = f['filter']['kwargs']
-            try:
-                obj = cls(**kwargs)
-                out.append(obj)
-            except TypeError as e:
-                raise SessionException(f'could not create filter using class "{cls}" with kwargs {kwargs}')
-    return out
 
 
 def get_strat_filters(strat_sel_fmt):
@@ -297,7 +192,7 @@ class Session:
                 data[name] = yaml.load(buffer, Loader=yaml.FullLoader)
         return data
 
-    def __init__(self, cache: Cache, config):
+    def __init__(self, cache: Cache, config, market_filters: List[MarketFilter]):
         @cache.memoize(60)
         def get_market_records(market_id) -> List[List[MarketBook]]:
             print(f'**** reading market "{market_id}"')
@@ -320,9 +215,7 @@ class Session:
         self.config = config  # parsed configuration
         self.tbl_formatters = get_formatters(config)  # registrar of table formatters
 
-        self._market_filters = dbf.DBFilterHandler(
-            get_mkt_filters(config['MARKET_FILTER']['mkt_date_format'])
-        )  # db market filters
+        self._market_filters = dbf.DBFilterHandler([flt.filter for flt in market_filters])
         self._strategy_filters = dbf.DBFilterHandler(
             get_strat_filters(config['MARKET_FILTER']['strategy_sel_format'])
         )  # db strategy filters

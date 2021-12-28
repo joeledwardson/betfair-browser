@@ -7,6 +7,10 @@ from typing import List
 import functools
 
 
+def flatten(x: List[List[any]]) -> List[any]:
+    return [item for sublist in x for item in sublist]
+
+
 def dgetattr(obj, name, is_dict=False):
     """
     get deep attribute

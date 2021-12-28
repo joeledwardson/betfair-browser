@@ -12,6 +12,8 @@ from datetime import datetime, timedelta
 from typing import Optional, Dict, List, Union
 import importlib.resources as pkg_resources
 
+from .session.session import MarketFilter
+from myutils import general
 from myutils.dashutilities.core import triggered_id, all_triggered_ids
 from myutils.dashutilities.callbacks import TDict, dict_callback
 from myutils import timing
@@ -20,7 +22,7 @@ from mytrading.strategy.feature.features import RFBase
 from mytrading.strategy import tradetracker as tt
 from myutils.dashutilities.component import right_panel_callback, notification_clear, nav_element, Component, \
     tooltip, wrapper, button, header, nav_tooltip, stylish_select
-from .session import Session, post_notification, LoadedMarket, Notification, MARKET_FILTERS
+from .session import Session, post_notification, LoadedMarket, Notification
 from .error_catcher import handle_errors, exceptions
 from myutils.dashutilities.layout import StoreSpec
 from myutils.dashutilities import component as comp
@@ -53,8 +55,12 @@ class MarketComponent(Component):
     CONTAINER_ID = 'container-market'
     SIDEBAR_ID = 'container-filters-market'
 
+    def __init__(self, market_filters: List[MarketFilter]):
+        super().__init__()
+        self.market_filters = market_filters
+
     def _sort_labels(self, sort_options: Dict) -> List[Dict]:
-        return list(itertools.chain(*[
+        return general.flatten([
             [
                 {
                     'label': f'▲ {v}',
@@ -72,7 +78,7 @@ class MarketComponent(Component):
                 }
             ]
             for k, v in sort_options.items()
-        ]))
+        ])
 
     def display_spec(self, config: ConfigParser):
         sort_options = dict(config['MARKET_SORT_OPTIONS'])
@@ -127,11 +133,13 @@ class MarketComponent(Component):
         return comp.container_element(self.CONTAINER_ID, children)
 
     def sidebar(self, config: ConfigParser):
+        filters = [flt.component for flt in self.market_filters]
+        filters.append(comp.button('input-mkt-clear', btn_icon='fas fa-times-circle', btn_text='Clear Filters'))
         return comp.sidebar_container(
             self.SIDEBAR_ID,
             sidebar_title='Market Filters',
             close_id='btn-market-filters-close',
-            content=[f['layout'] for f in MARKET_FILTERS]
+            content=filters
         )
 
     def callbacks(self, app, shn: Session, config: ConfigParser):
@@ -171,12 +179,12 @@ class MarketComponent(Component):
                 'notifications': Output(self.NOTIFICATION_ID, 'data'),
                 'strategy-id': Output('selected-strategy', 'data'),
                 'filter-values': [
-                    Output(f['layout']['id'], 'value')
-                    for f in MARKET_FILTERS if 'filter' in f
+                    Output(flt.component_id, 'value')
+                    for flt in self.market_filters
                 ],
                 'filter-options': [
-                    Output(f['layout']['id'], 'options')
-                    for f in MARKET_FILTERS if 'filter' in f and filters_reg[f['filter']['name']].HAS_OPTIONS
+                    Output(flt.component_id, 'options')
+                    for flt in self.market_filters if flt.filter and flt.filter.HAS_OPTIONS
                 ],
                 'market-notifications': Output('nav-notifications-market', 'children')
             },
@@ -187,8 +195,8 @@ class MarketComponent(Component):
                 ],
                 'sorter': Input('market-sorter', 'value'),
                 'filter-inputs': {
-                    f['filter']['kwargs']['db_col']: Input(f['layout']['id'], 'value')
-                    for f in MARKET_FILTERS if 'filter' in f
+                    flt.filter.db_col: Input(flt.component_id, 'value')
+                    for flt in self.market_filters
                 }
             },
             states_config={
@@ -504,11 +512,12 @@ class RunnersComponent(Component):
                 comp.normal_select('input-plot-config', placeholder='Plot config...'),
                 comp.input_group([
                     comp.input_group_addon('Input offset: '),
-                    comp.component_input('input-chart-offset', element_kwargs={
-                        'type': 'time',
-                        'step': '1',  # forces HTML to use hours, minutes and seconds format
-                        'value': config['PLOT_CONFIG']['default_offset']
-                    })
+                    comp.component_input(
+                        id='input-chart-offset',
+                        type='time',
+                        step='1',  # forces HTML to use hours, minutes and seconds format
+                        value=config['PLOT_CONFIG']['default_offset']
+                    )
                 ])
             ] + reload_buttons
         )
