@@ -48,6 +48,15 @@ def tooltip(popup: str, target: str, placement="top"):
     }
 
 
+def modal(id: str, header_spec: any, footer_spec: any):
+    return {
+        'type': 'element-modal',
+        'id': id,
+        'header_spec': header_spec,
+        'footer_spec': footer_spec
+    }
+
+
 def nav_tooltip(popup: str, target: str):
     return tooltip(popup, target, placement='right')
 
@@ -72,6 +81,16 @@ def container_element(container_id: str, content: Optional[List]) -> Dict:
         'container-id': container_id,
         'content': content,
     }
+
+
+def sidebar_container(sidebar_id: str, sidebar_title: str, close_id: str, content: List):
+    return {
+        'sidebar_id': sidebar_id,
+        'sidebar_title': sidebar_title,
+        'close_id': close_id,
+        'content': content
+    }
+
 
 
 def container_row(row_spec: List):
@@ -139,7 +158,44 @@ def button(
         'btn_icon': btn_icon,
         'btn_text': btn_text,
         'color': color,
-        'css_classes': css_classes
+        'css_classes': css_classes or ''
+    }
+
+
+def store(id: str, data: Optional[any] = None):
+    return {
+        'id': id,
+        'data': data if data is not None else {}
+    }
+
+
+def normal_select(id: str, placeholder: str):
+    return {
+        'type': 'element-select',
+        'id': id,
+        'placeholder': placeholder,
+    }
+
+
+def component_input(id: str, element_kwargs: dict = None):
+    return {
+        'type': 'element-input',
+        'id': id,
+        'element_kwargs': element_kwargs or {}
+    }
+
+
+def input_group(children_spec):
+    return {
+        'type': 'element-input-group',
+        'children_spec': children_spec
+    }
+
+
+def input_group_addon(children_spec):
+    return {
+        'type': 'element-input-group-addon',
+        'children_spec': children_spec,
     }
 
 

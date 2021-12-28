@@ -127,12 +127,12 @@ class MarketComponent(Component):
         return comp.container_element(self.CONTAINER_ID, children)
 
     def sidebar(self, config: ConfigParser):
-        return {
-            'sidebar_id': self.SIDEBAR_ID,
-            'sidebar_title': 'Market Filters',
-            'close_id': 'btn-market-filters-close',
-            'content': [f['layout'] for f in MARKET_FILTERS]
-        }
+        return comp.sidebar_container(
+            self.SIDEBAR_ID,
+            sidebar_title='Market Filters',
+            close_id='btn-market-filters-close',
+            content=[f['layout'] for f in MARKET_FILTERS]
+        )
 
     def callbacks(self, app, shn: Session, config: ConfigParser):
         right_panel_callback(app, "container-filters-market", "btn-session-filter", "btn-market-filters-close")
@@ -302,10 +302,7 @@ class MarketComponent(Component):
         )
 
     def additional_stores(self) -> List[Dict]:
-        return [{
-            'id': 'selected-market',
-            'data': {}
-        }]
+        return [comp.store('selected-market')]
 
     def tooltips(self, config: ConfigParser) -> List[Dict]:
         return [
@@ -358,7 +355,6 @@ class RunnersComponent(Component):
             comp.element_div('infobox-market'),
             comp.element_table('table-runners', full_tbl_cols,n_rows)
         ])
-
 
     def callbacks(self, app, shn: Session, config: ConfigParser):
         right_panel_callback(app, "container-filters-plot", "btn-runners-filter", "btn-plot-close")
@@ -500,36 +496,22 @@ class RunnersComponent(Component):
                 button('btn-reload-configs', btn_text='Reload configurations')
             )
 
-        return {
-            'sidebar_id': self.SIDEBAR_ID,
-            'sidebar_title': 'Plot Config',
-            'close_id': 'btn-plot-close',
-            'content': [
-                {
-                    'type': 'element-select',
-                    'id': 'input-plot-config',
-                    'placeholder': 'Plot config...',
-                },
-                {
-                    'type': 'element-input-group',
-                    'children_spec': [
-                        {
-                            'type': 'element-input-group-addon',
-                            'children_spec': 'Input offset: ',
-                        },
-                        {
-                            'type': 'element-input',
-                            'id': 'input-chart-offset',
-                            'element_kwargs': {
-                                'type': 'time',
-                                'step': '1',  # forces HTML to use hours, minutes and seconds format
-                                'value': config['PLOT_CONFIG']['default_offset']
-                            }
-                        }
-                    ]
-                }
+        return comp.sidebar_container(
+            self.SIDEBAR_ID,
+            sidebar_title='Plot Config',
+            close_id='btn-plot-close',
+            content=[
+                comp.normal_select('input-plot-config', placeholder='Plot config...'),
+                comp.input_group([
+                    comp.input_group_addon('Input offset: '),
+                    comp.component_input('input-chart-offset', element_kwargs={
+                        'type': 'time',
+                        'step': '1',  # forces HTML to use hours, minutes and seconds format
+                        'value': config['PLOT_CONFIG']['default_offset']
+                    })
+                ])
             ] + reload_buttons
-        }
+        )
 
     def nav_items(self, config: ConfigParser) -> Optional[Dict]:
         return nav_element(
@@ -762,12 +744,7 @@ class FigureComponent(Component):
         )
 
     def additional_stores(self) -> List[StoreSpec]:
-        return [{
-            'id': 'figure-count',
-            'data': 0
-        }, {
-            'id': 'figure-holder'
-        }]
+        return [comp.store('figure-count', 0), comp.store('figure-holder')]
 
     def tooltips(self, config: ConfigParser) -> List[Dict]:
         return [
@@ -782,25 +759,10 @@ class StrategyComponent(Component):
     SIDEBAR_ID = 'container-filters-strategy'
 
     def modal_specs(self, config: ConfigParser) -> List[Dict]:
-        return [{
-            'type': 'element-modal',
-            'id': 'strategy-delete-modal',
-            'header_spec': 'Delete strategy?',
-            'footer_spec': [
-                {
-                    'type': 'element-button',
-                    'btn_text': 'Yes',
-                    'id': 'strategy-delete-yes',
-                    'color': 'danger'
-                },
-                {
-                    'type': 'element-button',
-                    'btn_text': 'No',
-                    'id': 'strategy-delete-no',
-                    'color': 'success'
-                }
-            ]
-        }]
+        return [comp.modal('strategy-delete-modal', header_spec='Delete strategy?', footer_spec=[
+            comp.button('strategy-delete-yes', btn_text='Yes', color='danger'),
+            comp.button('strategy-delete-no', btn_text='No', color='success')
+        ])]
 
     def display_spec(self, config: ConfigParser) -> Optional[Dict]:
         full_tbl_cols = dict(config['STRATEGY_TABLE_COLS'])
@@ -830,13 +792,12 @@ class StrategyComponent(Component):
         ])
 
     def sidebar(self, config: ConfigParser) -> Optional[Dict]:
-        return {
-            'sidebar_id': self.SIDEBAR_ID,
-            'sidebar_title': 'Strategy Filters',
-            'close_id': 'btn-strategy-close',
-            'content': [
-            ]
-        }
+        return comp.sidebar_container(
+            self.SIDEBAR_ID,
+            sidebar_title='Strategy Filters',
+            close_id='btn-strategy-close',
+            content=[]
+        )
 
     def callbacks(self, app, shn: Session, config: ConfigParser):
         right_panel_callback(app, "container-filters-strategy", "btn-strategy-filter", "btn-strategy-close")
@@ -907,9 +868,7 @@ class StrategyComponent(Component):
         return nav_element(self.PATHNAME, 'fas fas fa-chess-king', 'Strategies', nav_id='nav-strategies')
 
     def additional_stores(self) -> List[StoreSpec]:
-        return [{
-            'id': 'selected-strategy'
-        }]
+        return [comp.store('selected-strategy')]
 
     def tooltips(self, config: ConfigParser) -> List[Dict]:
         return [
@@ -1035,12 +994,7 @@ class LibraryComponent(Component):
         if not config['DISPLAY_CONFIG']['libraries']:
             return
 
-        return {
-            'type': 'element-button',
-            'id': 'button-libs',
-            'btn_icon': 'fas fa-book-open',
-            'color': 'info'
-        }
+        return comp.button('button-libs', btn_icon='fas fa-book-open', color='info')
 
     def callbacks(self, app, shn: Session, config: ConfigParser) -> None:
         if not config['DISPLAY_CONFIG']['libraries']:
