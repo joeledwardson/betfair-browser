@@ -255,7 +255,6 @@ def nav_element(
 
 
 class Component:
-    LOADING_ID = None
     NOTIFICATION_ID = None
     PATHNAME = None
     CONTAINER_ID = None

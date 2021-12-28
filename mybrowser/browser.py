@@ -68,6 +68,9 @@ def get_app(config_path=None, additional_config: Optional[Dict[str, Any]] = None
     for c in _comps:
         c.callbacks(app, session, config)
 
+    loading_ids = [c.loading_ids() for c in _comps]
+    loading_ids = [item for sublist in loading_ids for item in sublist]
+
     not_none = lambda lst: [x for x in lst if x is not None]
     layout_spec = myutils.dashutilities.layout.ContentSpec(**{
         'header_title': 'Betfair Browser 🏇',
@@ -82,8 +85,8 @@ def get_app(config_path=None, additional_config: Optional[Dict[str, Any]] = None
                     'children_spec': [
                         {
                             'type': 'element-div',
-                            'id': c.LOADING_ID
-                        } for c in _comps if c.LOADING_ID
+                            'id': l_id
+                        } for l_id in loading_ids
                     ]
                 },
                 {
