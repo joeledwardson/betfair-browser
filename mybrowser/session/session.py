@@ -1,3 +1,5 @@
+import os
+
 from plotly.graph_objects import Figure
 import importlib.resources as pkg_resources
 from os import path
@@ -30,6 +32,7 @@ from mytrading.strategy import feature as ftrutils
 from mytrading import visual as figlib
 from myutils import timing
 from myutils import registrar as myreg
+import mybrowser
 
 
 active_logger = logging.getLogger(__name__)
@@ -183,13 +186,20 @@ class Session:
         'best_lay': {'name': 'RFLay'}
     }
 
-    def get_package_files(self, resource: str, file_ext: str) -> Dict[str, Any]:
+    def get_yaml_files(self, dir_name: str, file_ext: str = '.yaml') -> Dict[str, Any]:
+        """
+        load yaml files from a directory
+        from within the root project mybrowser, each yaml file mapped to file names
+        e.g. directory with files "a.yaml" and "b.yaml" would return {"a": {...}, "b": {...}}
+        """
         data = {}
-        for filename in pkg_resources.contents(resource):
+        dir_path = path.join(mybrowser.__path__[0], dir_name)
+        for filename in os.listdir(dir_path):
             name, ext = path.splitext(filename)
             if ext == file_ext:
-                buffer = pkg_resources.read_text(resource, filename)
-                data[name] = yaml.load(buffer, Loader=yaml.FullLoader)
+                file_path = path.join(dir_path, filename)
+                with open(file_path, 'r') as stream:
+                    data[name] = yaml.safe_load(stream)
         return data
 
     def __init__(self, cache: Cache, config, market_filters: List[MarketFilter]):
@@ -233,8 +243,8 @@ class Session:
         active_logger.info(f'found {len(self.plot_configs)} plot configurations')
 
     def update_configs(self):
-        self.feature_configs = self.get_package_files('mybrowser.configurations_feature', '.yaml')
-        self.plot_configs = self.get_package_files('mybrowser.configurations_plot', '.yaml')
+        self.feature_configs = self.get_yaml_files('configurations_feature')
+        self.plot_configs = self.get_yaml_files('configurations_plot')
 
     def serialise_loaded_market(self, mkt: LoadedMarket) -> None:
         self.betting_db.meta_serialise(mkt['info'])
