@@ -1,6 +1,0 @@
-EXCLUDES: []
-LIBRARY_PATHS: ["C:/Users/joele/OneDrive/coding/libs/bootstrap-5.0.1/scss"]
-OUTPUT_STYLES: nested
-SOURCES_PATH: ..\myutils\dashutilities\scss\
-SOURCE_COMMENTS: false
-TARGET_PATH: assets
