@@ -4,8 +4,6 @@ from dash import html
 from dash import dcc
 import dash_bootstrap_components as dbc
 from dash import dash_table
-from .layout import BTN_COLOR
-from . import layout
 
 
 def tooltip(popup: str, target: str, placement="top"):
@@ -35,19 +33,19 @@ def header(title: str):
     return html.H2(title)
 
 
-def container(container_id: str, content: Optional[List]):
+def container(container_id: str, content: Optional[List]=None, margin=4, padding=4):
     return html.Div(
         html.Div(
             content or [],
             className='d-flex flex-column h-100'
         ),
-        className=f'flex-grow-1 shadow m-{layout.CONT_M} p-{layout.CONT_P}',
+        className=f'flex-grow-1 shadow m-{margin} p-{padding}',
         id=container_id,
         hidden=True  # default hidden so don't show at startup
     )
 
 
-def sidebar(sidebar_id: str, sidebar_title: str, close_id: str, content: List):
+def sidebar(sidebar_id: str, sidebar_title: str, close_id: str, content: List, content_padding=2, right_padding=3):
     return html.Div(
         html.Div([
             dbc.Row([
@@ -58,9 +56,10 @@ def sidebar(sidebar_id: str, sidebar_title: str, close_id: str, content: List):
             html.Hr(className='ms-0 me-0'),
             html.Div(
                 content,
-                className=f'd-flex flex-column pe-{layout.SIDE_PR} overflow-auto'  # allow space for scroll bar with padding right
+                className=f'd-flex flex-column pe-{content_padding} overflow-auto'
+                # allow space for scroll bar with padding right
             )],
-            className=f'd-flex flex-column h-100 p-{layout.SIDE_CONTENT_P}'
+            className=f'd-flex flex-column h-100 p-{right_padding}'
         ),
         className='right-side-bar',
         hidden=True,  # default hidden so don't show at startup
@@ -68,14 +67,14 @@ def sidebar(sidebar_id: str, sidebar_title: str, close_id: str, content: List):
     )
 
 
-def row(row_spec: List):
+def row(row_spec: List, padding=1):
     row_children = list()
 
     for i, col_children in enumerate(row_spec):
         row_children.append(dbc.Col(
             children=col_children,
             width='auto',
-            className=f'pe-{layout.COL_PAD}' if i == 0 else f'p-{layout.COL_PAD}'
+            className=f'pe-{padding}' if i == 0 else f'p-{padding}'
         ))
     return dbc.Row(row_children, align='center')
 
@@ -93,10 +92,10 @@ def tabs(tabs_id: str):
     )
 
 
-def loading(loading_id: str, content: any):
+def loading(loading_id: str, content: any, load_type='dot'):
     return dcc.Loading(
         id=loading_id,
-        type=layout.LOAD_TYPE,
+        type=load_type,
         children=content
     )
 
@@ -105,14 +104,26 @@ def div(div_id: str, css_classes: Optional[str] = None, content: Optional[any] =
     return html.Div(id=div_id, className=css_classes or '', children=content)
 
 
-def table(table_id: str, columns: Dict[str, str], n_rows: int, no_fixed_widths=None):
-    style_cell = {
+def table(
+        table_id: str,
+        columns: Dict[str, str],
+        n_rows: int,
+        no_fixed_widths=None,
+        style_cell=None,
+        style_header=None,
+        padding_right=1
+):
+    style_cell = style_cell or {
         'textAlign': 'left',
         'whiteSpace': 'normal',
         'height': 'auto',
         'verticalAlign': 'middle',
         'padding': '0.5rem',
         'border': '1px solid RGBA(255,255,255,0)'
+    }
+    style_header = style_header or {
+        'fontWeight': 'bold',
+        'border': 'none'
     }
     if no_fixed_widths is None:
         style_cell |= {
@@ -126,25 +137,23 @@ def table(table_id: str, columns: Dict[str, str], n_rows: int, no_fixed_widths=N
                 for k, v in columns.items()
             ],
             style_cell=style_cell,
-            style_header={
-                'fontWeight': 'bold',
-                'border': 'none'
-            },
+            style_header=style_header,
             style_table={
                 'overflowY': 'auto',
             },
             page_size=n_rows,
         ),
-        className='table-container flex-grow-1 overflow-hidden pe-1'
+        className=f'table-container flex-grow-1 overflow-hidden pe-{padding_right}'
     )
 
 
 def button(
         button_id: str,
-        color: Optional[str] = BTN_COLOR,
+        color: Optional[str] = 'primary',
         btn_icon: Optional[str] = None,
         btn_text: Optional[str] = None,
-        css_classes: Optional[str] = None
+        css_classes: Optional[str] = None,
+        margin_left=2
 ):
     children = []
     if btn_text is not None:
@@ -152,7 +161,7 @@ def button(
     if btn_icon is not None:
         btn_cls = btn_icon
         if btn_text is not None:
-            btn_cls += f' ms-{layout.BTN_ML}'  # add margin left to icon if text is specified
+            btn_cls += f' ms-{margin_left}'  # add margin left to icon if text is specified
         children.append(html.I(className=btn_cls))
     return dbc.Button(
         children,
@@ -211,30 +220,39 @@ def bootstrap_select(
 
 
 def nav(
-        path: str, icon: str, header_title: str, nav_id: Optional[str] = None, notifications_id: Optional[str] = None
+        path: str,
+        icon: str,
+        header_title: str,
+        nav_id: Optional[str] = None,
+        notifications_id: Optional[str] = None,
+        icon_margin=2,
+        badge_padding=2,
+        div_padding=3,
+        link_margin=2,
+        nav_margin=3
 ):
     return dbc.NavItem(
         dbc.NavLink(
             id=nav_id or str(uuid.uuid4()),
             children=[
-                html.I(className=f'{icon} me-2'),
+                html.I(className=f'{icon} me-{icon_margin}'),
                 html.Div([
                     header_title,
                     html.Div(
                         dbc.Badge(
                             id=notifications_id or str(uuid.uuid4()),
                             color='primary',
-                            className='p-2',
+                            className=f'p-{badge_padding}',
                         ),
                         className='right-corner-box'
                     )
-                ], className='position-relative pe-3')
+                ], className=f'position-relative pe-{div_padding}')
             ],
             href=path,
             active='exact',
-            className='position-relative d-flex align-items-center mb-2'
+            className=f'position-relative d-flex align-items-center mb-{link_margin}'
         ),
-        className='ms-3'
+        className=f'ms-{nav_margin}'
     )
 
 
