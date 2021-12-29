@@ -6,7 +6,6 @@ curl -sSL https://raw.githubusercontent.com/python-poetry/poetry/master/get-poet
 echo "finished poetry installation..."
 
 echo -e " \r\n"
-echo "poetry version:"
 $HOME/.poetry/bin/poetry --version
 
 echo -e " \r\n"

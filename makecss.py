@@ -1,8 +1,9 @@
 import sass
 from myutils import dashutilities
-from os import path
+from os import path, chdir
 import mybrowser
 
+chdir('mybrowser')
 sass.compile(dirname=('scss', 'assets'))
 
 sass.compile(
