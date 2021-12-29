@@ -10,3 +10,6 @@
 # ignore bootstrap zip and source files
 /mybrowser/bootstrap_source/
 /mybrowser/bootstrap_source.zip
+
+# ignore betfair cache directory
+/bf_cache/

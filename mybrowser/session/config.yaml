@@ -106,14 +106,6 @@ DB:
   # maximum number of rows to return from a database query
   max_rows: 100
 
-# can use relative paths here
-CONFIG_PATHS:
-  feature_src: "%USERPROFILE%/OneDrive/betfair/pythonbetfair/configurations/feature_src"
-  feature_out: "%USERPROFILE%/OneDrive/betfair/pythonbetfair/configurations/feature_out"
-  plot_src: "%USERPROFILE%/OneDrive/betfair/pythonbetfair/configurations/plot_src"
-  plot_out: "%USERPROFILE%/OneDrive/betfair/pythonbetfair/configurations/plot_out"
-  strategy_dir: "%USERPROFILE%/OneDrive/betfair/pythonbetfair/configurations/strategy_confs"
-
 PLOT_CONFIG:
   # default time offset before start of event for plotting
   default_offset: "00:03:00"
@@ -132,7 +124,7 @@ DB_CONFIG:
   db_port: 5432
   db_name: "betting"
   db_engine: "psycopg2"
-  cache_root: "%USERPROFILE%\\Documents\\_bf_cache"
+  cache_root: "bf_cache"
 
 CALLBACK_CONFIG:
   # number of milliseconds to call periodic updater
