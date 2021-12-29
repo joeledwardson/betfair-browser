@@ -24,6 +24,7 @@ from myutils import dictionaries
 active_logger = logging.getLogger(__name__)
 active_logger.setLevel(logging.INFO)
 FA = "https://use.fontawesome.com/releases/v5.15.1/css/all.css"
+MD = "https://cdnjs.cloudflare.com/ajax/libs/github-markdown-css/5.1.0/github-markdown.min.css"
 
 
 def not_none(lst: List[Any]) -> List[Any]:
@@ -87,7 +88,7 @@ def get_app(config_path=None, additional_config: Optional[Dict[str, Any]] = None
         name=__name__,
         title='Betfair Browser 🏇',
         update_title=None,
-        external_stylesheets=[dbc.themes.BOOTSTRAP, FA],
+        external_stylesheets=[dbc.themes.BOOTSTRAP, FA, MD],
         transforms=[MultiplexerTransform()]
     )
     cache = Cache()
