@@ -1,9 +1,8 @@
 import os
 
 from plotly.graph_objects import Figure
-import importlib.resources as pkg_resources
 from os import path
-from typing import List, Dict, Optional, TypedDict, Literal, Any
+from typing import List, Dict, Optional, TypedDict, Any
 import pandas as pd
 import logging
 from datetime import datetime, timedelta
@@ -16,15 +15,14 @@ import betfairlightweight
 import queue
 import sys
 from betfairlightweight.resources.bettingresources import MarketBook
-from dataclasses import dataclass
 
 from myutils.betfair import BufferStream
-from myutils.dashutilities import interface as comp
 import myutils.dictionaries
 import myutils.files
 import mytrading.exceptions
 import mytrading.process
 import myutils.datetime
+from .config import MarketFilter
 from ..exceptions import SessionException
 from mytrading.utils import bettingdb as bdb, dbfilter as dbf
 from mytrading.strategy import tradetracker, messages as msgs
@@ -37,80 +35,6 @@ import mybrowser
 
 active_logger = logging.getLogger(__name__)
 active_logger.setLevel(logging.INFO)
-
-
-@dataclass
-class MarketFilter:
-    component_id: str
-    component: any
-    filter: dbf.DBFilter
-
-
-def get_market_filters() -> List[MarketFilter]:
-    id_sport = 'input-sport-type'
-    id_market_type = 'input-market-type'
-    id_bet_type = 'input-bet-type'
-    id_format = 'input-format'
-    id_country_code = 'input-country-code'
-    id_venue = 'input-venue'
-    id_date = 'input-date'
-    id_market = 'input-market-id'
-
-    return [
-        MarketFilter(
-            id_sport,
-            comp.select(id_sport, placeholder='Sport...'),
-            dbf.DBFilterJoin(
-                db_col='sport_id',
-                join_tbl_name='sportids',
-                join_id_col='sport_id',
-                join_name_col='sport_name'
-            )
-        ),
-        MarketFilter(
-            id_market_type,
-            comp.select(id_market_type, placeholder='Market type...'),
-            dbf.DBFilter(db_col='market_type')
-        ),
-        MarketFilter(
-            id_bet_type,
-            comp.select(id_bet_type, placeholder='Betting type...'),
-            dbf.DBFilter(db_col='betting_type')
-        ),
-        MarketFilter(
-            id_format,
-            comp.select(id_format, placeholder='Format...'),
-            dbf.DBFilter(db_col='format')
-        ),
-        MarketFilter(
-            id_country_code,
-            comp.select(id_country_code, placeholder='Country...'),
-            dbf.DBFilterJoin(
-                db_col="country_code",
-                join_tbl_name='countrycodes',
-                join_id_col='alpha_2_code',
-                join_name_col='name'
-            )
-        ),
-        MarketFilter(
-            id_venue,
-            comp.select(id_venue, placeholder='Venue...'),
-            dbf.DBFilter(db_col='venue')
-        ),
-        MarketFilter(
-            id_date,
-            comp.select(id_date, placeholder='Market date...'),
-            dbf.DBFilterDate(
-                db_col='market_time',
-                dt_fmt='%d %b %y'
-            )
-        ),
-        MarketFilter(
-            id_market,
-            comp.input_component(id_market, placeholder='Market ID filter...'),
-            dbf.DBFilterText(db_col='market_id')
-        )
-    ]
 
 
 class LoadedMarket(TypedDict):
@@ -151,30 +75,6 @@ def get_formatters(config) -> myreg.Registrar:
             return None
 
     return formatters
-
-
-NotificationType = Literal["primary", "secondary", "success", "warning", "danger", "info"]
-
-
-class Notification(TypedDict):
-    msg_type: NotificationType
-    msg_header: str
-    msg_content: str
-    timestamp: str
-
-
-def post_notification(
-        notifications: List[Notification],
-        msg_type: NotificationType,
-        msg_header: str,
-        msg_content: str
-):
-    notifications.append(Notification(
-        msg_type=msg_type,
-        msg_header=msg_header,
-        msg_content=msg_content,
-        timestamp=datetime.now().isoformat()
-    ))
 
 
 class Session:

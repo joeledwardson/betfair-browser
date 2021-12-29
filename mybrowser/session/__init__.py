@@ -1,2 +1,2 @@
-from .session import Session, Notification, NotificationType, LoadedMarket, post_notification
-from ..exceptions import SessionException
+from .session import Session, LoadedMarket
+from .notifications import NotificationType, Notification, post_notification

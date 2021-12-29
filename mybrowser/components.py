@@ -12,7 +12,7 @@ from datetime import datetime, timedelta
 from typing import Optional, Dict, List, Union
 import importlib.resources as pkg_resources
 
-from .session.session import MarketFilter
+from .session.config import MarketFilter
 from myutils import general
 from myutils.dashutilities.triggered import triggered_id, all_triggered_ids
 from myutils.dashutilities.csshandler import CSSClassHandler

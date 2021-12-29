@@ -16,7 +16,8 @@ from dash import dcc
 from myutils.dashutilities import interface as comp
 
 from myutils import general
-from .session.session import Session, MarketFilter, get_market_filters
+from .session.session import Session
+from .session.config import MarketFilter, get_market_filters
 from . import components
 from myutils import dictionaries
 
