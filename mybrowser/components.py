@@ -14,7 +14,8 @@ import importlib.resources as pkg_resources
 
 from .session.session import MarketFilter
 from myutils import general
-from myutils.dashutilities.core import triggered_id, all_triggered_ids, CSSClassHandler
+from myutils.dashutilities.triggered import triggered_id, all_triggered_ids
+from myutils.dashutilities.csshandler import CSSClassHandler
 from myutils.dashutilities.callbacks import TDict, dict_callback
 from myutils import timing
 
