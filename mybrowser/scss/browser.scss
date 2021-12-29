@@ -1,0 +1,46 @@
+html, body {
+    /* set margins of containing html and body so dash div can fill full screen */
+    margin: 0;
+    padding: 0;
+}
+
+/* root container of content */
+#browser-container {
+    height: 100vh;
+    position: relative;
+    overflow-x: hidden; /* stop right sidebar from scrolling page */
+}
+
+/* navigation bar */
+#nav-bar {
+//     min-width: 11rem;
+    background-color: #feeffe;
+}
+
+/* decrease opacity for disabled buttons so obvious cannot click them */
+.disabled {
+    opacity: 0.2 !important;
+}
+
+
+/* unselected nav links not fully visible */
+.nav-link {
+    opacity: 0.8;
+
+    /* active nav link is fully visible and bold text */
+    &.active {
+        opacity: 1 !important;
+        text-shadow: -0.06ex 0 currentColor, 0.06ex 0 currentColor;
+    }
+}
+
+
+/* absolute positioned element holding toast notifications in bottom left corner */
+#toast-holder {
+    bottom: 1rem;
+    left: 1rem;
+    position: absolute;
+    display: flex;
+    flex-direction: column-reverse;
+    justify-content: flex-start;
+}

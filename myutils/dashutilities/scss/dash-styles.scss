@@ -1,0 +1,31 @@
+/* set dash table max height (requires parent element with set height) so scroll works */
+.dash-table-container {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+}
+
+
+/* collapsible right hand bar overlay screen that transitions onto page when margin-right set to 0 */
+.right-side-bar{
+    margin-right: -20rem;
+    width: 20rem;
+    transition: margin-right 0.4s ease-in-out 0.1s;
+    height: 100%;
+    background: #feeffe;
+}
+
+/* class used to bring right sidebar into view */
+.right-not-collapsed {
+    margin-right: 0 !important;
+}
+
+
+// centre in top-right of parent element
+div.right-corner-box {
+    position: absolute;
+    transform: translate(50%, -50%);
+    right: 0;
+    top: 0;
+}
+

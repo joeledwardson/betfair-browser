@@ -3,4 +3,5 @@
 .idea/
 /mybrowser/bootstrap-5.0.1/
 *.pyc
-bootstrap/
+/mybrowser/bootstrap/
+/mybrowser/assets/
