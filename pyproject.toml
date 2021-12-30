@@ -7,7 +7,7 @@ readme = "README.md"
 #packages = [{include = "betfair_browser"}]
 
 [tool.poetry.dependencies]
-python = ">=3.9,<3.11"
+python = ">=3.10,<3.11"
 setuptools = "^59.4.0"
 celery = "^5.2.1"
 SQLAlchemy = "^1.4.27"
