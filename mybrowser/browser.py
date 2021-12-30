@@ -59,7 +59,7 @@ def get_header(
                         content=[comp.div(l_id) for l_id in loading_ids]
                     ),
                     comp.div('header-buffer', css_classes='flex-grow-1'),
-                    *not_none([c.header_right() for c in comps])
+                    *not_none([c.header_right(config) for c in comps])
                 ]
             ),
             width=3
@@ -108,44 +108,29 @@ def get_app(config_path=None, additional_config: Optional[Dict[str, Any]] = None
     session = Session(cache, config, market_filters)
 
     _comps = [
-        components.OverviewComponent(
-            pathname="/",
-            container_id="container-overview"
-        ),
-        components.MarketComponent(
-            pathname='/markets',
-            container_id='container-market',
-            notification_id='notifications-market',
-            sidebar_id='container-filters-market',
-            loading_id='market-loading',
-            market_filters=market_filters
-        ),
-        components.RunnersComponent(
-            pathname='/markets',
-            container_id = 'container-market',
-            notification_id='notifications-market',
-            sidebar_id='container-filters-market'
-        ),
+        components.OverviewComponent(),
+        components.MarketComponent(market_filters),
+        components.RunnersComponent(),
         components.FigureComponent(),
         components.StrategyComponent(),
         components.OrdersComponent(),
         components.LibraryComponent(),
         components.TimingsComponent()
     ]
-    notifications = [c.notification_id for c in _comps if c.notification_id]
+    notifications = [c.NOTIFICATION_ID for c in _comps if c.NOTIFICATION_ID]
     _comps.append(components.LoggerComponent(notifications))
     components.components_callback(app, _comps)
 
     for c in _comps:
-        c.callbacks(app, session)
+        c.callbacks(app, session, config)
 
     loading_ids = [c.loading_ids() for c in _comps]
     loading_ids = [item for sublist in loading_ids for item in sublist]
 
 
-    containers = not_none([c.display_spec() for c in _comps])
-    sidebars = not_none([c.sidebar() for c in _comps])
-    navs = not_none([c.nav_item() for c in _comps])
+    containers = not_none([c.display_spec(config) for c in _comps])
+    sidebars = not_none([c.sidebar(config) for c in _comps])
+    navs = not_none([c.nav_item(config) for c in _comps])
     nav = get_nav(navs)
     header = get_header(loading_ids, config, _comps)
     stores = [comp.store(store_id) for store_id in notifications]
@@ -153,7 +138,7 @@ def get_app(config_path=None, additional_config: Optional[Dict[str, Any]] = None
 
     app.layout = html.Div([
         dcc.Location(id="url"),
-        html.Div(general.flatten([c.modals() for c in _comps])),
+        html.Div(general.flatten([c.modals(config) for c in _comps])),
         html.Div(stores),
         html.Div(
             [
@@ -168,7 +153,7 @@ def get_app(config_path=None, additional_config: Optional[Dict[str, Any]] = None
             id='browser-container',
             className='d-flex flex-column'
         ),
-        html.Div(general.flatten([c.tooltips() for c in _comps]))
+        html.Div(general.flatten([c.tooltips(config) for c in _comps]))
     ])
 
     return app
