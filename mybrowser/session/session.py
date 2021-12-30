@@ -22,8 +22,8 @@ import myutils.files
 import mytrading.exceptions
 import mytrading.process
 import myutils.datetime
-from .config import MarketFilter
-from .formatters import get_formatters
+from .config import MarketFilter, Config
+# from .formatters import get_formatters
 from ..exceptions import SessionException
 from mytrading.utils import bettingdb as bdb, dbfilter as dbf
 from mytrading.strategy import tradetracker, messages as msgs
@@ -32,6 +32,8 @@ from mytrading import visual as figlib
 from myutils import timing
 import mybrowser
 
+# TODO - update with config passed down
+global_config = Config()
 
 active_logger = logging.getLogger(__name__)
 active_logger.setLevel(logging.INFO)
@@ -102,7 +104,7 @@ class Session:
         active_logger.info(f'configuration end')
 
         self.config = config  # parsed configuration
-        self.tbl_formatters = get_formatters(config)  # registrar of table formatters
+        # self.tbl_formatters = get_formatters(config)  # registrar of table formatters
 
         self._market_filters = dbf.DBFilterHandler([flt.filter for flt in market_filters])
         self._strategy_filters = dbf.DBFilterHandler(
@@ -194,8 +196,9 @@ class Session:
             for col_id in row.keys():
                 if col_id in timings_formatters.keys():
                     val = row[col_id]
-                    formatter = self.tbl_formatters[timings_formatters[col_id]]
-                    row[col_id] = formatter(val)
+                    # formatter = self.tbl_formatters[timings_formatters[col_id]]
+                    row[col_id] = global_config.table_configs.timings_table_formatters[col_id](val)
+                    # formatter(val)
         return tms
 
     def market_load(self, market_id, strategy_id) -> LoadedMarket:
@@ -205,7 +208,7 @@ class Session:
 
         # rows are returned with additional "runner_profit" column
         rows = self.betting_db.rows_runners(market_id, strategy_id)
-        self._apply_formatters(rows, dict(self.config['RUNNER_TABLE_FORMATTERS']))
+        self._apply_formatters(rows, dict(global_config.table_configs.runner_table_formatters))
         meta = self.betting_db.read_mkt_meta(market_id)
 
         start_odds = mytrading.process.get_starting_odds(record_list)
@@ -229,20 +232,21 @@ class Session:
             for k, v in row.items():
                 if k in fmt_config:
                     nm = fmt_config[k]
-                    f = self.tbl_formatters[nm]
+                    # f = self.tbl_formatters[nm]
                     if v is not None:
-                        row[k] = f(v)
+                        # row[k] = f(v)
+                        fmt_config[k](v)
 
     def mkt_tbl_rows(self, cte, order_col=None, order_asc=True):
         col_names = list(self.config['MARKET_TABLE_COLS'].keys()) + ['market_profit']
         max_rows = int(self.config['DB']['max_rows'])
         tbl_rows = self.betting_db.rows_market(cte, col_names, max_rows, order_col, order_asc)
-        self._apply_formatters(tbl_rows, dict(self.config['MARKET_TABLE_FORMATTERS']))
+        self._apply_formatters(tbl_rows, global_config.table_configs.market_table_formatters)
         return tbl_rows
 
     def strats_tbl_rows(self):
         tbl_rows = self.betting_db.rows_strategy(self.config['TABLE']['strategy_rows'])
-        self._apply_formatters(tbl_rows, dict(self.config['STRATEGY_TABLE_FORMATTERS']))
+        self._apply_formatters(tbl_rows, global_config.table_configs.strategy_table_formatters)
         return tbl_rows
 
     def read_orders(self, market_id: str, strategy_id: str, selection_id: int, start_time: datetime) -> pd.DataFrame:
