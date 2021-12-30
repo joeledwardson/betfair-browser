@@ -25,11 +25,8 @@ if test ! -f "requirements.txt"; then
   echo -e " \r\n"
   echo "done!"
   echo "pre-build: end ******************"
-fi
-
-if test ! -d "mybrowser/assets"; then
+else
   echo "post-build: start ******************"
-  $HOME/.poetry/bin/poetry env use
   python makecss.py
   echo "post-build: end ******************"
 fi
