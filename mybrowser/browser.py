@@ -121,10 +121,11 @@ def get_app(config_path=None, additional_config: Optional[Dict[str, Any]] = None
             market_filters=market_filters
         ),
         components.RunnersComponent(
-            pathname='/markets',
-            container_id = 'container-market',
-            notification_id='notifications-market',
-            sidebar_id='container-filters-market'
+            pathname='/runners',
+            container_id = 'container-runners',
+            notification_id = 'notifications-runners',
+            sidebar_id = 'container-filters-plot',
+            loading_id = 'runners-loading'
         ),
         components.FigureComponent(),
         components.StrategyComponent(),

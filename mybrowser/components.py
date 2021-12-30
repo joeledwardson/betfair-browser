@@ -395,12 +395,9 @@ class MarketComponent(Component):
         ]
 
 
+@dataclasses.dataclass(kw_only=True)
 class RunnersComponent(Component):
-    LOADING_ID = 'runners-loading'
-    notification_id = 'notifications-runners'
-    pathname = '/runners'
-    container_id = 'container-runners'
-    sidebar_id = 'container-filters-plot'
+
 
     def loading_ids(self) -> List[str]:
         return [self.LOADING_ID]
