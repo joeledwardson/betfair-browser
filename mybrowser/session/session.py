@@ -5,7 +5,7 @@ from os import path
 from typing import List, Dict, Optional, TypedDict, Any
 import pandas as pd
 import logging
-from datetime import datetime, timedelta
+from datetime import datetime
 import yaml
 import json
 from json.decoder import JSONDecodeError
@@ -23,13 +23,13 @@ import mytrading.exceptions
 import mytrading.process
 import myutils.datetime
 from .config import MarketFilter
+from .formatters import get_formatters
 from ..exceptions import SessionException
 from mytrading.utils import bettingdb as bdb, dbfilter as dbf
 from mytrading.strategy import tradetracker, messages as msgs
 from mytrading.strategy import feature as ftrutils
 from mytrading import visual as figlib
 from myutils import timing
-from myutils import registrar as myreg
 import mybrowser
 
 
@@ -54,27 +54,6 @@ def get_strat_filters(strat_sel_fmt):
             cols=['strategy_id', 'exec_time', 'name']
         )
     ]
-
-
-def get_formatters(config) -> myreg.Registrar:
-    formatters = myreg.Registrar()
-
-    @formatters.register_element
-    def format_datetime(value: datetime):
-        return value.strftime(config['FORMATTERS_CONFIG']['dt_format'])
-
-    @formatters.register_element
-    def format_timedelta(value: timedelta):
-        return myutils.datetime.format_timedelta(td=value, fmt=config['FORMATTERS_CONFIG']['td_format'])
-
-    @formatters.register_element
-    def format_money(value: Optional[float]):
-        if value is not None:
-            return config['FORMATTERS_CONFIG']['money_format'].format(value=value)
-        else:
-            return None
-
-    return formatters
 
 
 class Session:

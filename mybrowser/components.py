@@ -12,7 +12,7 @@ from datetime import datetime, timedelta
 from typing import Optional, Dict, List, Union
 import importlib.resources as pkg_resources
 
-from .session.config import MarketFilter
+from .session.config import MarketFilter, DisplayConfig
 from myutils import general
 from myutils.dashutilities.triggered import triggered_id, all_triggered_ids
 from myutils.dashutilities.csshandler import CSSClassHandler
@@ -24,6 +24,9 @@ from mytrading.strategy import tradetracker as tt
 from .session import Session, post_notification, LoadedMarket, Notification
 from .error_catcher import handle_errors, exceptions
 from myutils.dashutilities import interface as intf
+
+# TODO - config passed to functions
+display_conf = DisplayConfig()
 
 
 def notification_clear(app, nav_notification_id: str, button_id: str):
@@ -182,7 +185,7 @@ class MarketComponent(Component):
             ])
         ]
 
-        if config['DISPLAY_CONFIG']['cache']:
+        if display_conf.cache:
             children.append(intf.row([
                 intf.button('btn-db-upload', btn_icon='fas fa-arrow-circle-up', btn_text='Upload Cache'),
                 intf.button('btn-cache-clear', btn_icon='fas fa-trash', btn_text='Clear Cache', color='warning'),
@@ -238,7 +241,7 @@ class MarketComponent(Component):
             # 'btn-strategy-run',
             'btn-strategy-download'
         ]
-        if shn.config['DISPLAY_CONFIG']['cache']:
+        if display_conf.cache:
             buttons += [
                 'btn-db-upload',
                 'btn-cache-clear',
@@ -455,7 +458,7 @@ class RunnersComponent(Component):
             } for v in config_keys]
             return plot_options
 
-        if config['DISPLAY_CONFIG']['config_reloads']:
+        if display_conf.config_reloads:
             @app.callback(
                 Output('input-plot-config', 'options'),
                 Input('btn-reload-configs', 'n_clicks')
@@ -577,7 +580,7 @@ class RunnersComponent(Component):
 
     def sidebar(self, config: ConfigParser) -> Optional[html.Div]:
         reload_buttons = []
-        if config['DISPLAY_CONFIG']['config_reloads']:
+        if display_conf.config_reloads:
             reload_buttons.append(
                 intf.button('btn-reload-configs', btn_text='Reload configurations')
             )
@@ -854,7 +857,7 @@ class StrategyComponent(Component):
         full_tbl_cols = dict(config['STRATEGY_TABLE_COLS'])
         n_rows = int(config['TABLE']['strategy_rows'])
         strategy_delete_buttons = []
-        if config['DISPLAY_CONFIG']['strategy_delete']:
+        if display_conf.strategy_delete:
             strategy_delete_buttons.append(
                 intf.button('btn-strategy-delete', btn_text='Delete strategy', btn_icon='fas fa-trash', color='danger')
             )
@@ -888,7 +891,7 @@ class StrategyComponent(Component):
     def callbacks(self, app, shn: Session, config: ConfigParser):
         right_panel_callback(app, "container-filters-strategy", "btn-strategy-filter", "btn-strategy-close")
 
-        if config['DISPLAY_CONFIG']['strategy_delete']:
+        if display_conf.strategy_delete:
             @app.callback(
                 Output("strategy-delete-modal", "is_open"),
                 [

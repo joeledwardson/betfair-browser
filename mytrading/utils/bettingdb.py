@@ -161,7 +161,7 @@ class DBBase:
         self.col_prcs = col_processors or DB_PROCESSORS
         self.Base = automap_base()
 
-        engine_kwargs = engine_kwargs or {}
+        engine_kwargs = engine_kwargs or {} # TODO - remove?
         engine_str = f'+{db_engine}' if db_engine else ''
         url = f'{db_lang}{engine_str}://{db_user}:{db_pwd}@{db_host}:{db_port}/{db_name}'
         engine_kwargs = {'url': url} | engine_kwargs  # prioritise engine kwargs "url" if provided
