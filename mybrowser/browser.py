@@ -1,8 +1,4 @@
 from __future__ import annotations
-
-from configparser import ConfigParser
-
-import dash
 import dash_bootstrap_components as dbc
 import logging
 import sys
@@ -13,13 +9,12 @@ import yaml
 from dash_extensions.enrich import DashProxy, MultiplexerTransform
 from dash import html
 from dash import dcc
-from myutils.dashutilities import interface as comp
 
+from myutils.dashutilities import interface as comp
 from myutils import general
 from .session.session import Session
-from .session.config import MarketFilter, get_market_filters
+from .session.config import MarketFilter, get_market_filters, Config, get_strategy_filters
 from . import components
-from myutils import dictionaries
 
 
 active_logger = logging.getLogger(__name__)
@@ -34,7 +29,6 @@ def not_none(lst: List[Any]) -> List[Any]:
 
 def get_header(
         loading_ids: List[str],
-        config: ConfigParser,
         comps: List[components.Component],
         padding_y=2,
         padding_x=4
@@ -81,9 +75,9 @@ def get_nav(navs: List[dbc.NavItem], item_padding=0, nav_padding=2) -> html.Div:
     )
 
 
-def get_app(config_path=None, additional_config: Optional[Dict[str, Any]] = None):
-    if sys.version_info < (3, 9):
-        raise ImportError('Python version needs to be 3.9 or higher!')
+def get_app(config: Config):
+    if sys.version_info < (3, 10):
+        raise ImportError('Python version needs to be 3.10 or higher!')
 
     app = DashProxy(
         name=__name__,
@@ -95,18 +89,12 @@ def get_app(config_path=None, additional_config: Optional[Dict[str, Any]] = None
     cache = Cache()
     cache.init_app(app.server, config={'CACHE_TYPE': 'simple'})
 
-    if config_path:
-        with open(config_path, 'r') as f:
-            data = f.read()
-    else:
-        data = pkg_resources.read_text("mybrowser.session", 'config.yaml')
-    config = yaml.load(data, yaml.FullLoader)
+    market_filters = get_market_filters(config.database_config.market_date_format)
+    strategy_filters = get_strategy_filters(config.database_config.strategy_date_format)
 
-    if additional_config:
-        dictionaries.dict_update(additional_config, config)
-    market_filters = get_market_filters()
-    session = Session(cache, config, market_filters)
+    session = Session(cache, config, market_filters, strategy_filters)
 
+    runner_button_id = 'button-runners'
     _comps = [
         components.OverviewComponent(
             pathname="/",
@@ -118,23 +106,67 @@ def get_app(config_path=None, additional_config: Optional[Dict[str, Any]] = None
             notification_id='notifications-market',
             sidebar_id='container-filters-market',
             loading_id='market-loading',
-            market_filters=market_filters
+            market_filters=market_filters,
+            sort_options=config.table_configs.market_sort_options,
+            table_columns=config.table_configs.market_table_cols,
+            n_table_rows=config.table_configs.market_rows,
+            runner_button_id=runner_button_id,
+            enable_cache=config.display_config.cache
         ),
         components.RunnersComponent(
             pathname='/runners',
             container_id = 'container-runners',
             notification_id = 'notifications-runners',
             sidebar_id = 'container-filters-plot',
-            loading_id = 'runners-loading'
+            loading_id = 'runners-loading',
+            table_columns=config.table_configs.runner_table_cols,
+            n_table_rows=config.table_configs.runner_rows,
+            default_offset=config.plot_config.default_offset,
+            runner_button_id=runner_button_id,
+            enable_reloads=config.display_config.config_reloads
         ),
-        components.FigureComponent(),
-        components.StrategyComponent(),
-        components.OrdersComponent(),
-        components.LibraryComponent(),
-        components.TimingsComponent()
+        components.FigureComponent(
+            pathname = '/figure',
+            container_id = 'container-figures',
+            notification_id = 'notifications-figure',
+            loading_id = 'figures-loading'
+        ),
+        components.StrategyComponent(
+            notification_id = 'notifications-strategy',
+            pathname = '/strategy',
+            container_id = 'container-strategy',
+            sidebar_id = 'container-filters-strategy',
+            table_columns=config.table_configs.strategy_table_cols,
+            n_table_rows=config.table_configs.strategy_rows,
+            enable_delete=config.display_config.strategy_delete
+        ),
+        components.OrdersComponent(
+            notification_id = 'notifications-orders',
+            pathname = '/orders',
+            container_id = 'container-orders',
+            table_columns=config.table_configs.order_table_cols,
+            n_table_rows=config.table_configs.orders_rows,
+            runner_button_id=runner_button_id
+        ),
+        components.TimingsComponent(
+            pathname = '/timings',
+            container_id = 'container-timings',
+            table_columns=config.table_configs.timings_table_cols,
+            n_table_rows=config.table_configs.timings_rows
+        )
     ]
+    if config.display_config.libraries:
+        _comps.append(components.LibraryComponent(
+            loading_id='loading-out-libs',
+            notification_id='notifications-libs'
+        ))
+
     notifications = [c.notification_id for c in _comps if c.notification_id]
-    _comps.append(components.LoggerComponent(notifications))
+    _comps.append(components.LoggerComponent(
+        pathname = '/logs',
+        container_id = 'container-logs',
+        stores=notifications
+    ))
     components.components_callback(app, _comps)
 
     for c in _comps:
@@ -148,7 +180,7 @@ def get_app(config_path=None, additional_config: Optional[Dict[str, Any]] = None
     sidebars = not_none([c.sidebar() for c in _comps])
     navs = not_none([c.nav_item() for c in _comps])
     nav = get_nav(navs)
-    header = get_header(loading_ids, config, _comps)
+    header = get_header(loading_ids, _comps)
     stores = [comp.store(store_id) for store_id in notifications]
     stores += general.flatten([c.additional_stores() for c in _comps])
 

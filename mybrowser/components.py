@@ -9,7 +9,7 @@ import dash_bootstrap_components as dbc
 from configparser import ConfigParser
 from dash.dependencies import Output, Input, State
 from datetime import datetime, timedelta
-from typing import Optional, Dict, List, Union
+from typing import Optional, Dict, List, Union, Any
 import importlib.resources as pkg_resources
 import dataclasses
 
@@ -22,12 +22,9 @@ from myutils import timing
 
 from mytrading.strategy.feature.features import RFBase
 from mytrading.strategy import tradetracker as tt
-from .session import Session, post_notification, LoadedMarket, Notification
+from .session import Session, post_notification, LoadedMarket, Notification, NotificationType
 from .error_catcher import handle_errors, exceptions
 from myutils.dashutilities import interface as intf
-
-# TODO - config passed to functions
-display_conf = DisplayConfig()
 
 
 def notification_clear(app, nav_notification_id: str, button_id: str):
@@ -59,8 +56,8 @@ def right_panel_callback(app, panel_id: str, open_id: str, close_id: str):
 
 @dataclasses.dataclass(kw_only=True)
 class Component:
-    pathname: str
-    container_id: str
+    pathname: Optional[str] = None
+    container_id: Optional[str] = None
     notification_id: Optional[str] = None
     sidebar_id: Optional[str] = None
     loading_id: Optional[str] = None
@@ -83,7 +80,7 @@ class Component:
     def loading_ids(self) -> List[str]:
         return []
 
-    def header_right(self) -> Optional[Dict]:
+    def header_right(self) -> Optional[Any]:
         return None
 
     def additional_stores(self) -> List[dcc.Store]:
@@ -91,6 +88,12 @@ class Component:
 
     def tooltips(self) -> List[Dict]:
         return []
+
+
+@dataclasses.dataclass(kw_only=True)
+class TableComponent:
+    n_table_rows: int
+    table_columns: Dict[str, str]
 
 
 def components_callback(app, components: List[Component]):
@@ -110,11 +113,7 @@ def components_callback(app, components: List[Component]):
         return [not(o in displays) for o in output_ids]
 
 
-
-
-RUNNER_BUTTON_ID = 'button-runners'
-
-
+@dataclasses.dataclass(kw_only=True)
 class OverviewComponent(Component):
     def display_spec(self) -> Optional[html.Div]:
         md = pkg_resources.read_text('mybrowser', 'guide.md')
@@ -130,8 +129,11 @@ class OverviewComponent(Component):
 
 
 @dataclasses.dataclass(kw_only=True)
-class MarketComponent(Component):
+class MarketComponent(Component, TableComponent):
     market_filters: List[MarketFilter]
+    sort_options: Dict[str, str]
+    runner_button_id: str
+    enable_cache: bool
 
     def _sort_labels(self, sort_options: Dict) -> List[Dict]:
         return general.flatten([
@@ -155,11 +157,6 @@ class MarketComponent(Component):
         ])
 
     def display_spec(self):
-        sort_options = dict(config['MARKET_SORT_OPTIONS'])
-        n_mkt_rows = int(config['TABLE']['market_rows'])
-        full_tbl_cols = dict(config['MARKET_TABLE_COLS'])
-        options_labels = self._sort_labels(sort_options)
-
         children = [
             intf.row([
                 intf.header('Market Browser'),
@@ -173,18 +170,19 @@ class MarketComponent(Component):
                 ),
                 intf.wrapper(
                     'market-download-wrapper',
-                    intf.button(RUNNER_BUTTON_ID, btn_icon='fas fa-download', color='info')
+                    intf.button(self.runner_button_id, btn_icon='fas fa-download', color='info')
                 )
             ])
         ]
 
-        if display_conf.cache:
+        if self.enable_cache:
             children.append(intf.row([
                 intf.button('btn-db-upload', btn_icon='fas fa-arrow-circle-up', btn_text='Upload Cache'),
                 intf.button('btn-cache-clear', btn_icon='fas fa-trash', btn_text='Clear Cache', color='warning'),
                 intf.button('btn-db-refresh', btn_icon='fas fa-sync-alt', btn_text='Reload')
             ]))
 
+        options_labels = self._sort_labels(self.sort_options)
         children += [
             intf.row([
                 intf.bootstrap_select(
@@ -201,16 +199,16 @@ class MarketComponent(Component):
                 )
             ]),
             intf.div('market-query-status'),
-            intf.table('table-market-session', full_tbl_cols, n_mkt_rows)
+            intf.table('table-market-session', self.table_columns, self.n_table_rows)
         ]
 
-        return intf.container(self.CONTAINER_ID, children)
+        return intf.container(self.container_id, children)
 
     def sidebar(self):
         filters = [flt.component for flt in self.market_filters]
         filters.append(intf.button('input-mkt-clear', btn_icon='fas fa-times-circle', btn_text='Clear Filters'))
         return intf.sidebar(
-            self.SIDEBAR_ID,
+            self.sidebar_id,
             sidebar_title='Market Filters',
             close_id='btn-market-filters-close',
             content=filters
@@ -234,7 +232,7 @@ class MarketComponent(Component):
             # 'btn-strategy-run',
             'btn-strategy-download'
         ]
-        if display_conf.cache:
+        if self.enable_cache:
             buttons += [
                 'btn-db-upload',
                 'btn-cache-clear',
@@ -249,8 +247,8 @@ class MarketComponent(Component):
                 'table-selected-cells': Output('table-market-session', "selected_cells"),
                 'table-active-cell': Output('table-market-session', 'active_cell'),
                 'table-current-page': Output('table-market-session', 'page_current'),
-                'loading': Output(self.LOADING_ID, 'children'),
-                'notifications': Output(self.NOTIFICATION_ID, 'data'),
+                'loading': Output(self.loading_id, 'children'),
+                'notifications': Output(self.notification_id, 'data'),
                 'strategy-id': Output('selected-strategy', 'data'),
                 'filter-values': [
                     Output(flt.component_id, 'value')
@@ -374,11 +372,11 @@ class MarketComponent(Component):
             outputs['loading'] = ''  # blank loading output
 
     def loading_ids(self) -> List[str]:
-        return [self.LOADING_ID]
+        return [self.loading_id]
 
     def nav_item(self) -> Optional[dbc.NavItem]:
         return intf.nav(
-            self.PATHNAME, 'fas fa-horse', 'Markets',
+            self.pathname, 'fas fa-horse', 'Markets',
             nav_id='nav-markets',
             notifications_id='nav-notifications-market'
         )
@@ -396,16 +394,16 @@ class MarketComponent(Component):
 
 
 @dataclasses.dataclass(kw_only=True)
-class RunnersComponent(Component):
-
+class RunnersComponent(Component, TableComponent):
+    default_offset: str
+    runner_button_id: str
+    enable_reloads: bool
 
     def loading_ids(self) -> List[str]:
-        return [self.LOADING_ID]
+        return [self.loading_id]
 
     def display_spec(self):
-        full_tbl_cols = dict(config['RUNNER_TABLE_COLS'])
-        n_rows = int(config['TABLE']['runner_rows'])
-        return intf.container(self.CONTAINER_ID, [
+        return intf.container(self.container_id, [
             intf.row([
                 intf.header('Runner Info'),
                 intf.wrapper(
@@ -432,7 +430,7 @@ class RunnersComponent(Component):
                 ),
             ]),
             intf.div('infobox-market'),
-            intf.table('table-runners', full_tbl_cols, n_rows)
+            intf.table('table-runners', self.table_columns, self.n_table_rows)
         ])
 
     def callbacks(self, app, shn: Session):
@@ -448,7 +446,7 @@ class RunnersComponent(Component):
             } for v in config_keys]
             return plot_options
 
-        if display_conf.config_reloads:
+        if self.enable_reloads:
             @app.callback(
                 Output('input-plot-config', 'options'),
                 Input('btn-reload-configs', 'n_clicks')
@@ -473,14 +471,14 @@ class RunnersComponent(Component):
                 'disable-figures': Output('button-all-figures', 'disabled'),
                 'cell': Output('table-runners', 'active_cell'),
                 'cells': Output('table-runners', 'selected_cells'),
-                'loading': Output(self.LOADING_ID, 'children'),
+                'loading': Output(self.loading_id, 'children'),
                 'selected-market': Output('selected-market', 'data'),
-                'notifications': Output(self.NOTIFICATION_ID, 'data'),
+                'notifications': Output(self.notification_id, 'data'),
                 'nav-notifications': Output('nav-notification-runners', 'children'),
             },
             inputs_config={
                 'buttons': [
-                    Input(RUNNER_BUTTON_ID, 'n_clicks'),
+                    Input(self.runner_button_id, 'n_clicks'),
                     Input('button-mkt-bin', 'n_clicks')
                 ]
             },
@@ -505,7 +503,7 @@ class RunnersComponent(Component):
             notifs = outputs['notifications'] = []
 
             # check for first callback call
-            if triggered_id() not in [RUNNER_BUTTON_ID, 'button-mkt-bin']:
+            if triggered_id() not in [self.runner_button_id, 'button-mkt-bin']:
                 return
 
             # market clear
@@ -570,13 +568,13 @@ class RunnersComponent(Component):
 
     def sidebar(self) -> Optional[html.Div]:
         reload_buttons = []
-        if display_conf.config_reloads:
+        if self.enable_reloads:
             reload_buttons.append(
                 intf.button('btn-reload-configs', btn_text='Reload configurations')
             )
 
         return intf.sidebar(
-            self.SIDEBAR_ID,
+            self.sidebar_id,
             sidebar_title='Plot Config',
             close_id='btn-plot-close',
             content=[
@@ -587,7 +585,7 @@ class RunnersComponent(Component):
                         input_id='input-chart-offset',
                         type='time',
                         step='1',  # forces HTML to use hours, minutes and seconds format
-                        value=config['PLOT_CONFIG']['default_offset']
+                        value=self.default_offset
                     )
                 ])
             ] + reload_buttons
@@ -595,7 +593,7 @@ class RunnersComponent(Component):
 
     def nav_item(self) -> Optional[dbc.NavItem]:
         return intf.nav(
-            self.PATHNAME, 'fas fa-running', 'Runners',
+            self.pathname, 'fas fa-running', 'Runners',
             nav_id='nav-runners',
             notifications_id='nav-notification-runners'
         )
@@ -611,12 +609,8 @@ class RunnersComponent(Component):
         ]
 
 
+@dataclasses.dataclass(kw_only=True)
 class FigureComponent(Component):
-    LOADING_ID = 'figures-loading'
-    notification_id = 'notifications-figure'
-    pathname = '/figure'
-    container_id = 'container-figures'
-
     def _get_ids(self, cell: Union[None, Dict], id_list: List[int], notifs: List[Notification]) -> List[int]:
         """
         get a list of selection IDs for runners on which to plot charts
@@ -678,8 +672,8 @@ class FigureComponent(Component):
             },
             outputs_config={
                 'table': Output('table-timings', 'data'),
-                'loading': Output(self.LOADING_ID, 'children'),
-                'notifications': Output(self.NOTIFICATION_ID, 'data'),
+                'loading': Output(self.loading_id, 'children'),
+                'notifications': Output(self.notification_id, 'data'),
                 'count': Output('figure-count', 'data'),
                 'tabs': Output('figure-tabs', 'children'),
                 'data': Output('figure-holder', 'data'),
@@ -803,10 +797,10 @@ class FigureComponent(Component):
             process()
 
     def loading_ids(self) -> List[str]:
-        return [self.LOADING_ID]
+        return [self.loading_id]
 
     def display_spec(self):
-        return intf.container(self.CONTAINER_ID, [
+        return intf.container(self.container_id, [
             intf.row([
                 intf.header('Figures'),
                 intf.button('btn-close-figure', btn_text='Delete figure', btn_icon='fas fa-trash', color='warning')
@@ -817,7 +811,7 @@ class FigureComponent(Component):
 
     def nav_item(self) -> Optional[dbc.NavItem]:
         return intf.nav(
-            self.PATHNAME, 'fas fa-chart-bar', 'Figures',
+            self.pathname, 'fas fa-chart-bar', 'Figures',
             nav_id='nav-figure',
             notifications_id='nav-notifications-figure'
         )
@@ -831,11 +825,9 @@ class FigureComponent(Component):
         ]
 
 
-class StrategyComponent(Component):
-    notification_id = 'notifications-strategy'
-    pathname = '/strategy'
-    container_id = 'container-strategy'
-    sidebar_id = 'container-filters-strategy'
+@dataclasses.dataclass(kw_only=True)
+class StrategyComponent(Component, TableComponent):
+    enable_delete: bool
 
     def modals(self) -> List[dbc.Modal]:
         return [intf.modal('strategy-delete-modal', header_spec='Delete strategy?', footer_spec=[
@@ -844,14 +836,14 @@ class StrategyComponent(Component):
         ])]
 
     def display_spec(self) -> Optional[html.Div]:
-        full_tbl_cols = dict(config['STRATEGY_TABLE_COLS'])
-        n_rows = int(config['TABLE']['strategy_rows'])
+        full_tbl_cols = dict(self.table_columns)
+        n_rows = int(self.n_table_rows)
         strategy_delete_buttons = []
-        if display_conf.strategy_delete:
+        if self.enable_delete:
             strategy_delete_buttons.append(
                 intf.button('btn-strategy-delete', btn_text='Delete strategy', btn_icon='fas fa-trash', color='danger')
             )
-        return intf.container(self.CONTAINER_ID, [
+        return intf.container(self.container_id, [
             intf.row([
                 intf.header('Strategies'),
                 intf.wrapper(
@@ -872,7 +864,7 @@ class StrategyComponent(Component):
 
     def sidebar(self) -> Optional[html.Div]:
         return intf.sidebar(
-            self.SIDEBAR_ID,
+            self.sidebar_id,
             sidebar_title='Strategy Filters',
             close_id='btn-strategy-close',
             content=[]
@@ -881,7 +873,7 @@ class StrategyComponent(Component):
     def callbacks(self, app, shn: Session):
         right_panel_callback(app, "container-filters-strategy", "btn-strategy-filter", "btn-strategy-close")
 
-        if display_conf.strategy_delete:
+        if self.enable_delete:
             @app.callback(
                 Output("strategy-delete-modal", "is_open"),
                 [
@@ -903,7 +895,7 @@ class StrategyComponent(Component):
                 Output('table-strategies', "selected_cells"),
                 Output('table-strategies', 'active_cell'),
                 Output('table-strategies', 'page_current'),
-                Output(self.NOTIFICATION_ID, 'data')
+                Output(self.notification_id, 'data')
             ],
             inputs=[
                 Input('btn-strategy-refresh', 'n_clicks'),
@@ -944,7 +936,7 @@ class StrategyComponent(Component):
             ]
 
     def nav_item(self) -> Optional[dbc.NavItem]:
-        return intf.nav(self.PATHNAME, 'fas fas fa-chess-king', 'Strategies', nav_id='nav-strategies')
+        return intf.nav(self.pathname, 'fas fas fa-chess-king', 'Strategies', nav_id='nav-strategies')
 
     def additional_stores(self) -> List[dcc.Store]:
         return [intf.store('selected-strategy')]
@@ -957,17 +949,14 @@ class StrategyComponent(Component):
         ]
 
 
-class OrdersComponent(Component):
-    notification_id = 'notifications-orders'
-    pathname = '/orders'
-    container_id = 'container-orders'
+@dataclasses.dataclass(kw_only=True)
+class OrdersComponent(Component, TableComponent):
+    runner_button_id: str
 
     def display_spec(self) -> Optional[Dict]:
-        tbl_cols = dict(config['ORDER_TABLE_COLS'])
-        n_rows = int(config['TABLE']['orders_rows'])
-        return intf.container(self.CONTAINER_ID, [
+        return intf.container(self.container_id, [
             intf.header('Order Profits'),
-            intf.table('table-orders', columns=tbl_cols, n_rows=n_rows, no_fixed_widths=True)
+            intf.table('table-orders', columns=self.table_columns, n_rows=self.n_table_rows, no_fixed_widths=True)
         ])
 
     def callbacks(self, app, shn: Session) -> None:
@@ -978,13 +967,13 @@ class OrdersComponent(Component):
             outputs_config={
                 'table': Output('table-orders', 'data'),
                 'page': Output('table-orders', 'page_current'),
-                'notifications': Output(self.NOTIFICATION_ID, 'data'),
+                'notifications': Output(self.notification_id, 'data'),
                 'orders-notifications': Output('nav-notifications-orders', 'children')
             },
             inputs_config={
                 'buttons': [
                     Input('button-orders', 'n_clicks'),
-                    Input(RUNNER_BUTTON_ID, 'n_clicks'),
+                    Input(self.runner_button_id, 'n_clicks'),
                 ]
             },
             states_config={
@@ -1054,7 +1043,7 @@ class OrdersComponent(Component):
 
     def nav_item(self) -> Optional[dbc.NavItem]:
         return intf.nav(
-            self.PATHNAME, 'fas fa-file-invoice-dollar', 'Orders',
+            self.pathname, 'fas fa-file-invoice-dollar', 'Orders',
             nav_id='nav-orders',
             notifications_id='nav-notifications-orders'
         )
@@ -1065,24 +1054,16 @@ class OrdersComponent(Component):
         ]
 
 
+@dataclasses.dataclass(kw_only=True)
 class LibraryComponent(Component):
-    notification_id = 'notifications-libs'
-    LOADING_ID = 'loading-out-libs'
-
-    def header_right(self) -> Optional[Dict]:
-        if not config['DISPLAY_CONFIG']['libraries']:
-            return
-
+    def header_right(self) -> Optional[Any]:
         return intf.button('button-libs', btn_icon='fas fa-book-open', color='info')
 
     def callbacks(self, app, shn: Session) -> None:
-        if not config['DISPLAY_CONFIG']['libraries']:
-            return
-
         @app.callback(
             output=[
-                Output(self.LOADING_ID, 'children'),
-                Output(self.NOTIFICATION_ID, 'data')
+                Output(self.loading_id, 'children'),
+                Output(self.notification_id, 'data')
             ],
             inputs=[
                 Input('button-libs', 'n_clicks')
@@ -1103,31 +1084,28 @@ class LibraryComponent(Component):
             ]
 
     def loading_ids(self) -> List[str]:
-        return [self.LOADING_ID]
+        return [self.loading_id]
 
 
+@dataclasses.dataclass(kw_only=True)
 class LoggerComponent(Component):
-    pathname = '/logs'
-    container_id = 'container-logs'
-
-    def __init__(self, stores: List[str]):
-        self.stores = stores
+    stores: List[str]  # list of store IDs holding notification updates
 
     # mapping of log levels to bootstrap background colors
-    LEVEL_COLORS = {
+    level_colours: Dict[NotificationType, str] = dataclasses.field(default_factory= lambda: {
         'primary': 'bg-white',
         'secondary': 'bg-light',
         'success': 'bg-success',
         'warning': 'bg-warning',
         'danger': 'bg-danger',
         'info': 'bg-light'
-    }
+    })
 
     def nav_item(self) -> Optional[dbc.NavItem]:
-        return intf.nav(self.PATHNAME, 'fas fa-envelope-open-text', 'Logger', nav_id='nav-logger')
+        return intf.nav(self.pathname, 'fas fa-envelope-open-text', 'Logger', nav_id='nav-logger')
 
     def display_spec(self) -> Optional[html.Div]:
-        return intf.container(self.CONTAINER_ID, [
+        return intf.container(self.container_id, [
             intf.row([
                 intf.header('Python Log')
             ]),
@@ -1154,10 +1132,16 @@ class LoggerComponent(Component):
             toasts = args[-1] or []  # get existing toasts from toast holder
             logs = args[-2] or []  # get existing logs from log box
 
+            # loop triggered components
             for e in all_triggered_ids():
+
+                # check if component matches notification stores
                 if e in self.stores:
+
+                    # get list of new notification data from matching store
                     idx = self.stores.index(e)
                     new_notifications: List[Notification] = args[idx] or []
+                    # add new toasts for new notifications
                     toasts += [
                         html.Div(dbc.Toast(
                             [html.P(p['msg_content'], className="mb-0")],
@@ -1169,10 +1153,11 @@ class LoggerComponent(Component):
                         ))
                         for p in new_notifications
                     ]
+                    # add logs for new notifications
                     logs = [
                         html.P(
                             f'{p["timestamp"]}: {p["msg_header"]}: {p["msg_content"]}',
-                            className='m-0 ' + self.LEVEL_COLORS.get(p['msg_type'], '')
+                            className='m-0 ' + self.level_colours.get(p['msg_type'], '')
                         )
                         for p in new_notifications
                     ] + logs
@@ -1188,21 +1173,19 @@ class LoggerComponent(Component):
         ]
 
 
-class TimingsComponent(Component):
-    pathname = '/timings'
-    container_id = 'container-timings'
-
+@dataclasses.dataclass(kw_only=True)
+class TimingsComponent(Component, TableComponent):
     def nav_item(self) -> Optional[dbc.NavItem]:
         return intf.nav(
-            self.PATHNAME, 'fas fa-clock', 'Timings',
+            self.pathname, 'fas fa-clock', 'Timings',
             nav_id='nav-timings',
             notifications_id='nav-notifications-timings'
         )
 
     def display_spec(self) -> Optional[html.Div]:
-        tbl_cols = dict(config['TIMINGS_TABLE_COLS'])
-        n_rows = int(config['TABLE']['timings_rows'])
-        return intf.container(self.CONTAINER_ID, [
+        tbl_cols = self.table_columns
+        n_rows = self.n_table_rows
+        return intf.container(self.container_id, [
             intf.row([
                 intf.header('Function Timings')
             ]),

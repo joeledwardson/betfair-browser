@@ -18,7 +18,19 @@ class MarketFilter:
     filter: dbf.DBFilter
 
 
-def get_market_filters() -> List[MarketFilter]:
+def get_strategy_filters(date_format: str) -> List[dbf.DBFilter]:
+    return [
+        dbf.DBFilterMulti(
+            'strategy_id',
+            fmt_spec=date_format,
+            order_col='exec_time',
+            is_desc=True,
+            cols=['strategy_id', 'exec_time', 'name']
+        )
+    ]
+
+
+def get_market_filters(date_format: str) -> List[MarketFilter]:
     id_sport = 'input-sport-type'
     id_market_type = 'input-market-type'
     id_bet_type = 'input-bet-type'
@@ -74,7 +86,7 @@ def get_market_filters() -> List[MarketFilter]:
             comp.select(id_date, placeholder='Market date...'),
             dbf.DBFilterDate(
                 db_col='market_time',
-                dt_fmt='%d %b %y'
+                dt_fmt=date_format
             )
         ),
         MarketFilter(
@@ -111,10 +123,10 @@ class DatabaseConfig(BaseModel):
     """
     Database querying
     """
-    mkt_date_format: str = Field(
+    market_date_format: str = Field(
         "%d %b %y",
         description="market date format to present in market filter")
-    strategy_sel_format: str = Field(
+    strategy_date_format: str = Field(
         "{exec_time:%y-%m-%d %H:%M:%S} {name}",
         description="strategy datetime format used in strategy filter"
     )
@@ -156,6 +168,11 @@ class TableConfigs(BaseModel):
         n.b. in addition to the database columns, there are calculated columns available:
         -> "market_profit" is calculated from strategy market profit
         """)
+
+    market_sort_options: dict = Field({
+        "market_id": "Market ID",
+        "market_time": "Market Time"
+    })
 
     market_table_formatters: Dict[str, Callable[[Any], Any]] = Field(
         {

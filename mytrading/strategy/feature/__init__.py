@@ -7,7 +7,7 @@ import numpy as np
 import pandas as pd
 from betfairlightweight.resources import MarketBook
 from myutils import timing
-from collections import MutableMapping
+# from collections import MutableMapping
 from .features import ftrs_reg, RFBase
 from ...exceptions import FeatureException
 

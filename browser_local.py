@@ -1,3 +1,4 @@
+from mybrowser.session.config import Config, get_market_filters
 from mybrowser.browser import get_app
 from mybrowser.exceptions import MyBrowserException
 import argparse
@@ -29,10 +30,10 @@ logger.info(f'running browser...')
 pwd = keyring.get_password('betdb_pwd', 'betting')
 if not pwd:
     raise MyBrowserException('no password found for database')
-app = get_app(additional_config={
-    'DB_CONFIG': {
-        'db_pwd': pwd
-    }
-})
+
+config = Config()
+config.database_config.db_kwargs['db_pwd'] = pwd
+app = get_app(config)
+
 # turn of dev tools prop check to disable time input error
 app.run_server(debug=args.debug, dev_tools_props_check=False, use_reloader=False)

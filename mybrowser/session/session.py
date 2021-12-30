@@ -1,4 +1,5 @@
 import os
+from configparser import ConfigParser
 
 from plotly.graph_objects import Figure
 from os import path
@@ -16,6 +17,7 @@ import queue
 import sys
 from betfairlightweight.resources.bettingresources import MarketBook
 
+from mytrading.utils.dbfilter import DBFilter
 from myutils.betfair import BufferStream
 import myutils.dictionaries
 import myutils.files
@@ -32,8 +34,6 @@ from mytrading import visual as figlib
 from myutils import timing
 import mybrowser
 
-# TODO - update with config passed down
-global_config = Config()
 
 active_logger = logging.getLogger(__name__)
 active_logger.setLevel(logging.INFO)
@@ -45,17 +45,6 @@ class LoadedMarket(TypedDict):
     strategy_id: Optional[str]
     runners: Dict
 
-
-def get_strat_filters(strat_sel_fmt):
-    return [
-        dbf.DBFilterMulti(
-            'strategy_id',
-            fmt_spec=strat_sel_fmt,
-            order_col='exec_time',
-            is_desc=True,
-            cols=['strategy_id', 'exec_time', 'name']
-        )
-    ]
 
 
 class Session:
@@ -83,7 +72,7 @@ class Session:
                     data[name] = yaml.safe_load(stream)
         return data
 
-    def __init__(self, cache: Cache, config, market_filters: List[MarketFilter]):
+    def __init__(self, cache: Cache, config: Config, market_filters: List[MarketFilter], strategy_filters: List[DBFilter]):
         @cache.memoize(60)
         def get_market_records(market_id) -> List[List[MarketBook]]:
             print(f'**** reading market "{market_id}"')
@@ -99,22 +88,13 @@ class Session:
             return list(q.queue)
 
         self.get_market_records = get_market_records
-
-        active_logger.info(f'configuration values:\n{yaml.dump(config, indent=4)}')
-        active_logger.info(f'configuration end')
-
         self.config = config  # parsed configuration
-        # self.tbl_formatters = get_formatters(config)  # registrar of table formatters
 
         self._market_filters = dbf.DBFilterHandler([flt.filter for flt in market_filters])
-        self._strategy_filters = dbf.DBFilterHandler(
-            get_strat_filters(config['MARKET_FILTER']['strategy_sel_format'])
-        )  # db strategy filters
+        self._strategy_filters = dbf.DBFilterHandler(strategy_filters)
 
         # betting database instance
-        self._db_kwargs = {}
-        if 'DB_CONFIG' in config:
-            self._db_kwargs = config['DB_CONFIG']
+        self._db_kwargs = config.database_config.db_kwargs
         self.betting_db = bdb.BettingDB(**self._db_kwargs)
 
         self.feature_configs = dict()
@@ -186,18 +166,18 @@ class Session:
         get list of dict values for Function, Count and Mean table values for function timings
         """
         tms = sorted(summary, key=lambda v: v['function'])
-        tbl_cols = dict(self.config['TIMINGS_TABLE_COLS'])
+        tbl_cols = self.config.table_configs.timings_table_cols
         tms = [{
             k: v
             for k, v in t.items() if k in tbl_cols.keys()
         } for t in tms]
-        timings_formatters = dict(self.config['TIMINGS_TABLE_FORMATTERS'])
+        timings_formatters = self.config.table_configs.timings_table_formatters
         for row in tms:
             for col_id in row.keys():
                 if col_id in timings_formatters.keys():
                     val = row[col_id]
                     # formatter = self.tbl_formatters[timings_formatters[col_id]]
-                    row[col_id] = global_config.table_configs.timings_table_formatters[col_id](val)
+                    row[col_id] = timings_formatters[col_id](val)
                     # formatter(val)
         return tms
 
@@ -208,7 +188,7 @@ class Session:
 
         # rows are returned with additional "runner_profit" column
         rows = self.betting_db.rows_runners(market_id, strategy_id)
-        self._apply_formatters(rows, dict(global_config.table_configs.runner_table_formatters))
+        self._apply_formatters(rows, dict(self.config.table_configs.runner_table_formatters))
         meta = self.betting_db.read_mkt_meta(market_id)
 
         start_odds = mytrading.process.get_starting_odds(record_list)
@@ -238,15 +218,15 @@ class Session:
                         fmt_config[k](v)
 
     def mkt_tbl_rows(self, cte, order_col=None, order_asc=True):
-        col_names = list(self.config['MARKET_TABLE_COLS'].keys()) + ['market_profit']
-        max_rows = int(self.config['DB']['max_rows'])
+        col_names = list(self.config.table_configs.market_table_cols.keys()) + ['market_profit']
+        max_rows = int(self.config.database_config.max_rows)
         tbl_rows = self.betting_db.rows_market(cte, col_names, max_rows, order_col, order_asc)
-        self._apply_formatters(tbl_rows, global_config.table_configs.market_table_formatters)
+        self._apply_formatters(tbl_rows, self.config.table_configs.market_table_formatters)
         return tbl_rows
 
     def strats_tbl_rows(self):
-        tbl_rows = self.betting_db.rows_strategy(self.config['TABLE']['strategy_rows'])
-        self._apply_formatters(tbl_rows, global_config.table_configs.strategy_table_formatters)
+        tbl_rows = self.betting_db.rows_strategy(self.config.table_configs.strategy_rows)
+        self._apply_formatters(tbl_rows, self.config.table_configs.strategy_table_formatters)
         return tbl_rows
 
     def read_orders(self, market_id: str, strategy_id: str, selection_id: int, start_time: datetime) -> pd.DataFrame:
@@ -378,7 +358,7 @@ class Session:
                 raise SessionException(f'could not find any rows in strategy updates')
 
             orders = orders[orders['selection_id'] == selection_id]
-            offset_secs = float(self.config['PLOT_CONFIG']['order_offset_secs'])
+            offset_secs = float(self.config.plot_config.order_offset_secs)
             start = figlib.FeatureFigure.modify_start(start, orders, offset_secs)
             end = figlib.FeatureFigure.modify_end(end, orders, offset_secs)
 
@@ -393,7 +373,7 @@ class Session:
             selection_id=selection_id,
             cmp_start=start,
             cmp_end=end,
-            buffer_s=float(self.config['PLOT_CONFIG']['cmp_buffer_secs'])
+            buffer_s=float(self.config.plot_config.cmp_buffer_secs)
         )
 
         # generate figure and display
