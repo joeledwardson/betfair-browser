@@ -2,6 +2,7 @@
 heroku app script
 """
 import os
+from mybrowser.session.config import Config
 from mybrowser.browser import get_app
 import logging
 
@@ -27,25 +28,19 @@ if not DATABASE_URL.startswith(start):
 url = DATABASE_URL.replace(start, 'postgresql://')
 
 # set url to database url and schema
+config = Config()
+config.display_config.cache = False
+config.display_config.libraries = False
+config.display_config.strategy_delete = False
+config.display_config.config_reloads = False
 schema = 'bettingschema'
-config = {
-    'DISPLAY_CONFIG': {
-        'cache': False,
-        'libraries': False,
-        'strategy_delete': False,
-        'config_reloads': False,
-    },
-    'DB_CONFIG': {
-        'engine_kwargs': {
-            'url': url,
-            'connect_args': {
-                'options': f'-c search_path={schema},public'
-            }
-        }
+config.database_config.db_kwargs['engine_kwargs'] = {
+    'url': url,
+    'connect_args': {
+        'options': f'-c search_path={schema},public'
     }
 }
-
-app = get_app(additional_config=config)
+app = get_app(config)
 
 # set server variable to be read by heroku
 server = app.server
