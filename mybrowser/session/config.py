@@ -135,7 +135,7 @@ class DatabaseConfig(BaseModel):
         {
             'db_lang': 'postgresql',
             'db_user': 'better',
-            'db_host': 'notrelevant.org.uk',
+            'db_host': 'joelsnetflix.com',
             'db_port': 5432,
             'db_name': 'betting',
             'db_engine': 'psycopg2',
