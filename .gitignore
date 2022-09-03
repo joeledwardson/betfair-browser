@@ -13,3 +13,5 @@
 
 # ignore betfair cache directory
 /bf_cache/
+
+.vscode
