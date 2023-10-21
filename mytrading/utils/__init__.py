@@ -42,7 +42,7 @@ class APIHandler:
 
     def __init__(self):
         """initialise from locally stored betfair certification, username and password"""
-        self._certs_path = os.environ['USERPROFILE'] + r'\OneDrive\Betfair\bf certs'
+        self._certs_path = path.abspath('./bf_certs')
         self._my_username = keyring.get_password('bf_username', 'joel')
         self._my_password = keyring.get_password('bf_password', 'joel')
         self._my_app_key = keyring.get_password('bf_app_key', 'joel')
