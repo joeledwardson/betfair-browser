@@ -35,8 +35,13 @@ if not pwd:
     raise MyBrowserException('no password found for database')
 
 
+
 config = Config()
 config.database_config.db_kwargs['db_pwd'] = pwd
+config.display_config.cache = False
+config.display_config.libraries = False
+config.display_config.strategy_delete = False
+config.display_config.config_reloads = False
 
 dbHost = os.environ.get('betdb_host')
 if dbHost:
