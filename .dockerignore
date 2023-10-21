@@ -1,0 +1,16 @@
+.env
+.vscode
+.idea
+.heroku
+.github
+*.pyc
+
+bf_certs
+bf_cache
+# assets are generated from scss, ignore
+/mybrowser/assets/
+
+# ignore bootstrap zip and source files
+/mybrowser/bootstrap_source/
+/mybrowser/bootstrap_source.zip
+/mybrowser/bootstrap-5.0.1/
