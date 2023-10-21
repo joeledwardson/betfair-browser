@@ -39,4 +39,4 @@ config.database_config.db_kwargs['db_pwd'] = pwd
 app = get_app(config)
 
 # turn of dev tools prop check to disable time input error
-app.run_server(debug=args.debug, dev_tools_props_check=False, use_reloader=False)
+app.run_server(debug=args.debug, dev_tools_props_check=False, use_reloader=False, host="0.0.0.0", port=8050)
