@@ -1,9 +1,12 @@
+import os
 from mybrowser.session.config import Config, get_market_filters
 from mybrowser.browser import get_app
 from mybrowser.exceptions import MyBrowserException
 import argparse
-import keyring
 import logging
+from dotenv import load_dotenv
+
+load_dotenv()  # take environment variables from .env.
 
 my_handler = logging.StreamHandler()
 my_formatter = logging.Formatter(
@@ -27,7 +30,7 @@ parser.add_argument(
 )
 args = parser.parse_args()
 logger.info(f'running browser...')
-pwd = keyring.get_password('betdb_pwd', 'betting')
+pwd = os.environ['betdb_pwd']
 if not pwd:
     raise MyBrowserException('no password found for database')
 

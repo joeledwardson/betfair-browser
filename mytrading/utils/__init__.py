@@ -14,6 +14,10 @@ import re
 from queue import Queue
 import sys
 
+from dotenv import load_dotenv
+
+load_dotenv()  # take environment variables from .env.
+
 from myutils.general import dgetattr
 from ..process import bf_dt
 from .bettingdb import BettingDB
@@ -43,9 +47,9 @@ class APIHandler:
     def __init__(self):
         """initialise from locally stored betfair certification, username and password"""
         self._certs_path = path.abspath('./bf_certs')
-        self._my_username = keyring.get_password('bf_username', 'joel')
-        self._my_password = keyring.get_password('bf_password', 'joel')
-        self._my_app_key = keyring.get_password('bf_app_key', 'joel')
+        self._my_username = os.environ['bf_username']
+        self._my_password = os.environ['bf_password']
+        self._my_app_key = os.environ['bf_app_key']
         self._api_client = APIClient(
             username=self._my_username,
             password=self._my_password,
