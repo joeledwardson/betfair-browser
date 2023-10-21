@@ -34,8 +34,14 @@ pwd = os.environ['betdb_pwd']
 if not pwd:
     raise MyBrowserException('no password found for database')
 
+
 config = Config()
 config.database_config.db_kwargs['db_pwd'] = pwd
+
+dbHost = os.environ.get('betdb_host')
+if dbHost:
+    config.database_config.db_kwargs['db_host'] = dbHost
+
 app = get_app(config)
 
 # turn of dev tools prop check to disable time input error
