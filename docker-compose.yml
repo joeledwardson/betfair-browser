@@ -1,0 +1,13 @@
+version: '3'
+services:
+  betfair-browser:
+    container_name: betfair-browser
+    image: betfair-browser
+    restart: unless-stopped
+    ports:
+      - 8050:8050
+    environment:
+      - "betdb_pwd=${betdb_pwd}"
+      - "bf_app_key=${bf_app_key}"
+      - "bf_username=${bf_username}"
+      - "bf_password=${bf_password}"
